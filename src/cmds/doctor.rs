@@ -23,6 +23,20 @@ pub struct DoctorOutput {
 }
 
 #[derive(Serialize)]
+pub struct FullOutput {
+    pub checks: Vec<DoctorCheck>,
+    pub config: ConfigCheckOutput,
+    pub data: DataCheckOutput,
+    pub store: StoreCheckOutput,
+    pub ggen: GgenCheckOutput,
+    pub mcp: McpCheckOutput,
+    pub env: EnvOutput,
+    pub all_ok: bool,
+    pub passed: usize,
+    pub failed: usize,
+}
+
+#[derive(Serialize)]
 pub struct RunOutput {
     pub checks: Vec<DoctorCheck>,
     pub all_ok: bool,
@@ -30,7 +44,7 @@ pub struct RunOutput {
     pub failed: usize,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 pub struct ConfigCheckOutput {
     pub config_path: String,
     pub exists: bool,
@@ -75,7 +89,7 @@ impl ConfigCheckOutput {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 pub struct DataCheckOutput {
     pub data_dir: String,
     pub exists: bool,
@@ -119,7 +133,7 @@ impl DataCheckOutput {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 pub struct StoreCheckOutput {
     pub triple_count: usize,
     pub active_ontology: Option<String>,
@@ -153,7 +167,7 @@ impl StoreCheckOutput {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 pub struct GgenCheckOutput {
     pub ggen_path: String,
     pub found: bool,
@@ -184,7 +198,7 @@ impl GgenCheckOutput {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 pub struct McpCheckOutput {
     pub binary_path: String,
     pub binary_exists: bool,
@@ -218,7 +232,7 @@ impl McpCheckOutput {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 pub struct EnvOutput {
     pub config_path: String,
     pub data_dir: String,
@@ -322,6 +336,28 @@ fn run_checks_for_target(target: &str) -> Vec<DoctorCheck> {
 }
 
 // ── verbs ─────────────────────────────────────────────────────────────────
+
+#[verb]
+fn full() -> NounVerbResult<FullOutput> {
+    let config = check_config_domain();
+    let data = check_data_domain();
+    let store = check_store_domain();
+    let ggen = check_ggen_domain();
+    let mcp = check_mcp_domain();
+    let env = env_domain();
+
+    let mut checks = Vec::new();
+    checks.extend(config.clone().into_checks());
+    checks.extend(data.clone().into_checks());
+    checks.extend(store.clone().into_checks());
+    checks.extend(ggen.clone().into_checks());
+    checks.extend(mcp.clone().into_checks());
+
+    let failed = checks.iter().filter(|c| !c.ok).count();
+    let passed = checks.len() - failed;
+
+    Ok(FullOutput { checks, config, data, store, ggen, mcp, env, all_ok: failed == 0, passed, failed })
+}
 
 #[verb]
 fn run() -> NounVerbResult<RunOutput> {

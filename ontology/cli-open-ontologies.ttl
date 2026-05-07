@@ -121,7 +121,8 @@ onto:DoctorCommand a cli:Command ;
     cli:name "doctor" ;
     cli:summary "Health diagnostics" ;
     cli:description """Check the health of the open-ontologies installation and data directory.""" ;
-    cli:hasSubcommand onto:DoctorRunCommand ,
+    cli:hasSubcommand onto:DoctorFullCommand ,
+                     onto:DoctorRunCommand ,
                      onto:DoctorCheckCommand ,
                      onto:DoctorConfigCommand ,
                      onto:DoctorDataCommand ,
@@ -481,6 +482,11 @@ onto:MarketplaceInstallCommand a cli:Command ;
 #################################################################
 # doctor subcommands
 #################################################################
+
+onto:DoctorFullCommand a cli:Command ;
+    cli:name "full" ;
+    cli:summary "Full diagnostic with all checks and environment details" ;
+    cli:description """Comprehensive diagnostic suite: run all health checks plus display resolved environment configuration.""" .
 
 onto:DoctorRunCommand a cli:Command ;
     cli:name "run" ;
