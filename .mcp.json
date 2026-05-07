@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "open-ontologies": {
+      "command": "./target/release/open-ontologies",
+      "args": ["serve"],
+      "env": {}
+    },
+    "ggen": {
+      "command": "cargo",
+      "args": ["run", "-p", "ggen-cli", "--", "mcp", "start-server", "--transport", "stdio"],
+      "cwd": "/Users/sac/ggen",
+      "env": {
+        "RUST_LOG": "info"
+      }
+    }
+  }
+}

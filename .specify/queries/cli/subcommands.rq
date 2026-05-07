@@ -1,0 +1,139 @@
+# =============================================================================
+# subcommands.rq — Extract full subcommand details for open-ontologies CLI
+# =============================================================================
+#
+# Returns one row per subcommand, traversing:
+#   OntoInterface -> top-level command (noun) -> subcommand (verb)
+#
+# Aggregated pipe-delimited columns for options, positional args, constraints,
+# and examples. OPTIONAL sub-SELECTs ensure subcommands without a given property
+# type still appear in results.
+#
+# Variables:
+#   ?parentName             — cli:name of the parent noun command
+#   ?subcommandName         — cli:name of the subcommand (verb)
+#   ?summary                — cli:summary of the subcommand
+#   ?description            — cli:description of the subcommand
+#   ?optionNames            — pipe-delimited option cli:name values
+#   ?optionLongNames        — pipe-delimited option cli:longName values
+#   ?optionTypes            — pipe-delimited "flag" or "value"
+#   ?optionSummaries        — pipe-delimited option cli:summary values
+#   ?optionRequireds        — pipe-delimited "true"/"false"
+#   ?optionGlobals          — pipe-delimited "true"/"false"
+#   ?positionalNames        — pipe-delimited positional cli:name values
+#   ?positionalSummaries    — pipe-delimited positional cli:summary values
+#   ?positionalRequireds    — pipe-delimited "true"/"false"
+#   ?constraintTypes        — pipe-delimited "Exclusive"/"Requires"
+#   ?constraintSourceNames  — pipe-delimited source argument cli:name values
+#   ?constraintTargetNames  — pipe-delimited target argument cli:name values
+#   ?exampleTexts           — pipe-delimited cli:exampleText values
+# =============================================================================
+
+PREFIX cli:  <https://ggen.io/onto/cli/spec/>
+PREFIX onto: <https://ggen.io/onto/cli/open-ontologies/>
+
+SELECT ?parentName ?subcommandName ?summary ?description
+       ?optionNames ?optionLongNames ?optionTypes ?optionSummaries
+       ?optionRequireds ?optionGlobals
+       ?positionalNames ?positionalSummaries ?positionalRequireds
+       ?constraintTypes ?constraintSourceNames ?constraintTargetNames
+       ?exampleTexts
+WHERE {
+  # Navigate: OntoInterface -> top-level command -> subcommand
+  onto:OntoInterface cli:hasCommand ?parent .
+  ?parent cli:hasSubcommand ?sub .
+  ?parent cli:name ?parentName .
+
+  # Subcommand core properties
+  ?sub cli:name        ?subcommandName ;
+       cli:summary     ?summary ;
+       cli:description ?description .
+
+  # ── Options ──────────────────────────────────────────────────────────────
+  OPTIONAL {
+    SELECT ?sub
+           (GROUP_CONCAT(?oname;  separator=" | ") AS ?optionNames)
+           (GROUP_CONCAT(?olname; separator=" | ") AS ?optionLongNames)
+           (GROUP_CONCAT(?otype;  separator=" | ") AS ?optionTypes)
+           (GROUP_CONCAT(?osumm;  separator=" | ") AS ?optionSummaries)
+           (GROUP_CONCAT(?oreq;   separator=" | ") AS ?optionRequireds)
+           (GROUP_CONCAT(?oglob;  separator=" | ") AS ?optionGlobals)
+    WHERE {
+      ?sub cli:hasOption ?opt .
+      ?opt cli:name    ?oname ;
+           cli:longName ?olname ;
+           cli:summary ?osumm .
+
+      {
+        ?opt a cli:ValueOption .
+        BIND("value" AS ?otype)
+      } UNION {
+        ?opt a cli:Flag .
+        BIND("flag" AS ?otype)
+      }
+
+      OPTIONAL { ?opt cli:required ?rq }
+      BIND(COALESCE(?rq, "false") AS ?oreq)
+
+      OPTIONAL { ?opt cli:global ?gl }
+      BIND(COALESCE(?gl, "false") AS ?oglob)
+    }
+    GROUP BY ?sub
+    ORDER BY ?oname
+  }
+
+  # ── Positional arguments ────────────────────────────────────────────────
+  OPTIONAL {
+    SELECT ?sub
+           (GROUP_CONCAT(?pname;  separator=" | ") AS ?positionalNames)
+           (GROUP_CONCAT(?psumm;  separator=" | ") AS ?positionalSummaries)
+           (GROUP_CONCAT(?preq;   separator=" | ") AS ?positionalRequireds)
+    WHERE {
+      ?sub cli:hasPositionalArgument ?parg .
+      ?parg cli:name    ?pname ;
+            cli:summary ?psumm .
+
+      OPTIONAL { ?parg cli:required ?prq }
+      BIND(COALESCE(?prq, "false") AS ?preq)
+    }
+    GROUP BY ?sub
+  }
+
+  # ── Constraints ─────────────────────────────────────────────────────────
+  OPTIONAL {
+    SELECT ?sub
+           (GROUP_CONCAT(?ctype;  separator=" | ") AS ?constraintTypes)
+           (GROUP_CONCAT(?csname; separator=" | ") AS ?constraintSourceNames)
+           (GROUP_CONCAT(?ctname; separator=" | ") AS ?constraintTargetNames)
+    WHERE {
+      ?sub cli:hasConstraint ?con .
+
+      {
+        ?con a cli:ExclusiveConstraint .
+        BIND("Exclusive" AS ?ctype)
+      } UNION {
+        ?con a cli:RequiresConstraint .
+        BIND("Requires" AS ?ctype)
+      }
+
+      ?con cli:sourceArgument ?src .
+      ?src cli:name ?csname .
+
+      ?con cli:targetArgument ?tgt .
+      ?tgt cli:name ?ctname .
+    }
+    GROUP BY ?sub
+  }
+
+  # ── Examples ────────────────────────────────────────────────────────────
+  OPTIONAL {
+    SELECT ?sub
+           (GROUP_CONCAT(?etxt; separator=" | ") AS ?exampleTexts)
+    WHERE {
+      ?sub cli:hasExample ?ex .
+      ?ex  cli:exampleText ?etxt .
+    }
+    GROUP BY ?sub
+  }
+}
+ORDER BY ?parentName ?subcommandName

@@ -1,0 +1,298 @@
+use crate::graph::GraphStore;
+use crate::ontology::OntologyService;
+use crate::state::StateDb;
+use serde::{Deserialize, Serialize};
+use std::sync::Arc;
+use std::time::Duration;
+
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum WatcherAction {
+    #[serde(rename = "notify")]
+    Notify,
+    #[serde(rename = "block_next_apply")]
+    BlockNextApply,
+    #[serde(rename = "auto_rollback")]
+    AutoRollback,
+    #[serde(rename = "log")]
+    Log,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Watcher {
+    pub id: String,
+    pub check_type: String,
+    pub threshold: f64,
+    pub severity: String,
+    pub action: WatcherAction,
+    pub query: Option<String>,
+    pub message: Option<String>,
+    #[serde(default)]
+    pub webhook_url: Option<String>,
+    #[serde(default)]
+    pub webhook_headers: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct Alert {
+    pub watcher: String,
+    pub severity: String,
+    pub value: f64,
+    pub threshold: f64,
+    pub action: String,
+    pub detail: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct MonitorResult {
+    pub status: String,
+    pub alerts: Vec<Alert>,
+    pub passed: Vec<String>,
+}
+
+pub struct Monitor {
+    db: StateDb,
+    graph: Arc<GraphStore>,
+}
+
+impl Monitor {
+    pub fn new(db: StateDb, graph: Arc<GraphStore>) -> Self {
+        Self { db, graph }
+    }
+
+    pub fn add_watcher(&self, watcher: Watcher) {
+        let conn = self.db.conn();
+        let action_str = serde_json::to_string(&watcher.action).unwrap_or_default();
+        let action_str = action_str.trim_matches('"');
+        let _ = conn.execute(
+            "INSERT OR REPLACE INTO monitor_watchers (id, check_type, threshold, severity, action, query, message, webhook_url, webhook_headers, enabled)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, 1)",
+            rusqlite::params![
+                watcher.id, watcher.check_type, watcher.threshold,
+                watcher.severity, action_str, watcher.query, watcher.message,
+                watcher.webhook_url, watcher.webhook_headers,
+            ],
+        );
+    }
+
+    pub fn run_watchers(&self) -> MonitorResult {
+        let watchers = self.load_watchers();
+        let mut alerts = Vec::new();
+        let mut passed = Vec::new();
+        let mut blocked = false;
+        let mut rolled_back = false;
+
+        for w in &watchers {
+            let value = self.evaluate_watcher(w);
+            if value > w.threshold {
+                let action_str = serde_json::to_string(&w.action).unwrap_or_default();
+                let action_str = action_str.trim_matches('"').to_string();
+                if matches!(w.action, WatcherAction::BlockNextApply) {
+                    blocked = true;
+                    self.set_blocked(true);
+                }
+                // Auto-rollback: revert to the most recent saved version
+                if matches!(w.action, WatcherAction::AutoRollback) && !rolled_back {
+                    if let Some(label) = self.latest_version_label() {
+                        match OntologyService::rollback_version(&self.db, &self.graph, &label) {
+                            Ok(_) => {
+                                eprintln!("[watch] auto-rollback to '{}' triggered by watcher '{}'", label, w.id);
+                                rolled_back = true;
+                            }
+                            Err(e) => {
+                                eprintln!("[watch] auto-rollback failed for watcher '{}': {}", w.id, e);
+                            }
+                        }
+                    } else {
+                        eprintln!("[watch] auto-rollback requested by watcher '{}' but no saved versions exist", w.id);
+                    }
+                }
+                // Fire webhook for Notify actions
+                if matches!(w.action, WatcherAction::Notify)
+                    && let Some(ref url) = w.webhook_url {
+                        let url = url.clone();
+                        let headers = w.webhook_headers.clone();
+                        let payload = serde_json::json!({
+                            "source": "open-ontologies",
+                            "watcher_id": w.id,
+                            "severity": w.severity,
+                            "value": value,
+                            "threshold": w.threshold,
+                            "message": w.message.clone().unwrap_or_default(),
+                            "timestamp": chrono::Utc::now().to_rfc3339(),
+                        });
+                        tokio::spawn(async move {
+                            let _ = crate::webhook::deliver_webhook(&url, headers.as_deref(), &payload).await;
+                        });
+                }
+                alerts.push(Alert {
+                    watcher: w.id.clone(),
+                    severity: w.severity.clone(),
+                    value,
+                    threshold: w.threshold,
+                    action: action_str,
+                    detail: w.message.clone().unwrap_or_default(),
+                });
+            } else {
+                passed.push(w.id.clone());
+            }
+        }
+
+        let status = if rolled_back {
+            "auto_rolled_back".to_string()
+        } else if blocked {
+            "blocked".to_string()
+        } else if !alerts.is_empty() {
+            "alert".to_string()
+        } else {
+            "ok".to_string()
+        };
+
+        MonitorResult { status, alerts, passed }
+    }
+
+    pub fn is_blocked(&self) -> bool {
+        let conn = self.db.conn();
+        let result: Option<String> = conn
+            .query_row(
+                "SELECT value FROM monitor_state WHERE key = 'blocked'",
+                [],
+                |r| r.get(0),
+            )
+            .ok();
+        result.as_deref() == Some("true")
+    }
+
+    pub fn set_blocked(&self, blocked: bool) {
+        let conn = self.db.conn();
+        let _ = conn.execute(
+            "INSERT OR REPLACE INTO monitor_state (key, value) VALUES ('blocked', ?1)",
+            rusqlite::params![if blocked { "true" } else { "false" }],
+        );
+    }
+
+    pub fn clear_blocked(&self) {
+        self.set_blocked(false);
+    }
+
+    fn load_watchers(&self) -> Vec<Watcher> {
+        let conn = self.db.conn();
+        let mut stmt = conn
+            .prepare("SELECT id, check_type, threshold, severity, action, query, message, webhook_url, webhook_headers FROM monitor_watchers WHERE enabled = 1")
+            .unwrap();
+        stmt.query_map([], |row| {
+            let action_str: String = row.get(4)?;
+            let action = match action_str.as_str() {
+                "block_next_apply" => WatcherAction::BlockNextApply,
+                "auto_rollback" => WatcherAction::AutoRollback,
+                "log" => WatcherAction::Log,
+                _ => WatcherAction::Notify,
+            };
+            Ok(Watcher {
+                id: row.get(0)?,
+                check_type: row.get(1)?,
+                threshold: row.get(2)?,
+                severity: row.get(3)?,
+                action,
+                query: row.get(5)?,
+                message: row.get(6)?,
+                webhook_url: row.get(7)?,
+                webhook_headers: row.get(8)?,
+            })
+        })
+        .unwrap()
+        .filter_map(|r| r.ok())
+        .collect()
+    }
+
+    fn evaluate_watcher(&self, watcher: &Watcher) -> f64 {
+        match watcher.check_type.as_str() {
+            "sparql" => self.eval_sparql_watcher(watcher),
+            _ => 0.0,
+        }
+    }
+
+    fn eval_sparql_watcher(&self, watcher: &Watcher) -> f64 {
+        let query = match &watcher.query {
+            Some(q) => q,
+            None => return 0.0,
+        };
+        // Expect a SELECT query returning a ?count binding
+        match self.graph.sparql_select(query) {
+            Ok(json) => {
+                if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&json)
+                    && let Some(results) = parsed["results"].as_array()
+                        && let Some(first) = results.first()
+                            && let Some(count_str) = first["count"].as_str() {
+                                // Oxigraph returns literal like "\"1\"^^<http://...>"
+                                let cleaned = count_str
+                                    .trim_matches('"')
+                                    .split("^^")
+                                    .next()
+                                    .unwrap_or("0")
+                                    .trim_matches('"');
+                                return cleaned.parse().unwrap_or(0.0);
+                            }
+                0.0
+            }
+            Err(_) => 0.0,
+        }
+    }
+
+    /// Get the label of the most recently saved ontology version.
+    fn latest_version_label(&self) -> Option<String> {
+        let conn = self.db.conn();
+        conn.query_row(
+            "SELECT label FROM ontology_versions ORDER BY id DESC LIMIT 1",
+            [],
+            |row| row.get(0),
+        )
+        .ok()
+    }
+}
+
+/// Spawn a background task that runs all enabled watchers every `interval` seconds.
+/// Actions (auto_rollback, block_next_apply, notify) fire automatically on threshold breach.
+/// Returns a `JoinHandle` that can be aborted to stop the loop.
+pub fn start_background_loop(
+    db: StateDb,
+    graph: Arc<GraphStore>,
+    interval: Duration,
+) -> tokio::task::JoinHandle<()> {
+    tokio::spawn(async move {
+        let mut tick = tokio::time::interval(interval);
+        // The first tick fires immediately — skip it so we don't run before any ontology is loaded.
+        tick.tick().await;
+
+        eprintln!("[watch] background monitor started (interval: {}s)", interval.as_secs());
+
+        loop {
+            tick.tick().await;
+
+            let monitor = Monitor::new(db.clone(), graph.clone());
+            let watchers = monitor.load_watchers();
+            if watchers.is_empty() {
+                continue;
+            }
+
+            let result = monitor.run_watchers();
+            match result.status.as_str() {
+                "ok" => {} // silent on healthy sweeps
+                status => {
+                    eprintln!(
+                        "[watch] sweep: status={}, alerts={}, passed={}",
+                        status,
+                        result.alerts.len(),
+                        result.passed.len(),
+                    );
+                    for alert in &result.alerts {
+                        eprintln!(
+                            "[watch]   {} ({}): value={} > threshold={} → {}",
+                            alert.watcher, alert.severity, alert.value, alert.threshold, alert.action,
+                        );
+                    }
+                }
+            }
+        }
+    })
+}

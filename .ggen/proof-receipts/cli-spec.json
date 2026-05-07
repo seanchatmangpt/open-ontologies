@@ -1,0 +1,10 @@
+{
+  "receipt_id": "cli-spec-v0.1.0",
+  "namespace": "https://ggen.io/onto/cli/spec/",
+  "prefix": "cli",
+  "description": "Neutral CLI Ontology vocabulary — a reusable OWL vocabulary for CLI surface descriptions",
+  "proof_of_insufficiency": "No standard W3C vocabulary covers CLI command/option/flag relationships. This custom vocabulary is minimal and reusable.",
+  "timestamp": "2026-05-05T00:00:00Z",
+  "author": "Sean Chatman",
+  "signing_key_path": ".ggen/keys/signing.key"
+}

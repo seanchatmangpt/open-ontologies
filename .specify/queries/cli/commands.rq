@@ -1,0 +1,48 @@
+# =============================================================================
+# commands.rq — Extract all top-level commands (nouns) for open-ontologies CLI
+# =============================================================================
+#
+# Returns one row per top-level command attached to the OntoInterface.
+# Variables:
+#   ?command         — full URI of the command
+#   ?type            — rdf type label: "Command" or "SpecialCommand"
+#   ?name            — cli:name literal (e.g. "ontology")
+#   ?summary         — cli:summary literal
+#   ?description     — cli:description literal
+#   ?subcommandCount — number of direct subcommands (0 for leaf commands)
+# =============================================================================
+
+PREFIX cli:  <https://ggen.io/onto/cli/spec/>
+PREFIX onto: <https://ggen.io/onto/cli/open-ontologies/>
+PREFIX rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+
+SELECT ?command ?type ?name ?summary ?description ?subcommandCount
+WHERE {
+  # Start from the OntoInterface and traverse to top-level commands
+  onto:OntoInterface cli:hasCommand ?command .
+
+  # Determine whether this is a plain Command or a SpecialCommand
+  {
+    ?command a cli:Command .
+    BIND("Command" AS ?type)
+  } UNION {
+    ?command a cli:SpecialCommand .
+    BIND("SpecialCommand" AS ?type)
+  }
+
+  # Core properties — mandatory in the ontology
+  ?command cli:name        ?name ;
+           cli:summary     ?summary ;
+           cli:description ?description .
+
+  # Count direct subcommands via subquery so leaf commands get 0
+  {
+    SELECT ?command (COUNT(?sub) AS ?subcommandCount)
+    WHERE {
+      OPTIONAL { ?command cli:hasSubcommand ?sub . }
+    }
+    GROUP BY ?command
+  }
+}
+ORDER BY ?name

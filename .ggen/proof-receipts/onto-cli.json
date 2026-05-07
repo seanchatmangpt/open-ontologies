@@ -1,0 +1,10 @@
+{
+  "receipt_id": "onto-cli-open-ontologies-v0.1.11",
+  "namespace": "https://ggen.io/onto/cli/open-ontologies/",
+  "prefix": "onto",
+  "description": "open-ontologies CLI surface — application-specific instances of the neutral CLI vocabulary",
+  "proof_of_insufficiency": "Application-specific namespace for open-ontologies CLI surface model. No standard vocabulary covers this application's command structure.",
+  "timestamp": "2026-05-05T00:00:00Z",
+  "author": "Sean Chatman",
+  "signing_key_path": ".ggen/keys/signing.key"
+}
