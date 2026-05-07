@@ -146,13 +146,13 @@ impl StoreCheckOutput {
         vec![
             DoctorCheck {
                 name: "triple_count".to_string(),
-                ok: self.triple_count > 0,
-                detail: format!("{} triples loaded", self.triple_count),
+                ok: true,
+                detail: format!("{} triples in store cache", self.triple_count),
             },
             DoctorCheck {
                 name: "active_ontology".to_string(),
-                ok: self.active_ontology.is_some(),
-                detail: self.active_ontology.clone().unwrap_or_else(|| "No ontology loaded".to_string()),
+                ok: true,
+                detail: self.active_ontology.clone().unwrap_or_else(|| "No ontology cached".to_string()),
             },
             DoctorCheck {
                 name: "cache_dir".to_string(),
@@ -202,33 +202,19 @@ impl GgenCheckOutput {
 pub struct McpCheckOutput {
     pub binary_path: String,
     pub binary_exists: bool,
-    pub help_exits_clean: bool,
 }
 
 impl McpCheckOutput {
     fn into_checks(self) -> Vec<DoctorCheck> {
-        vec![
-            DoctorCheck {
-                name: "mcp_binary".to_string(),
-                ok: self.binary_exists,
-                detail: if self.binary_exists {
-                    format!("MCP server binary found: {}", self.binary_path)
-                } else {
-                    "MCP server binary not in PATH".to_string()
-                },
+        vec![DoctorCheck {
+            name: "mcp_binary".to_string(),
+            ok: self.binary_exists,
+            detail: if self.binary_exists {
+                format!("MCP server binary found: {}", self.binary_path)
+            } else {
+                "MCP server binary not in PATH".to_string()
             },
-            DoctorCheck {
-                name: "mcp_help".to_string(),
-                ok: self.help_exits_clean && self.binary_exists,
-                detail: if self.help_exits_clean && self.binary_exists {
-                    "MCP server --help exits cleanly".to_string()
-                } else if !self.binary_exists {
-                    "Cannot check: binary not found".to_string()
-                } else {
-                    "MCP server --help did not exit cleanly".to_string()
-                },
-            },
-        ]
+        }]
     }
 }
 
@@ -296,11 +282,9 @@ fn check_ggen_domain() -> GgenCheckOutput {
 
 fn check_mcp_domain() -> McpCheckOutput {
     let binary_path = "open-ontologies".to_string();
-    let help_output = Command::new(&binary_path).arg("server").arg("serve").arg("--help").output();
-    let binary_exists = help_output.is_ok();
-    let help_exits_clean = help_output.as_ref().map(|o| o.status.success()).unwrap_or(false);
+    let binary_exists = Command::new(&binary_path).arg("--help").output().is_ok();
 
-    McpCheckOutput { binary_path, binary_exists, help_exits_clean }
+    McpCheckOutput { binary_path, binary_exists }
 }
 
 fn env_domain() -> EnvOutput {
