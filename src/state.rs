@@ -150,4 +150,36 @@ impl StateDb {
     pub fn conn(&self) -> std::sync::MutexGuard<'_, Connection> {
         self.conn.lock().unwrap()
     }
+
+    pub fn get_last_active_path(&self) -> Result<Option<String>> {
+        let conn = self.conn();
+        let mut stmt = conn.prepare("SELECT value FROM monitor_state WHERE key = 'last_active_ontology_path'")?;
+        let mut rows = stmt.query([])?;
+        Ok(rows.next()?.map(|r| r.get(0)).transpose()?)
+    }
+
+    pub fn set_last_active_path(&self, path: &str) -> Result<()> {
+        self.conn().execute(
+            "INSERT OR REPLACE INTO monitor_state (key, value) VALUES ('last_active_ontology_path', ?1)",
+            rusqlite::params![path],
+        )?;
+        Ok(())
+    }
+
+    pub fn clear_last_active_path(&self) -> Result<()> {
+        self.conn().execute(
+            "DELETE FROM monitor_state WHERE key = 'last_active_ontology_path'",
+            [],
+        )?;
+        Ok(())
+    }
+
+    pub fn last_cache_entry(&self) -> Result<Option<(String, i64)>> {
+        let conn = self.conn();
+        let mut stmt = conn.prepare(
+            "SELECT name, triple_count FROM ontology_cache ORDER BY last_access_at DESC LIMIT 1"
+        )?;
+        let mut rows = stmt.query([])?;
+        Ok(rows.next()?.map(|r| Ok::<_, rusqlite::Error>((r.get(0)?, r.get(1)?))).transpose()?)
+    }
 }

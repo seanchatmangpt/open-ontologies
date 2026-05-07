@@ -270,14 +270,17 @@ impl OpenOntologiesServer {
                 force_recompile: input.force_recompile.unwrap_or(false),
             };
             match self.registry.load_file(&path, opts) {
-                Ok(res) => serde_json::json!({
-                    "ok": true,
-                    "triples_loaded": res.triple_count,
-                    "path": res.source_path,
-                    "name": res.name,
-                    "origin": res.origin,
-                    "cache_path": res.cache_path,
-                }).to_string(),
+                Ok(res) => {
+                    let _ = self.db.set_last_active_path(&path);
+                    serde_json::json!({
+                        "ok": true,
+                        "triples_loaded": res.triple_count,
+                        "path": res.source_path,
+                        "name": res.name,
+                        "origin": res.origin,
+                        "cache_path": res.cache_path,
+                    }).to_string()
+                },
                 Err(e) => format!(r#"{{"error":"{}"}}"#, e.to_string().replace('"', "'")),
             }
         } else {
@@ -471,7 +474,10 @@ impl OpenOntologiesServer {
         // Drop the active registry entry; this also clears the graph.
         let _ = self.registry.unload(false);
         match self.graph.clear() {
-            Ok(_) => r#"{"ok":true,"message":"Store cleared"}"#.to_string(),
+            Ok(_) => {
+                let _ = self.db.clear_last_active_path();
+                r#"{"ok":true,"message":"Store cleared"}"#.to_string()
+            },
             Err(e) => format!(r#"{{"error":"{}"}}"#, e),
         }
     }

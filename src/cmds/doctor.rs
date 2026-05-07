@@ -260,10 +260,17 @@ fn check_data_domain() -> DataCheckOutput {
 }
 
 fn check_store_domain() -> StoreCheckOutput {
-    let cache_dir = format!("{}/.open-ontologies/cache", std::env::var("HOME").unwrap_or_default());
+    let home = std::env::var("HOME").unwrap_or_default();
+    let cache_dir = format!("{}/.open-ontologies/cache", home);
     let cache_dir_exists = Path::new(&cache_dir).is_dir();
-    let triple_count = 0;
-    let active_ontology = None;
+
+    let db_path = format!("{}/.open-ontologies/open-ontologies.db", home);
+    let (triple_count, active_ontology) =
+        open_ontologies::state::StateDb::open(std::path::Path::new(&db_path))
+            .ok()
+            .and_then(|db| db.last_cache_entry().ok().flatten())
+            .map(|(name, count)| (count as usize, Some(name)))
+            .unwrap_or((0, None));
 
     StoreCheckOutput { triple_count, active_ontology, cache_dir, cache_dir_exists }
 }

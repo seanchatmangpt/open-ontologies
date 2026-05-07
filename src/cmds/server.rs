@@ -120,6 +120,18 @@ fn run_stdio_server(cfg: Config, db: StateDb, graph: Arc<GraphStore>, governance
     }).map_err(|e| clap_noun_verb::NounVerbError::execution_error(e.to_string()))
 }
 
+fn auto_restore_last_ontology(db: &StateDb, graph: Arc<GraphStore>) -> NounVerbResult<()> {
+    if let Ok(Some(path)) = db.get_last_active_path() {
+        if std::path::Path::new(&path).exists() {
+            match graph.load_file(&path) {
+                Ok(n) => eprintln!("info: restored last active ontology from {path} ({n} triples)"),
+                Err(e) => eprintln!("warn: could not restore last active ontology: {e}"),
+            }
+        }
+    }
+    Ok(())
+}
+
 fn run_unix_server(cfg: Config, socket_path: String, files: Vec<String>) -> NounVerbResult<()> {
     let graph = Arc::new(GraphStore::new());
     for f in &files {
@@ -223,6 +235,7 @@ fn serve(config: Option<String>, governance_webhook: Option<String>, watch: Opti
     open_ontologies::runtime::init_from_config(&cfg);
     let db_path_str = format!("{}/open-ontologies.db", expand_tilde(&cfg.general.data_dir));
     let (_, db, graph) = open_db_and_graph(&cfg.general.data_dir)?;
+    auto_restore_last_ontology(&db, graph.clone())?;
     maybe_start_monitor(watch.unwrap_or(false), &cfg, &db_path_str, watch_interval, graph.clone())?;
     let cache_config = build_cache_cfg(&cfg, idle_ttl_secs, auto_refresh.unwrap_or(false));
     let tool_filter = build_tool_filter_cfg(&cfg, tools_allow.as_deref(), tools_deny.as_deref())
@@ -240,6 +253,7 @@ fn serve_http(config: Option<String>, host: Option<String>, port: Option<u16>, t
     open_ontologies::runtime::init_from_config(&cfg);
     let db_path_str = format!("{}/open-ontologies.db", expand_tilde(&cfg.general.data_dir));
     let (_, shared_db, shared_graph) = open_db_and_graph(&cfg.general.data_dir)?;
+    auto_restore_last_ontology(&shared_db, shared_graph.clone())?;
     maybe_start_monitor(watch.unwrap_or(false), &cfg, &db_path_str, watch_interval, shared_graph.clone())?;
     let cache_config = build_cache_cfg(&cfg, idle_ttl_secs, auto_refresh.unwrap_or(false));
     let tool_filter = build_tool_filter_cfg(&cfg, tools_allow.as_deref(), tools_deny.as_deref())
