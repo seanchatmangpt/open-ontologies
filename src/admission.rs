@@ -43,6 +43,9 @@ pub enum AdmissionOp {
     WorkOrderAdmitted,   // bind admitted CTQ + counterfactual
     // Audit-only LLM boundary translation (Groq).
     LlmTranslate,
+    // Full admission for multi-target solution manufacturing
+    // (IaC + Rust + Erlang + AtomVM emitted as a coherent stack).
+    SolutionManufactured,
 }
 
 impl AdmissionOp {
@@ -63,6 +66,7 @@ impl AdmissionOp {
             AdmissionOp::CtqAdmitted => "ctq_admitted",
             AdmissionOp::WorkOrderAdmitted => "work_order_admitted",
             AdmissionOp::LlmTranslate => "llm_translate",
+            AdmissionOp::SolutionManufactured => "solution_manufactured",
         }
     }
 

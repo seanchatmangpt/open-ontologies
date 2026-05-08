@@ -3551,6 +3551,143 @@ impl OpenOntologiesServer {
         out
     }
 
+    #[tool(name = "onto_manufacture_solution", description = "Solution Manufacturing (Phase 4): given a SolutionSpec bound to an admitted WorkOrderAdmitted receipt, deterministically generate a coherent IaC (Terraform JSON for AWS) + Rust crate (lib + bin + Cargo.toml) + Erlang/OTP supervision tree + AtomVM embedded module bundle. Full admission via SolutionManufactured. Emits work_order_received -> architecture_decided -> {iac,rust,erlang,atomvm}_generated -> receipt_chain_sealed OCEL events. Each generated file carries an OntoStar receipt header (or JSON-embedded receipt for IaC). Optional output_dir writes the bundle to disk.")]
+    async fn onto_manufacture_solution(&self, Parameters(input): Parameters<OntoManufactureSolutionInput>) -> String {
+        let started = std::time::Instant::now();
+        // Build the SolutionSpec from input.
+        let spec = crate::manufacturing::SolutionSpec {
+            name: input.name.clone(),
+            description: input.description.clone(),
+            iac_target: input.iac_target.clone(),
+            region: input.region.clone(),
+            supervisor_children: input.supervisor_children,
+            mcu_target: input.mcu_target.clone(),
+            work_order_receipt_hash: input.work_order_receipt_hash.clone(),
+        };
+
+        // Pre-gate validation — surface the typed defect immediately
+        // so the caller sees the same defect class the gate would.
+        if let Err(d) = crate::manufacturing::validate_spec(&spec) {
+            self.lineage().record_admission_denied(&self.session_id, d.tag());
+            self.emit_tool_ocel("onto_manufacture_solution", started, false, &[]);
+            return serde_json::json!({
+                "ok": false,
+                "admission": "denied",
+                "defect": d,
+            }).to_string();
+        }
+
+        // Emit the workflow trace stages BEFORE the gate so observed_
+        // stages contains everything the SolutionManufacturing required
+        // set demands.
+        let now = chrono::Utc::now().to_rfc3339();
+        let ts_ms = chrono::Utc::now().timestamp_millis();
+        for (i, stage) in [
+            "work_order_received",
+            "architecture_decided",
+            "iac_generated",
+            "rust_generated",
+            "erlang_generated",
+            "atomvm_generated",
+            "receipt_chain_sealed",
+        ].iter().enumerate() {
+            let event_id = format!("{}:{}:{}-{}", self.session_id, stage, ts_ms, i);
+            let _ = self.ocel_store().emit_event(
+                event_id.as_str(),
+                stage,
+                &now,
+                &self.session_id,
+                &[
+                    ("solution_name", spec.name.as_str()),
+                    ("work_order_receipt", spec.work_order_receipt_hash.as_str()),
+                    ("mcu_target", spec.mcu_target.as_str()),
+                ],
+                &[],
+                Some(&input.scope_token),
+            );
+        }
+
+        // Run the actual generators.
+        let bundle = match crate::manufacturing::manufacture(&spec) {
+            Ok(b) => b,
+            Err(d) => {
+                self.lineage().record_admission_denied(&self.session_id, d.tag());
+                self.emit_tool_ocel("onto_manufacture_solution", started, false, &[]);
+                return serde_json::json!({
+                    "ok": false,
+                    "admission": "denied",
+                    "defect": d,
+                }).to_string();
+            }
+        };
+
+        // Canonical artifact bytes for the receipt = sorted concatenation
+        // of all file paths + content hashes. Deterministic, stable,
+        // commits the entire bundle to one receipt.
+        let mut digest = blake3::Hasher::new();
+        let mut sorted_files: Vec<&crate::manufacturing::ManufacturedFile> =
+            bundle.files.iter().collect();
+        sorted_files.sort_by(|a, b| a.path.cmp(&b.path));
+        for f in &sorted_files {
+            digest.update(f.path.as_bytes());
+            digest.update(b"\0");
+            digest.update(f.contents.as_bytes());
+            digest.update(b"\x1e");
+        }
+        let canonical = digest.finalize().to_hex().to_string();
+
+        let receipt = match self.evaluate_admission(
+            crate::admission::AdmissionOp::SolutionManufactured,
+            Some(&input.scope_token),
+            "solution-bundle",
+            canonical.as_bytes(),
+            input.bypass_admission,
+            input.bypass_reason.as_deref(),
+        ) {
+            Ok(r) => r,
+            Err(denial) => {
+                self.emit_tool_ocel("onto_manufacture_solution", started, false, &[]);
+                return denial;
+            }
+        };
+
+        // Optional: write the bundle to disk.
+        let mut written: Vec<String> = Vec::new();
+        if let Some(dir) = input.output_dir.as_deref() {
+            let base = expand_tilde(dir);
+            for f in &bundle.files {
+                let full = std::path::PathBuf::from(&base).join(&f.path);
+                if let Some(parent) = full.parent() {
+                    let _ = std::fs::create_dir_all(parent);
+                }
+                if std::fs::write(&full, &f.contents).is_ok() {
+                    written.push(full.to_string_lossy().into_owned());
+                }
+            }
+        }
+
+        let out = serde_json::json!({
+            "ok": true,
+            "scope_token": receipt.record.scope_token,
+            "receipt_hash": receipt.hex(),
+            "production_law_version": receipt.record.production_law_version,
+            "defects_taxonomy_version": receipt.record.defects_taxonomy_version,
+            "solution_name": spec.name,
+            "work_order_receipt": spec.work_order_receipt_hash,
+            "file_count": bundle.files.len(),
+            "total_bytes": bundle.total_bytes(),
+            "targets": {
+                "iac": bundle.files_for("iac").len(),
+                "rust": bundle.files_for("rust").len(),
+                "erlang": bundle.files_for("erlang").len(),
+                "atomvm": bundle.files_for("atomvm").len(),
+            },
+            "files_written": written,
+        }).to_string();
+        self.emit_tool_ocel("onto_manufacture_solution", started, true, &[]);
+        out
+    }
+
     #[tool(name = "onto_old_ai_station", description = "Run one of the 9 old-AI cognition breeds (eliza, cbr, dendral, strips, prolog, mycin, gps, soar, hearsay) from wasm4pm-cognition. READ-ONLY (allowlisted) — breeds are pure functions over their BreedInput. Returns the BreedOutput JSON including the inference_trace; an empty trace is a fraud signal (the breed did no work) and the response surfaces a FalsePass defect on top of the breed result. Also emits an `old_ai_station` OCEL event with the breed name and trace step count.")]
     async fn onto_old_ai_station(&self, Parameters(input): Parameters<OntoOldAiStationInput>) -> String {
         let started = std::time::Instant::now();

@@ -23,6 +23,8 @@ fn every_builtin_powl_string_parses_under_wasm4pm() {
 }
 
 #[test]
-fn catalog_has_seven_entries() {
-    assert_eq!(BUILTIN_WORKFLOWS.len(), 7);
+fn catalog_has_ten_entries() {
+    // 7 originals + RequirementsManufacturing (Phase 1.2) +
+    // Fortune5RevOpsGovernedRelease (Phase 1.2) + SolutionManufacturing (Phase 4).
+    assert_eq!(BUILTIN_WORKFLOWS.len(), 10);
 }

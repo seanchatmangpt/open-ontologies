@@ -799,6 +799,34 @@ pub struct OntoExecutiveProjectionInput {
     pub admitted_evidence: String,
 }
 
+/// Manufacture a complete multi-target solution stack (IaC + Rust +
+/// Erlang + AtomVM) from a SolutionSpec. Full admission. The gate
+/// denies with `ArchitectureUnbound` when the work-order receipt is
+/// not a valid 64-char hex; with `IacInvalid` / `RustInvalid` /
+/// `ErlangInvalid` / `AtomVmInvalid` when a target generator fails;
+/// with `ManufacturingChainBroken` when receipt headers are missing.
+#[derive(Deserialize, JsonSchema)]
+pub struct OntoManufactureSolutionInput {
+    pub scope_token: String,
+    /// Solution name. Must match `[a-z][a-z0-9_]*`.
+    pub name: String,
+    pub description: String,
+    /// Cloud target for IaC. Currently `"aws"` only.
+    pub iac_target: String,
+    pub region: String,
+    /// Number of supervisor children for the Erlang/OTP tree (1..=64).
+    pub supervisor_children: u32,
+    /// MCU for AtomVM. One of `"esp32"`, `"stm32"`, `"rp2040"`.
+    pub mcu_target: String,
+    /// 64-char hex BLAKE3 of the upstream WorkOrderAdmitted receipt.
+    pub work_order_receipt_hash: String,
+    /// Optional: write the manufactured bundle to this directory. When
+    /// absent, the bundle is returned in the JSON response only.
+    pub output_dir: Option<String>,
+    pub bypass_admission: Option<bool>,
+    pub bypass_reason: Option<String>,
+}
+
 /// Run a single old-AI cognition breed (ELIZA / CBR / DENDRAL / STRIPS
 /// / Prolog / MYCIN / GPS / SOAR / Hearsay) against the supplied
 /// `BreedInput` JSON. Read-only / allowlisted — breeds are pure

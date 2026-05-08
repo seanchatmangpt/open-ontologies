@@ -53,3 +53,8 @@ pub mod structembed;
 // LLM Boundary Translator (Groq). Always available — reqwest+tokio are
 // not feature-gated. The translator is a *proposer*, not an authority.
 pub mod llm_translator;
+
+// Solution Manufacturing — Phase 4. Multi-target deterministic generator
+// for IaC + Rust + Erlang + AtomVM, gated by SolutionManufactured
+// admission op.
+pub mod manufacturing;

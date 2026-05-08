@@ -122,7 +122,7 @@ fn ctq_2_booking_reconciliation_admits_when_chain_complete() {
         "A booking with invoice evidence but no contract/order chain must be denied as complete",
         "Block booking_complete classification unless every prior chain event present",
     ).expect("CTQ-2 must admit on HappyPath");
-    assert_eq!(receipt.record.defects_taxonomy_version, "ontostar-defects-2.0.0");
+    assert_eq!(receipt.record.defects_taxonomy_version, open_ontologies::defects::DEFECTS_TAXONOMY_VERSION);
     let evts = observed_events(&store, "ctq-2");
     assert!(booking_chain_is_reconciled(&evts));
 }

@@ -24,13 +24,13 @@ use serde::{Deserialize, Serialize};
 /// Current defect taxonomy semver. Stored on every Receipt and emitted as
 /// an attribute on every `admission_granted` / `admission_denied` /
 /// `admission_audit` OCEL event.
-pub const DEFECTS_TAXONOMY_VERSION: &str = "ontostar-defects-2.0.0";
+pub const DEFECTS_TAXONOMY_VERSION: &str = "ontostar-defects-2.1.0";
 
 /// BLAKE3 hex of `tag1\0tag2\0...\0` for [`DefectClass::all_tags()`].
 /// CI-pinned. Adding/renaming/removing a variant changes this, forcing a
 /// taxonomy version bump.
 pub const DEFECTS_TAXONOMY_DISCRIMINANT_HASH: &str =
-    "80f3520152f4d76c71c0e9b876e082fd87fc1ca4dc58d9c8fb6856c5ae8b56d4";
+    "e87b042c865d2dbf35300fa4388c152a10692b0a998746048e4d2b479ceb42b4";
 
 /// Typed denial classes. Every `Denied` outcome in admission/cell-ready
 /// machinery short-circuits on the first failing variant.
@@ -87,6 +87,30 @@ pub enum DefectClass {
     /// Secret material (e.g. `GROQ_API_KEY` value) detected in an evidence
     /// surface (OCEL attribute, receipt, projection, log).
     SecretLeak { surface: String },
+    // --- Solution Manufacturing taxonomy v2.1.0 ---
+    /// A target generator (iac/rust/erlang/atomvm) emitted no bytes —
+    /// the manufacturing pipeline cannot ship an empty artifact.
+    GeneratorEmpty { target: String },
+    /// Generated IaC (Terraform/Pulumi) failed deterministic validation
+    /// (e.g. unbalanced braces, missing required block, illegal IRI).
+    IacInvalid { reason: String },
+    /// Generated Rust failed deterministic validation (no `pub fn main`,
+    /// missing receipt header, unbalanced braces).
+    RustInvalid { reason: String },
+    /// Generated Erlang failed deterministic validation (missing -module
+    /// declaration, missing -export, unmatched parens).
+    ErlangInvalid { reason: String },
+    /// Generated AtomVM target failed deterministic validation (missing
+    /// `start/0`, no AVM-loadable shape).
+    AtomVmInvalid { reason: String },
+    /// One or more required manufacturing stages (architecture decided,
+    /// IaC generated, Rust generated, etc.) is missing — the chain is
+    /// broken and cannot ship.
+    ManufacturingChainBroken { missing: String },
+    /// Solution architecture was not bound to an admitted work order.
+    /// Without an upstream WorkOrderAdmitted receipt, no architecture
+    /// may be manufactured.
+    ArchitectureUnbound,
 }
 
 impl DefectClass {
@@ -119,6 +143,13 @@ impl DefectClass {
             DefectClass::LlmAuthorityClaimed => "llm_authority_claimed",
             DefectClass::RawDataLeak { .. } => "raw_data_leak",
             DefectClass::SecretLeak { .. } => "secret_leak",
+            DefectClass::GeneratorEmpty { .. } => "generator_empty",
+            DefectClass::IacInvalid { .. } => "iac_invalid",
+            DefectClass::RustInvalid { .. } => "rust_invalid",
+            DefectClass::ErlangInvalid { .. } => "erlang_invalid",
+            DefectClass::AtomVmInvalid { .. } => "atomvm_invalid",
+            DefectClass::ManufacturingChainBroken { .. } => "manufacturing_chain_broken",
+            DefectClass::ArchitectureUnbound => "architecture_unbound",
         }
     }
 
@@ -153,6 +184,13 @@ impl DefectClass {
             "llm_authority_claimed",
             "raw_data_leak",
             "secret_leak",
+            "generator_empty",
+            "iac_invalid",
+            "rust_invalid",
+            "erlang_invalid",
+            "atomvm_invalid",
+            "manufacturing_chain_broken",
+            "architecture_unbound",
         ]
     }
 }

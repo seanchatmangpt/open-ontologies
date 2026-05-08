@@ -150,6 +150,39 @@ pub static BUILTIN_WORKFLOWS: &[BuiltinWorkflow] = &[
         ],
     },
     BuiltinWorkflow {
+        name: "SolutionManufacturing",
+        // Multi-target solution manufacturing pipeline:
+        //   work_order_received -> architecture_decided ->
+        //     PO{iac_generated, rust_generated, erlang_generated, atomvm_generated}
+        //     -> receipt_chain_sealed
+        //
+        // The four target generators run concurrently (PO with empty
+        // order — they share no required ordering). The receipt_chain
+        // _sealed stage is the gate fire that proves all 4 generators
+        // emitted non-empty bytes AND each artifact carries the
+        // upstream WorkOrderAdmitted receipt hash in its header.
+        powl_string:
+            "PO=(nodes={work_order_received, architecture_decided, PO=(nodes={iac_generated, rust_generated, erlang_generated, atomvm_generated}, order={}), receipt_chain_sealed}, order={work_order_received-->architecture_decided, architecture_decided-->PO=(nodes={iac_generated, rust_generated, erlang_generated, atomvm_generated}, order={}), PO=(nodes={iac_generated, rust_generated, erlang_generated, atomvm_generated}, order={})-->receipt_chain_sealed})",
+        alphabet: &[
+            "work_order_received",
+            "architecture_decided",
+            "iac_generated",
+            "rust_generated",
+            "erlang_generated",
+            "atomvm_generated",
+            "receipt_chain_sealed",
+        ],
+        required_stages: &[
+            "work_order_received",
+            "architecture_decided",
+            "iac_generated",
+            "rust_generated",
+            "erlang_generated",
+            "atomvm_generated",
+            "receipt_chain_sealed",
+        ],
+    },
+    BuiltinWorkflow {
         name: "Fortune5RevOpsGovernedRelease",
         // RequirementsManufacturing -> DataExtensionFastPath -> LifecycleApply -> Codegen
         // with RevOps-specific activities flowing inside the data stage.
@@ -196,8 +229,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn catalog_has_nine_entries() {
-        assert_eq!(BUILTIN_WORKFLOWS.len(), 9);
+    fn catalog_has_ten_entries() {
+        assert_eq!(BUILTIN_WORKFLOWS.len(), 10);
     }
 
     #[test]
@@ -211,7 +244,16 @@ mod tests {
         assert!(by_name("GovernedRelease").is_some());
         assert!(by_name("RequirementsManufacturing").is_some());
         assert!(by_name("Fortune5RevOpsGovernedRelease").is_some());
+        assert!(by_name("SolutionManufacturing").is_some());
         assert!(by_name("Nope").is_none());
+    }
+
+    #[test]
+    fn solution_manufacturing_required_stages_cover_all_targets() {
+        let w = by_name("SolutionManufacturing").unwrap();
+        for required in &["iac_generated", "rust_generated", "erlang_generated", "atomvm_generated"] {
+            assert!(w.required_stages.contains(required), "missing {required}");
+        }
     }
 
     #[test]

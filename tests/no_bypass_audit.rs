@@ -186,6 +186,8 @@ fn full_admission_handlers_present() {
         "onto_propose_requirement",
         "onto_admit_ctq",
         "onto_admit_work_order",
+        // Solution Manufacturing full-admission handler (Phase 4):
+        "onto_manufacture_solution",
     ] {
         let body = by_name
             .get(*required)
