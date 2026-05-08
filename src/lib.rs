@@ -1,6 +1,14 @@
+pub mod admission;
 pub mod batch;
 pub mod cache;
+pub mod cell_ready;
+pub mod defects;
 pub mod error;
+pub mod production_record;
+pub mod receipts;
+pub mod workflows;
+
+pub use defects::{DefectClass, Deviation};
 pub mod align;
 pub mod config;
 pub mod clinical;
@@ -12,7 +20,9 @@ pub mod ingest;
 pub mod inputs;
 pub mod lineage;
 pub mod monitor;
+pub mod ocel_store;
 pub mod plan;
+pub mod powl_bridge;
 pub mod webhook;
 pub mod mapping;
 pub mod marketplace;

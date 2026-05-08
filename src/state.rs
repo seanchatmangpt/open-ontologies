@@ -118,6 +118,107 @@ CREATE TABLE IF NOT EXISTS ontology_cache (
     compiled_at TEXT NOT NULL DEFAULT (datetime('now')),
     last_access_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+-- Object-Centric Event Log (OCEL) tables for native OCEL emission
+CREATE TABLE IF NOT EXISTS ocel_objects (
+    object_id   TEXT PRIMARY KEY,
+    object_type TEXT NOT NULL,
+    created_at  TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS ocel_object_attrs (
+    object_id  TEXT NOT NULL,
+    name       TEXT NOT NULL,
+    value      TEXT NOT NULL,
+    value_type TEXT NOT NULL DEFAULT 'string',
+    valid_at   TEXT NOT NULL,
+    PRIMARY KEY (object_id, name, valid_at)
+);
+
+CREATE TABLE IF NOT EXISTS ocel_events (
+    event_id   TEXT PRIMARY KEY,
+    event_type TEXT NOT NULL,
+    time       TEXT NOT NULL,
+    session_id TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS ocel_event_attrs (
+    event_id   TEXT NOT NULL,
+    name       TEXT NOT NULL,
+    value      TEXT NOT NULL,
+    value_type TEXT NOT NULL DEFAULT 'string',
+    PRIMARY KEY (event_id, name)
+);
+
+CREATE TABLE IF NOT EXISTS ocel_relationships (
+    event_id  TEXT NOT NULL,
+    object_id TEXT NOT NULL,
+    qualifier TEXT NOT NULL,
+    PRIMARY KEY (event_id, object_id, qualifier)
+);
+
+-- ─── OntoStar Stream 1 stub migrations (authoritative copies live in Stream 1) ──
+-- Receipts for admitted manufactured artifacts (Stream 3 owns inserts).
+CREATE TABLE IF NOT EXISTS receipts (
+    receipt_hash           TEXT PRIMARY KEY,
+    scope_token            TEXT NOT NULL,
+    artifact_hash          TEXT NOT NULL,
+    declared_powl_hash     TEXT NOT NULL,
+    ocel_canonical_hash    TEXT NOT NULL,
+    gate_config_hash       TEXT NOT NULL,
+    prior_receipt_hash     TEXT,
+    production_law_version TEXT NOT NULL,
+    granted_at             TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS conformance_runs (
+    run_id              TEXT PRIMARY KEY,
+    scope_token         TEXT NOT NULL,
+    workflow_class      TEXT,
+    fitness             REAL,
+    precision           REAL,
+    generalization      REAL,
+    simplicity          REAL,
+    verdict             TEXT NOT NULL,
+    defects_json        TEXT NOT NULL DEFAULT '[]',
+    trace_canonical_hash TEXT NOT NULL DEFAULT '',
+    ran_at              TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS mined_exemplars (
+    id              TEXT PRIMARY KEY,
+    domain          TEXT NOT NULL,
+    problem_context TEXT NOT NULL,
+    powl_string     TEXT NOT NULL,
+    fitness         REAL NOT NULL,
+    source_session  TEXT,
+    receipt_hash    TEXT NOT NULL,
+    mined_at        TEXT NOT NULL,
+    promoted        INTEGER DEFAULT 0,
+    build_order     TEXT
+);
+
+CREATE TABLE IF NOT EXISTS workflow_thresholds (
+    workflow_class       TEXT PRIMARY KEY,
+    precision_threshold  REAL NOT NULL,
+    fitness_threshold    REAL NOT NULL,
+    sample_count         INTEGER NOT NULL,
+    updated_at           TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS discovered_workflows (
+    id                  TEXT PRIMARY KEY,
+    domain              TEXT NOT NULL,
+    powl_string         TEXT NOT NULL,
+    discovered_fitness  REAL NOT NULL,
+    declared_fitness    REAL NOT NULL,
+    status              TEXT NOT NULL,
+    suggested_at        TEXT NOT NULL,
+    decided_at          TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_mined_exemplars_domain ON mined_exemplars(domain);
+CREATE INDEX IF NOT EXISTS idx_discovered_workflows_status ON discovered_workflows(status);
 ";
 
 /// Minimal SQLite state store for ontology versioning.
@@ -142,6 +243,56 @@ impl StateDb {
         let _ = conn.execute_batch(
             "ALTER TABLE align_feedback ADD COLUMN signals_json TEXT;"
         );
+        // OntoStar Stream 4: defensive ALTERs for older databases that may
+        // have created `conformance_runs` / `mined_exemplars` before Stream 4
+        // landed. Wrapped in `let _ =` because re-applying is idempotent.
+        let _ = conn.execute_batch(
+            "ALTER TABLE conformance_runs ADD COLUMN workflow_class TEXT;"
+        );
+        let _ = conn.execute_batch(
+            "ALTER TABLE mined_exemplars ADD COLUMN build_order TEXT;"
+        );
+        let _ = conn.execute_batch(
+            "CREATE INDEX IF NOT EXISTS idx_conformance_runs_workflow
+                 ON conformance_runs(workflow_class, ran_at);"
+        );
+        // OntoStar Stream 3: receipts.session_id for per-session chaining.
+        // Stream 1's `receipts` table has no session_id column; we ALTER it in
+        // additively so cell_ready/admission can chain per session.
+        let _ = conn.execute_batch(
+            "ALTER TABLE receipts ADD COLUMN session_id TEXT NOT NULL DEFAULT '';"
+        );
+        // OntoStar Stream 1: workflow scope, OCEL scope tagging, revoked sessions.
+        // Run as separate batches so additive ALTER on an existing DB does not
+        // poison sibling CREATEs.
+        let _ = conn.execute_batch(
+            "ALTER TABLE ocel_events ADD COLUMN scope_token TEXT;"
+        );
+        conn.execute_batch(
+            "CREATE INDEX IF NOT EXISTS idx_ocel_scope ON ocel_events(scope_token);
+
+             CREATE TABLE IF NOT EXISTS declared_workflows (
+                 scope_token   TEXT PRIMARY KEY,
+                 session_id    TEXT NOT NULL,
+                 name          TEXT NOT NULL,
+                 powl_string   TEXT NOT NULL,
+                 powl_hash     TEXT NOT NULL,
+                 alphabet_json TEXT NOT NULL,
+                 declared_at   TEXT NOT NULL,
+                 closed_at     TEXT,
+                 status        TEXT NOT NULL
+             );
+
+             CREATE TABLE IF NOT EXISTS revoked_sessions (
+                 session_id  TEXT PRIMARY KEY,
+                 reason      TEXT NOT NULL,
+                 revoked_at  TEXT NOT NULL,
+                 cleared_at  TEXT
+             );
+
+             CREATE INDEX IF NOT EXISTS idx_declared_workflows_session
+                 ON declared_workflows(session_id, status);"
+        )?;
         Ok(Self {
             conn: Arc::new(Mutex::new(conn)),
         })

@@ -1,5 +1,51 @@
 # Open Ontologies
 
+## Claude Code Infrastructure
+
+**Model**: claude-haiku-4-5 | **Hooks**: SessionStart, UserPromptSubmit, Stop, PreToolUse, PostToolUse, ConfigChange
+
+**Build**: `make check` | `make test` | `make adversarial` (all must pass before Stop)
+
+**Evidence tier required**: PROVEN (make adversarial + SHACL validation receipt)
+
+**Rules** (.claude/rules/):
+- _core/absolute.md (always-loaded) — 7 non-negotiable rules
+- _core/workflow.md (always-loaded) — 5-step ontology engineering cycle
+- mcp-server.md — 43 onto_* tool catalog and registration
+- cell8-conformance.md — 13 Cell8 gates (A1-A13) validation
+- ggen-pipeline.md — TTL→SPARQL→Tera→generated.rs safe editing
+- coding-agent-mistakes.md — 5 mistake classes, 6-question patch contract
+- otel-validation.md — OTEL span/trace verification
+
+**Skills** (.claude/skills/):
+- rdf-ontology — Turtle/OWL syntax, property axioms, hierarchies
+- sparql-construct — SPARQL CONSTRUCT queries for ggen pipeline
+- shacl-validation — SHACL NodeShape definition, validation execution
+- cell8-gates — 13 Cell8 conformance gates (A1-A13), EARL patterns
+- mcp-server-tools — 43 onto_* tool patterns, JSON-RPC protocol
+- ggen-codegen — Code generation pipeline, Tera templates, safe workflow
+- oxigraph-patterns — GraphStore API, SPARQL execution, triple patterns
+- andon-stop (global) — Stop-the-line protocol on Andon signals
+
+**Protected paths** (pre-tool guard blocks edits):
+- `src/cmds/generated.rs` ← ggen artifact; edit `ontology/cli-open-ontologies.ttl` instead
+- `cell8-ggen/src/cell8/generated/` ← ggen artifact
+- `.claude/hooks/` ← self-protected
+- `.claude/settings.json` ← self-protected
+
+**Andon signals** (stop the line):
+- `error[E` — Compiler error
+- `test.*FAILED` — Test failure
+- `dead param` — Unused parameter pattern (`let _ = x;`)
+- `panicked at` — Runtime panic
+
+**Quality gates** (must pass before Stop):
+- `make check` — Compilation check
+- `make test` — All tests pass
+- `make adversarial` — Dead-param gate + clippy deny + SHACL validation
+
+---
+
 ## Ontology Engineering Workflow
 
 When building or modifying ontologies, follow this workflow. Claude decides which tools to call and in what order based on results — this is not a fixed pipeline.

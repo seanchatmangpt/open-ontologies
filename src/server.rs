@@ -33,6 +33,8 @@ pub struct OpenOntologiesServer {
     /// Empty when none are configured. Used by `onto_repo_list` /
     /// `onto_repo_load`.
     ontology_dirs: Arc<Vec<std::path::PathBuf>>,
+    /// OCEL store for native object-centric event log emission.
+    ocel_store: Arc<crate::ocel_store::OcelStore>,
     #[cfg(feature = "embeddings")]
     vecstore: Arc<std::sync::Mutex<crate::vecstore::VecStore>>,
     #[cfg(feature = "embeddings")]
@@ -109,6 +111,14 @@ impl OpenOntologiesServer {
     ) -> Self {
         let lineage = crate::lineage::LineageLog::with_governance_webhook(db.clone(), governance_webhook.clone());
         let session_id = lineage.new_session();
+        let ocel_store = Arc::new(crate::ocel_store::OcelStore::new(db.clone()));
+
+        // Upsert the session object in OCEL at startup
+        let _ = ocel_store.upsert_object(
+            &format!("session:{}", session_id),
+            "Session",
+            &[("started_at", &chrono::Utc::now().to_rfc3339(), "time")],
+        );
 
         // Build the registry. If construction fails (e.g. cache dir cannot be
         // created) fall back to a disabled registry so the server still starts.
@@ -173,6 +183,7 @@ impl OpenOntologiesServer {
             governance_webhook,
             registry,
             ontology_dirs: Arc::new(ontology_dirs),
+            ocel_store,
             #[cfg(feature = "embeddings")]
             vecstore,
             #[cfg(feature = "embeddings")]
@@ -194,8 +205,180 @@ impl OpenOntologiesServer {
         crate::lineage::LineageLog::with_governance_webhook(self.db.clone(), self.governance_webhook.clone())
     }
 
+    fn ocel_store(&self) -> &crate::ocel_store::OcelStore {
+        &self.ocel_store
+    }
+
     fn monitor(&self) -> crate::monitor::Monitor {
         crate::monitor::Monitor::new(self.db.clone(), self.graph.clone())
+    }
+
+    // ─── OntoStar Stream 3: admission helper ──────────────────────────────
+
+    /// Run the admission gate before a mutation.
+    ///
+    /// On Ok: returns the freshly built (and persisted) receipt.
+    /// On Err: returns a JSON-shaped denial string the caller returns as the
+    /// MCP response. The bypass path is also encoded as `Err(...)` so callers
+    /// uniformly stop the mutation when the gate does not admit.
+    fn evaluate_admission(
+        &self,
+        op: crate::admission::AdmissionOp,
+        explicit_scope: Option<&str>,
+        artifact_kind: &str,
+        artifact_bytes: &[u8],
+        bypass_admission: Option<bool>,
+        bypass_reason: Option<&str>,
+    ) -> Result<crate::receipts::Receipt, String> {
+        if bypass_admission.unwrap_or(false) {
+            let reason = bypass_reason.unwrap_or("").trim();
+            if reason.is_empty() {
+                self.lineage()
+                    .record_admission_denied(&self.session_id, "false_pass");
+                return Err(serde_json::json!({
+                    "ok": false,
+                    "admission": "denied",
+                    "defect": { "kind": "FalsePass" },
+                    "reason": "bypass_admission=true requires a non-empty bypass_reason",
+                }).to_string());
+            }
+            let now = chrono::Utc::now().to_rfc3339();
+            let event_id = format!(
+                "{}:admission_bypass:{}",
+                self.session_id,
+                chrono::Utc::now().timestamp_millis()
+            );
+            let _ = self.ocel_store().emit_event(
+                &event_id,
+                "admission_bypass",
+                &now,
+                &self.session_id,
+                &[("op", op.as_str()), ("reason", reason)],
+                &[],
+                explicit_scope,
+            );
+            let _ = crate::admission::revoke_session(&self.db, &self.session_id, reason);
+            self.lineage().record_admission_bypass(&self.session_id, reason);
+            self.lineage().record_session_revoked(&self.session_id, reason);
+            return Err(serde_json::json!({
+                "ok": true,
+                "admission": "bypassed",
+                "reason": reason,
+            }).to_string());
+        }
+
+        let scope = crate::workflows::WorkflowScope::new(&self.db, &self.session_id);
+        let scope_row = match explicit_scope {
+            Some(t) if !t.is_empty() => scope.get(t).ok().flatten(),
+            _ => scope.latest_open().ok().flatten(),
+        };
+        let scope_row = match scope_row {
+            Some(r) => r,
+            None => {
+                let event_id = format!(
+                    "{}:admission_denied:{}",
+                    self.session_id,
+                    chrono::Utc::now().timestamp_millis()
+                );
+                let _ = self.ocel_store().emit_event(
+                    &event_id,
+                    "admission_denied",
+                    &chrono::Utc::now().to_rfc3339(),
+                    &self.session_id,
+                    &[("op", op.as_str()), ("defect", "scope_unclosed")],
+                    &[],
+                    None,
+                );
+                self.lineage().record_admission_denied(&self.session_id, "scope_unclosed");
+                return Err(serde_json::json!({
+                    "ok": false,
+                    "admission": "denied",
+                    "defect": { "kind": "ScopeUnclosed" },
+                }).to_string());
+            }
+        };
+
+        let required_stages: Vec<String> = crate::workflows::by_name(&scope_row.name)
+            .map(|w| w.required_stages.iter().map(|s| s.to_string()).collect())
+            .unwrap_or_default();
+
+        let observed_stages = self
+            .ocel_store()
+            .observed_event_types_for_session(&self.session_id)
+            .unwrap_or_default();
+
+        let gate = crate::admission::OntoStarAdmissionGate::new(
+            0.95,
+            0.85,
+            required_stages,
+            "ontostar-1.0.0",
+        );
+
+        let artifact = crate::admission::ArtifactRef {
+            kind: artifact_kind,
+            bytes: artifact_bytes,
+        };
+
+        // TODO(stream-2): replace `NoopPowlReplay` with a `PowlBridge`-backed
+        // adapter so fitness/precision come from wasm4pm.
+        let replay = crate::admission::NoopPowlReplay;
+
+        match gate.evaluate(
+            &scope_row.scope_token,
+            op,
+            &artifact,
+            self.ocel_store(),
+            &replay,
+            &self.session_id,
+            &scope_row.powl_string,
+            &observed_stages,
+        ) {
+            Ok(receipt) => {
+                self.lineage().record_powl_replay(&self.session_id, 1.0, 1.0);
+                self.lineage().record_admission_granted(&self.session_id, &receipt.hex());
+                Ok(receipt)
+            }
+            Err((defect, _devs)) => {
+                self.lineage().record_admission_denied(&self.session_id, defect.tag());
+                Err(serde_json::json!({
+                    "ok": false,
+                    "admission": "denied",
+                    "defect": defect,
+                }).to_string())
+            }
+        }
+    }
+
+    /// OntoStar Stream 1: emit a uniform `<tool>` OCEL event for handlers that
+    /// were previously silent. `ok` reflects whether the handler returned a
+    /// non-error JSON shape; `duration_ms` is measured from handler entry.
+    /// Objects are passed as a slice so handlers without an active ontology id
+    /// can pass `&[]`.
+    fn emit_tool_ocel(
+        &self,
+        tool_name: &str,
+        started_at: std::time::Instant,
+        ok: bool,
+        objects: &[(&str, &str)],
+    ) {
+        let elapsed_ms = started_at.elapsed().as_millis().to_string();
+        let ok_str = if ok { "true" } else { "false" };
+        let ts = chrono::Utc::now().to_rfc3339();
+        let event_id = format!(
+            "{}:{}:{}",
+            self.session_id,
+            tool_name,
+            chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0)
+        );
+        let _ = self.ocel_store().emit_event(
+            &event_id,
+            tool_name,
+            &ts,
+            &self.session_id,
+            &[("duration_ms", elapsed_ms.as_str()), ("ok", ok_str)],
+            objects,
+            None,
+        );
     }
 }
 
@@ -223,12 +406,16 @@ impl OpenOntologiesServer {
 
     #[tool(name = "onto_validate", description = "Validate RDF/OWL syntax. Accepts a file path or inline Turtle content.")]
     async fn onto_validate(&self, Parameters(input): Parameters<OntoValidateInput>) -> String {
+        let started = std::time::Instant::now();
         use crate::ontology::OntologyService;
-        if input.inline.unwrap_or(false) {
+        let out = if input.inline.unwrap_or(false) {
             OntologyService::validate_string(&input.input).unwrap_or_else(|e| format!(r#"{{"error":"{}"}}"#, e))
         } else {
             OntologyService::validate_file(&input.input).unwrap_or_else(|e| format!(r#"{{"error":"{}"}}"#, e))
-        }
+        };
+        let ok = !out.contains(r#""error""#);
+        self.emit_tool_ocel("onto_validate", started, ok, &[]);
+        out
     }
 
     #[tool(name = "onto_convert", description = "Convert an RDF file between formats: turtle, ntriples, rdfxml, nquads, trig")]
@@ -256,7 +443,8 @@ impl OpenOntologiesServer {
 
     #[tool(name = "onto_load", description = "Load an RDF file or inline Turtle content into the in-memory ontology store. When given a file path, the parsed graph is also written to a fast N-Triples compile cache (in `[cache] dir`) so subsequent loads from the same source skip parsing. Optional `name`, `auto_refresh`, and `force_recompile` flags control caching/refresh behavior.")]
     async fn onto_load(&self, Parameters(input): Parameters<OntoLoadInput>) -> String {
-        if let Some(turtle) = input.turtle {
+        let started = std::time::Instant::now();
+        let out = if let Some(turtle) = input.turtle {
             // Inline turtle bypasses the registry/cache (no source file).
             match self.graph.load_turtle(&turtle, None) {
                 Ok(count) => format!(r#"{{"ok":true,"triples_loaded":{},"source":"inline"}}"#, count),
@@ -285,7 +473,10 @@ impl OpenOntologiesServer {
             }
         } else {
             r#"{"error":"Either 'path' or 'turtle' must be provided"}"#.to_string()
-        }
+        };
+        let ok = !out.contains(r#""error""#);
+        self.emit_tool_ocel("onto_load", started, ok, &[]);
+        out
     }
 
     #[tool(name = "onto_repo_list", description = "List RDF/OWL files in the configured ontology repository directories ([general] ontology_dirs). Returns metadata for each candidate file (path, name, size, mtime, is_cached, is_active). Use this in containerized/server deployments to discover ontologies without knowing their paths in advance. Optional `dir` (must be under a configured repo dir), `recursive`, `glob`, `limit`, `offset` filters.")]
@@ -414,23 +605,48 @@ impl OpenOntologiesServer {
 
     #[tool(name = "onto_query", description = "Run a SPARQL query against the loaded ontology store. If the active ontology has been evicted from memory (idle TTL), it is transparently reloaded from the compile cache before the query runs.")]
     async fn onto_query(&self, Parameters(input): Parameters<OntoQueryInput>) -> String {
+        let started = std::time::Instant::now();
         if let Err(e) = self.registry.ensure_loaded() {
-            return format!(r#"{{"error":"Ontology not loaded: {}. Call onto_load first."}}"#, e.to_string().replace('"', "'"));
+            let out = format!(r#"{{"error":"Ontology not loaded: {}. Call onto_load first."}}"#, e.to_string().replace('"', "'"));
+            self.emit_tool_ocel("onto_query", started, false, &[]);
+            return out;
         }
-        self.graph.sparql_select(&input.query).unwrap_or_else(|e| format!(r#"{{"error":"{}"}}"#, e))
+        let out = self.graph.sparql_select(&input.query).unwrap_or_else(|e| format!(r#"{{"error":"{}"}}"#, e));
+        let ok = !out.contains(r#""error""#);
+        self.emit_tool_ocel("onto_query", started, ok, &[]);
+        out
     }
 
-    #[tool(name = "onto_save", description = "Save the current ontology store to a file")]
+    #[tool(name = "onto_save", description = "Save the current ontology store to a file. Gated by OntoStar admission.")]
     async fn onto_save(&self, Parameters(input): Parameters<OntoSaveInput>) -> String {
+        let started = std::time::Instant::now();
         if let Err(e) = self.registry.ensure_loaded() {
-            return format!(r#"{{"error":"Ontology not loaded: {}. Call onto_load first."}}"#, e.to_string().replace('"', "'"));
+            let out = format!(r#"{{"error":"Ontology not loaded: {}. Call onto_load first."}}"#, e.to_string().replace('"', "'"));
+            self.emit_tool_ocel("onto_save", started, false, &[]);
+            return out;
         }
         let format = input.format.as_deref().unwrap_or("turtle");
         let path = expand_tilde(&input.path);
-        match self.graph.save_file(&path, format) {
+        // OntoStar Stream 3: admission gate fires BEFORE the disk write.
+        let artifact_bytes = self.graph.serialize(format).unwrap_or_default();
+        if let Err(denial) = self.evaluate_admission(
+            crate::admission::AdmissionOp::Save,
+            input.scope_token.as_deref(),
+            "save-artifact",
+            artifact_bytes.as_bytes(),
+            input.bypass_admission,
+            input.bypass_reason.as_deref(),
+        ) {
+            self.emit_tool_ocel("onto_save", started, false, &[]);
+            return denial;
+        }
+        let out = match self.graph.save_file(&path, format) {
             Ok(_) => format!(r#"{{"ok":true,"path":"{}","format":"{}"}}"#, path, format),
             Err(e) => format!(r#"{{"error":"{}"}}"#, e),
-        }
+        };
+        let ok = !out.contains(r#""error""#);
+        self.emit_tool_ocel("onto_save", started, ok, &[]);
+        out
     }
 
     #[tool(name = "onto_stats", description = "Get statistics about the loaded ontology (triple count, classes, properties, individuals)")]
@@ -457,16 +673,24 @@ impl OpenOntologiesServer {
 
     #[tool(name = "onto_lint", description = "Check an ontology for quality issues: missing labels, comments, domains, ranges")]
     async fn onto_lint(&self, Parameters(input): Parameters<OntoLintInput>) -> String {
+        let started = std::time::Instant::now();
         use crate::ontology::OntologyService;
         let content = if input.inline.unwrap_or(false) {
             input.input.clone()
         } else {
             match std::fs::read_to_string(&input.input) {
                 Ok(c) => c,
-                Err(e) => return format!(r#"{{"error":"{}"}}"#, e),
+                Err(e) => {
+                    let out = format!(r#"{{"error":"{}"}}"#, e);
+                    self.emit_tool_ocel("onto_lint", started, false, &[]);
+                    return out;
+                }
             }
         };
-        OntologyService::lint_with_feedback(&content, Some(&self.db)).unwrap_or_else(|e| format!(r#"{{"error":"{}"}}"#, e))
+        let out = OntologyService::lint_with_feedback(&content, Some(&self.db)).unwrap_or_else(|e| format!(r#"{{"error":"{}"}}"#, e));
+        let ok = !out.contains(r#""error""#);
+        self.emit_tool_ocel("onto_lint", started, ok, &[]);
+        out
     }
 
     #[tool(name = "onto_clear", description = "Clear all triples from the in-memory ontology store and unload the active registry slot (cache file is preserved)")]
@@ -589,9 +813,21 @@ impl OpenOntologiesServer {
         }
     }
 
-    #[tool(name = "onto_push", description = "Push the current ontology store to a remote SPARQL endpoint")]
+    #[tool(name = "onto_push", description = "Push the current ontology store to a remote SPARQL endpoint. Gated by OntoStar admission.")]
     async fn onto_push(&self, Parameters(input): Parameters<OntoPushInput>) -> String {
         use crate::graph::GraphStore;
+        // OntoStar Stream 3: admission gate fires BEFORE the SPARQL POST.
+        let artifact_preview = self.graph.serialize("ntriples").unwrap_or_default();
+        if let Err(denial) = self.evaluate_admission(
+            crate::admission::AdmissionOp::Push,
+            input.scope_token.as_deref(),
+            "push-artifact",
+            artifact_preview.as_bytes(),
+            input.bypass_admission,
+            input.bypass_reason.as_deref(),
+        ) {
+            return denial;
+        }
         match self.graph.serialize("ntriples") {
             Ok(content) => {
                 match GraphStore::push_sparql(&input.endpoint, &content).await {
@@ -768,9 +1004,13 @@ impl OpenOntologiesServer {
 
     #[tool(name = "onto_version", description = "Save a named snapshot of the current ontology store")]
     async fn onto_version(&self, Parameters(input): Parameters<OntoVersionInput>) -> String {
+        let started = std::time::Instant::now();
         use crate::ontology::OntologyService;
-        OntologyService::save_version(&self.db, &self.graph, &input.label)
-            .unwrap_or_else(|e| format!(r#"{{"error":"{}"}}"#, e))
+        let out = OntologyService::save_version(&self.db, &self.graph, &input.label)
+            .unwrap_or_else(|e| format!(r#"{{"error":"{}"}}"#, e));
+        let ok = !out.contains(r#""error""#);
+        self.emit_tool_ocel("onto_version", started, ok, &[]);
+        out
     }
 
     #[tool(name = "onto_history", description = "List all saved ontology version snapshots")]
@@ -782,15 +1022,27 @@ impl OpenOntologiesServer {
 
     #[tool(name = "onto_rollback", description = "Restore the ontology store to a previously saved version")]
     async fn onto_rollback(&self, Parameters(input): Parameters<OntoRollbackInput>) -> String {
+        let started = std::time::Instant::now();
         use crate::ontology::OntologyService;
-        OntologyService::rollback_version(&self.db, &self.graph, &input.label)
-            .unwrap_or_else(|e| format!(r#"{{"error":"{}"}}"#, e))
+        let out = OntologyService::rollback_version(&self.db, &self.graph, &input.label)
+            .unwrap_or_else(|e| format!(r#"{{"error":"{}"}}"#, e));
+        let ok = !out.contains(r#""error""#);
+        self.emit_tool_ocel("onto_rollback", started, ok, &[]);
+        out
     }
 
     // ── Data ingestion & reasoning ─────────────────────────────────────────
 
     #[tool(name = "onto_ingest", description = "Parse a structured data file (CSV, JSON, NDJSON, XML, YAML, XLSX, Parquet) into RDF triples and load into the ontology store. Optionally uses a mapping config to control field-to-predicate mapping.")]
     async fn onto_ingest(&self, Parameters(input): Parameters<OntoIngestInput>) -> String {
+        let started = std::time::Instant::now();
+        let out = self.onto_ingest_inner(input).await;
+        let ok = !out.contains(r#""error""#);
+        self.emit_tool_ocel("onto_ingest", started, ok, &[]);
+        out
+    }
+
+    async fn onto_ingest_inner(&self, input: OntoIngestInput) -> String {
         use crate::ingest::DataIngester;
         use crate::mapping::MappingConfig;
 
@@ -844,6 +1096,14 @@ impl OpenOntologiesServer {
 
     #[tool(name = "onto_map", description = "Generate a mapping config by inspecting a data file's schema against the currently loaded ontology. Returns a JSON mapping that can be reviewed and passed to onto_ingest.")]
     async fn onto_map(&self, Parameters(input): Parameters<OntoMapInput>) -> String {
+        let started = std::time::Instant::now();
+        let out = self.onto_map_inner(input).await;
+        let ok = !out.contains(r#""error""#);
+        self.emit_tool_ocel("onto_map", started, ok, &[]);
+        out
+    }
+
+    async fn onto_map_inner(&self, input: OntoMapInput) -> String {
         use crate::ingest::DataIngester;
         use crate::mapping::MappingConfig;
 
@@ -907,26 +1167,38 @@ impl OpenOntologiesServer {
 
     #[tool(name = "onto_shacl", description = "Validate the loaded ontology data against SHACL shapes. Checks cardinality (minCount/maxCount), datatypes, and class constraints. Returns a conformance report with violations.")]
     async fn onto_shacl(&self, Parameters(input): Parameters<OntoShaclInput>) -> String {
+        let started = std::time::Instant::now();
         use crate::shacl::ShaclValidator;
         let shapes = if input.inline.unwrap_or(false) {
             input.shapes.clone()
         } else {
             match std::fs::read_to_string(&input.shapes) {
                 Ok(c) => c,
-                Err(e) => return format!(r#"{{"error":"Cannot read shapes file: {}"}}"#, e),
+                Err(e) => {
+                    let out = format!(r#"{{"error":"Cannot read shapes file: {}"}}"#, e);
+                    self.emit_tool_ocel("onto_shacl", started, false, &[]);
+                    return out;
+                }
             }
         };
-        ShaclValidator::validate(&self.graph, &shapes)
-            .unwrap_or_else(|e| format!(r#"{{"error":"{}"}}"#, e))
+        let out = ShaclValidator::validate(&self.graph, &shapes)
+            .unwrap_or_else(|e| format!(r#"{{"error":"{}"}}"#, e));
+        let ok = !out.contains(r#""error""#);
+        self.emit_tool_ocel("onto_shacl", started, ok, &[]);
+        out
     }
 
     #[tool(name = "onto_reason", description = "Run inference over the loaded ontology. Profiles: 'rdfs' (subclass, domain/range), 'owl-rl' (+ transitive/symmetric/inverse, sameAs, equivalentClass), 'owl-rl-ext' (+ someValuesFrom, allValuesFrom, hasValue, intersectionOf, unionOf), 'owl-dl' (Full OWL2-DL SHOIQ tableaux: satisfiability, classification, qualified number restrictions with node merging, inverse/symmetric roles, functional properties, parallel agent-based classification, explanation traces, ABox reasoning). Materializes inferred triples.")]
     async fn onto_reason(&self, Parameters(input): Parameters<OntoReasonInput>) -> String {
+        let started = std::time::Instant::now();
         use crate::reason::Reasoner;
         let profile = input.profile.as_deref().unwrap_or("rdfs");
         let materialize = input.materialize.unwrap_or(true);
-        Reasoner::run(&self.graph, profile, materialize)
-            .unwrap_or_else(|e| format!(r#"{{"error":"{}"}}"#, e))
+        let out = Reasoner::run(&self.graph, profile, materialize)
+            .unwrap_or_else(|e| format!(r#"{{"error":"{}"}}"#, e));
+        let ok = !out.contains(r#""error""#);
+        self.emit_tool_ocel("onto_reason", started, ok, &[]);
+        out
     }
 
     #[tool(name = "onto_dl_explain", description = "Explain why a class is unsatisfiable using DL tableaux reasoning. Returns an explanation trace showing the logical contradictions that make the class impossible to instantiate.")]
@@ -950,6 +1222,36 @@ impl OpenOntologiesServer {
         let planner = crate::plan::Planner::new(self.db.clone(), self.graph.clone());
         match planner.plan(&input.new_turtle) {
             Ok(result) => {
+                let ts = chrono::Utc::now().to_rfc3339();
+                let obj_id = format!("{}:plan", self.session_id);
+                let _ = self.ocel_store().upsert_object(&obj_id, "OntologyVersion", &[]);
+
+                // Extract plan metrics from JSON
+                let (risk_score, added_count, removed_count) = serde_json::from_str::<serde_json::Value>(&result)
+                    .ok()
+                    .and_then(|j| {
+                        let risk = j.get("risk_score").and_then(|v| v.as_f64()).unwrap_or(0.0);
+                        let added = j.get("added_classes").and_then(|v| v.as_array().map(|a| a.len())).unwrap_or(0);
+                        let removed = j.get("removed_classes").and_then(|v| v.as_array().map(|a| a.len())).unwrap_or(0);
+                        Some((risk, added, removed))
+                    })
+                    .unwrap_or((0.0, 0, 0));
+
+                let event_id = format!("{}:plan:{}", self.session_id, chrono::Utc::now().timestamp_millis());
+                let _ = self.ocel_store().emit_event(
+                    &event_id,
+                    "plan_computed",
+                    &ts,
+                    &self.session_id,
+                    &[
+                        ("risk_score", &risk_score.to_string()),
+                        ("added_count", &added_count.to_string()),
+                        ("removed_count", &removed_count.to_string()),
+                    ],
+                    &[(&obj_id, "planned_version")],
+                    None,
+                );
+
                 self.lineage().record(&self.session_id, "P", "plan", "computed");
                 result
             }
@@ -957,13 +1259,48 @@ impl OpenOntologiesServer {
         }
     }
 
-    #[tool(name = "onto_apply", description = "Apply the last plan. Modes: 'safe' (clear+reload, checks monitor), 'force' (ignores monitor), 'migrate' (adds owl:equivalentClass/Property bridges for renames).")]
+    #[tool(name = "onto_apply", description = "Apply the last plan. Modes: 'safe' (clear+reload, checks monitor), 'force' (skip monitor watchers — does NOT bypass admission), 'migrate' (adds owl:equivalentClass/Property bridges for renames). To bypass admission, set bypass_admission=true with a non-empty bypass_reason.")]
     async fn onto_apply(&self, Parameters(input): Parameters<OntoApplyInput>) -> String {
         let mode = input.mode.as_deref().unwrap_or("safe");
+        // OntoStar Stream 3: admission gate fires BEFORE any state mutation.
+        let artifact_bytes = self.graph.serialize("ntriples").unwrap_or_default();
+        if let Err(denial) = self.evaluate_admission(
+            crate::admission::AdmissionOp::Apply,
+            input.scope_token.as_deref(),
+            "apply-plan",
+            artifact_bytes.as_bytes(),
+            input.bypass_admission,
+            input.bypass_reason.as_deref(),
+        ) {
+            return denial;
+        }
         let planner = crate::plan::Planner::new(self.db.clone(), self.graph.clone());
         match planner.apply(mode) {
             Ok(result) => {
+                let ts = chrono::Utc::now().to_rfc3339();
+                let obj_id = format!("{}:plan", self.session_id);
+                let _ = self.ocel_store().upsert_object(&obj_id, "OntologyVersion", &[]);
+
+                let event_id = format!("{}:apply:{}", self.session_id, chrono::Utc::now().timestamp_millis());
+                let _ = self.ocel_store().emit_event(
+                    &event_id,
+                    &format!("apply_{}", mode),
+                    &ts,
+                    &self.session_id,
+                    &[("mode", mode)],
+                    &[(&obj_id, "applied_version")],
+                    None,
+                );
+
                 self.lineage().record(&self.session_id, "A", "apply", mode);
+                // OntoStar Stream 4 — Loop 1 hook (best-effort post-apply mining).
+                // Refused silently (returns Ok(None)) when the scope lacks an
+                // `admission_granted` event, a row in `receipts`, or
+                // `conformance_runs.fitness >= 0.95`. The receipt JOIN inside
+                // Loop 4 (exemplars_for_domain) is the integrity proof.
+                if let Some(ref scope) = input.scope_token {
+                    let _ = crate::feedback::exemplars::maybe_mine_exemplar(scope, self.ocel_store());
+                }
                 let monitor_result = self.monitor().run_watchers();
                 if monitor_result.status != "ok" {
                     let mut parsed: serde_json::Value = serde_json::from_str(&result).unwrap_or_default();
@@ -995,6 +1332,38 @@ impl OpenOntologiesServer {
         let detector = crate::drift::DriftDetector::new(self.db.clone());
         match detector.detect(&input.version_a, &input.version_b) {
             Ok(result) => {
+                let ts = chrono::Utc::now().to_rfc3339();
+                let obj_id_a = format!("{}:version_a", self.session_id);
+                let obj_id_b = format!("{}:version_b", self.session_id);
+                let _ = self.ocel_store().upsert_object(&obj_id_a, "OntologyVersion", &[]);
+                let _ = self.ocel_store().upsert_object(&obj_id_b, "OntologyVersion", &[]);
+
+                // Extract drift metrics
+                let (added, removed, renames) = serde_json::from_str::<serde_json::Value>(&result)
+                    .ok()
+                    .and_then(|j| {
+                        let a = j.get("added_terms").and_then(|v| v.as_array().map(|arr| arr.len())).unwrap_or(0);
+                        let r = j.get("removed_terms").and_then(|v| v.as_array().map(|arr| arr.len())).unwrap_or(0);
+                        let rn = j.get("rename_candidates").and_then(|v| v.as_array().map(|arr| arr.len())).unwrap_or(0);
+                        Some((a, r, rn))
+                    })
+                    .unwrap_or((0, 0, 0));
+
+                let event_id = format!("{}:drift:{}", self.session_id, chrono::Utc::now().timestamp_millis());
+                let _ = self.ocel_store().emit_event(
+                    &event_id,
+                    "drift_detected",
+                    &ts,
+                    &self.session_id,
+                    &[
+                        ("added_count", &added.to_string()),
+                        ("removed_count", &removed.to_string()),
+                        ("rename_count", &renames.to_string()),
+                    ],
+                    &[(&obj_id_a, "version_a"), (&obj_id_b, "version_b")],
+                    None,
+                );
+
                 self.lineage().record(&self.session_id, "D", "drift", "detected");
                 result
             }
@@ -1007,6 +1376,27 @@ impl OpenOntologiesServer {
         let enforcer = crate::enforce::Enforcer::new(self.db.clone(), self.graph.clone());
         match enforcer.enforce_with_feedback(&input.rule_pack, Some(&self.db)) {
             Ok(result) => {
+                let ts = chrono::Utc::now().to_rfc3339();
+                let obj_id = input.rule_pack.clone();
+                let _ = self.ocel_store().upsert_object(&obj_id, "RulePack", &[("rule_pack", &obj_id, "string")]);
+
+                // Count violations from result JSON if possible
+                let vcount = serde_json::from_str::<serde_json::Value>(&result)
+                    .ok()
+                    .and_then(|j| j.get("violations").and_then(|v| v.as_array().map(|a| a.len())))
+                    .unwrap_or(0);
+
+                let event_id = format!("{}:enforce:{}", self.session_id, chrono::Utc::now().timestamp_millis());
+                let _ = self.ocel_store().emit_event(
+                    &event_id,
+                    "enforce_run",
+                    &ts,
+                    &self.session_id,
+                    &[("violation_count", &vcount.to_string()), ("rule_pack", &obj_id)],
+                    &[(&obj_id, "enforced_against")],
+                    None,
+                );
+
                 self.lineage().record(&self.session_id, "E", "enforce", &input.rule_pack);
                 result
             }
@@ -1027,6 +1417,23 @@ impl OpenOntologiesServer {
             }
 
         let result = monitor.run_watchers();
+
+        let ts = chrono::Utc::now().to_rfc3339();
+        let ts_ms = chrono::Utc::now().timestamp_millis();
+        let obj_id = format!("{}:monitor:{}", self.session_id, ts_ms);
+        let _ = self.ocel_store().upsert_object(&obj_id, "MonitorRun", &[("status", &result.status, "string")]);
+
+        let event_id = format!("{}:monitor:{}", self.session_id, ts_ms);
+        let _ = self.ocel_store().emit_event(
+            &event_id,
+            &format!("monitor_{}", result.status),
+            &ts,
+            &self.session_id,
+            &[("status", &result.status)],
+            &[(&obj_id, "monitor_run")],
+            None,
+        );
+
         self.lineage().record(&self.session_id, "M", "monitor", &result.status);
         serde_json::to_string(&result).unwrap_or_else(|e| format!(r#"{{"error":"{}"}}"#, e))
     }
@@ -1074,18 +1481,68 @@ impl OpenOntologiesServer {
         }
     }
 
-    #[tool(name = "onto_lineage", description = "Get the compact lineage log for the current or specified session.")]
+    #[tool(name = "onto_lineage", description = "Get the lineage log for the current or specified session. Default format is compact text; use format='eventlog' for EventLog JSON or format='ocel' for Object-Centric Event Log.")]
     async fn onto_lineage(&self, Parameters(input): Parameters<OntoLineageInput>) -> String {
         let session = input.session_id.as_deref().unwrap_or(&self.session_id);
-        let events = self.lineage().get_compact(session);
-        serde_json::json!({
-            "session_id": session,
-            "events": events.trim(),
-        }).to_string()
+        let format = input.format.as_deref().unwrap_or("text");
+
+        match format {
+            "ocel" => {
+                match self.ocel_store.build_ocel(Some(session)) {
+                    Ok(ocel) => {
+                        serde_json::json!({
+                            "session_id": session,
+                            "format": "ocel",
+                            "ocel": serde_json::to_value(&ocel).unwrap_or(serde_json::Value::Null),
+                        }).to_string()
+                    }
+                    Err(e) => {
+                        serde_json::json!({
+                            "error": format!("Failed to build OCEL: {}", e)
+                        }).to_string()
+                    }
+                }
+            }
+            "eventlog" => {
+                let db = self.db.clone();
+                let conn = db.conn();
+                match crate::lineage::lineage_to_event_log(&conn, Some(session)) {
+                    Ok(event_log) => {
+                        serde_json::json!({
+                            "session_id": session,
+                            "format": "eventlog",
+                            "event_log": serde_json::to_value(&event_log).unwrap_or(serde_json::Value::Null),
+                        }).to_string()
+                    }
+                    Err(e) => {
+                        serde_json::json!({
+                            "error": format!("Failed to convert to EventLog: {}", e)
+                        }).to_string()
+                    }
+                }
+            }
+            _ => {
+                // Default text format
+                let events = self.lineage().get_compact(session);
+                serde_json::json!({
+                    "session_id": session,
+                    "format": "text",
+                    "events": events.trim(),
+                }).to_string()
+            }
+        }
     }
 
     #[tool(name = "onto_extend", description = "Convenience pipeline: ingest data → validate with SHACL → run OWL reasoning, all in one call. Combines onto_ingest + onto_shacl + onto_reason.")]
     async fn onto_extend(&self, Parameters(input): Parameters<OntoExtendInput>) -> String {
+        let started = std::time::Instant::now();
+        let out = self.onto_extend_inner(input).await;
+        let ok = !out.contains(r#""error""#);
+        self.emit_tool_ocel("onto_extend", started, ok, &[]);
+        out
+    }
+
+    async fn onto_extend_inner(&self, input: OntoExtendInput) -> String {
         use crate::ingest::DataIngester;
         use crate::mapping::MappingConfig;
         use crate::shacl::ShaclValidator;
@@ -1349,6 +1806,37 @@ impl OpenOntologiesServer {
 
         match engine.align(&source, target.as_deref(), min_conf, dry_run) {
             Ok(result) => {
+                let ts = chrono::Utc::now().to_rfc3339();
+                let obj_id_src = format!("{}:align_source", self.session_id);
+                let obj_id_tgt = format!("{}:align_target", self.session_id);
+                let _ = self.ocel_store().upsert_object(&obj_id_src, "OntologyVersion", &[]);
+                let _ = self.ocel_store().upsert_object(&obj_id_tgt, "OntologyVersion", &[]);
+
+                // Extract alignment metrics
+                let (candidate_count, auto_applied) = serde_json::from_str::<serde_json::Value>(&result)
+                    .ok()
+                    .and_then(|j| {
+                        let cc = j.get("candidates").and_then(|v| v.as_array().map(|a| a.len())).unwrap_or(0);
+                        let aa = j.get("auto_applied").and_then(|v| v.as_array().map(|a| a.len())).unwrap_or(0);
+                        Some((cc, aa))
+                    })
+                    .unwrap_or((0, 0));
+
+                let event_id = format!("{}:align:{}", self.session_id, chrono::Utc::now().timestamp_millis());
+                let _ = self.ocel_store().emit_event(
+                    &event_id,
+                    "align_run",
+                    &ts,
+                    &self.session_id,
+                    &[
+                        ("threshold", &min_conf.to_string()),
+                        ("candidate_count", &candidate_count.to_string()),
+                        ("auto_applied_count", &auto_applied.to_string()),
+                    ],
+                    &[(&obj_id_src, "source_ontology"), (&obj_id_tgt, "target_ontology")],
+                    None,
+                );
+
                 self.lineage().record(&self.session_id, "AL", "align", &format!("threshold={}", min_conf));
                 result
             }
@@ -1363,6 +1851,57 @@ impl OpenOntologiesServer {
             Ok(result) => {
                 self.lineage().record(&self.session_id, "AF", "align_feedback", if input.accepted { "accepted" } else { "rejected" });
                 result
+            }
+            Err(e) => format!(r#"{{"error":"{}"}}"#, e),
+        }
+    }
+
+    // ─── OntoStar Stream 4 — autonomic feedback loop handlers ────────────────
+
+    #[tool(name = "onto_planner_demos", description = "Loop 4 (cross-session retrieval). Return receipt-backed mined exemplars for a domain. The SQL JOIN to `receipts` enforces the rule: an exemplar without a receipt cannot be returned.")]
+    async fn onto_planner_demos(&self, Parameters(input): Parameters<OntoPlannerDemosInput>) -> String {
+        let min_fitness = input.min_fitness.unwrap_or(0.95);
+        let limit = input.limit.unwrap_or(10);
+        match self.ocel_store().exemplars_for_domain(&input.domain, min_fitness, limit) {
+            Ok(rows) => serde_json::json!({"ok": true, "domain": input.domain, "count": rows.len(), "exemplars": rows}).to_string(),
+            Err(e) => format!(r#"{{"error":"{}"}}"#, e),
+        }
+    }
+
+    #[tool(name = "onto_threshold_status", description = "Loop 2 (threshold calibration). Read all rows from `workflow_thresholds`.")]
+    async fn onto_threshold_status(&self) -> String {
+        match crate::feedback::thresholds::list_all(self.ocel_store()) {
+            Ok(rows) => serde_json::json!({"ok": true, "count": rows.len(), "thresholds": rows}).to_string(),
+            Err(e) => format!(r#"{{"error":"{}"}}"#, e),
+        }
+    }
+
+    #[tool(name = "onto_threshold_sweep", description = "Admin: force-run Loop 2 threshold-calibration sweep. Adjusts `workflow_thresholds.precision_threshold` based on aged-out `bypass_admission` events.")]
+    async fn onto_threshold_sweep(&self) -> String {
+        match crate::feedback::thresholds::sweep(self.ocel_store()) {
+            Ok(result) => serde_json::json!({"ok": true, "result": result}).to_string(),
+            Err(e) => format!(r#"{{"error":"{}"}}"#, e),
+        }
+    }
+
+    #[tool(name = "onto_workflow_discover", description = "Loop 3 (workflow discovery). Pull OCEL traces for the domain and run wasm4pm discovery; if the discovered fitness exceeds declared by 0.05, insert a `discovered_workflows` row with status=pending.")]
+    async fn onto_workflow_discover(&self, Parameters(input): Parameters<OntoWorkflowDiscoverInput>) -> String {
+        match crate::feedback::discovery::discover_for_domain(&input.domain, self.ocel_store()) {
+            Ok(Some(dw)) => {
+                self.lineage().record(&self.session_id, "WD", "workflow_discover", &dw.id);
+                serde_json::json!({"ok": true, "discovered": dw}).to_string()
+            }
+            Ok(None) => serde_json::json!({"ok": true, "discovered": null, "reason": "no_better_workflow_found_or_threshold_not_met"}).to_string(),
+            Err(e) => format!(r#"{{"error":"{}"}}"#, e),
+        }
+    }
+
+    #[tool(name = "onto_workflow_feedback", description = "Loop 3 surface. Accept or reject a discovered workflow candidate; flips `discovered_workflows.status`. Mirrors the JSON shape of `onto_align_feedback`.")]
+    async fn onto_workflow_feedback(&self, Parameters(input): Parameters<OntoWorkflowFeedbackInput>) -> String {
+        match crate::feedback::discovery::record_feedback(self.ocel_store(), &input.id, input.accepted) {
+            Ok(status) => {
+                self.lineage().record(&self.session_id, "WF", "workflow_feedback", if input.accepted { "accepted" } else { "rejected" });
+                serde_json::json!({"ok": true, "id": input.id, "accepted": input.accepted, "status": status}).to_string()
             }
             Err(e) => format!(r#"{{"error":"{}"}}"#, e),
         }
@@ -1392,6 +1931,14 @@ impl OpenOntologiesServer {
 
     #[tool(name = "onto_embed", description = "Generate text + structural Poincaré embeddings for all classes in the loaded ontology. Requires the embedding model (run `open-ontologies init` to download). Embeddings enable semantic search via onto_search and improve alignment accuracy.")]
     async fn onto_embed(&self, Parameters(input): Parameters<OntoEmbedInput>) -> String {
+        let started = std::time::Instant::now();
+        let out = self.onto_embed_inner(input).await;
+        let ok = !out.contains(r#""error""#);
+        self.emit_tool_ocel("onto_embed", started, ok, &[]);
+        out
+    }
+
+    async fn onto_embed_inner(&self, input: OntoEmbedInput) -> String {
         #[cfg(not(feature = "embeddings"))]
         { let _ = input; return r#"{"error":"Compiled without embeddings feature. Rebuild with --features embeddings"}"#.to_string(); }
         #[cfg(feature = "embeddings")]
@@ -1698,6 +2245,19 @@ impl OpenOntologiesServer {
             return r#"{"error":"No triples loaded. Call onto_load first."}"#.to_string();
         }
 
+        // OntoStar Stream 3: admission gate fires BEFORE invoking ggen.
+        let artifact_preview = self.graph.serialize("turtle").unwrap_or_default();
+        if let Err(denial) = self.evaluate_admission(
+            crate::admission::AdmissionOp::Codegen,
+            input.scope_token.as_deref(),
+            "codegen-input",
+            artifact_preview.as_bytes(),
+            input.bypass_admission,
+            input.bypass_reason.as_deref(),
+        ) {
+            return denial;
+        }
+
         // Check: manifest_path or queries_dir required
         if input.manifest_path.is_none() && input.queries_dir.is_none() {
             return r#"{"error":"onto_codegen requires either manifest_path (path to a ggen.toml with generation.rules) or queries_dir (directory of SPARQL .rq files). The generator field maps to ggen --language (accepted: python, rust, typescript, go, elixir). See ~/ggen for examples."}"#.to_string();
@@ -1761,6 +2321,25 @@ impl OpenOntologiesServer {
                 let stdout = String::from_utf8_lossy(&output.stdout);
                 let stderr = String::from_utf8_lossy(&output.stderr);
                 if output.status.success() {
+                    let ts = chrono::Utc::now().to_rfc3339();
+                    let obj_id = format!("{}:codegen:{}", self.session_id, &input.generator);
+                    let _ = self.ocel_store().upsert_object(
+                        &obj_id,
+                        "CodeArtifact",
+                        &[("generator", &input.generator, "string"), ("language", language, "string")],
+                    );
+
+                    let event_id = format!("{}:codegen:{}", self.session_id, chrono::Utc::now().timestamp_millis());
+                    let _ = self.ocel_store().emit_event(
+                        &event_id,
+                        "codegen_run",
+                        &ts,
+                        &self.session_id,
+                        &[("generator", &input.generator), ("language", language), ("output_dir", output_dir)],
+                        &[(&obj_id, "generated_from")],
+                        None,
+                    );
+
                     self.lineage().record(&self.session_id, "G", "codegen", &input.generator);
                     serde_json::json!({
                         "ok": true,
@@ -1787,6 +2366,208 @@ impl OpenOntologiesServer {
         let _ = std::fs::remove_dir_all(&tmp_dir);
 
         result
+    }
+
+    // ── OntoStar Stream 1 — workflow scope ──────────────────────────────────
+
+    #[tool(
+        name = "onto_declare_workflow",
+        description = "OntoStar: declare a workflow scope. Either pass a built-in `name` (OntologyAuthoring, DataExtension, DataExtensionFastPath, LifecycleApply, Alignment, Codegen, GovernedRelease) or an inline `powl` string. Returns a `scope_token` (ULID) used to tag subsequent OCEL events. Pair with `onto_close_workflow`."
+    )]
+    fn onto_declare_workflow(
+        &self,
+        Parameters(input): Parameters<OntoDeclareWorkflowInput>,
+    ) -> String {
+        let scope = crate::workflows::WorkflowScope::new(&self.db, &self.session_id);
+        match scope.open(
+            input.name.as_deref(),
+            input.powl.as_deref(),
+            input.scope_token.as_deref(),
+        ) {
+            Ok(token) => serde_json::json!({
+                "ok": true,
+                "scope_token": token,
+            })
+            .to_string(),
+            Err(crate::workflows::scope::ScopeError::Defect(d)) => serde_json::json!({
+                "ok": false,
+                "defect": d,
+            })
+            .to_string(),
+            Err(crate::workflows::scope::ScopeError::Storage(e)) => serde_json::json!({
+                "ok": false,
+                "defect": { "kind": "OcelIncomplete" },
+                "storage_error": e,
+            })
+            .to_string(),
+        }
+    }
+
+    #[tool(
+        name = "onto_close_workflow",
+        description = "OntoStar: close a previously-declared workflow scope. Writes `closed_at` and flips status to `closed`. Returns `{closed: true, scope_token}` on success; returns a typed `ScopeUnclosed` defect if the token is unknown or already closed."
+    )]
+    fn onto_close_workflow(
+        &self,
+        Parameters(input): Parameters<OntoCloseWorkflowInput>,
+    ) -> String {
+        let scope = crate::workflows::WorkflowScope::new(&self.db, &self.session_id);
+        match scope.close(&input.scope_token) {
+            Ok(()) => serde_json::json!({
+                "closed": true,
+                "scope_token": input.scope_token,
+            })
+            .to_string(),
+            Err(crate::workflows::scope::ScopeError::Defect(d)) => serde_json::json!({
+                "closed": false,
+                "scope_token": input.scope_token,
+                "defect": d,
+            })
+            .to_string(),
+            Err(crate::workflows::scope::ScopeError::Storage(e)) => serde_json::json!({
+                "closed": false,
+                "scope_token": input.scope_token,
+                "defect": { "kind": "OcelIncomplete" },
+                "storage_error": e,
+            })
+            .to_string(),
+        }
+    }
+
+    // ── OntoStar Stream 3 — admission dry-run + session reset ──────────────
+
+    #[tool(
+        name = "onto_admission_check",
+        description = "OntoStar: read-only dry-run of the admission gate. Returns the same denial JSON as the gated handlers but performs no mutation. `op` ∈ {apply, codegen, save, push}."
+    )]
+    fn onto_admission_check(
+        &self,
+        Parameters(input): Parameters<OntoAdmissionCheckInput>,
+    ) -> String {
+        let op = match input.op.to_lowercase().as_str() {
+            "apply" => crate::admission::AdmissionOp::Apply,
+            "codegen" => crate::admission::AdmissionOp::Codegen,
+            "save" => crate::admission::AdmissionOp::Save,
+            "push" => crate::admission::AdmissionOp::Push,
+            other => {
+                return serde_json::json!({
+                    "ok": false,
+                    "defect": { "kind": "DeadParameter", "param": format!("op={}", other) },
+                })
+                .to_string();
+            }
+        };
+        // Use the current canonical graph as the artifact preview.
+        let artifact = self.graph.serialize("turtle").unwrap_or_default();
+        match self.evaluate_admission(
+            op,
+            input.scope_token.as_deref(),
+            "admission-check",
+            artifact.as_bytes(),
+            None,
+            None,
+        ) {
+            Ok(receipt) => serde_json::json!({
+                "ok": true,
+                "admission": "would_grant",
+                "receipt_hash": receipt.hex(),
+            })
+            .to_string(),
+            Err(json) => json,
+        }
+    }
+
+    #[tool(
+        name = "onto_session_reset",
+        description = "OntoStar: clear a session's `revoked_sessions` row (sets cleared_at). Use after a `bypass_admission` event when the session is otherwise allowed to resume."
+    )]
+    fn onto_session_reset(
+        &self,
+        Parameters(input): Parameters<OntoSessionResetInput>,
+    ) -> String {
+        match crate::admission::clear_revocation(&self.db, &input.session_id) {
+            Ok(()) => {
+                self.lineage().record_session_reset(&input.session_id);
+                serde_json::json!({
+                    "ok": true,
+                    "session_id": input.session_id,
+                    "cleared": true,
+                })
+                .to_string()
+            }
+            Err(e) => serde_json::json!({
+                "ok": false,
+                "session_id": input.session_id,
+                "error": e.to_string(),
+            })
+            .to_string(),
+        }
+    }
+
+    // ── OntoStar Stream 2 — conformance check ──────────────────────────────
+
+    #[tool(
+        name = "onto_conformance_check",
+        description = "OntoStar: replay the OCEL trace tagged with `scope_token` against its declared POWL. Pure delegation to wasm4pm (no local PM math). Returns {fitness, precision, defects, trace_canonical_hash, run_id}."
+    )]
+    fn onto_conformance_check(
+        &self,
+        Parameters(input): Parameters<OntoConformanceCheckInput>,
+    ) -> String {
+        let conn = self.db.conn();
+        let row: Option<(String, Option<String>)> = conn
+            .query_row(
+                "SELECT powl_string, status FROM declared_workflows WHERE scope_token = ?1",
+                rusqlite::params![input.scope_token],
+                |r| Ok((r.get::<_, String>(0)?, r.get::<_, Option<String>>(1)?)),
+            )
+            .ok();
+        let (powl_string, _status) = match row {
+            Some(r) => r,
+            None => {
+                return serde_json::json!({
+                    "ok": false,
+                    "defect": { "kind": "ScopeUnclosed" },
+                    "error": "no declared workflow for scope_token",
+                })
+                .to_string();
+            }
+        };
+
+        let mut bridge = crate::powl_bridge::PowlBridge::new();
+        let root = match bridge.parse(&powl_string) {
+            Ok(r) => r,
+            Err(e) => {
+                return serde_json::json!({
+                    "ok": false,
+                    "defect": { "kind": "ReplayFailed" },
+                    "error": format!("powl parse: {e}"),
+                })
+                .to_string();
+            }
+        };
+
+        match self
+            .ocel_store()
+            .replay_against_powl(&input.scope_token, &bridge, root)
+        {
+            Ok(res) => serde_json::json!({
+                "ok": true,
+                "fitness": res.fitness,
+                "precision": res.precision,
+                "verdict": res.verdict,
+                "defects": res.defects.iter().map(|(d, _)| d).collect::<Vec<_>>(),
+                "trace_canonical_hash": res.trace_canonical_hash,
+                "run_id": res.run_id,
+            })
+            .to_string(),
+            Err(e) => serde_json::json!({
+                "ok": false,
+                "defect": { "kind": "ReplayFailed" },
+                "error": format!("{e}"),
+            })
+            .to_string(),
+        }
     }
 }
 

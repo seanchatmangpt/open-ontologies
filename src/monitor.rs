@@ -76,6 +76,11 @@ impl Monitor {
     }
 
     pub fn run_watchers(&self) -> MonitorResult {
+        // OntoStar Stream 4 — Loop 2: opportunistic threshold calibration sweep.
+        // Failure here is non-fatal — the sweep is best-effort housekeeping.
+        let store = crate::ocel_store::OcelStore::new(self.db.clone());
+        let _ = crate::feedback::thresholds::sweep(&store);
+
         let watchers = self.load_watchers();
         let mut alerts = Vec::new();
         let mut passed = Vec::new();
@@ -208,8 +213,24 @@ impl Monitor {
     fn evaluate_watcher(&self, watcher: &Watcher) -> f64 {
         match watcher.check_type.as_str() {
             "sparql" => self.eval_sparql_watcher(watcher),
+            // OntoStar Stream 4 — Loop 5 surface. The watcher's `query` field
+            // (when present) is interpreted as the lower-bound RFC3339
+            // timestamp; otherwise we look back 24h. The returned value is
+            // the count of `conformance_regression_detected` events.
+            "conformance_regression" => self.eval_conformance_regression(watcher),
             _ => 0.0,
         }
+    }
+
+    fn eval_conformance_regression(&self, watcher: &Watcher) -> f64 {
+        let store = crate::ocel_store::OcelStore::new(self.db.clone());
+        let since = watcher
+            .query
+            .clone()
+            .unwrap_or_else(|| (chrono::Utc::now() - chrono::Duration::hours(24)).to_rfc3339());
+        crate::feedback::regression::count_regressions_since(&store, &since)
+            .map(|n| n as f64)
+            .unwrap_or(0.0)
     }
 
     fn eval_sparql_watcher(&self, watcher: &Watcher) -> f64 {

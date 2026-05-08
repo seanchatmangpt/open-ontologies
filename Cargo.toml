@@ -45,6 +45,11 @@ tract-onnx = { version = "0.21", optional = true }
 tokenizers = { version = "0.21", optional = true, default-features = false, features = ["onig"] }
 dirs = "6"
 shell-words = "1"
+wasm4pm-types = { path = "/Users/sac/wasm4pm/crates/wasm4pm-types", features = ["import"] }
+wasm4pm-algos = { path = "/Users/sac/wasm4pm/crates/wasm4pm-algos" }
+wasm4pm = { path = "/Users/sac/wasm4pm/wasm4pm", default-features = false, features = ["powl", "conformance_basic", "hand_rolled_stats", "streaming_basic", "discovery_advanced", "ml"] }
+blake3 = "1"
+ulid = "1"
 
 [features]
 default = []

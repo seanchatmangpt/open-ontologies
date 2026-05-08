@@ -121,6 +121,13 @@ pub struct OntoSaveInput {
     pub path: String,
     /// Format: turtle, ntriples, rdfxml, nquads, trig
     pub format: Option<String>,
+    /// Optional explicit scope token for admission. Falls back to the latest
+    /// open scope for the session.
+    pub scope_token: Option<String>,
+    /// Bypass admission gate. Requires `bypass_reason`. Revokes the session.
+    pub bypass_admission: Option<bool>,
+    /// Required when `bypass_admission` is true.
+    pub bypass_reason: Option<String>,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -155,6 +162,13 @@ pub struct OntoPushInput {
     pub endpoint: String,
     /// Optional named graph IRI
     pub graph: Option<String>,
+    /// Optional explicit scope token for admission. Falls back to the latest
+    /// open scope for the session.
+    pub scope_token: Option<String>,
+    /// Bypass admission gate. Requires `bypass_reason`. Revokes the session.
+    pub bypass_admission: Option<bool>,
+    /// Required when `bypass_admission` is true.
+    pub bypass_reason: Option<String>,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -261,8 +275,23 @@ pub struct OntoPlanInput {
 
 #[derive(Deserialize, JsonSchema)]
 pub struct OntoApplyInput {
-    /// Apply mode: "safe" (default), "force" (ignores monitor), "migrate" (adds bridges)
+    /// Apply mode: "safe" (default), "force" (skip monitor watchers), "migrate" (adds bridges).
+    ///
+    /// NOTE on `force` semantics: the legacy `force` mode is retained but its
+    /// meaning is now narrowed — it only skips monitor watchers. It does NOT
+    /// bypass the OntoStar admission gate. To bypass admission, use the
+    /// explicit `bypass_admission` field below (which requires a `bypass_reason`
+    /// and revokes the session for subsequent operations until
+    /// `onto_session_reset`).
     pub mode: Option<String>,
+    /// Optional explicit scope token; if omitted, the latest open scope for
+    /// the session is used. If no scope is open, admission denies with
+    /// `ScopeUnclosed`.
+    pub scope_token: Option<String>,
+    /// Bypass admission gate. Requires `bypass_reason`. Revokes the session.
+    pub bypass_admission: Option<bool>,
+    /// Required when `bypass_admission` is true. Free text but must be non-empty.
+    pub bypass_reason: Option<String>,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -315,6 +344,38 @@ pub struct OntoEnrichInput {
 pub struct OntoLineageInput {
     /// Session ID to query (omit for current session)
     pub session_id: Option<String>,
+    /// Export format: "text" (default) or "ocel" (Object-Centric Event Log JSON)
+    pub format: Option<String>,
+}
+
+// ─── OntoStar Stream 1 — workflow scope ─────────────────────────────────────
+
+#[derive(Deserialize, JsonSchema)]
+pub struct OntoDeclareWorkflowInput {
+    /// Built-in workflow name (e.g. "OntologyAuthoring", "DataExtension"). If
+    /// omitted, `powl` must be provided.
+    pub name: Option<String>,
+    /// Inline POWL string. Overrides catalog lookup when both are supplied.
+    pub powl: Option<String>,
+    /// Reuse an existing scope token (idempotent re-open). If omitted, a new
+    /// ULID is minted.
+    pub scope_token: Option<String>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct OntoCloseWorkflowInput {
+    /// The scope token returned by `onto_declare_workflow`.
+    pub scope_token: String,
+}
+
+// ─── OntoStar Stream 2 — conformance check ──────────────────────────────────
+
+#[derive(Deserialize, JsonSchema)]
+pub struct OntoConformanceCheckInput {
+    /// Scope token returned by `onto_declare_workflow`. Events tagged with
+    /// this scope are projected to a trace and replayed against the declared
+    /// POWL via `wasm4pm` (zero local PM math).
+    pub scope_token: String,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -500,6 +561,21 @@ pub struct OntoMustarSolveInput {
 pub type OntoAlphastarSolveInput = OntoMustarSolveInput;
 
 #[derive(Deserialize, JsonSchema)]
+pub struct OntoAdmissionCheckInput {
+    /// Operation to dry-run admission for: "apply", "codegen", "save", "push".
+    pub op: String,
+    /// Optional explicit scope token; falls back to the latest open scope for
+    /// the session.
+    pub scope_token: Option<String>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct OntoSessionResetInput {
+    /// Session id whose `revoked_sessions` row should be cleared.
+    pub session_id: String,
+}
+
+#[derive(Deserialize, JsonSchema)]
 pub struct OntoCodegenInput {
     /// Generator name / target language (e.g., "python-client" → python, "rust-structs" → rust, "typescript-types" → typescript, or accepted values: python, rust, typescript, go, elixir)
     pub generator: String,
@@ -511,6 +587,39 @@ pub struct OntoCodegenInput {
     pub manifest_path: Option<String>,
     /// Path to a directory of SPARQL .rq query files (low-level pipeline mode). Either this or manifest_path must be provided.
     pub queries_dir: Option<String>,
+    /// Optional explicit scope token for admission. Falls back to the latest
+    /// open scope for the session.
+    pub scope_token: Option<String>,
+    /// Bypass admission gate. Requires `bypass_reason`. Revokes the session.
+    pub bypass_admission: Option<bool>,
+    /// Required when `bypass_admission` is true.
+    pub bypass_reason: Option<String>,
+}
+
+// ─── OntoStar Stream 4 — feedback handler inputs ─────────────────────────────
+
+#[derive(Deserialize, JsonSchema)]
+pub struct OntoPlannerDemosInput {
+    /// Domain key (workflow class name, e.g. "OntologyAuthoring").
+    pub domain: String,
+    /// Minimum fitness floor for returned exemplars. Default 0.95.
+    pub min_fitness: Option<f64>,
+    /// Maximum number of exemplars. Default 10.
+    pub limit: Option<usize>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct OntoWorkflowDiscoverInput {
+    /// Domain key (workflow class name) to run discovery for.
+    pub domain: String,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct OntoWorkflowFeedbackInput {
+    /// `discovered_workflows.id` row to flip.
+    pub id: String,
+    /// true = mark accepted, false = mark rejected.
+    pub accepted: bool,
 }
 
 #[derive(Deserialize, JsonSchema)]
