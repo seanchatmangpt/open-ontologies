@@ -632,3 +632,35 @@ pub struct GenerateCodeInput {
     pub output_dir: Option<String>,
 }
 
+// ─── Stream 5 inputs ────────────────────────────────────────────────────────
+
+#[derive(Deserialize, JsonSchema)]
+pub struct OntoPlanWorkflowInput {
+    /// Natural-language description of the workflow to plan.
+    pub problem_statement: String,
+    /// Domain bucket used to look up warm-start exemplars (e.g. "ONTOLOGY").
+    pub domain: String,
+    /// Optional technical constraints passed to the planner.
+    pub constraints: Option<String>,
+    /// Override the python interpreter (default: "python3").
+    pub python: Option<String>,
+    /// Override the planner script path. Default:
+    /// `~/chatmangpt/ostar/src/ostar/process/ontostar_planner.py`.
+    pub planner_script: Option<String>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct OntoExemplarSeedInput {
+    /// Path to the seed OCEL JSON file. Default:
+    /// `~/chatmangpt/ostar/artifacts/ocel/mu_star/ONTOLOGY.oceljson`.
+    pub path: Option<String>,
+    /// Domain to assign to seeded exemplars when the OCEL event omits it.
+    pub domain: Option<String>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct OntoCounterfactualInput {
+    /// Scope token returned by `onto_declare_workflow` / `onto_plan_workflow`.
+    pub scope_token: String,
+}
+

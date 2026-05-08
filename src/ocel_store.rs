@@ -415,4 +415,111 @@ impl OcelStore {
             objects,
         })
     }
+
+    pub fn insert_seed_exemplar(
+        &self,
+        domain: &str,
+        problem_statement: &str,
+        powl_model: &str,
+        build_order: &str,
+        sequence_diagram: &str,
+        fitness: f64,
+    ) -> Result<String> {
+        use std::collections::hash_map::DefaultHasher;
+        use std::hash::{Hash, Hasher};
+        let seed_input = format!("{}|{}|{}", domain, problem_statement, powl_model);
+        let mut h = DefaultHasher::new();
+        seed_input.hash(&mut h);
+        let receipt_hash = format!("seed-v0-{:016x}", h.finish());
+        let canonical = serde_json::json!({
+            "kind": "seed",
+            "domain": domain,
+            "problem": problem_statement,
+            "powl_model": powl_model,
+            "fitness": fitness,
+        })
+        .to_string();
+        let conn = self.db.conn();
+        conn.execute(
+            "INSERT OR IGNORE INTO receipts (receipt_hash, scope_token, production_law_version, canonical_record, parent_hash)
+             VALUES (?1, NULL, 'seed-v0', ?2, NULL)",
+            rusqlite::params![receipt_hash, canonical],
+        )?;
+        conn.execute(
+            "INSERT INTO mined_exemplars (domain, problem_statement, powl_model, build_order, sequence_diagram, fitness, source_scope_token, receipt_hash)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, NULL, ?7)",
+            rusqlite::params![
+                domain,
+                problem_statement,
+                powl_model,
+                build_order,
+                sequence_diagram,
+                fitness,
+                receipt_hash
+            ],
+        )?;
+        Ok(receipt_hash)
+    }
+
+    pub fn seed_from_ocel_bytes(&self, bytes: &[u8], default_domain: &str) -> Result<u64> {
+        let doc: serde_json::Value = serde_json::from_slice(bytes)?;
+        let events: Vec<serde_json::Value> = if let Some(arr) =
+            doc.get("events").and_then(|v| v.as_array())
+        {
+            arr.clone()
+        } else if let Some(obj) = doc.get("ocel:events").and_then(|v| v.as_object()) {
+            obj.values().cloned().collect()
+        } else if let Some(arr) = doc.get("ocel:events").and_then(|v| v.as_array()) {
+            arr.clone()
+        } else {
+            return Ok(0);
+        };
+        let mut inserted = 0u64;
+        for ev in events {
+            let etype = ev
+                .get("ocel:activity")
+                .or_else(|| ev.get("activity"))
+                .or_else(|| ev.get("ocel:type"))
+                .or_else(|| ev.get("type"))
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
+            if etype != "build_order_generated" {
+                continue;
+            }
+            let attrs = ev
+                .get("ocel:attributes")
+                .or_else(|| ev.get("attributes"))
+                .or_else(|| ev.get("vmap"))
+                .cloned()
+                .unwrap_or(serde_json::Value::Null);
+            let s = |k: &str| -> String {
+                attrs.get(k).and_then(|v| v.as_str()).unwrap_or("").to_string()
+            };
+            let problem = s("problem_statement");
+            let powl_model = if !s("powl_model").is_empty() {
+                s("powl_model")
+            } else {
+                s("powl_string")
+            };
+            if powl_model.is_empty() {
+                continue;
+            }
+            let domain = if !s("domain").is_empty() {
+                s("domain")
+            } else {
+                default_domain.to_string()
+            };
+            let fitness = attrs.get("fitness").and_then(|v| v.as_f64()).unwrap_or(1.0);
+            self.insert_seed_exemplar(
+                &domain,
+                &problem,
+                &powl_model,
+                &s("build_order"),
+                &s("sequence_diagram"),
+                fitness,
+            )?;
+            inserted += 1;
+        }
+        Ok(inserted)
+    }
 }

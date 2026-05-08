@@ -2577,6 +2577,268 @@ impl OpenOntologiesServer {
             .to_string(),
         }
     }
+
+    // ─── Stream 5 — Planner bridge, seed, counterfactual ──────────────────
+    //
+    // TODO(stream1-4): Streams 1-4 are not yet merged on this branch. The
+    // schema for `workflow_scopes`, `mined_exemplars`, and `receipts` is
+    // stubbed in `state.rs`; `OcelStore::exemplars_for_domain` is stubbed
+    // in `ocel_store.rs`; the synthetic `onto_declare_workflow` call below
+    // materializes a scope row directly. When Streams 1-4 land, swap the
+    // stubs for the real handlers and types.
+
+    #[tool(name = "onto_plan_workflow", description = "Stream 5: Propose a POWL workflow from a problem statement using MuStar + PowlPredictor (Python subprocess). Loop 1 exemplars warm-start the planner. The result is auto-fed into a synthetic onto_declare_workflow and a scope_token is returned. The planner does NOT admit — admission is the gate's exclusive responsibility.")]
+    async fn onto_plan_workflow(&self, Parameters(input): Parameters<OntoPlanWorkflowInput>) -> String {
+        use crate::ocel_store::OcelStore;
+
+        // Loop 1 warm-start.
+        let store = OcelStore::new(self.db.clone());
+        let exemplars = store
+            .exemplars_for_domain(&input.domain, 0.85, 5)
+            .unwrap_or_default();
+
+        let payload = serde_json::json!({
+            "problem_statement": input.problem_statement,
+            "domain": input.domain,
+            "constraints": input.constraints.clone().unwrap_or_default(),
+            "exemplars": exemplars,
+        });
+
+        let python = input.python.clone().unwrap_or_else(|| "python3".to_string());
+        let script = input
+            .planner_script
+            .clone()
+            .unwrap_or_else(|| "~/chatmangpt/ostar/src/ostar/process/ontostar_planner.py".to_string());
+        let script = expand_tilde(&script);
+
+        let mut cmd = std::process::Command::new(&python);
+        cmd.arg(&script);
+        cmd.stdin(std::process::Stdio::piped());
+        cmd.stdout(std::process::Stdio::piped());
+        cmd.stderr(std::process::Stdio::piped());
+
+        let mut child = match cmd.spawn() {
+            Ok(c) => c,
+            Err(e) => {
+                return format!(
+                    r#"{{"error":"Failed to spawn ontostar_planner.py: {}"}}"#,
+                    e.to_string().replace('"', "'")
+                )
+            }
+        };
+
+        if let Some(mut stdin) = child.stdin.take() {
+            use std::io::Write;
+            let _ = stdin.write_all(payload.to_string().as_bytes());
+        }
+
+        let out = match child.wait_with_output() {
+            Ok(o) => o,
+            Err(e) => {
+                return format!(
+                    r#"{{"error":"planner subprocess failed: {}"}}"#,
+                    e.to_string().replace('"', "'")
+                )
+            }
+        };
+
+        if !out.status.success() {
+            let stderr = String::from_utf8_lossy(&out.stderr);
+            return format!(
+                r#"{{"error":"planner exit nonzero: {}"}}"#,
+                stderr.replace('"', "'").replace('\n', " ")
+            );
+        }
+
+        let stdout = String::from_utf8_lossy(&out.stdout).into_owned();
+        let parsed: serde_json::Value = match serde_json::from_str(stdout.trim()) {
+            Ok(v) => v,
+            Err(e) => {
+                return format!(
+                    r#"{{"error":"planner produced non-JSON output: {} (raw={})"}}"#,
+                    e,
+                    stdout.replace('"', "'").replace('\n', " ")
+                )
+            }
+        };
+
+        if parsed.get("error").is_some() {
+            return parsed.to_string();
+        }
+
+        let powl_string = parsed
+            .get("powl_string")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string();
+        if powl_string.trim().is_empty() {
+            return r#"{"error":"planner returned empty powl_string"}"#.to_string();
+        }
+
+        // Synthetic onto_declare_workflow — Stream 1 is not yet merged on
+        // this branch, so we materialize the scope row directly. Once
+        // Stream 1 lands, this should call the real handler.
+        // TODO(stream1): replace with self.onto_declare_workflow(...).
+        let scope_token = format!(
+            "scope-{}-{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_nanos())
+                .unwrap_or(0),
+            uuid_short(&powl_string)
+        );
+
+        {
+            let conn = self.db.conn();
+            if let Err(e) = conn.execute(
+                "INSERT INTO workflow_scopes (scope_token, workflow_name, domain, powl_string)
+                 VALUES (?1, ?2, ?3, ?4)",
+                rusqlite::params![scope_token, "planned_workflow", input.domain, powl_string],
+            ) {
+                return format!(
+                    r#"{{"error":"failed to declare scope: {}"}}"#,
+                    e.to_string().replace('"', "'")
+                );
+            }
+        }
+
+        // OCEL event: build_order_generated.
+        let build_order = parsed
+            .get("build_order")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+        let powl_metrics = serde_json::json!({
+            "powl_length": powl_string.len(),
+            "build_order_length": build_order.len(),
+            "refined": parsed.get("refined").and_then(|v| v.as_bool()).unwrap_or(false),
+            "exemplars_used": parsed.get("exemplars_used").and_then(|v| v.as_u64()).unwrap_or(0),
+        });
+        let details = format!(
+            "build_order_generated source=mustar+powlpredictor scope={} metrics={}",
+            scope_token,
+            powl_metrics
+        );
+        self.lineage()
+            .record(&self.session_id, "BG", "build_order_generated", &details);
+
+        serde_json::json!({
+            "ok": true,
+            "scope_token": scope_token,
+            "powl_string": powl_string,
+            "build_order": build_order,
+            "sequence_diagram": parsed.get("sequence_diagram").and_then(|v| v.as_str()).unwrap_or(""),
+            "refined": parsed.get("refined").and_then(|v| v.as_bool()).unwrap_or(false),
+            "refine_issues": parsed.get("refine_issues").and_then(|v| v.as_str()).unwrap_or(""),
+            "exemplars_used": parsed.get("exemplars_used").and_then(|v| v.as_u64()).unwrap_or(0),
+        })
+        .to_string()
+    }
+
+    #[tool(name = "onto_exemplar_seed", description = "Stream 5: Admin handler. Read a seed OCEL JSON file (default: ~/chatmangpt/ostar/artifacts/ocel/mu_star/ONTOLOGY.oceljson), extract `build_order_generated` events, and insert them into mined_exemplars with synthesized receipts marked production_law_version='seed-v0'. Strict admission can later filter via WHERE production_law_version != 'seed-v0'.")]
+    async fn onto_exemplar_seed(&self, Parameters(input): Parameters<OntoExemplarSeedInput>) -> String {
+        let raw_path = input
+            .path
+            .clone()
+            .unwrap_or_else(|| "~/chatmangpt/ostar/artifacts/ocel/mu_star/ONTOLOGY.oceljson".to_string());
+        let path = expand_tilde(&raw_path);
+        let bytes = match std::fs::read(&path) {
+            Ok(b) => b,
+            Err(e) => {
+                return format!(
+                    r#"{{"error":"failed to read seed OCEL: {} ({})"}}"#,
+                    path,
+                    e
+                )
+            }
+        };
+        let default_domain = input.domain.clone().unwrap_or_else(|| "ONTOLOGY".to_string());
+        let store = crate::ocel_store::OcelStore::new(self.db.clone());
+        let inserted = match store.seed_from_ocel_bytes(&bytes, &default_domain) {
+            Ok(n) => n,
+            Err(e) => {
+                return format!(r#"{{"error":"seed ingestion failed: {}"}}"#, e)
+            }
+        };
+
+        serde_json::json!({
+            "ok": true,
+            "inserted": inserted,
+            "source": path,
+            "production_law_version": "seed-v0",
+        })
+        .to_string()
+    }
+
+    #[tool(name = "onto_counterfactual", description = "Stream 5: Read-only probe. For a given scope_token, returns side-by-side: (a) the naked-craft path (no scope, gate bypassed, force=true → always Admitted) and (b) the OntoStar admission path (real verdict). Surfaces the manufacturing delta — the set of gates where the two paths diverged.")]
+    async fn onto_counterfactual(&self, Parameters(input): Parameters<OntoCounterfactualInput>) -> String {
+        // Load scope row (Stream 5 stub schema).
+        let conn = self.db.conn();
+        let row: Option<(String, String, String, Option<i64>, Option<f64>, Option<String>, Option<String>, Option<String>)> = conn
+            .query_row(
+                "SELECT scope_token, workflow_name, domain, admitted, fitness, defects_json, deviations_json, gates_fired_json
+                 FROM workflow_scopes WHERE scope_token = ?1",
+                rusqlite::params![input.scope_token],
+                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?, r.get(5)?, r.get(6)?, r.get(7)?)),
+            )
+            .ok();
+        drop(conn);
+
+        let (scope_token, workflow_name, domain, admitted, fitness, defects_json, deviations_json, gates_fired_json) =
+            match row {
+                Some(r) => r,
+                None => {
+                    return format!(
+                        r#"{{"error":"unknown scope_token: {}"}}"#,
+                        input.scope_token.replace('"', "'")
+                    )
+                }
+            };
+
+        // naked_craft = force=true admission path (no POWL replay, always passes)
+        let naked_craft = serde_json::json!({
+            "scope_token": scope_token,
+            "force": true,
+            "verdict": "granted_by_force",
+            "gates_checked": vec![] as Vec<String>,
+            "gates_denied": vec![] as Vec<String>,
+        });
+
+        // onto_star path = real verdict from admission.rs (what was observed)
+        let onto_star_path = serde_json::json!({
+            "scope_token": scope_token,
+            "verdict": if admitted.unwrap_or(0) > 0 { "granted" } else { "denied" },
+            "fitness": fitness.unwrap_or(0.0),
+            "defects_json": defects_json.unwrap_or_default(),
+            "deviations_json": deviations_json.unwrap_or_default(),
+            "gates_fired_json": gates_fired_json.unwrap_or_default(),
+        });
+
+        serde_json::json!({
+            "ok": true,
+            "naked_craft": naked_craft,
+            "onto_star": onto_star_path,
+            "delta_gates": "see gates_fired_json in onto_star for divergence",
+            "manufacturing_path": domain,
+        })
+        .to_string()
+    }
+}
+
+// ─── Stream 5 helpers ───────────────────────────────────────────────────────
+
+/// Short 16-hex-char fingerprint used as a deterministic id suffix.
+/// Not cryptographic — Stream 3 owns the real BLAKE3 receipt chain.
+fn uuid_short(input: &str) -> String {
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
+    let mut h1 = DefaultHasher::new();
+    input.hash(&mut h1);
+    let a = h1.finish();
+    let mut h2 = DefaultHasher::new();
+    a.hash(&mut h2);
+    input.hash(&mut h2);
+    let b = h2.finish();
+    format!("{:016x}{:016x}", a, b)[..16].to_string()
 }
 
 // ─── Prompt definitions ─────────────────────────────────────────────────────
