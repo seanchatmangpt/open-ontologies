@@ -3286,18 +3286,38 @@ impl OpenOntologiesServer {
                 "error": "NoLlmConfigured: GROQ_API_KEY is not set in env or .env",
             }).to_string();
         }
-        let candidate = match translator.translate_candidate_ctq(&input.source_voice).await {
-            Ok(c) => c,
+        // Phase 5: drive the DSPy-style **shaped** translator. The
+        // signature pre-constrains the LLM's output space (instructions
+        // + per-field constraints + demos) and post-validates the
+        // response against the same shape, retrying with typed revision
+        // hints on failure. The LLM never sees a free-form prompt.
+        let mut shape_inputs = std::collections::BTreeMap::new();
+        shape_inputs.insert("source_voice".into(), input.source_voice.clone());
+        shape_inputs.insert("voice_kind".into(), "operator".into());
+        let fields = match translator
+            .translate_with_signature(&crate::signature_shape::ctq_signature(), &shape_inputs, 2)
+            .await
+        {
+            Ok(f) => f,
             Err(e) => {
                 self.emit_tool_ocel("onto_translate_candidate", started, false, &[]);
-                // The Err variant has already been redacted by
-                // redact_bearer_patterns() inside the translator.
-                return format!(r#"{{"error":"translation failed: {}"}}"#, e.to_string().replace('"', "'"));
+                return format!(r#"{{"error":"shaped translation failed: {}"}}"#, e.to_string().replace('"', "'"));
             }
         };
-        // Compute a stable id for the candidate so OCEL attributes can
-        // reference it without echoing the full text (the full text is
-        // returned in the response only).
+        // Lift the validated fields back into a CandidateCtq. Each
+        // mandatory field is guaranteed present by parse_and_validate;
+        // we mark provisional=true regardless (the LLM never gets to
+        // mark its own output authoritative — Phase 1.3 invariant).
+        let candidate = crate::llm_translator::CandidateCtq {
+            source_voice_echo: input.source_voice.clone(),
+            defect_class_hint: fields.get("defect_class_hint").cloned().unwrap_or_default(),
+            ctq_text: fields.get("ctq_text").cloned().unwrap_or_default(),
+            measure_text: fields.get("measure_text").cloned().unwrap_or_default(),
+            verification_text: fields.get("verification_text").cloned().unwrap_or_default(),
+            negative_case_text: fields.get("negative_case_text").cloned().unwrap_or_default(),
+            control_plan_text: fields.get("control_plan_text").cloned().unwrap_or_default(),
+            provisional: true,
+        };
         let candidate_json = match serde_json::to_string(&candidate) {
             Ok(s) => s,
             Err(_) => "{}".to_string(),

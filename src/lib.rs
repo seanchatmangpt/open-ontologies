@@ -54,6 +54,12 @@ pub mod structembed;
 // not feature-gated. The translator is a *proposer*, not an authority.
 pub mod llm_translator;
 
+// DSPy-style signature shapes — the language-to-contract boundary that
+// molds LLM output before generation and gauges it after. Used by the
+// shaped translator to constrain CTQ proposals to a specific output
+// shape with retry-on-failure.
+pub mod signature_shape;
+
 // Solution Manufacturing — Phase 4. Multi-target deterministic generator
 // for IaC + Rust + Erlang + AtomVM, gated by SolutionManufactured
 // admission op.

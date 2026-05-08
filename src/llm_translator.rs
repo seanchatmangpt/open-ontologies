@@ -232,6 +232,95 @@ impl GroqTranslator {
         Ok(candidate)
     }
 
+    /// Drive a DSPy-style **shaped** translation: compile the
+    /// signature into a (system, user) prompt pair, send it to Groq,
+    /// parse the response back through the shape's gauge, and refine
+    /// up to `max_refinements` times on validation failure.
+    ///
+    /// Returns the admitted field map on success. Returns the FINAL
+    /// validation failure list (not partial parses) on exhaust.
+    ///
+    /// The LLM is the *forming pressure*; the signature is the *mold*;
+    /// the validator is the *gauge*. The downstream CTQ admission gate
+    /// is what *admits* — this method only constrains.
+    pub async fn translate_with_signature(
+        &self,
+        shape: &crate::signature_shape::SignatureShape,
+        inputs: &std::collections::BTreeMap<String, String>,
+        max_refinements: u32,
+    ) -> Result<std::collections::BTreeMap<String, String>> {
+        let api_key = self
+            .api_key
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("NoLlmConfigured: GROQ_API_KEY not set"))?;
+
+        let mut last_failures: Vec<crate::signature_shape::ValidationFailure> = Vec::new();
+
+        for attempt in 0..=max_refinements {
+            let (sys, user) = if attempt == 0 {
+                shape.compile_prompt(inputs)
+            } else {
+                shape.compile_prompt_with_hints(inputs, &last_failures)
+            };
+
+            let body = ChatRequest {
+                model: &self.model,
+                messages: vec![
+                    ChatMessage { role: "system", content: &sys },
+                    ChatMessage { role: "user", content: &user },
+                ],
+                response_format: Some(ResponseFormat { kind: "json_object" }),
+                temperature: 0.0,
+            };
+
+            let resp = self
+                .client
+                .post(&self.endpoint)
+                .bearer_auth(api_key)
+                .json(&body)
+                .send()
+                .await
+                .with_context(|| format!("Groq request to {} failed", self.endpoint))?;
+
+            if !resp.status().is_success() {
+                let status = resp.status();
+                let body = resp.text().await.unwrap_or_default();
+                let redacted = redact_bearer_patterns(&body.chars().take(500).collect::<String>());
+                anyhow::bail!("Groq API returned {}: {}", status, redacted);
+            }
+
+            let parsed: ChatResponse = resp
+                .json()
+                .await
+                .context("failed to parse Groq response as JSON")?;
+            let content = parsed
+                .choices
+                .into_iter()
+                .next()
+                .map(|c| c.message.content)
+                .ok_or_else(|| anyhow::anyhow!("Groq response had empty choices array"))?;
+
+            match shape.parse_and_validate(&content) {
+                Ok(fields) => return Ok(fields),
+                Err(failures) => {
+                    last_failures = failures;
+                    // Continue to next refinement attempt.
+                }
+            }
+        }
+        // Out of refinements — surface the FINAL list of failures the
+        // caller can serialize to OCEL / a denial response.
+        let summary = last_failures
+            .iter()
+            .map(|f| f.revision_hint())
+            .collect::<Vec<_>>()
+            .join("; ");
+        anyhow::bail!(
+            "shaped translation failed after {} refinements: {summary}",
+            max_refinements
+        );
+    }
+
     /// Endpoint URL (for diagnostics / OCEL attribute use). Never contains
     /// the API key.
     pub fn endpoint(&self) -> &str {
