@@ -24,10 +24,19 @@ use crate::state::StateDb;
 /// What kind of mutation is being requested at the gate.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum AdmissionOp {
+    // Full-admission ops (graph or external mutation).
     Apply,
     Codegen,
     Save,
     Push,
+    Ingest,        // CSV/JSON/SQL ingest, pipeline extend
+    ImportSchema,  // DB schema → OWL
+    Align,         // auto-applied equivalentClass / subClassOf
+    Rollback,      // restore from snapshot
+    Version,       // create snapshot
+    // Audit-only ops (operator-tier maintenance; logged but never denied).
+    Clear,         // clear / unload / cache-remove
+    Feedback,      // align_feedback / monitor_clear
 }
 
 impl AdmissionOp {
@@ -37,7 +46,25 @@ impl AdmissionOp {
             AdmissionOp::Codegen => "codegen",
             AdmissionOp::Save => "save",
             AdmissionOp::Push => "push",
+            AdmissionOp::Ingest => "ingest",
+            AdmissionOp::ImportSchema => "import_schema",
+            AdmissionOp::Align => "align",
+            AdmissionOp::Rollback => "rollback",
+            AdmissionOp::Version => "version",
+            AdmissionOp::Clear => "clear",
+            AdmissionOp::Feedback => "feedback",
         }
+    }
+
+    /// True for ops handled by the full admission gate (replay + receipt).
+    /// False for audit-only ops (logged, never denied). `Version` is audit-only
+    /// because snapshot creation is non-destructive metadata — taking a
+    /// snapshot can never make the system worse, only more recoverable.
+    pub fn is_full_admission(&self) -> bool {
+        !matches!(
+            self,
+            AdmissionOp::Clear | AdmissionOp::Feedback | AdmissionOp::Version
+        )
     }
 }
 

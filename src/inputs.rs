@@ -187,6 +187,12 @@ pub struct OntoVersionInput {
 pub struct OntoRollbackInput {
     /// Version label to restore
     pub label: String,
+    /// Optional explicit scope token; falls back to the latest open scope.
+    pub scope_token: Option<String>,
+    /// Bypass admission gate. Requires `bypass_reason`. Revokes the session.
+    pub bypass_admission: Option<bool>,
+    /// Required when `bypass_admission` is true.
+    pub bypass_reason: Option<String>,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -201,6 +207,12 @@ pub struct OntoIngestInput {
     pub inline_mapping: Option<bool>,
     /// Base IRI for generated instances (default: http://example.org/data/)
     pub base_iri: Option<String>,
+    /// Optional explicit scope token; falls back to the latest open scope.
+    pub scope_token: Option<String>,
+    /// Bypass admission gate. Requires `bypass_reason`. Revokes the session.
+    pub bypass_admission: Option<bool>,
+    /// Required when `bypass_admission` is true.
+    pub bypass_reason: Option<String>,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -263,6 +275,12 @@ pub struct OntoExtendInput {
     pub reason_profile: Option<String>,
     /// If true (default), stop pipeline on SHACL violations
     pub stop_on_violations: Option<bool>,
+    /// Optional explicit scope token; falls back to the latest open scope.
+    pub scope_token: Option<String>,
+    /// Bypass admission gate. Requires `bypass_reason`. Revokes the session.
+    pub bypass_admission: Option<bool>,
+    /// Required when `bypass_admission` is true.
+    pub bypass_reason: Option<String>,
 }
 
 // ─── v2 input structs ───────────────────────────────────────────────────────
@@ -387,6 +405,12 @@ pub struct OntoImportSchemaInput {
     pub connection: String,
     /// Base IRI for generated classes (default: http://example.org/db/)
     pub base_iri: Option<String>,
+    /// Optional explicit scope token; falls back to the latest open scope.
+    pub scope_token: Option<String>,
+    /// Bypass admission gate. Requires `bypass_reason`. Revokes the session.
+    pub bypass_admission: Option<bool>,
+    /// Required when `bypass_admission` is true.
+    pub bypass_reason: Option<String>,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -406,6 +430,12 @@ pub struct OntoSqlIngestInput {
     pub inline_mapping: Option<bool>,
     /// Base IRI for generated instances (default: http://example.org/data/)
     pub base_iri: Option<String>,
+    /// Optional explicit scope token; falls back to the latest open scope.
+    pub scope_token: Option<String>,
+    /// Bypass admission gate. Requires `bypass_reason`. Revokes the session.
+    pub bypass_admission: Option<bool>,
+    /// Required when `bypass_admission` is true.
+    pub bypass_reason: Option<String>,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -418,6 +448,13 @@ pub struct OntoAlignInput {
     pub min_confidence: Option<f64>,
     /// If true, return candidates only without inserting triples (default false)
     pub dry_run: Option<bool>,
+    /// Optional explicit scope token; falls back to the latest open scope.
+    /// Only consulted when `dry_run=false` (auto-apply path requires admission).
+    pub scope_token: Option<String>,
+    /// Bypass admission gate. Requires `bypass_reason`. Revokes the session.
+    pub bypass_admission: Option<bool>,
+    /// Required when `bypass_admission` is true.
+    pub bypass_reason: Option<String>,
 }
 
 #[derive(Deserialize, JsonSchema)]

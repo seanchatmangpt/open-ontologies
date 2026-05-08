@@ -357,6 +357,57 @@ impl OpenOntologiesServer {
         }
     }
 
+    /// Audit-only admission: emits a tamper-evident `admission_audit` OCEL
+    /// event for the operation, never denies, never persists a Receipt.
+    ///
+    /// Used for operator-tier maintenance ops (Clear / Feedback) that must
+    /// not block on conformance — e.g. you have to be able to `onto_clear`
+    /// a wedged store. The audit event preserves the No-bypass invariant
+    /// (every mutation produces a tamper-evident OCEL trace) without
+    /// requiring full admission machinery.
+    ///
+    /// Returns `()` always; callers continue execution after the call.
+    fn evaluate_admission_audit(
+        &self,
+        op: crate::admission::AdmissionOp,
+        explicit_scope: Option<&str>,
+        artifact_kind: &str,
+        artifact_bytes: &[u8],
+    ) {
+        debug_assert!(
+            !op.is_full_admission(),
+            "evaluate_admission_audit only accepts audit-only ops; got {:?}",
+            op
+        );
+        let artifact_hash = blake3::hash(artifact_bytes);
+        let ts = chrono::Utc::now().to_rfc3339();
+        let event_id = format!(
+            "{}:admission_audit:{}",
+            self.session_id,
+            chrono::Utc::now().timestamp_millis()
+        );
+        let _ = self.ocel_store().emit_event(
+            &event_id,
+            "admission_audit",
+            &ts,
+            &self.session_id,
+            &[
+                ("op", op.as_str()),
+                ("artifact_kind", artifact_kind),
+                ("artifact_hash", &artifact_hash.to_hex().to_string()),
+                ("production_law_version", "ontostar-1.0.0"),
+                (
+                    "defects_taxonomy_version",
+                    crate::defects::DEFECTS_TAXONOMY_VERSION,
+                ),
+            ],
+            &[],
+            explicit_scope,
+        );
+        self.lineage()
+            .record(&self.session_id, "A", "admission_audit", op.as_str());
+    }
+
     /// OntoStar Stream 1: emit a uniform `<tool>` OCEL event for handlers that
     /// were previously silent. `ok` reflects whether the handler returned a
     /// non-error JSON shape; `duration_ms` is measured from handler entry.
@@ -728,22 +779,36 @@ impl OpenOntologiesServer {
         out
     }
 
-    #[tool(name = "onto_clear", description = "Clear all triples from the in-memory ontology store and unload the active registry slot (cache file is preserved)")]
+    #[tool(name = "onto_clear", description = "Clear all triples from the in-memory ontology store and unload the active registry slot (cache file is preserved). Audit-only admission: emits an admission_audit OCEL event with the operator's intent.")]
     fn onto_clear(&self) -> String {
+        // Audit-only: maintenance ops cannot block on conformance, but every
+        // mutation must produce a tamper-evident OCEL trace.
+        self.evaluate_admission_audit(
+            crate::admission::AdmissionOp::Clear,
+            None,
+            "clear-store",
+            b"",
+        );
         // Drop the active registry entry; this also clears the graph.
         let _ = self.registry.unload(false);
         match self.graph.clear() {
             Ok(_) => {
                 let _ = self.db.clear_last_active_path();
-                r#"{"ok":true,"message":"Store cleared"}"#.to_string()
+                r#"{"ok":true,"message":"Store cleared","admission":"audit"}"#.to_string()
             },
             Err(e) => format!(r#"{{"error":"{}"}}"#, e),
         }
     }
 
-    #[tool(name = "onto_unload", description = "Unload an ontology from memory. With no `name`, operates on the active ontology. With `name`, targets that cached entry — clears in-memory store if it is currently active. The on-disk compile cache is preserved unless `delete_cache=true`.")]
+    #[tool(name = "onto_unload", description = "Unload an ontology from memory. With no `name`, operates on the active ontology. With `name`, targets that cached entry — clears in-memory store if it is currently active. The on-disk compile cache is preserved unless `delete_cache=true`. Audit-only admission.")]
     fn onto_unload(&self, Parameters(input): Parameters<OntoUnloadInput>) -> String {
         let del = input.delete_cache.unwrap_or(false);
+        self.evaluate_admission_audit(
+            crate::admission::AdmissionOp::Clear,
+            None,
+            "unload-store",
+            input.name.as_deref().unwrap_or("<active>").as_bytes(),
+        );
         if let Some(name) = input.name.as_deref() {
             return match self.registry.unload_named(name, del) {
                 Ok(true) => serde_json::json!({
@@ -802,9 +867,15 @@ impl OpenOntologiesServer {
         }
     }
 
-    #[tool(name = "onto_cache_remove", description = "Remove a cached ontology by name. If it is the active slot, the in-memory store is unloaded first. By default the on-disk N-Triples cache file is also deleted; pass delete_file=false to keep it on disk.")]
+    #[tool(name = "onto_cache_remove", description = "Remove a cached ontology by name. If it is the active slot, the in-memory store is unloaded first. By default the on-disk N-Triples cache file is also deleted; pass delete_file=false to keep it on disk. Audit-only admission.")]
     fn onto_cache_remove(&self, Parameters(input): Parameters<OntoCacheRemoveInput>) -> String {
         let delete_file = input.delete_file.unwrap_or(true);
+        self.evaluate_admission_audit(
+            crate::admission::AdmissionOp::Clear,
+            None,
+            "cache-remove",
+            input.name.as_bytes(),
+        );
         match self.registry.unload_named(&input.name, delete_file) {
             Ok(true) => serde_json::json!({
                 "ok": true,
@@ -1054,9 +1125,17 @@ impl OpenOntologiesServer {
         }
     }
 
-    #[tool(name = "onto_version", description = "Save a named snapshot of the current ontology store")]
+    #[tool(name = "onto_version", description = "Save a named snapshot of the current ontology store. Audit-only admission (snapshots are non-destructive metadata).")]
     async fn onto_version(&self, Parameters(input): Parameters<OntoVersionInput>) -> String {
         let started = std::time::Instant::now();
+        // Audit-only: snapshot creation produces tamper-evident OCEL trail
+        // but does not block — taking a snapshot is always safe.
+        self.evaluate_admission_audit(
+            crate::admission::AdmissionOp::Version,
+            None,
+            "version-label",
+            input.label.as_bytes(),
+        );
         use crate::ontology::OntologyService;
         let out = OntologyService::save_version(&self.db, &self.graph, &input.label)
             .unwrap_or_else(|e| format!(r#"{{"error":"{}"}}"#, e));
@@ -1072,36 +1151,83 @@ impl OpenOntologiesServer {
             .unwrap_or_else(|e| format!(r#"{{"error":"{}"}}"#, e))
     }
 
-    #[tool(name = "onto_rollback", description = "Restore the ontology store to a previously saved version")]
+    #[tool(name = "onto_rollback", description = "Restore the ontology store to a previously saved version. Gated by OntoStar admission (rollback is a destructive un-apply).")]
     async fn onto_rollback(&self, Parameters(input): Parameters<OntoRollbackInput>) -> String {
         let started = std::time::Instant::now();
         use crate::ontology::OntologyService;
-        let out = OntologyService::rollback_version(&self.db, &self.graph, &input.label)
+        let receipt = match self.evaluate_admission(
+            crate::admission::AdmissionOp::Rollback,
+            input.scope_token.as_deref(),
+            "rollback-target",
+            input.label.as_bytes(),
+            input.bypass_admission,
+            input.bypass_reason.as_deref(),
+        ) {
+            Ok(r) => Some(r),
+            Err(denial) => {
+                self.emit_tool_ocel("onto_rollback", started, false, &[]);
+                return denial;
+            }
+        };
+        let raw = OntologyService::rollback_version(&self.db, &self.graph, &input.label)
             .unwrap_or_else(|e| format!(r#"{{"error":"{}"}}"#, e));
-        let ok = !out.contains(r#""error""#);
+        let ok = !raw.contains(r#""error""#);
+        let out = if ok {
+            let mut parsed: serde_json::Value =
+                serde_json::from_str(&raw).unwrap_or_else(|_| serde_json::json!({}));
+            if let (Some(obj), Some(r)) = (parsed.as_object_mut(), &receipt) {
+                obj.insert("receipt_hash".into(), r.hex().into());
+                obj.insert(
+                    "production_law_version".into(),
+                    r.record.production_law_version.clone().into(),
+                );
+            }
+            parsed.to_string()
+        } else {
+            raw
+        };
         self.emit_tool_ocel("onto_rollback", started, ok, &[]);
         out
     }
 
     // ── Data ingestion & reasoning ─────────────────────────────────────────
 
-    #[tool(name = "onto_ingest", description = "Parse a structured data file (CSV, JSON, NDJSON, XML, YAML, XLSX, Parquet) into RDF triples and load into the ontology store. Optionally uses a mapping config to control field-to-predicate mapping.")]
+    #[tool(name = "onto_ingest", description = "Parse a structured data file (CSV, JSON, NDJSON, XML, YAML, XLSX, Parquet) into RDF triples and load into the ontology store. Optionally uses a mapping config to control field-to-predicate mapping. Gated by OntoStar admission.")]
     async fn onto_ingest(&self, Parameters(input): Parameters<OntoIngestInput>) -> String {
         let started = std::time::Instant::now();
-        let out = self.onto_ingest_inner(input).await;
+        // OntoStar Stream 3: admission gate fires BEFORE the graph mutation.
+        let receipt = match self.evaluate_admission(
+            crate::admission::AdmissionOp::Ingest,
+            input.scope_token.as_deref(),
+            "ingest-input",
+            input.path.as_bytes(),
+            input.bypass_admission,
+            input.bypass_reason.as_deref(),
+        ) {
+            Ok(r) => Some(r),
+            Err(denial) => {
+                self.emit_tool_ocel("onto_ingest", started, false, &[]);
+                return denial;
+            }
+        };
+        let out = self.onto_ingest_inner(input, receipt).await;
         let ok = !out.contains(r#""error""#);
         self.emit_tool_ocel("onto_ingest", started, ok, &[]);
         out
     }
 
-    async fn onto_ingest_inner(&self, input: OntoIngestInput) -> String {
+    async fn onto_ingest_inner(
+        &self,
+        input: OntoIngestInput,
+        receipt: Option<crate::receipts::Receipt>,
+    ) -> String {
         use crate::ingest::DataIngester;
         use crate::mapping::MappingConfig;
 
         let base_iri = input.base_iri.as_deref().unwrap_or("http://example.org/data/");
 
         // Parse data file
-        let rows = match DataIngester::parse_file(&input.path) {
+        let rows = match DataIngester::parse_file_with_format(&input.path, input.format.as_deref()) {
             Ok(r) => r,
             Err(e) => return format!(r#"{{"error":"Failed to parse {}: {}"}}"#, input.path, e),
         };
@@ -1135,12 +1261,22 @@ impl OpenOntologiesServer {
         let ntriples = mapping.rows_to_ntriples(&rows);
         match self.graph.load_ntriples(&ntriples) {
             Ok(count) => {
-                serde_json::json!({
+                let mut out = serde_json::json!({
                     "ok": true,
                     "triples_loaded": count,
                     "rows_processed": rows.len(),
                     "mapping_fields": mapping.mappings.len(),
-                }).to_string()
+                });
+                if let Some(r) = &receipt {
+                    if let Some(obj) = out.as_object_mut() {
+                        obj.insert("receipt_hash".into(), r.hex().into());
+                        obj.insert(
+                            "production_law_version".into(),
+                            r.record.production_law_version.clone().into(),
+                        );
+                    }
+                }
+                out.to_string()
             }
             Err(e) => format!(r#"{{"error":"Failed to load triples: {}"}}"#, e),
         }
@@ -1507,10 +1643,16 @@ impl OpenOntologiesServer {
         serde_json::to_string(&result).unwrap_or_else(|e| format!(r#"{{"error":"{}"}}"#, e))
     }
 
-    #[tool(name = "onto_monitor_clear", description = "Clear the monitor blocked flag, allowing apply operations to proceed.")]
+    #[tool(name = "onto_monitor_clear", description = "Clear the monitor blocked flag, allowing apply operations to proceed. Audit-only admission.")]
     fn onto_monitor_clear(&self) -> String {
+        self.evaluate_admission_audit(
+            crate::admission::AdmissionOp::Feedback,
+            None,
+            "monitor-clear",
+            b"",
+        );
         self.monitor().clear_blocked();
-        r#"{"ok":true,"message":"Monitor block cleared"}"#.to_string()
+        r#"{"ok":true,"message":"Monitor block cleared","admission":"audit"}"#.to_string()
     }
 
     #[tool(name = "onto_crosswalk", description = "Look up clinical crosswalk mappings for a code and system (ICD10, SNOMED, MeSH). Uses data/crosswalks.parquet (93-row sample included; run scripts/build_crosswalks.py to extend).")]
@@ -1602,9 +1744,21 @@ impl OpenOntologiesServer {
         }
     }
 
-    #[tool(name = "onto_extend", description = "Convenience pipeline: ingest data → validate with SHACL → run OWL reasoning, all in one call. Combines onto_ingest + onto_shacl + onto_reason.")]
+    #[tool(name = "onto_extend", description = "Convenience pipeline: ingest data → validate with SHACL → run OWL reasoning, all in one call. Combines onto_ingest + onto_shacl + onto_reason. Gated by OntoStar admission as the Ingest op.")]
     async fn onto_extend(&self, Parameters(input): Parameters<OntoExtendInput>) -> String {
         let started = std::time::Instant::now();
+        // OntoStar Stream 3: pipeline mutates the graph — gate as Ingest.
+        if let Err(denial) = self.evaluate_admission(
+            crate::admission::AdmissionOp::Ingest,
+            input.scope_token.as_deref(),
+            "extend-input",
+            input.data_path.as_bytes(),
+            input.bypass_admission,
+            input.bypass_reason.as_deref(),
+        ) {
+            self.emit_tool_ocel("onto_extend", started, false, &[]);
+            return denial;
+        }
         let out = self.onto_extend_inner(input).await;
         let ok = !out.contains(r#""error""#);
         self.emit_tool_ocel("onto_extend", started, ok, &[]);
@@ -1712,6 +1866,19 @@ impl OpenOntologiesServer {
 
         let base_iri = input.base_iri.as_deref().unwrap_or("http://example.org/db/");
 
+        // OntoStar Stream 3: admission gate fires BEFORE the introspect+load.
+        let receipt = match self.evaluate_admission(
+            crate::admission::AdmissionOp::ImportSchema,
+            input.scope_token.as_deref(),
+            "schema-connection",
+            input.connection.as_bytes(),
+            input.bypass_admission,
+            input.bypass_reason.as_deref(),
+        ) {
+            Ok(r) => Some(r),
+            Err(denial) => return denial,
+        };
+
         // Dispatch by connection-string scheme. Both backbones land in the
         // same OWL generator so the downstream pipeline (validate + load)
         // is identical.
@@ -1764,25 +1931,51 @@ impl OpenOntologiesServer {
         }
 
         match self.graph.load_turtle(&turtle, Some(base_iri)) {
-            Ok(count) => serde_json::json!({
-                "ok": true,
-                "driver": driver.as_str(),
-                "tables": tables.len(),
-                "classes": tables.len(),
-                "triples": count,
-                "base_iri": base_iri,
-            }).to_string(),
+            Ok(count) => {
+                let mut out = serde_json::json!({
+                    "ok": true,
+                    "driver": driver.as_str(),
+                    "tables": tables.len(),
+                    "classes": tables.len(),
+                    "triples": count,
+                    "base_iri": base_iri,
+                });
+                if let Some(r) = &receipt {
+                    if let Some(obj) = out.as_object_mut() {
+                        obj.insert("receipt_hash".into(), r.hex().into());
+                        obj.insert(
+                            "production_law_version".into(),
+                            r.record.production_law_version.clone().into(),
+                        );
+                    }
+                }
+                out.to_string()
+            }
             Err(e) => format!(r#"{{"error":"Failed to load: {}"}}"#, e),
         }
     }
 
-    #[tool(name = "onto_sql_ingest", description = "Run a SQL query against a relational backbone (PostgreSQL or DuckDB) and ingest the resulting rows into the triple store as RDF. DuckDB is recommended as a federation layer: with its httpfs/parquet/csv/postgres_scanner extensions one query can union remote files, object stores, and other databases. The mapping config has the same shape as onto_ingest.")]
+    #[tool(name = "onto_sql_ingest", description = "Run a SQL query against a relational backbone (PostgreSQL or DuckDB) and ingest the resulting rows into the triple store as RDF. DuckDB is recommended as a federation layer: with its httpfs/parquet/csv/postgres_scanner extensions one query can union remote files, object stores, and other databases. The mapping config has the same shape as onto_ingest. Gated by OntoStar admission as the Ingest op.")]
     async fn onto_sql_ingest(&self, Parameters(input): Parameters<OntoSqlIngestInput>) -> String {
         use crate::ingest::DataIngester;
         use crate::mapping::MappingConfig;
         use crate::sqlsource;
 
         let base_iri = input.base_iri.as_deref().unwrap_or("http://example.org/data/");
+
+        // OntoStar Stream 3: admission gate fires BEFORE any DB or graph work.
+        let receipt = match self.evaluate_admission(
+            crate::admission::AdmissionOp::Ingest,
+            input.scope_token.as_deref(),
+            "sql-ingest",
+            format!("{}|{}", input.connection, input.sql).as_bytes(),
+            input.bypass_admission,
+            input.bypass_reason.as_deref(),
+        ) {
+            Ok(r) => Some(r),
+            Err(denial) => return denial,
+        };
+        let _ = &receipt; // wired through OCEL via lineage; success JSON unchanged.
 
         // Validate connection scheme up front so we fail fast with a clear error.
         let driver = match sqlsource::detect_driver(&input.connection) {
@@ -1841,9 +2034,28 @@ impl OpenOntologiesServer {
         }
     }
 
-    #[tool(name = "onto_align", description = "Detect alignment candidates (owl:equivalentClass, skos:exactMatch, rdfs:subClassOf) between two ontologies using label similarity, property overlap, parent overlap, instance overlap, restriction patterns, and graph neighborhood. Auto-applies high-confidence matches above threshold.")]
+    #[tool(name = "onto_align", description = "Detect alignment candidates (owl:equivalentClass, skos:exactMatch, rdfs:subClassOf) between two ontologies using label similarity, property overlap, parent overlap, instance overlap, restriction patterns, and graph neighborhood. Auto-applies high-confidence matches above threshold. Auto-apply path is gated by OntoStar admission; dry_run path is read-only and skips admission.")]
     async fn onto_align(&self, Parameters(input): Parameters<OntoAlignInput>) -> String {
         let engine = crate::align::AlignmentEngine::new(self.db.clone(), self.graph.clone());
+
+        // Auto-apply path mutates the graph (writes equivalentClass /
+        // subClassOf triples) — gate it. Dry-run path is read-only.
+        let dry_run_flag = input.dry_run.unwrap_or(false);
+        let receipt = if !dry_run_flag {
+            match self.evaluate_admission(
+                crate::admission::AdmissionOp::Align,
+                input.scope_token.as_deref(),
+                "align-source",
+                input.source.as_bytes(),
+                input.bypass_admission,
+                input.bypass_reason.as_deref(),
+            ) {
+                Ok(r) => Some(r),
+                Err(denial) => return denial,
+            }
+        } else {
+            None
+        };
 
         // Read source (file path or inline)
         let source = if std::path::Path::new(&input.source).exists() {
@@ -1907,14 +2119,33 @@ impl OpenOntologiesServer {
                 );
 
                 self.lineage().record(&self.session_id, "AL", "align", &format!("threshold={}", min_conf));
-                result
+                if let Some(r) = &receipt {
+                    let mut parsed: serde_json::Value =
+                        serde_json::from_str(&result).unwrap_or_else(|_| serde_json::json!({}));
+                    if let Some(obj) = parsed.as_object_mut() {
+                        obj.insert("receipt_hash".into(), r.hex().into());
+                        obj.insert(
+                            "production_law_version".into(),
+                            r.record.production_law_version.clone().into(),
+                        );
+                    }
+                    parsed.to_string()
+                } else {
+                    result
+                }
             }
             Err(e) => format!(r#"{{"error":"{}"}}"#, e),
         }
     }
 
-    #[tool(name = "onto_align_feedback", description = "Accept or reject an alignment candidate to improve future confidence scoring. Stores feedback in align_feedback table for self-calibrating weights.")]
+    #[tool(name = "onto_align_feedback", description = "Accept or reject an alignment candidate to improve future confidence scoring. Stores feedback in align_feedback table for self-calibrating weights. Audit-only admission.")]
     async fn onto_align_feedback(&self, Parameters(input): Parameters<OntoAlignFeedbackInput>) -> String {
+        self.evaluate_admission_audit(
+            crate::admission::AdmissionOp::Feedback,
+            None,
+            "align-feedback",
+            format!("{}|{}|{}", input.source_iri, input.target_iri, input.accepted).as_bytes(),
+        );
         let engine = crate::align::AlignmentEngine::new(self.db.clone(), self.graph.clone());
         match engine.record_feedback(&input.source_iri, &input.target_iri, "user_feedback", input.accepted, input.signals.as_ref()) {
             Ok(result) => {
