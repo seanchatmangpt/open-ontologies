@@ -81,13 +81,8 @@ fn end_to_end_declare_walk_admit_receipt_in_ocel() {
     );
 
     // 5. Run admission gate.
-    //
-    // p_min=0.0: wasm4pm POWL conformance currently returns fitness only
-    // (precision is not yet computed in `compute_fitness`). This is a
-    // documented follow-up. The gate's fitness floor (0.95) is the live
-    // manufacturing check; precision will tighten once the bridge wires
-    // it up.
-    let gate = OntoStarAdmissionGate::new(0.95, 0.0, vec![], "ontostar-1.0.0");
+    // f_min=0.95 (fitness threshold), p_min=0.7 (precision threshold).
+    let gate = OntoStarAdmissionGate::new(0.95, 0.7, vec![], "ontostar-1.0.0");
     let artifact = ArtifactRef {
         kind: "turtle",
         bytes: b"@prefix : <urn:e2e:> . :a :b :c .",

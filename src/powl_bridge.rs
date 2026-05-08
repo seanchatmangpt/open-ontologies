@@ -274,7 +274,7 @@ pub fn classify_replay(
 
     ConformanceResult {
         fitness: replay.fitness,
-        precision: None,
+        precision: Some(replay.precision),
         generalization: None,
         simplicity: None,
         verdict,
