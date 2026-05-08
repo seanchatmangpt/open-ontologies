@@ -290,7 +290,13 @@ fn serve_unix(config: Option<String>, socket: Option<String>, files_csv: Option<
 /// Initialize data directory, DB, and default config
 #[verb]
 fn init(data_dir: Option<String>, model_url: Option<String>, tokenizer_url: Option<String>, model_name: Option<String>) -> NounVerbResult<InitOutput> {
-    let _ = (model_url, tokenizer_url, model_name);
+    // Option B: model_url/tokenizer_url/model_name are accepted as CLI flags but not yet wired.
+    // Reject explicit values loudly so users aren't misled into thinking the download happened.
+    if model_url.is_some() || tokenizer_url.is_some() || model_name.is_some() {
+        return Err(clap_noun_verb::NounVerbError::execution_error(
+            "model_url/tokenizer_url/model_name are not yet supported by `onto init`. Manually copy the model files into ~/.open-ontologies/models/ until this is wired.".to_string(),
+        ));
+    }
     let dir_str = data_dir.unwrap_or_else(|| "~/.open-ontologies".to_string());
     let dir_expanded = expand_tilde(&dir_str);
     let data_path = std::path::Path::new(&dir_expanded);
