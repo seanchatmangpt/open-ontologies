@@ -64,3 +64,8 @@ pub mod signature_shape;
 // for IaC + Rust + Erlang + AtomVM, gated by SolutionManufactured
 // admission op.
 pub mod manufacturing;
+
+// Swarm — manufactures 9 AtomVM cognition nodes (one per wasm4pm
+// breed), runs each breed against a shared scenario, fuses outputs
+// via Hearsay-II consensus.
+pub mod swarm;
