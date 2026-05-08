@@ -80,6 +80,9 @@ fn read_only_allowlist() -> HashSet<&'static str> {
         "onto_workflow_discover",   // Loop 3 mining; inserts a `discovered_workflows` suggestion row, doesn't mutate the loaded graph
         "onto_process_validate_claim", // POWL claim validation — read-only
         "onto_process_check_soundness", // POWL soundness check — read-only
+        // Requirements Andon / CTQ Forge (Phase 1.5):
+        "onto_propose_work_order",   // pure echo + validation; no graph mutation
+        "onto_executive_projection", // pure summary via Groq; bounded by token-overlap check
     ]
     .into_iter()
     .collect()
@@ -177,6 +180,10 @@ fn full_admission_handlers_present() {
         "onto_align",
         "onto_rollback",
         "onto_import_schema",
+        // Requirements Andon / CTQ Forge full-admission handlers (Phase 1.5):
+        "onto_propose_requirement",
+        "onto_admit_ctq",
+        "onto_admit_work_order",
     ] {
         let body = by_name
             .get(*required)
@@ -201,6 +208,8 @@ fn audit_only_handlers_present() {
         "onto_align_feedback",
         "onto_monitor_clear",
         "onto_version",
+        // Requirements Andon audit-only handler (Phase 1.5):
+        "onto_translate_candidate",
     ] {
         let body = by_name
             .get(*required)

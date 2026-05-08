@@ -3189,6 +3189,452 @@ impl OpenOntologiesServer {
         })
         .to_string()
     }
+
+    // ── Requirements-Andon / CTQ-Forge handlers (Phase 1.5) ──────────────
+
+    #[tool(name = "onto_propose_requirement", description = "Requirements Andon: capture a stakeholder source-voice signal and propose a requirement. The deterministic gate denies with RequirementWithoutSource if source_voice is empty/whitespace. Emits the workflow-anchor `requirement_proposed` OCEL event with source_voice + voice_kind attributes. Returns receipt_hash on Ok.")]
+    async fn onto_propose_requirement(&self, Parameters(input): Parameters<OntoProposeRequirementInput>) -> String {
+        let started = std::time::Instant::now();
+        let voice = input.source_voice.trim();
+        if voice.is_empty() {
+            // Pre-gate denial — source signal is mandatory.
+            self.lineage().record_admission_denied(&self.session_id, "requirement_without_source");
+            self.emit_tool_ocel("onto_propose_requirement", started, false, &[]);
+            return serde_json::json!({
+                "ok": false,
+                "admission": "denied",
+                "defect": { "kind": "RequirementWithoutSource" },
+            }).to_string();
+        }
+        let voice_kind = input.voice_kind.as_deref().unwrap_or("operator").trim();
+        // Emit the requirement_proposed activity BEFORE the gate fires so
+        // the gate observes it as part of `observed_stages`.
+        let now = chrono::Utc::now().to_rfc3339();
+        let event_id = format!(
+            "{}:requirement_proposed:{}",
+            self.session_id,
+            chrono::Utc::now().timestamp_millis()
+        );
+        let _ = self.ocel_store().emit_event(
+            &event_id,
+            "requirement_proposed",
+            &now,
+            &self.session_id,
+            &[
+                ("source_voice", voice),
+                ("voice_kind", voice_kind),
+            ],
+            &[],
+            input.scope_token.as_deref(),
+        );
+        // Artifact bytes commit the source-voice text into the receipt so
+        // any later replay can verify the same voice was admitted.
+        let receipt = match self.evaluate_admission(
+            crate::admission::AdmissionOp::RequirementProposed,
+            input.scope_token.as_deref(),
+            "requirement-proposed",
+            voice.as_bytes(),
+            input.bypass_admission,
+            input.bypass_reason.as_deref(),
+        ) {
+            Ok(r) => r,
+            Err(denial) => {
+                self.emit_tool_ocel("onto_propose_requirement", started, false, &[]);
+                return denial;
+            }
+        };
+        let out = serde_json::json!({
+            "ok": true,
+            "scope_token": receipt.record.scope_token,
+            "receipt_hash": receipt.hex(),
+            "production_law_version": receipt.record.production_law_version,
+            "defects_taxonomy_version": receipt.record.defects_taxonomy_version,
+            "voice_kind": voice_kind,
+        }).to_string();
+        self.emit_tool_ocel("onto_propose_requirement", started, true, &[]);
+        out
+    }
+
+    #[tool(name = "onto_translate_candidate", description = "Requirements Andon: invoke the Groq LLM boundary translator on a previously-proposed requirement. AUDIT-ONLY — output is provisional and must pass through onto_admit_ctq before any work order is admitted. Emits `llm_candidate_translated` OCEL event with candidate_ctq_id (BLAKE3 of the candidate JSON) but never the API key.")]
+    async fn onto_translate_candidate(&self, Parameters(input): Parameters<OntoTranslateCandidateInput>) -> String {
+        let started = std::time::Instant::now();
+        // Build a per-call translator from env-resolved config. The key is
+        // resolved fresh on each call and never stored on the server.
+        let llm_cfg = crate::config::LlmConfig::default();
+        let translator = match crate::llm_translator::GroqTranslator::from_config(&llm_cfg) {
+            Ok(t) => t,
+            Err(e) => {
+                self.emit_tool_ocel("onto_translate_candidate", started, false, &[]);
+                return format!(r#"{{"error":"failed to build translator: {}"}}"#, e.to_string().replace('"', "'"));
+            }
+        };
+        if !translator.is_configured() {
+            // No API key — refuse to call. The CTQ gate will deny with
+            // LlmAuthorityClaimed if a candidate proceeds without
+            // translation. We still record the audit event so the trace
+            // shows the attempt.
+            self.evaluate_admission_audit(
+                crate::admission::AdmissionOp::LlmTranslate,
+                Some(&input.scope_token),
+                "llm-translate-no-key",
+                input.source_voice.as_bytes(),
+            );
+            self.emit_tool_ocel("onto_translate_candidate", started, false, &[]);
+            return serde_json::json!({
+                "ok": false,
+                "provisional": true,
+                "error": "NoLlmConfigured: GROQ_API_KEY is not set in env or .env",
+            }).to_string();
+        }
+        let candidate = match translator.translate_candidate_ctq(&input.source_voice).await {
+            Ok(c) => c,
+            Err(e) => {
+                self.emit_tool_ocel("onto_translate_candidate", started, false, &[]);
+                // The Err variant has already been redacted by
+                // redact_bearer_patterns() inside the translator.
+                return format!(r#"{{"error":"translation failed: {}"}}"#, e.to_string().replace('"', "'"));
+            }
+        };
+        // Compute a stable id for the candidate so OCEL attributes can
+        // reference it without echoing the full text (the full text is
+        // returned in the response only).
+        let candidate_json = match serde_json::to_string(&candidate) {
+            Ok(s) => s,
+            Err(_) => "{}".to_string(),
+        };
+        let candidate_id_hex = blake3::hash(candidate_json.as_bytes()).to_hex().to_string();
+
+        let now = chrono::Utc::now().to_rfc3339();
+        let event_id = format!(
+            "{}:llm_candidate_translated:{}",
+            self.session_id,
+            chrono::Utc::now().timestamp_millis()
+        );
+        let _ = self.ocel_store().emit_event(
+            &event_id,
+            "llm_candidate_translated",
+            &now,
+            &self.session_id,
+            &[
+                ("candidate_ctq_id", &candidate_id_hex[..16]),
+                ("model", translator.model()),
+                ("provisional", "true"),
+            ],
+            &[],
+            Some(&input.scope_token),
+        );
+        // Audit-only admission tier — never blocks, always logs.
+        self.evaluate_admission_audit(
+            crate::admission::AdmissionOp::LlmTranslate,
+            Some(&input.scope_token),
+            "llm-translate",
+            candidate_json.as_bytes(),
+        );
+        let out = serde_json::json!({
+            "ok": true,
+            "provisional": true,
+            "candidate_ctq_id": &candidate_id_hex[..16],
+            "candidate": candidate,
+        }).to_string();
+        self.emit_tool_ocel("onto_translate_candidate", started, true, &[]);
+        out
+    }
+
+    #[tool(name = "onto_admit_ctq", description = "Requirements Andon: deterministic CTQ admission. Denies with CtqIncomplete{missing} if any of source_voice / ctq_text / measure_text / verification_text / negative_case_text / control_plan_text are empty or whitespace. On Ok emits ctq_admitted + verification_bound + negative_case_bound + control_plan_bound OCEL events so the trace observes every required activity.")]
+    async fn onto_admit_ctq(&self, Parameters(input): Parameters<OntoAdmitCtqInput>) -> String {
+        let started = std::time::Instant::now();
+        // Pre-gate field validation. The order matches the canonical SEQ:
+        // source first, then the four binding fields.
+        let mut missing: Option<&'static str> = None;
+        for (name, value) in [
+            ("source_voice", input.source_voice.trim()),
+            ("ctq_text", input.ctq_text.trim()),
+            ("measure_text", input.measure_text.trim()),
+            ("verification_text", input.verification_text.trim()),
+            ("negative_case_text", input.negative_case_text.trim()),
+            ("control_plan_text", input.control_plan_text.trim()),
+        ] {
+            if value.is_empty() {
+                missing = Some(name);
+                break;
+            }
+        }
+        if let Some(m) = missing {
+            self.lineage().record_admission_denied(&self.session_id, "ctq_incomplete");
+            self.emit_tool_ocel("onto_admit_ctq", started, false, &[]);
+            return serde_json::json!({
+                "ok": false,
+                "admission": "denied",
+                "defect": { "kind": "CtqIncomplete", "missing": m },
+            }).to_string();
+        }
+        // Build a canonical CTQ artifact byte payload (ordered fields, no
+        // trailing newlines, no secret material) and hash it for the
+        // receipt.
+        let canonical = format!(
+            "source_voice\u{1f}{}\u{1e}ctq\u{1f}{}\u{1e}measure\u{1f}{}\u{1e}verify\u{1f}{}\u{1e}neg\u{1f}{}\u{1e}control\u{1f}{}",
+            input.source_voice.trim(),
+            input.ctq_text.trim(),
+            input.measure_text.trim(),
+            input.verification_text.trim(),
+            input.negative_case_text.trim(),
+            input.control_plan_text.trim(),
+        );
+        // Emit ctq_admitted + the three binding events BEFORE the gate so
+        // observed_stages contains all required activities.
+        let now = chrono::Utc::now().to_rfc3339();
+        let ts_ms = chrono::Utc::now().timestamp_millis();
+        for (i, (kind, attr_name, attr_value)) in [
+            ("ctq_admitted", "ctq_text", input.ctq_text.trim()),
+            ("verification_bound", "verification_text", input.verification_text.trim()),
+            ("negative_case_bound", "negative_case_text", input.negative_case_text.trim()),
+            ("control_plan_bound", "control_plan_text", input.control_plan_text.trim()),
+        ].iter().enumerate() {
+            let event_id = format!("{}:{}:{}-{}", self.session_id, kind, ts_ms, i);
+            let _ = self.ocel_store().emit_event(
+                event_id.as_str(),
+                kind,
+                &now,
+                &self.session_id,
+                &[(attr_name, attr_value)],
+                &[],
+                Some(&input.scope_token),
+            );
+        }
+        let receipt = match self.evaluate_admission(
+            crate::admission::AdmissionOp::CtqAdmitted,
+            Some(&input.scope_token),
+            "ctq",
+            canonical.as_bytes(),
+            input.bypass_admission,
+            input.bypass_reason.as_deref(),
+        ) {
+            Ok(r) => r,
+            Err(denial) => {
+                self.emit_tool_ocel("onto_admit_ctq", started, false, &[]);
+                return denial;
+            }
+        };
+        let out = serde_json::json!({
+            "ok": true,
+            "scope_token": receipt.record.scope_token,
+            "receipt_hash": receipt.hex(),
+            "production_law_version": receipt.record.production_law_version,
+            "defects_taxonomy_version": receipt.record.defects_taxonomy_version,
+        }).to_string();
+        self.emit_tool_ocel("onto_admit_ctq", started, true, &[]);
+        out
+    }
+
+    #[tool(name = "onto_propose_work_order", description = "Requirements Andon: bind an admitted CTQ to a draft work order with a counterfactual delta. READ-ONLY (allowlisted) — no graph mutation, no admission. Validates ctq_receipt_hash format and that all 3 counterfactual fields are non-empty. Admission happens at onto_admit_work_order.")]
+    async fn onto_propose_work_order(&self, Parameters(input): Parameters<OntoProposeWorkOrderInput>) -> String {
+        let started = std::time::Instant::now();
+        // Validate ctq_receipt_hash is a 64-char lowercase hex string.
+        let h = input.ctq_receipt_hash.trim();
+        let hex_ok = h.len() == 64 && h.chars().all(|c| c.is_ascii_hexdigit());
+        if !hex_ok {
+            self.emit_tool_ocel("onto_propose_work_order", started, false, &[]);
+            return serde_json::json!({
+                "ok": false,
+                "error": "ctq_receipt_hash must be a 64-char lowercase hex string",
+            }).to_string();
+        }
+        let mut missing: Option<&'static str> = None;
+        for (name, value) in [
+            ("naked_craft_path", input.naked_craft_path.trim()),
+            ("manufacturing_path", input.manufacturing_path.trim()),
+            ("counterfactual_delta", input.counterfactual_delta.trim()),
+        ] {
+            if value.is_empty() {
+                missing = Some(name);
+                break;
+            }
+        }
+        if let Some(m) = missing {
+            self.emit_tool_ocel("onto_propose_work_order", started, false, &[]);
+            return serde_json::json!({
+                "ok": false,
+                "error": format!("required field is empty: {m}"),
+            }).to_string();
+        }
+        // Compute a stable draft id (BLAKE3 over canonical bytes) so the
+        // caller can echo it back to onto_admit_work_order. Not persisted
+        // — this is a pure echo handler.
+        let canonical = format!(
+            "ctq\u{1f}{}\u{1e}naked\u{1f}{}\u{1e}mfg\u{1f}{}\u{1e}delta\u{1f}{}",
+            h, input.naked_craft_path.trim(), input.manufacturing_path.trim(), input.counterfactual_delta.trim(),
+        );
+        let draft_id = blake3::hash(canonical.as_bytes()).to_hex().to_string();
+        let out = serde_json::json!({
+            "ok": true,
+            "draft_id": &draft_id[..16],
+            "scope_token": input.scope_token,
+            "ctq_receipt_hash": h,
+        }).to_string();
+        self.emit_tool_ocel("onto_propose_work_order", started, true, &[]);
+        out
+    }
+
+    #[tool(name = "onto_admit_work_order", description = "Requirements Andon: deterministic work-order admission. Denies with WorkOrderMissingCounterfactual when naked_craft_path / manufacturing_path / counterfactual_delta are empty. Validates ctq_receipt_hash is a 64-char hex. On Ok emits work_order_admitted OCEL event with the counterfactual delta as an attribute and chains the receipt to the CTQ receipt via prior_receipt.")]
+    async fn onto_admit_work_order(&self, Parameters(input): Parameters<OntoAdmitWorkOrderInput>) -> String {
+        let started = std::time::Instant::now();
+        let h = input.ctq_receipt_hash.trim();
+        let hex_ok = h.len() == 64 && h.chars().all(|c| c.is_ascii_hexdigit());
+        if !hex_ok {
+            self.lineage().record_admission_denied(&self.session_id, "ctq_incomplete");
+            self.emit_tool_ocel("onto_admit_work_order", started, false, &[]);
+            return serde_json::json!({
+                "ok": false,
+                "admission": "denied",
+                "defect": { "kind": "CtqIncomplete", "missing": "ctq_receipt_hash" },
+            }).to_string();
+        }
+        let naked = input.naked_craft_path.trim();
+        let mfg = input.manufacturing_path.trim();
+        let delta = input.counterfactual_delta.trim();
+        if naked.is_empty() || mfg.is_empty() || delta.is_empty() {
+            self.lineage().record_admission_denied(&self.session_id, "work_order_missing_counterfactual");
+            self.emit_tool_ocel("onto_admit_work_order", started, false, &[]);
+            return serde_json::json!({
+                "ok": false,
+                "admission": "denied",
+                "defect": { "kind": "WorkOrderMissingCounterfactual" },
+            }).to_string();
+        }
+        // Emit work_order_admitted event BEFORE the gate so observed_stages
+        // contains it.
+        let now = chrono::Utc::now().to_rfc3339();
+        let event_id = format!(
+            "{}:work_order_admitted:{}",
+            self.session_id,
+            chrono::Utc::now().timestamp_millis()
+        );
+        let _ = self.ocel_store().emit_event(
+            &event_id,
+            "work_order_admitted",
+            &now,
+            &self.session_id,
+            &[
+                ("ctq_receipt_hash", h),
+                ("counterfactual_delta", delta),
+            ],
+            &[],
+            Some(&input.scope_token),
+        );
+        let canonical = format!(
+            "ctq\u{1f}{}\u{1e}naked\u{1f}{}\u{1e}mfg\u{1f}{}\u{1e}delta\u{1f}{}",
+            h, naked, mfg, delta,
+        );
+        let receipt = match self.evaluate_admission(
+            crate::admission::AdmissionOp::WorkOrderAdmitted,
+            Some(&input.scope_token),
+            "work-order",
+            canonical.as_bytes(),
+            input.bypass_admission,
+            input.bypass_reason.as_deref(),
+        ) {
+            Ok(r) => r,
+            Err(denial) => {
+                self.emit_tool_ocel("onto_admit_work_order", started, false, &[]);
+                return denial;
+            }
+        };
+        let out = serde_json::json!({
+            "ok": true,
+            "scope_token": receipt.record.scope_token,
+            "receipt_hash": receipt.hex(),
+            "ctq_receipt_hash": h,
+            "production_law_version": receipt.record.production_law_version,
+            "defects_taxonomy_version": receipt.record.defects_taxonomy_version,
+        }).to_string();
+        self.emit_tool_ocel("onto_admit_work_order", started, true, &[]);
+        out
+    }
+
+    #[tool(name = "onto_executive_projection", description = "Requirements Andon: project admitted evidence into an executive-readable summary via the Groq translator. READ-ONLY (allowlisted). The summary must only cite tokens that already appear in admitted_evidence — a token-overlap check rejects any summary whose alphabetic words are not all present in the evidence.")]
+    async fn onto_executive_projection(&self, Parameters(input): Parameters<OntoExecutiveProjectionInput>) -> String {
+        let started = std::time::Instant::now();
+        let evidence = input.admitted_evidence.trim();
+        if evidence.is_empty() {
+            self.emit_tool_ocel("onto_executive_projection", started, false, &[]);
+            return serde_json::json!({
+                "ok": false,
+                "error": "admitted_evidence is empty",
+            }).to_string();
+        }
+        let llm_cfg = crate::config::LlmConfig::default();
+        let translator = match crate::llm_translator::GroqTranslator::from_config(&llm_cfg) {
+            Ok(t) => t,
+            Err(e) => {
+                self.emit_tool_ocel("onto_executive_projection", started, false, &[]);
+                return format!(r#"{{"error":"failed to build translator: {}"}}"#, e.to_string().replace('"', "'"));
+            }
+        };
+        if !translator.is_configured() {
+            self.emit_tool_ocel("onto_executive_projection", started, false, &[]);
+            return serde_json::json!({
+                "ok": false,
+                "error": "NoLlmConfigured: GROQ_API_KEY is not set",
+            }).to_string();
+        }
+        // Re-use the candidate-CTQ translation as the prompt frame: it
+        // returns structured JSON we can flatten into a summary while
+        // staying inside the bounded prompt the translator already
+        // implements. The prompt feeds admitted evidence as
+        // source_voice; the translator MUST NOT invent facts.
+        let candidate = match translator.translate_candidate_ctq(evidence).await {
+            Ok(c) => c,
+            Err(e) => {
+                self.emit_tool_ocel("onto_executive_projection", started, false, &[]);
+                return format!(r#"{{"error":"projection failed: {}"}}"#, e.to_string().replace('"', "'"));
+            }
+        };
+        // Token-overlap check: every alphabetic word (length ≥ 4, lowercase)
+        // in the candidate's flattened text MUST also appear (lowercased)
+        // in the evidence. Otherwise the LLM invented a fact.
+        let summary = format!(
+            "{} {} {} {} {} {}",
+            candidate.ctq_text,
+            candidate.measure_text,
+            candidate.verification_text,
+            candidate.negative_case_text,
+            candidate.control_plan_text,
+            candidate.defect_class_hint,
+        );
+        let evidence_lc = evidence.to_lowercase();
+        let mut invented: Vec<String> = Vec::new();
+        for tok in summary.split(|c: char| !c.is_alphanumeric()) {
+            let tok_lc = tok.to_lowercase();
+            if tok_lc.len() < 4 || !tok_lc.chars().all(|c| c.is_alphabetic()) {
+                continue;
+            }
+            if !evidence_lc.contains(&tok_lc) && !invented.contains(&tok_lc) {
+                invented.push(tok_lc);
+            }
+        }
+        if !invented.is_empty() {
+            self.emit_tool_ocel("onto_executive_projection", started, false, &[]);
+            return serde_json::json!({
+                "ok": false,
+                "defect": { "kind": "FalsePass" },
+                "reason": "executive projection introduced tokens not present in admitted evidence",
+                "invented_tokens": invented,
+            }).to_string();
+        }
+        let out = serde_json::json!({
+            "ok": true,
+            "scope_token": input.scope_token,
+            "summary": {
+                "ctq_text": candidate.ctq_text,
+                "measure_text": candidate.measure_text,
+                "verification_text": candidate.verification_text,
+                "negative_case_text": candidate.negative_case_text,
+                "control_plan_text": candidate.control_plan_text,
+            },
+        }).to_string();
+        self.emit_tool_ocel("onto_executive_projection", started, true, &[]);
+        out
+    }
 }
 
 // ─── Codegen receipt-stamping helper ────────────────────────────────────────

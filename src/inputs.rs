@@ -701,3 +701,101 @@ pub struct OntoCounterfactualInput {
     pub scope_token: String,
 }
 
+// ── Requirements-Andon / CTQ-Forge inputs (Phase 1.5) ────────────────────
+
+/// Capture a source-voice signal and propose a requirement. The
+/// admission gate denies with `RequirementWithoutSource` if
+/// `source_voice` is empty.
+#[derive(Deserialize, JsonSchema)]
+pub struct OntoProposeRequirementInput {
+    /// Stakeholder voice / process evidence / defect log line. The
+    /// translator echoes this back; the gate refuses on empty / whitespace.
+    pub source_voice: String,
+    /// Voice category — one of `customer`, `operator`, `process`,
+    /// `defect`, `control_plan`, `counterfactual`, `business`, `policy`.
+    pub voice_kind: Option<String>,
+    /// Optional explicit scope token for admission. Falls back to the
+    /// latest open scope for the session.
+    pub scope_token: Option<String>,
+    pub bypass_admission: Option<bool>,
+    pub bypass_reason: Option<String>,
+}
+
+/// Call the Groq LLM boundary translator on a previously-proposed
+/// requirement. **Audit-only.** The translator output is provisional
+/// and must pass through `onto_admit_ctq` before any work order is
+/// admitted.
+#[derive(Deserialize, JsonSchema)]
+pub struct OntoTranslateCandidateInput {
+    /// Scope token returned by `onto_propose_requirement`.
+    pub scope_token: String,
+    /// Source-voice signal to translate (re-echoed for self-contained
+    /// audit; must match the value provided to `onto_propose_requirement`).
+    pub source_voice: String,
+}
+
+/// Admit a CTQ. The deterministic gate denies with
+/// `CtqIncomplete{missing}` if any of the 5 mandatory fields are
+/// empty / whitespace.
+#[derive(Deserialize, JsonSchema)]
+pub struct OntoAdmitCtqInput {
+    /// Scope token from the propose / translate phase.
+    pub scope_token: String,
+    /// Source-voice the CTQ derives from.
+    pub source_voice: String,
+    /// CTQ statement.
+    pub ctq_text: String,
+    /// Measurement description.
+    pub measure_text: String,
+    /// Verification method.
+    pub verification_text: String,
+    /// Negative case.
+    pub negative_case_text: String,
+    /// Control plan.
+    pub control_plan_text: String,
+    pub bypass_admission: Option<bool>,
+    pub bypass_reason: Option<String>,
+}
+
+/// Bind an admitted CTQ to a draft work order with a counterfactual
+/// delta. **Read-only / allowlisted** — no mutation; admission happens
+/// at `onto_admit_work_order`.
+#[derive(Deserialize, JsonSchema)]
+pub struct OntoProposeWorkOrderInput {
+    pub scope_token: String,
+    /// Receipt hash returned by `onto_admit_ctq`.
+    pub ctq_receipt_hash: String,
+    /// Naked-craft path: what an unadmitted prompt-to-code workflow
+    /// would have allowed.
+    pub naked_craft_path: String,
+    /// Manufacturing path: what OntoStar admission/replay enforces.
+    pub manufacturing_path: String,
+    /// Material delta — the defect or risk this work order prevents.
+    pub counterfactual_delta: String,
+}
+
+/// Admit a work order. Denies with `WorkOrderMissingCounterfactual` if
+/// the counterfactual fields are absent.
+#[derive(Deserialize, JsonSchema)]
+pub struct OntoAdmitWorkOrderInput {
+    pub scope_token: String,
+    pub ctq_receipt_hash: String,
+    pub naked_craft_path: String,
+    pub manufacturing_path: String,
+    pub counterfactual_delta: String,
+    pub bypass_admission: Option<bool>,
+    pub bypass_reason: Option<String>,
+}
+
+/// Project admitted evidence into an executive-readable summary via
+/// the Groq translator. **Read-only / allowlisted.** The summary must
+/// only cite tokens that already appear in the admitted evidence.
+#[derive(Deserialize, JsonSchema)]
+pub struct OntoExecutiveProjectionInput {
+    pub scope_token: String,
+    /// Pre-rendered evidence text (assembled by the caller from
+    /// admitted OCEL events / receipts). The translator's summary
+    /// must be a token-overlap subset of this.
+    pub admitted_evidence: String,
+}
+
