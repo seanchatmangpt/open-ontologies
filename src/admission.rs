@@ -205,10 +205,32 @@ impl OntoStarAdmissionGate {
 
         // Hash the canonical POWL string.
         let powl_hash = *blake3::hash(powl_string.as_bytes()).as_bytes();
+        let powl_hash_hex = hex32_pub(&powl_hash);
         let powl_ref = PowlOpRef {
             powl_string,
             powl_hash,
         };
+
+        // Replay portability anchor: emit a `workflow_declared` event once
+        // per scope carrying powl_hash + powl_string as OCEL attributes. An
+        // external observer with only the OCEL stream can then reconstruct
+        // the declared model without reading `declared_workflows`. Idempotent
+        // via deterministic event_id keyed on powl_hash.
+        let anchor_event_id = format!("workflow_declared:{}:{}", scope_token, &powl_hash_hex[..16]);
+        let _ = store.emit_event(
+            &anchor_event_id,
+            "workflow_declared",
+            &chrono::Utc::now().to_rfc3339(),
+            session_id,
+            &[
+                ("powl_hash", &powl_hash_hex),
+                ("powl_string", powl_string),
+                ("production_law_version", "ontostar-1.0.0"),
+                ("defects_taxonomy_version", crate::defects::DEFECTS_TAXONOMY_VERSION),
+            ],
+            &[],
+            Some(scope_token),
+        );
 
         // Build canonical OCEL projection of scope. Until Stream 1's
         // scope_token column lands on ocel_events, project by session.
@@ -348,6 +370,7 @@ impl OntoStarAdmissionGate {
             session_id,
             chrono::Utc::now().timestamp_millis()
         );
+        let powl_hash_hex = hex32_pub(&receipt.record.declared_powl_hash);
         let _ = store.emit_event(
             &event_id,
             "admission_granted",
@@ -359,6 +382,7 @@ impl OntoStarAdmissionGate {
                 ("scope_token", &receipt.record.scope_token),
                 ("production_law_version", &receipt.record.production_law_version),
                 ("defects_taxonomy_version", &receipt.record.defects_taxonomy_version),
+                ("powl_hash", &powl_hash_hex),
             ],
             &[],
             Some(&receipt.record.scope_token),

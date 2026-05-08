@@ -193,6 +193,58 @@ impl OcelStore {
         Ok(result)
     }
 
+    /// Replay a scope using only the OCEL stream — no `declared_workflows`
+    /// row required. Reads the `workflow_declared` anchor event for the
+    /// scope, extracts `powl_string` from its attributes, parses it into a
+    /// fresh `PowlBridge`, and replays. This proves the OCEL stream is
+    /// self-sufficient: an external observer with only the event log can
+    /// reconstruct what should have happened.
+    ///
+    /// Errors when no anchor event exists (the scope was never properly
+    /// declared) or when the embedded POWL fails to parse.
+    pub fn replay_from_ocel_alone(
+        &self,
+        scope_token: &str,
+    ) -> Result<crate::powl_bridge::ConformanceResult> {
+        // Find the workflow_declared anchor event for this scope and pull
+        // its powl_string attribute. Drop the connection lock before the
+        // (potentially heavy) parse so we don't serialize replays.
+        let powl_string: String = {
+            let conn = self.db.conn();
+            let anchor_event_id: String = conn
+                .query_row(
+                    "SELECT event_id FROM ocel_events
+                     WHERE scope_token = ?1 AND event_type = 'workflow_declared'
+                     ORDER BY time ASC LIMIT 1",
+                    rusqlite::params![scope_token],
+                    |r| r.get(0),
+                )
+                .map_err(|_| anyhow::anyhow!(
+                    "no workflow_declared anchor event for scope {}",
+                    scope_token
+                ))?;
+            conn.query_row(
+                "SELECT value FROM ocel_event_attrs
+                 WHERE event_id = ?1 AND name = 'powl_string'",
+                rusqlite::params![anchor_event_id],
+                |r| r.get(0),
+            )
+            .map_err(|_| anyhow::anyhow!(
+                "anchor event {} missing powl_string attribute",
+                anchor_event_id
+            ))?
+        };
+
+        let mut bridge = crate::powl_bridge::PowlBridge::new();
+        let root = bridge
+            .parse(&powl_string)
+            .map_err(|e| anyhow::anyhow!("anchor powl parse failed: {e}"))?;
+
+        // Reuse the canonical replay path. This re-reads the same events but
+        // does NOT touch declared_workflows.
+        self.replay_against_powl(scope_token, &bridge, root)
+    }
+
     /// Stream-3 helper: list event_types observed for a session.
     pub fn observed_event_types_for_session(&self, session_id: &str) -> Result<Vec<String>> {
         let conn = self.db.conn();

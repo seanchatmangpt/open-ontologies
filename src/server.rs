@@ -2773,17 +2773,39 @@ impl OpenOntologiesServer {
     async fn onto_counterfactual(&self, Parameters(input): Parameters<OntoCounterfactualInput>) -> String {
         // Load scope row (Stream 5 stub schema).
         let conn = self.db.conn();
-        let row: Option<(String, String, String, Option<i64>, Option<f64>, Option<String>, Option<String>, Option<String>)> = conn
+        // Pull the canonical counterfactual columns from declared_workflows
+        // (via the workflow_scopes view). Includes gates_denied_json and
+        // manufacturing_delta_json so the response carries the persisted
+        // delta — not a placeholder.
+        let row: Option<(
+            String, String, String,
+            Option<i64>, Option<f64>,
+            Option<String>, Option<String>,
+            Option<String>, Option<String>,
+            Option<String>,
+        )> = conn
             .query_row(
-                "SELECT scope_token, workflow_name, domain, admitted, fitness, defects_json, deviations_json, gates_fired_json
-                 FROM workflow_scopes WHERE scope_token = ?1",
+                "SELECT dw.scope_token, dw.name, COALESCE(json_extract(dw.alphabet_json,'$.domain'),''),
+                        dw.admitted, dw.fitness,
+                        dw.defects_json, dw.deviations_json,
+                        dw.gates_fired_json, dw.gates_denied_json,
+                        dw.manufacturing_delta_json
+                 FROM declared_workflows dw WHERE dw.scope_token = ?1",
                 rusqlite::params![input.scope_token],
-                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?, r.get(5)?, r.get(6)?, r.get(7)?)),
+                |r| Ok((
+                    r.get(0)?, r.get(1)?, r.get(2)?,
+                    r.get(3)?, r.get(4)?,
+                    r.get(5)?, r.get(6)?,
+                    r.get(7)?, r.get(8)?,
+                    r.get(9)?,
+                )),
             )
             .ok();
         drop(conn);
 
-        let (scope_token, workflow_name, domain, admitted, fitness, defects_json, deviations_json, gates_fired_json) =
+        let (scope_token, workflow_name, domain, admitted, fitness,
+             defects_json, deviations_json, gates_fired_json, gates_denied_json,
+             manufacturing_delta_json) =
             match row {
                 Some(r) => r,
                 None => {
@@ -2794,30 +2816,53 @@ impl OpenOntologiesServer {
                 }
             };
 
-        // naked_craft = force=true admission path (no POWL replay, always passes)
+        let parse_arr = |s: &Option<String>| -> serde_json::Value {
+            s.as_deref()
+                .and_then(|t| serde_json::from_str::<serde_json::Value>(t).ok())
+                .unwrap_or_else(|| serde_json::json!([]))
+        };
+        let gates_fired = parse_arr(&gates_fired_json);
+        let gates_denied = parse_arr(&gates_denied_json);
+
+        // naked_craft = force=true path. The naked-craft script bypasses
+        // every gate, so gates_checked is the empty set: nothing was actually
+        // verified before the artifact was admitted.
         let naked_craft = serde_json::json!({
             "scope_token": scope_token,
             "force": true,
             "verdict": "granted_by_force",
-            "gates_checked": vec![] as Vec<String>,
-            "gates_denied": vec![] as Vec<String>,
+            "gates_checked": serde_json::Value::Array(vec![]),
+            "gates_denied": serde_json::Value::Array(vec![]),
         });
 
-        // onto_star path = real verdict from admission.rs (what was observed)
+        // onto_star path = real persisted verdict from admission.rs.
         let onto_star_path = serde_json::json!({
             "scope_token": scope_token,
+            "workflow_name": workflow_name,
             "verdict": if admitted.unwrap_or(0) > 0 { "granted" } else { "denied" },
             "fitness": fitness.unwrap_or(0.0),
-            "defects_json": defects_json.unwrap_or_default(),
-            "deviations_json": deviations_json.unwrap_or_default(),
-            "gates_fired_json": gates_fired_json.unwrap_or_default(),
+            "gates_fired": gates_fired.clone(),
+            "gates_denied": gates_denied,
+            "defects": parse_arr(&defects_json),
+            "deviations": parse_arr(&deviations_json),
         });
+
+        // Manufacturing delta = gates fired ONLY because of OntoStar. The
+        // naked_craft path fires zero gates, so the delta IS gates_fired.
+        // If admission persisted a richer delta record, surface it.
+        let delta = manufacturing_delta_json
+            .as_deref()
+            .and_then(|t| serde_json::from_str::<serde_json::Value>(t).ok())
+            .unwrap_or_else(|| serde_json::json!({
+                "fired_only_under_ontostar": gates_fired,
+                "naked_craft_verdict": "granted_by_force",
+            }));
 
         serde_json::json!({
             "ok": true,
             "naked_craft": naked_craft,
             "onto_star": onto_star_path,
-            "delta_gates": "see gates_fired_json in onto_star for divergence",
+            "manufacturing_delta": delta,
             "manufacturing_path": domain,
         })
         .to_string()
