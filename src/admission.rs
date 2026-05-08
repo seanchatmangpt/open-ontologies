@@ -37,6 +37,12 @@ pub enum AdmissionOp {
     // Audit-only ops (operator-tier maintenance; logged but never denied).
     Clear,         // clear / unload / cache-remove
     Feedback,      // align_feedback / monitor_clear
+    // Requirements-Andon / CTQ-Forge ops (full admission).
+    RequirementProposed, // capture source signal + voice
+    CtqAdmitted,         // deterministic CTQ admission gate
+    WorkOrderAdmitted,   // bind admitted CTQ + counterfactual
+    // Audit-only LLM boundary translation (Groq).
+    LlmTranslate,
 }
 
 impl AdmissionOp {
@@ -53,6 +59,10 @@ impl AdmissionOp {
             AdmissionOp::Version => "version",
             AdmissionOp::Clear => "clear",
             AdmissionOp::Feedback => "feedback",
+            AdmissionOp::RequirementProposed => "requirement_proposed",
+            AdmissionOp::CtqAdmitted => "ctq_admitted",
+            AdmissionOp::WorkOrderAdmitted => "work_order_admitted",
+            AdmissionOp::LlmTranslate => "llm_translate",
         }
     }
 
@@ -63,7 +73,10 @@ impl AdmissionOp {
     pub fn is_full_admission(&self) -> bool {
         !matches!(
             self,
-            AdmissionOp::Clear | AdmissionOp::Feedback | AdmissionOp::Version
+            AdmissionOp::Clear
+                | AdmissionOp::Feedback
+                | AdmissionOp::Version
+                | AdmissionOp::LlmTranslate
         )
     }
 }

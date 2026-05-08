@@ -24,13 +24,13 @@ use serde::{Deserialize, Serialize};
 /// Current defect taxonomy semver. Stored on every Receipt and emitted as
 /// an attribute on every `admission_granted` / `admission_denied` /
 /// `admission_audit` OCEL event.
-pub const DEFECTS_TAXONOMY_VERSION: &str = "ontostar-defects-1.0.0";
+pub const DEFECTS_TAXONOMY_VERSION: &str = "ontostar-defects-2.0.0";
 
 /// BLAKE3 hex of `tag1\0tag2\0...\0` for [`DefectClass::all_tags()`].
 /// CI-pinned. Adding/renaming/removing a variant changes this, forcing a
 /// taxonomy version bump.
 pub const DEFECTS_TAXONOMY_DISCRIMINANT_HASH: &str =
-    "b0d5e12000e879e851b51d753096060b8fd4c89c68dacd4b27e03748cfcdf7cf";
+    "80f3520152f4d76c71c0e9b876e082fd87fc1ca4dc58d9c8fb6856c5ae8b56d4";
 
 /// Typed denial classes. Every `Denied` outcome in admission/cell-ready
 /// machinery short-circuits on the first failing variant.
@@ -68,6 +68,25 @@ pub enum DefectClass {
     UnreplayableClaim,
     /// Claimed success without evidence.
     FalsePass,
+    // --- Requirements-Andon / CTQ-Forge taxonomy v2.0.0 ---
+    /// A `RequirementProposed` op was attempted with no source-voice signal.
+    RequirementWithoutSource,
+    /// CTQ admission denied because a mandatory field is missing or empty.
+    /// `missing` carries one of: "measure", "verification", "negative_case",
+    /// "control_plan", "source_voice".
+    CtqIncomplete { missing: String },
+    /// Work-order admission denied because no naked-craft counterfactual
+    /// delta was bound.
+    WorkOrderMissingCounterfactual,
+    /// LLM (Groq) output was treated as authoritative without passing the
+    /// deterministic CTQ admission gate.
+    LlmAuthorityClaimed,
+    /// Export contains a restricted raw-data field (e.g. customer email,
+    /// real account name).
+    RawDataLeak { field: String },
+    /// Secret material (e.g. `GROQ_API_KEY` value) detected in an evidence
+    /// surface (OCEL attribute, receipt, projection, log).
+    SecretLeak { surface: String },
 }
 
 impl DefectClass {
@@ -94,6 +113,12 @@ impl DefectClass {
             DefectClass::GeneratedArtifactDirectEdit { .. } => "generated_artifact_direct_edit",
             DefectClass::UnreplayableClaim => "unreplayable_claim",
             DefectClass::FalsePass => "false_pass",
+            DefectClass::RequirementWithoutSource => "requirement_without_source",
+            DefectClass::CtqIncomplete { .. } => "ctq_incomplete",
+            DefectClass::WorkOrderMissingCounterfactual => "work_order_missing_counterfactual",
+            DefectClass::LlmAuthorityClaimed => "llm_authority_claimed",
+            DefectClass::RawDataLeak { .. } => "raw_data_leak",
+            DefectClass::SecretLeak { .. } => "secret_leak",
         }
     }
 
@@ -122,6 +147,12 @@ impl DefectClass {
             "generated_artifact_direct_edit",
             "unreplayable_claim",
             "false_pass",
+            "requirement_without_source",
+            "ctq_incomplete",
+            "work_order_missing_counterfactual",
+            "llm_authority_claimed",
+            "raw_data_leak",
+            "secret_leak",
         ]
     }
 }
