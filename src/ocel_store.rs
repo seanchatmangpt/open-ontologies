@@ -173,7 +173,7 @@ impl OcelStore {
         .unwrap_or_else(|_| "[]".to_string());
         let _ = conn.execute(
             "INSERT OR REPLACE INTO conformance_runs (
-                run_id, scope_token, fitness, precision_score, generalization, simplicity,
+                run_id, scope_token, fitness, precision, generalization, simplicity,
                 verdict, defects_json, trace_canonical_hash, ran_at
              ) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10)",
             rusqlite::params![

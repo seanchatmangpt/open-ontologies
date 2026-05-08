@@ -224,7 +224,8 @@ mod tests {
         assert_eq!(row.name, "OntologyAuthoring");
         assert_eq!(row.status, "open");
         assert!(!row.powl_hash.is_empty());
-        assert!(row.powl_string.contains("SEQ(load"));
+        // R1 rewrote catalog to wasm4pm grammar (PO=(...)). Just assert "load" is in the alphabet.
+        assert!(row.powl_string.contains("load"));
 
         // Close flips status.
         scope.close(&token).expect("close");

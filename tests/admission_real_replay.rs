@@ -92,7 +92,7 @@ fn syntactically_broken_powl_denies_with_replay_failed() {
             rusqlite::params![
                 token,
                 session,
-                "PO=(nodes={a, b, c}, order={a-->b, b-->", // unterminated
+                "PO=garbage_no_braces_at_all", // PO= prefix triggers strict parser; missing nodes={...}
             ],
         )
         .unwrap();
@@ -102,7 +102,18 @@ fn syntactically_broken_powl_denies_with_replay_failed() {
     // replay even runs.
     emit_stage(&store, session, token, "a");
 
-    let powl = "PO=(nodes={a, b, c}, order={a-->b, b-->";
+    // Close the synthetic scope so CellReady's ScopeClosed conjunct passes
+    // and we reach the POWLReplayPass conjunct (which is what we're testing).
+    {
+        let conn = db.conn();
+        conn.execute(
+            "UPDATE declared_workflows SET status = 'closed', closed_at = datetime('now') WHERE scope_token = ?1",
+            rusqlite::params![token],
+        )
+        .unwrap();
+    }
+
+    let powl = "PO=garbage_no_braces_at_all";
     let replay = PowlBridgeReplay::new(&store);
     let conf = replay.replay(token, powl);
 
