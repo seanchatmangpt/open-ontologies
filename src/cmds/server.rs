@@ -132,7 +132,7 @@ fn auto_restore_last_ontology(db: &StateDb, graph: Arc<GraphStore>) -> NounVerbR
     Ok(())
 }
 
-fn run_unix_server(cfg: Config, socket_path: String, files: Vec<String>) -> NounVerbResult<()> {
+fn run_unix_server(socket_path: String, files: Vec<String>) -> NounVerbResult<()> {
     let graph = Arc::new(GraphStore::new());
     for f in &files {
         let path = expand_tilde(f);
@@ -142,7 +142,6 @@ fn run_unix_server(cfg: Config, socket_path: String, files: Vec<String>) -> Noun
         }
     }
     eprintln!("Graph has {} triples total", graph.triple_count());
-    let _ = cfg;
     tokio::runtime::Handle::current()
         .block_on(open_ontologies::socket::serve(&socket_path, graph))
         .map_err(|e| clap_noun_verb::NounVerbError::execution_error(e.to_string()))
@@ -284,7 +283,7 @@ fn serve_unix(config: Option<String>, socket: Option<String>, files_csv: Option<
     } else {
         cfg.socket.preload_files.clone()
     };
-    run_unix_server(cfg, socket_path, preload)?;
+    run_unix_server(socket_path, preload)?;
     Ok(ServeOutput { status: "done".to_string() })
 }
 
