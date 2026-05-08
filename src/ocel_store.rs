@@ -311,11 +311,11 @@ impl OcelStore {
         let mut event_type_set = BTreeSet::new();
         let mut events = Vec::new();
 
-        let mut stmt = conn.prepare(
-            "SELECT event_id, event_type, time, session_id FROM ocel_events ORDER BY event_id ASC",
-        )?;
-
         let event_rows: Vec<(String, String, String, String)> = if let Some(sid) = session_id_filter {
+            let mut stmt = conn.prepare(
+                "SELECT event_id, event_type, time, session_id FROM ocel_events
+                 WHERE session_id = ?1 ORDER BY event_id ASC",
+            )?;
             stmt.query_map(rusqlite::params![sid], |row| {
                 let eid: String = row.get(0)?;
                 let etype: String = row.get(1)?;
@@ -325,8 +325,6 @@ impl OcelStore {
             })?
             .collect::<std::result::Result<Vec<_>, _>>()?
         } else {
-            // Re-prepare for no-filter case
-            drop(stmt);
             let mut stmt = conn.prepare(
                 "SELECT event_id, event_type, time, session_id FROM ocel_events ORDER BY event_id ASC",
             )?;
