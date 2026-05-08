@@ -120,6 +120,70 @@ pub static BUILTIN_WORKFLOWS: &[BuiltinWorkflow] = &[
         alphabet: &["OntologyAuthoring", "LifecycleApply", "Codegen"],
         required_stages: &["OntologyAuthoring", "LifecycleApply", "Codegen"],
     },
+    BuiltinWorkflow {
+        name: "RequirementsManufacturing",
+        // The Requirements-Andon happy path. Refusal is not a POWL variant —
+        // it surfaces as admission_denied with a typed DefectClass on the
+        // gate. The replayable shape is the admitted SEQ.
+        //
+        // SEQ(requirement_proposed, llm_candidate_translated, ctq_admitted,
+        //     verification_bound, negative_case_bound, control_plan_bound,
+        //     work_order_admitted)
+        powl_string:
+            "PO=(nodes={requirement_proposed, llm_candidate_translated, ctq_admitted, verification_bound, negative_case_bound, control_plan_bound, work_order_admitted}, order={requirement_proposed-->llm_candidate_translated, llm_candidate_translated-->ctq_admitted, ctq_admitted-->verification_bound, verification_bound-->negative_case_bound, negative_case_bound-->control_plan_bound, control_plan_bound-->work_order_admitted})",
+        alphabet: &[
+            "requirement_proposed",
+            "llm_candidate_translated",
+            "ctq_admitted",
+            "verification_bound",
+            "negative_case_bound",
+            "control_plan_bound",
+            "work_order_admitted",
+        ],
+        // The three full-admission gate fires must all be observed for
+        // capability. Binding events are part of the trace but the gate
+        // itself enforces their presence via CtqIncomplete{missing}.
+        required_stages: &[
+            "requirement_proposed",
+            "ctq_admitted",
+            "work_order_admitted",
+        ],
+    },
+    BuiltinWorkflow {
+        name: "Fortune5RevOpsGovernedRelease",
+        // RequirementsManufacturing -> DataExtensionFastPath -> LifecycleApply -> Codegen
+        // with RevOps-specific activities flowing inside the data stage.
+        // Sub-workflow names are opaque labels at the top level for replay;
+        // the RevOps activity alphabet is unioned in so per-event traces
+        // (forecast_submitted, contract_executed, etc.) replay cleanly.
+        powl_string:
+            "PO=(nodes={RequirementsManufacturing, DataExtensionFastPath, LifecycleApply, Codegen}, order={RequirementsManufacturing-->DataExtensionFastPath, DataExtensionFastPath-->LifecycleApply, LifecycleApply-->Codegen})",
+        alphabet: &[
+            "RequirementsManufacturing",
+            "DataExtensionFastPath",
+            "LifecycleApply",
+            "Codegen",
+            // RevOps-domain activities (object lifecycle events).
+            "forecast_submitted",
+            "contract_executed",
+            "order_created",
+            "invoice_issued",
+            "renewal_due",
+            "renewal_touchpoint_completed",
+            "partner_registered",
+            "partner_attributed",
+            "discount_approved",
+            "revenue_milestone_completed",
+            "risk_detected",
+            "classification_refused",
+        ],
+        required_stages: &[
+            "RequirementsManufacturing",
+            "DataExtensionFastPath",
+            "LifecycleApply",
+            "Codegen",
+        ],
+    },
 ];
 
 /// Lookup a built-in workflow by exact `name`.
@@ -132,8 +196,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn catalog_has_seven_entries() {
-        assert_eq!(BUILTIN_WORKFLOWS.len(), 7);
+    fn catalog_has_nine_entries() {
+        assert_eq!(BUILTIN_WORKFLOWS.len(), 9);
     }
 
     #[test]
@@ -145,6 +209,17 @@ mod tests {
         assert!(by_name("Alignment").is_some());
         assert!(by_name("Codegen").is_some());
         assert!(by_name("GovernedRelease").is_some());
+        assert!(by_name("RequirementsManufacturing").is_some());
+        assert!(by_name("Fortune5RevOpsGovernedRelease").is_some());
         assert!(by_name("Nope").is_none());
+    }
+
+    #[test]
+    fn requirements_manufacturing_required_stages_are_three_admission_fires() {
+        let w = by_name("RequirementsManufacturing").unwrap();
+        assert_eq!(
+            w.required_stages,
+            &["requirement_proposed", "ctq_admitted", "work_order_admitted"]
+        );
     }
 }
