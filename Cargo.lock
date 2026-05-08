@@ -2808,6 +2808,7 @@ dependencies = [
  "clap-noun-verb-macros",
  "csv",
  "dirs",
+ "dotenvy",
  "duckdb",
  "linkme",
  "oxigraph",

@@ -228,6 +228,10 @@ fn build_api_router(shared_graph: Arc<GraphStore>, shared_db: StateDb) -> axum::
 /// Start the MCP server (stdio transport)
 #[verb]
 fn serve(config: Option<String>, governance_webhook: Option<String>, watch: Option<bool>, watch_interval: Option<u64>, tools_allow: Option<String>, tools_deny: Option<String>, idle_ttl_secs: Option<u64>, auto_refresh: Option<bool>) -> NounVerbResult<ServeOutput> {
+    // Load .env into the process environment before resolving config so the
+    // Groq translator can pick up GROQ_API_KEY without leaking it to a
+    // shell. Best-effort: missing .env is not an error.
+    dotenvy::dotenv().ok();
     let cfg = load_cfg(config.as_deref().unwrap_or(DEFAULT_CONFIG_PATH))
         .map_err(|e| clap_noun_verb::NounVerbError::execution_error(e.to_string()))?;
     init_tracing_cfg(&cfg.logging);
@@ -246,6 +250,7 @@ fn serve(config: Option<String>, governance_webhook: Option<String>, watch: Opti
 /// Start the MCP server (Streamable HTTP transport)
 #[verb]
 fn serve_http(config: Option<String>, host: Option<String>, port: Option<u16>, token: Option<String>, governance_webhook: Option<String>, watch: Option<bool>, watch_interval: Option<u64>, tools_allow: Option<String>, tools_deny: Option<String>, idle_ttl_secs: Option<u64>, auto_refresh: Option<bool>) -> NounVerbResult<ServeOutput> {
+    dotenvy::dotenv().ok();
     let cfg = load_cfg(config.as_deref().unwrap_or(DEFAULT_CONFIG_PATH))
         .map_err(|e| clap_noun_verb::NounVerbError::execution_error(e.to_string()))?;
     init_tracing_cfg(&cfg.logging);
@@ -272,6 +277,7 @@ fn serve_http(config: Option<String>, host: Option<String>, port: Option<u16>, t
 /// Start unix socket server for Tardygrada fact grounding
 #[verb]
 fn serve_unix(config: Option<String>, socket: Option<String>, files_csv: Option<String>) -> NounVerbResult<ServeOutput> {
+    dotenvy::dotenv().ok();
     let cfg = load_cfg(config.as_deref().unwrap_or(DEFAULT_CONFIG_PATH))
         .map_err(|e| clap_noun_verb::NounVerbError::execution_error(e.to_string()))?;
     init_tracing_cfg(&cfg.logging);

@@ -49,3 +49,7 @@ pub mod embed;
 pub mod embed_remote;
 #[cfg(feature = "embeddings")]
 pub mod structembed;
+
+// LLM Boundary Translator (Groq). Always available — reqwest+tokio are
+// not feature-gated. The translator is a *proposer*, not an authority.
+pub mod llm_translator;

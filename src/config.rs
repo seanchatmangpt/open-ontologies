@@ -20,6 +20,7 @@ pub struct Config {
     pub socket: SocketConfig,
     pub logging: LoggingConfig,
     pub codegen: CodegenConfig,
+    pub llm: LlmConfig,
 }
 
 
@@ -194,6 +195,95 @@ pub fn resolve_embeddings_model(cfg: &EmbeddingsConfig) -> String {
         .filter(|v| !v.trim().is_empty())
         .or_else(|| cfg.model.clone().filter(|v| !v.trim().is_empty()))
         .unwrap_or_else(|| "text-embedding-3-small".to_string())
+}
+
+// ─── LLM Boundary Translator (Groq) ───────────────────────────────────────
+//
+// The translator is a *language-boundary proposer*, not an authority. It
+// converts messy stakeholder voice into candidate CTQ structure that the
+// deterministic CTQ admission gate then admits or denies. The Groq API is
+// OpenAI-compatible at `/v1/chat/completions`.
+//
+// Secret hygiene (Invariant 7): the resolved key is held only on the
+// translator struct and bound to outbound requests via `bearer_auth`. It
+// must never appear in logs, OCEL attributes, receipts, error messages,
+// or projections. See `src/llm_translator.rs`.
+
+/// Configuration for the Groq-backed LLM boundary translator.
+#[derive(Debug, Default, Deserialize, Clone)]
+#[serde(default)]
+pub struct LlmConfig {
+    /// LLM provider name. Currently only `"groq"` is wired; the field is
+    /// reserved for future provider substitution. Override with
+    /// `OPEN_ONTOLOGIES_LLM_PROVIDER`.
+    pub provider: Option<String>,
+    /// OpenAI-compatible API base URL, **without** the trailing
+    /// `/chat/completions` path. Default: `https://api.groq.com/openai/v1`.
+    /// Override with `OPEN_ONTOLOGIES_LLM_API_BASE`.
+    #[serde(alias = "base_url")]
+    pub api_base: Option<String>,
+    /// API key. Resolution order:
+    ///   `OPEN_ONTOLOGIES_LLM_API_KEY` env > `GROQ_API_KEY` env > config.
+    /// Sent as `Authorization: Bearer <key>` and **never** logged.
+    pub api_key: Option<String>,
+    /// Model name. Default: `llama-3.3-70b-versatile`. Override with
+    /// `OPEN_ONTOLOGIES_LLM_MODEL`.
+    pub model: Option<String>,
+    /// HTTP request timeout in seconds. Default: 30.
+    pub request_timeout_secs: Option<u64>,
+}
+
+/// Resolve the LLM provider name. Precedence:
+/// `OPEN_ONTOLOGIES_LLM_PROVIDER` env > config > `"groq"`.
+pub fn resolve_llm_provider(cfg: &LlmConfig) -> String {
+    std::env::var("OPEN_ONTOLOGIES_LLM_PROVIDER")
+        .ok()
+        .filter(|v| !v.trim().is_empty())
+        .or_else(|| cfg.provider.clone().filter(|v| !v.trim().is_empty()))
+        .unwrap_or_else(|| "groq".to_string())
+        .trim()
+        .to_lowercase()
+}
+
+/// Resolve the LLM API base URL. Precedence:
+/// `OPEN_ONTOLOGIES_LLM_API_BASE` env > config >
+/// `https://api.groq.com/openai/v1`. Trailing slashes are stripped.
+pub fn resolve_llm_api_base(cfg: &LlmConfig) -> String {
+    std::env::var("OPEN_ONTOLOGIES_LLM_API_BASE")
+        .ok()
+        .filter(|v| !v.trim().is_empty())
+        .or_else(|| cfg.api_base.clone().filter(|v| !v.trim().is_empty()))
+        .unwrap_or_else(|| "https://api.groq.com/openai/v1".to_string())
+        .trim()
+        .trim_end_matches('/')
+        .to_string()
+}
+
+/// Resolve the LLM API key. Precedence:
+/// `OPEN_ONTOLOGIES_LLM_API_KEY` env > `GROQ_API_KEY` env > config.
+/// Returns `None` if no key is configured — the translator then refuses
+/// to call the remote and the CTQ admission gate denies any proposal that
+/// requires translation, with `LlmAuthorityClaimed`.
+pub fn resolve_llm_api_key(cfg: &LlmConfig) -> Option<String> {
+    std::env::var("OPEN_ONTOLOGIES_LLM_API_KEY")
+        .ok()
+        .filter(|v| !v.trim().is_empty())
+        .or_else(|| {
+            std::env::var("GROQ_API_KEY")
+                .ok()
+                .filter(|v| !v.trim().is_empty())
+        })
+        .or_else(|| cfg.api_key.clone().filter(|v| !v.trim().is_empty()))
+}
+
+/// Resolve the LLM model name. Precedence:
+/// `OPEN_ONTOLOGIES_LLM_MODEL` env > config > `llama-3.3-70b-versatile`.
+pub fn resolve_llm_model(cfg: &LlmConfig) -> String {
+    std::env::var("OPEN_ONTOLOGIES_LLM_MODEL")
+        .ok()
+        .filter(|v| !v.trim().is_empty())
+        .or_else(|| cfg.model.clone().filter(|v| !v.trim().is_empty()))
+        .unwrap_or_else(|| "llama-3.3-70b-versatile".to_string())
 }
 
 #[derive(Debug, Deserialize, Clone)]
