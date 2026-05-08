@@ -2913,6 +2913,161 @@ impl OpenOntologiesServer {
     async fn onto_plan_workflow(&self, Parameters(input): Parameters<OntoPlanWorkflowInput>) -> String {
         use crate::ocel_store::OcelStore;
 
+        // ── Alternative engine: real Groq via pm4py POWL ──────────────────
+        // When engine == "groq_powl", we shell out to
+        // scripts/powl_from_text.py instead of the MuStar planner.
+        // This is the same proven path as tests/real_groq_powl.rs.
+        if input.engine.as_deref() == Some("groq_powl") {
+            let script = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .join("scripts/powl_from_text.py");
+            let python = input
+                .python
+                .clone()
+                .unwrap_or_else(|| "python3".to_string());
+
+            // Build description per spec: "{problem_statement}. Domain:
+            // {domain}. Constraints: {constraints_csv}". When optional
+            // pieces are empty, omit them — appending empty trailing
+            // segments materially changes the prompt the downstream
+            // LLM sees and degrades verdict reliability for canonical
+            // demos.
+            let constraints_csv = input.constraints.clone().unwrap_or_default();
+            let mut description = input.problem_statement.clone();
+            if !input.domain.trim().is_empty() {
+                description.push_str(&format!(". Domain: {}", input.domain));
+            }
+            if !constraints_csv.trim().is_empty() {
+                description.push_str(&format!(". Constraints: {}", constraints_csv));
+            }
+
+            let mut cmd = std::process::Command::new(&python);
+            cmd.arg(&script).arg(&description);
+            cmd.env("POWL_DOMAIN", &input.domain);
+            // GROQ_API_KEY must already be in env. PM4PY_FORK_PATH falls
+            // back to the script default if unset.
+
+            let out = match cmd.output() {
+                Ok(o) => o,
+                Err(e) => {
+                    return format!(
+                        r#"{{"ok":false,"error":"failed to spawn powl_from_text.py: {}"}}"#,
+                        e.to_string().replace('"', "'")
+                    )
+                }
+            };
+
+            if !out.status.success() {
+                let stderr = String::from_utf8_lossy(&out.stderr);
+                return format!(
+                    r#"{{"ok":false,"error":"powl_from_text.py exit nonzero: {}"}}"#,
+                    stderr.replace('"', "'").replace('\n', " ")
+                );
+            }
+
+            let stdout = String::from_utf8_lossy(&out.stdout).into_owned();
+            // Same trailing-JSON extraction as tests/real_groq_powl.rs.
+            let json_line = match stdout
+                .lines()
+                .rev()
+                .find(|l| l.trim_start().starts_with('{'))
+            {
+                Some(l) => l.trim().to_string(),
+                None => {
+                    return format!(
+                        r#"{{"ok":false,"error":"powl_from_text.py produced no JSON line: {}"}}"#,
+                        stdout.replace('"', "'").replace('\n', " ")
+                    )
+                }
+            };
+            let result: serde_json::Value = match serde_json::from_str(&json_line) {
+                Ok(v) => v,
+                Err(e) => {
+                    return format!(
+                        r#"{{"ok":false,"error":"powl_from_text.py non-JSON: {} (raw={})"}}"#,
+                        e,
+                        json_line.replace('"', "'")
+                    )
+                }
+            };
+
+            let powl = result
+                .get("powl")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            let verdict = result
+                .get("verdict")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
+            let refinements = result
+                .get("refinements")
+                .cloned()
+                .unwrap_or(serde_json::Value::Null);
+
+            // Verdict=false → typed denial with replay_failed defect tag.
+            if !verdict {
+                let reason = result
+                    .get("reasoning")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("verdict=false from pm4py POWL validator")
+                    .to_string();
+                return serde_json::json!({
+                    "ok": false,
+                    "defect": "replay_failed",
+                    "reason": reason,
+                    "powl": powl,
+                    "refinements": refinements,
+                })
+                .to_string();
+            }
+
+            if powl.trim().is_empty() {
+                return r#"{"ok":false,"defect":"replay_failed","reason":"empty powl with verdict=true"}"#.to_string();
+            }
+
+            // Synthetic onto_declare_workflow — same shape as the mustar
+            // path below.
+            let scope_token = format!(
+                "scope-{}-{}",
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map(|d| d.as_nanos())
+                    .unwrap_or(0),
+                uuid_short(&powl)
+            );
+            {
+                let conn = self.db.conn();
+                if let Err(e) = conn.execute(
+                    "INSERT INTO workflow_scopes (scope_token, workflow_name, domain, powl_string)
+                     VALUES (?1, ?2, ?3, ?4)",
+                    rusqlite::params![scope_token, "planned_workflow", input.domain, powl],
+                ) {
+                    return format!(
+                        r#"{{"ok":false,"error":"failed to declare scope: {}"}}"#,
+                        e.to_string().replace('"', "'")
+                    );
+                }
+            }
+
+            let details = format!(
+                "build_order_generated source=groq_powl scope={} powl_length={}",
+                scope_token,
+                powl.len()
+            );
+            self.lineage()
+                .record(&self.session_id, "BG", "build_order_generated", &details);
+
+            return serde_json::json!({
+                "ok": true,
+                "scope_token": scope_token,
+                "powl": powl,
+                "verdict": verdict,
+                "refinements": refinements,
+                "engine": "groq_powl",
+            })
+            .to_string();
+        }
+
         // Loop 1 warm-start.
         let store = OcelStore::new(self.db.clone());
         let exemplars = store

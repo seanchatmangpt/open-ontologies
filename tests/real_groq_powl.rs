@@ -24,14 +24,9 @@ const VENV_PYTHON: &str = "/Users/sac/chatmangpt/ostar/.venv/bin/python";
 const PM4PY_FORK: &str = "/Users/sac/chatmangpt/pm4py";
 
 fn read_groq_key() -> Option<String> {
-    if let Ok(v) = std::env::var("GROQ_API_KEY") {
-        if !v.trim().is_empty() {
-            return Some(v);
-        }
-    }
-    // Best-effort .env read at the cargo manifest dir.
-    let env_path =
-        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(".env");
+    // Prefer the project .env so the test runs against the pinned key
+    // even when a stale GROQ_API_KEY is exported in the developer shell.
+    let env_path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(".env");
     if let Ok(content) = std::fs::read_to_string(&env_path) {
         for line in content.lines() {
             if let Some(rest) = line.trim().strip_prefix("GROQ_API_KEY=") {
@@ -40,6 +35,11 @@ fn read_groq_key() -> Option<String> {
                     return Some(v.to_string());
                 }
             }
+        }
+    }
+    if let Ok(v) = std::env::var("GROQ_API_KEY") {
+        if !v.trim().is_empty() {
+            return Some(v);
         }
     }
     None

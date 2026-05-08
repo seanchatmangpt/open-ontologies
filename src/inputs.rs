@@ -684,6 +684,10 @@ pub struct OntoPlanWorkflowInput {
     /// Override the planner script path. Default:
     /// `~/chatmangpt/ostar/src/ostar/process/ontostar_planner.py`.
     pub planner_script: Option<String>,
+    /// Planner engine: "mustar" (default, MuStar+PowlPredictor subprocess)
+    /// or "groq_powl" (real Groq via pm4py.algo.dspy.powl through
+    /// `scripts/powl_from_text.py`). Unknown values are treated as "mustar".
+    pub engine: Option<String>,
 }
 
 #[derive(Deserialize, JsonSchema)]
