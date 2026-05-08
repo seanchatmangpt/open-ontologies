@@ -245,18 +245,92 @@ impl OntoStarAdmissionGate {
             session_id,
         };
 
+        // Look up workflow_name once so both Ok and Err branches can record
+        // capability evidence on `workflow_capability` and update
+        // `declared_workflows` per-scope outcome columns.
+        let workflow_name: String = store
+            .db()
+            .conn()
+            .query_row(
+                "SELECT name FROM declared_workflows WHERE scope_token = ?1",
+                rusqlite::params![scope_token],
+                |r| r.get::<_, String>(0),
+            )
+            .unwrap_or_default();
+        let taxonomy_v = crate::defects::DEFECTS_TAXONOMY_VERSION;
+
         match cell_ready(inputs, store) {
             Ok(receipt) => {
                 if let Err(_e) = receipts::persist(&receipt, store.db(), session_id) {
                     // Persistence failure is itself a typed defect.
                     self.emit_denied(store, session_id, op, &DefectClass::ReceiptMissing);
+                    if !workflow_name.is_empty() {
+                        let _ = store.db().record_capability(
+                            &workflow_name,
+                            false,
+                            conf.fitness,
+                            conf.precision,
+                            taxonomy_v,
+                        );
+                        let _ = store.db().record_workflow_outcome(
+                            scope_token, false,
+                            conf.fitness, conf.precision,
+                            "[\"receipt_missing\"]", "[]",
+                            "[]", "[\"ReceiptValid\"]",
+                            "{}",
+                        );
+                    }
                     return Err((DefectClass::ReceiptMissing, vec![]));
                 }
                 self.emit_granted(store, session_id, op, &receipt);
+                if !workflow_name.is_empty() {
+                    let _ = store.db().record_capability(
+                        &workflow_name,
+                        true,
+                        conf.fitness,
+                        conf.precision,
+                        taxonomy_v,
+                    );
+                    let gates_fired_json = serde_json::to_string(&receipt.record.gates_passed)
+                        .unwrap_or_else(|_| "[]".into());
+                    let manufacturing_delta_json = serde_json::json!({
+                        "fired_only_under_ontostar": receipt.record.gates_passed,
+                        "naked_craft_verdict": "granted_by_force",
+                    })
+                    .to_string();
+                    let _ = store.db().record_workflow_outcome(
+                        scope_token, true,
+                        conf.fitness, conf.precision,
+                        "[]", "[]",
+                        &gates_fired_json, "[]",
+                        &manufacturing_delta_json,
+                    );
+                }
                 Ok(receipt)
             }
             Err(defect) => {
                 self.emit_denied(store, session_id, op, &defect);
+                if !workflow_name.is_empty() {
+                    let _ = store.db().record_capability(
+                        &workflow_name,
+                        false,
+                        conf.fitness,
+                        conf.precision,
+                        taxonomy_v,
+                    );
+                    let denied_tag = defect.tag();
+                    let defects_json = serde_json::to_string(&vec![&defect])
+                        .unwrap_or_else(|_| "[]".into());
+                    let gates_denied_json = serde_json::to_string(&vec![denied_tag])
+                        .unwrap_or_else(|_| "[]".into());
+                    let _ = store.db().record_workflow_outcome(
+                        scope_token, false,
+                        conf.fitness, conf.precision,
+                        &defects_json, "[]",
+                        "[]", &gates_denied_json,
+                        "{}",
+                    );
+                }
                 Err((defect, vec![]))
             }
         }
@@ -283,6 +357,8 @@ impl OntoStarAdmissionGate {
                 ("op", op.as_str()),
                 ("receipt_hash", &receipt.hex()),
                 ("scope_token", &receipt.record.scope_token),
+                ("production_law_version", &receipt.record.production_law_version),
+                ("defects_taxonomy_version", &receipt.record.defects_taxonomy_version),
             ],
             &[],
             Some(&receipt.record.scope_token),
@@ -317,7 +393,12 @@ impl OntoStarAdmissionGate {
             "admission_denied",
             &chrono::Utc::now().to_rfc3339(),
             session_id,
-            &[("op", op.as_str()), ("defect", defect.tag())],
+            &[
+                ("op", op.as_str()),
+                ("defect", defect.tag()),
+                ("production_law_version", "ontostar-1.0.0"),
+                ("defects_taxonomy_version", crate::defects::DEFECTS_TAXONOMY_VERSION),
+            ],
             &[],
             scope_token,
         );

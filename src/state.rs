@@ -293,9 +293,129 @@ impl StateDb {
              CREATE INDEX IF NOT EXISTS idx_declared_workflows_session
                  ON declared_workflows(session_id, status);"
         )?;
+
+        // OntoStar Level 5 — capability evidence + per-scope outcome columns.
+        // ALTER TABLE … ADD COLUMN runs are additive on existing DBs and
+        // idempotent across sessions (errors on existing column are ignored).
+        for stmt in [
+            "ALTER TABLE declared_workflows ADD COLUMN admitted INTEGER;",
+            "ALTER TABLE declared_workflows ADD COLUMN fitness REAL;",
+            "ALTER TABLE declared_workflows ADD COLUMN precision REAL;",
+            "ALTER TABLE declared_workflows ADD COLUMN defects_json TEXT;",
+            "ALTER TABLE declared_workflows ADD COLUMN deviations_json TEXT;",
+            "ALTER TABLE declared_workflows ADD COLUMN gates_fired_json TEXT;",
+            "ALTER TABLE declared_workflows ADD COLUMN gates_denied_json TEXT;",
+            "ALTER TABLE declared_workflows ADD COLUMN naked_craft_verdict TEXT DEFAULT 'granted_by_force';",
+            "ALTER TABLE declared_workflows ADD COLUMN manufacturing_delta_json TEXT;",
+            "ALTER TABLE declared_workflows ADD COLUMN admission_decided_at TEXT;",
+        ] {
+            let _ = conn.execute_batch(stmt);
+        }
+
+        // workflow_scopes view: Stream 5 handlers reference this name; alias to
+        // declared_workflows so we keep one canonical table. The `domain`
+        // column is extracted from alphabet_json's optional `domain` field.
+        conn.execute_batch(
+            "CREATE VIEW IF NOT EXISTS workflow_scopes AS
+                SELECT
+                    scope_token,
+                    name AS workflow_name,
+                    COALESCE(json_extract(alphabet_json,'$.domain'),'') AS domain,
+                    powl_string,
+                    admitted,
+                    fitness,
+                    defects_json,
+                    deviations_json,
+                    gates_fired_json
+                FROM declared_workflows;
+
+             CREATE TABLE IF NOT EXISTS workflow_capability (
+                 workflow_name             TEXT PRIMARY KEY,
+                 admission_count           INTEGER NOT NULL DEFAULT 0,
+                 success_count             INTEGER NOT NULL DEFAULT 0,
+                 failure_count             INTEGER NOT NULL DEFAULT 0,
+                 sum_fitness               REAL    NOT NULL DEFAULT 0.0,
+                 sum_precision             REAL    NOT NULL DEFAULT 0.0,
+                 first_admitted_at         TEXT,
+                 last_admitted_at          TEXT,
+                 defects_taxonomy_version  TEXT NOT NULL
+             );"
+        )?;
+
         Ok(Self {
             conn: Arc::new(Mutex::new(conn)),
         })
+    }
+
+    /// Record a capability event for a workflow class. Called from the
+    /// admission gate after both Ok and Err branches. Atomic UPSERT.
+    pub fn record_capability(
+        &self,
+        workflow_name: &str,
+        admitted: bool,
+        fitness: f64,
+        precision: f64,
+        taxonomy_version: &str,
+    ) -> Result<()> {
+        let now = chrono::Utc::now().to_rfc3339();
+        let success: i64 = if admitted { 1 } else { 0 };
+        let failure: i64 = if admitted { 0 } else { 1 };
+        self.conn().execute(
+            "INSERT INTO workflow_capability(
+                 workflow_name, admission_count, success_count, failure_count,
+                 sum_fitness, sum_precision, first_admitted_at, last_admitted_at,
+                 defects_taxonomy_version)
+             VALUES (?1, 1, ?2, ?3, ?4, ?5, ?6, ?6, ?7)
+             ON CONFLICT(workflow_name) DO UPDATE SET
+                 admission_count = admission_count + 1,
+                 success_count   = success_count + excluded.success_count,
+                 failure_count   = failure_count + excluded.failure_count,
+                 sum_fitness     = sum_fitness + excluded.sum_fitness,
+                 sum_precision   = sum_precision + excluded.sum_precision,
+                 last_admitted_at = excluded.last_admitted_at,
+                 defects_taxonomy_version = excluded.defects_taxonomy_version",
+            rusqlite::params![workflow_name, success, failure, fitness, precision, now, taxonomy_version],
+        )?;
+        Ok(())
+    }
+
+    /// Update the per-scope outcome columns on a `declared_workflows` row.
+    /// Called from admission with the verdict, fitness/precision, and the
+    /// JSON-serialized gates/defects/manufacturing-delta payloads.
+    pub fn record_workflow_outcome(
+        &self,
+        scope_token: &str,
+        admitted: bool,
+        fitness: f64,
+        precision: f64,
+        defects_json: &str,
+        deviations_json: &str,
+        gates_fired_json: &str,
+        gates_denied_json: &str,
+        manufacturing_delta_json: &str,
+    ) -> Result<()> {
+        let now = chrono::Utc::now().to_rfc3339();
+        let admitted_i: i64 = if admitted { 1 } else { 0 };
+        self.conn().execute(
+            "UPDATE declared_workflows SET
+                admitted = ?1,
+                fitness = ?2,
+                precision = ?3,
+                defects_json = ?4,
+                deviations_json = ?5,
+                gates_fired_json = ?6,
+                gates_denied_json = ?7,
+                manufacturing_delta_json = ?8,
+                admission_decided_at = ?9
+             WHERE scope_token = ?10",
+            rusqlite::params![
+                admitted_i, fitness, precision,
+                defects_json, deviations_json,
+                gates_fired_json, gates_denied_json,
+                manufacturing_delta_json, now, scope_token,
+            ],
+        )?;
+        Ok(())
     }
 
     pub fn conn(&self) -> std::sync::MutexGuard<'_, Connection> {

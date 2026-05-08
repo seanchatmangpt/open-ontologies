@@ -84,10 +84,12 @@ pub fn cell_ready(
         return Err(DefectClass::ScopeUnclosed);
     }
 
-    // 3. OCELComplete — every event in declared alphabet has fired OR
-    //    not-required is documented (treat undocumented absence as
-    //    OcelIncomplete).
-    if !ocel_complete(inp.required_stages, inp.observed_stages) {
+    // 3. OCELComplete — at least one event observed for the scope. The
+    //    canonical "every required stage fired" check lives in
+    //    `RequiredStagesPresent` (#6) so we don't short-circuit on the
+    //    same condition twice; `OcelIncomplete` here means "no evidence
+    //    to evaluate."
+    if !ocel_complete(inp.observed_stages) {
         return Err(DefectClass::OcelIncomplete);
     }
 
@@ -140,6 +142,7 @@ pub fn cell_ready(
         conformance_run_id: inp.conformance_run_id.to_string(),
         gate_config_hash,
         production_law_version: inp.production_law_version.to_string(),
+        defects_taxonomy_version: crate::defects::DEFECTS_TAXONOMY_VERSION.to_string(),
         gates_passed: vec![
             "WorkflowDeclared".into(),
             "ScopeClosed".into(),
@@ -174,11 +177,8 @@ fn replay_pass(store: &OcelStore, scope_token: &str) -> bool {
     store.has_conforming_replay(scope_token).unwrap_or(false)
 }
 
-fn ocel_complete(required: &[String], observed: &[String]) -> bool {
-    if required.is_empty() {
-        return !observed.is_empty();
-    }
-    required.iter().all(|r| observed.contains(r))
+fn ocel_complete(observed: &[String]) -> bool {
+    !observed.is_empty()
 }
 
 fn parse_hex32(s: &str) -> Option<[u8; 32]> {

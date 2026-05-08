@@ -25,6 +25,11 @@ pub struct ProductionRecord {
     pub gate_config_hash: [u8; 32],
     /// e.g. "ontostar-1.0.0".
     pub production_law_version: String,
+    /// e.g. "ontostar-defects-1.0.0". Source of truth: `defects::DEFECTS_TAXONOMY_VERSION`.
+    /// Old persisted records (pre-Level-5) deserialize with empty string and
+    /// are interpreted as "unversioned-legacy" by external auditors.
+    #[serde(default)]
+    pub defects_taxonomy_version: String,
     pub gates_passed: Vec<String>,
     pub gates_refused: Vec<DefectClass>,
     /// Receipt chain: previous receipt hash in same session, if any.
@@ -44,6 +49,7 @@ impl ProductionRecord {
             "artifact_hash": hex32(&self.artifact_hash),
             "conformance_run_id": self.conformance_run_id,
             "declared_powl_hash": hex32(&self.declared_powl_hash),
+            "defects_taxonomy_version": self.defects_taxonomy_version,
             "gate_config_hash": hex32(&self.gate_config_hash),
             "gates_passed": self.gates_passed,
             "gates_refused": self.gates_refused,

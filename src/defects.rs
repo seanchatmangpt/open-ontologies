@@ -3,8 +3,34 @@
 //! Free-text denials are forbidden. Every denial path returns a typed
 //! [`DefectClass`] paired with [`Deviation`] evidence. No string error
 //! messages as authority.
+//!
+//! # Versioning
+//!
+//! The taxonomy carries an explicit semver. External auditors read the
+//! `defects_taxonomy_version` attribute on every admission OCEL event and
+//! every persisted Receipt to know which set of variants ruled.
+//!
+//! - Bump MAJOR for renamed/removed variants (breaks existing auditors).
+//! - Bump MINOR for added variants (forward-compatible).
+//! - Bump PATCH for doc-only changes.
+//!
+//! [`DEFECTS_TAXONOMY_DISCRIMINANT_HASH`] is the BLAKE3 hash of the
+//! concatenated tags (in declaration order, NUL-separated). The CI test
+//! [`tests::taxonomy_discriminant_hash_pinned`] forces any variant
+//! add/rename/remove to trigger a deliberate version bump.
 
 use serde::{Deserialize, Serialize};
+
+/// Current defect taxonomy semver. Stored on every Receipt and emitted as
+/// an attribute on every `admission_granted` / `admission_denied` /
+/// `admission_audit` OCEL event.
+pub const DEFECTS_TAXONOMY_VERSION: &str = "ontostar-defects-1.0.0";
+
+/// BLAKE3 hex of `tag1\0tag2\0...\0` for [`DefectClass::all_tags()`].
+/// CI-pinned. Adding/renaming/removing a variant changes this, forcing a
+/// taxonomy version bump.
+pub const DEFECTS_TAXONOMY_DISCRIMINANT_HASH: &str =
+    "b0d5e12000e879e851b51d753096060b8fd4c89c68dacd4b27e03748cfcdf7cf";
 
 /// Typed denial classes. Every `Denied` outcome in admission/cell-ready
 /// machinery short-circuits on the first failing variant.
@@ -70,6 +96,44 @@ impl DefectClass {
             DefectClass::FalsePass => "false_pass",
         }
     }
+
+    /// Tag list in declaration order. The hash of this list (NUL-separated)
+    /// is pinned in [`DEFECTS_TAXONOMY_DISCRIMINANT_HASH`]. Any variant
+    /// add/rename/remove changes the hash and forces a taxonomy version bump.
+    pub const fn all_tags() -> &'static [&'static str] {
+        &[
+            "law_zero",
+            "capability_zero",
+            "skipped_task",
+            "extra_task",
+            "wrong_order",
+            "missing_gateway_choice",
+            "unreachable_task",
+            "bypass_revoked",
+            "receipt_missing",
+            "scope_unclosed",
+            "ocel_incomplete",
+            "threshold_failed",
+            "shacl_skipped",
+            "replay_failed",
+            "projection_as_authority",
+            "stub_gate",
+            "dead_parameter",
+            "generated_artifact_direct_edit",
+            "unreplayable_claim",
+            "false_pass",
+        ]
+    }
+}
+
+/// Compute the BLAKE3 hex hash of the concatenated tag list.
+pub fn discriminant_hash() -> String {
+    let mut h = blake3::Hasher::new();
+    for tag in DefectClass::all_tags() {
+        h.update(tag.as_bytes());
+        h.update(b"\0");
+    }
+    h.finalize().to_hex().to_string()
 }
 
 /// Evidence carried alongside a [`DefectClass`] explaining the deviation.
@@ -95,6 +159,20 @@ mod tests {
         let s = serde_json::to_string(&d).expect("serialize");
         let back: DefectClass = serde_json::from_str(&s).expect("deserialize");
         assert_eq!(d, back);
+    }
+
+    #[test]
+    fn taxonomy_discriminant_hash_pinned() {
+        let got = discriminant_hash();
+        assert_eq!(
+            got, DEFECTS_TAXONOMY_DISCRIMINANT_HASH,
+            "DefectClass tag set changed.\n\
+             Expected: {}\n\
+             Got:      {}\n\
+             If this is intentional, bump DEFECTS_TAXONOMY_VERSION and update \
+             DEFECTS_TAXONOMY_DISCRIMINANT_HASH to the 'Got' value above.",
+            DEFECTS_TAXONOMY_DISCRIMINANT_HASH, got
+        );
     }
 
     #[test]
