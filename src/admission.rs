@@ -75,8 +75,10 @@ pub struct ConformanceResult {
     pub run_id: String,
 }
 
-/// **Stream-2 stub.** Returns a perfect-fit verdict. Flagged with a
-/// deliberate constant so a CI grep can find this when Stream 2 lands.
+/// **Stream-2 stub.** Returns a perfect-fit verdict. Retained because some
+/// admission unit tests (`tests/admission.rs`) need a deterministic
+/// pass-through to exercise the gate's other defect classes in isolation
+/// from the wasm4pm parser. Production code uses [`PowlBridgeReplay`].
 pub struct NoopPowlReplay;
 
 pub const STREAM3_STUB_POWL_REPLAY_MARKER: &str = "TODO(stream-2): replace NoopPowlReplay";
@@ -88,6 +90,53 @@ impl PowlReplay for NoopPowlReplay {
             precision: 1.0,
             verdict: "conform".to_string(),
             run_id: format!("stub-run-{}", scope_token),
+        }
+    }
+}
+
+/// Production-grade [`PowlReplay`] — parses the declared POWL via
+/// [`crate::powl_bridge::PowlBridge`], projects the OCEL trace tagged
+/// with `scope_token`, and returns the wasm4pm-derived fitness /
+/// precision verdict. Falls back to a `ReplayFailed`-shaped result
+/// (verdict="non_conform", fitness=0.0) when the POWL string is
+/// syntactically invalid or replay errors.
+pub struct PowlBridgeReplay<'a> {
+    store: &'a OcelStore,
+}
+
+impl<'a> PowlBridgeReplay<'a> {
+    pub fn new(store: &'a OcelStore) -> Self {
+        Self { store }
+    }
+}
+
+impl<'a> PowlReplay for PowlBridgeReplay<'a> {
+    fn replay(&self, scope_token: &str, powl_string: &str) -> ConformanceResult {
+        let mut bridge = crate::powl_bridge::PowlBridge::new();
+        let root = match bridge.parse(powl_string) {
+            Ok(r) => r,
+            Err(e) => {
+                return ConformanceResult {
+                    fitness: 0.0,
+                    precision: 0.0,
+                    verdict: format!("non_conform:parse:{e}"),
+                    run_id: format!("powl-bridge-parse-fail-{scope_token}"),
+                };
+            }
+        };
+        match self.store.replay_against_powl(scope_token, &bridge, root) {
+            Ok(r) => ConformanceResult {
+                fitness: r.fitness,
+                precision: r.precision.unwrap_or(0.0),
+                verdict: r.verdict.to_string(),
+                run_id: r.run_id,
+            },
+            Err(e) => ConformanceResult {
+                fitness: 0.0,
+                precision: 0.0,
+                verdict: format!("non_conform:replay_error:{e}"),
+                run_id: format!("powl-bridge-replay-fail-{scope_token}"),
+            },
         }
     }
 }

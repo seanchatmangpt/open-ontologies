@@ -319,22 +319,30 @@ impl OpenOntologiesServer {
             bytes: artifact_bytes,
         };
 
-        // TODO(stream-2): replace `NoopPowlReplay` with a `PowlBridge`-backed
-        // adapter so fitness/precision come from wasm4pm.
-        let replay = crate::admission::NoopPowlReplay;
+        // R3: real wasm4pm-backed replay. Parses the declared POWL, projects
+        // the OCEL trace tagged with `scope_token`, returns wasm4pm fitness.
+        use crate::admission::PowlReplay;
+        let store = self.ocel_store();
+        let replay = crate::admission::PowlBridgeReplay::new(store);
+
+        // Pre-compute conformance once so we can record the *real* fitness /
+        // precision in the lineage trail (the gate also calls replay
+        // internally; this is a cheap second call against the parsed POWL).
+        let conf = replay.replay(&scope_row.scope_token, &scope_row.powl_string);
 
         match gate.evaluate(
             &scope_row.scope_token,
             op,
             &artifact,
-            self.ocel_store(),
+            store,
             &replay,
             &self.session_id,
             &scope_row.powl_string,
             &observed_stages,
         ) {
             Ok(receipt) => {
-                self.lineage().record_powl_replay(&self.session_id, 1.0, 1.0);
+                self.lineage()
+                    .record_powl_replay(&self.session_id, conf.fitness, conf.precision);
                 self.lineage().record_admission_granted(&self.session_id, &receipt.hex());
                 Ok(receipt)
             }
