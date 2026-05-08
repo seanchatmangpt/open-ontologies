@@ -174,15 +174,11 @@ fn replay_pass(store: &OcelStore, scope_token: &str) -> bool {
     store.has_conforming_replay(scope_token).unwrap_or(false)
 }
 
-fn ocel_complete(_required: &[String], observed: &[String]) -> bool {
-    // OCELComplete: per the plan, "every event in the declared alphabet has
-    // fired OR not-required is documented". Until the alphabet-with-optional
-    // metadata is wired through (Stream 1's `declared_workflows.alphabet_json`
-    // does not currently carry optionality), we treat the conjunct as
-    // satisfied whenever the trace is non-empty. The stricter
-    // `RequiredStagesPresent` conjunct still enforces the catalog's
-    // `required_stages`.
-    !observed.is_empty()
+fn ocel_complete(required: &[String], observed: &[String]) -> bool {
+    if required.is_empty() {
+        return !observed.is_empty();
+    }
+    required.iter().all(|r| observed.contains(r))
 }
 
 fn parse_hex32(s: &str) -> Option<[u8; 32]> {
