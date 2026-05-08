@@ -139,7 +139,7 @@ fn admission_count_accumulates_across_three_successful_admissions() {
         first
     );
     assert_eq!(
-        taxonomy, "ontostar-defects-1.0.0",
+        taxonomy, open_ontologies::defects::DEFECTS_TAXONOMY_VERSION,
         "defects_taxonomy_version must match canonical taxonomy"
     );
 }
@@ -201,7 +201,7 @@ fn failure_count_increments_on_denial() {
         failure_count
     );
     assert_eq!(
-        taxonomy, "ontostar-defects-1.0.0",
+        taxonomy, open_ontologies::defects::DEFECTS_TAXONOMY_VERSION,
         "defects_taxonomy_version must be canonical"
     );
 }
