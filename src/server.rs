@@ -3551,6 +3551,73 @@ impl OpenOntologiesServer {
         out
     }
 
+    #[tool(name = "onto_old_ai_station", description = "Run one of the 9 old-AI cognition breeds (eliza, cbr, dendral, strips, prolog, mycin, gps, soar, hearsay) from wasm4pm-cognition. READ-ONLY (allowlisted) — breeds are pure functions over their BreedInput. Returns the BreedOutput JSON including the inference_trace; an empty trace is a fraud signal (the breed did no work) and the response surfaces a FalsePass defect on top of the breed result. Also emits an `old_ai_station` OCEL event with the breed name and trace step count.")]
+    async fn onto_old_ai_station(&self, Parameters(input): Parameters<OntoOldAiStationInput>) -> String {
+        let started = std::time::Instant::now();
+        let breed = input.breed.trim().to_ascii_lowercase();
+        // Parse the BreedInput JSON. Caller-side error → return error,
+        // never panic.
+        let breed_input: wasm4pm_cognition::breeds::BreedInput =
+            match serde_json::from_str(&input.input_json) {
+                Ok(b) => b,
+                Err(e) => {
+                    self.emit_tool_ocel("onto_old_ai_station", started, false, &[]);
+                    return format!(r#"{{"error":"invalid input_json: {}"}}"#, e.to_string().replace('"', "'"));
+                }
+            };
+        let dispatched =
+            wasm4pm_cognition::breeds::dispatch_breed_test(&breed, &breed_input);
+        let breed_output = match dispatched {
+            Ok(o) => o,
+            Err(e) => {
+                self.emit_tool_ocel("onto_old_ai_station", started, false, &[]);
+                return format!(r#"{{"error":"breed run failed: {}"}}"#, e.replace('"', "'"));
+            }
+        };
+        let trace_len = breed_output.inference_trace.len();
+        // Empty trace is a fraud signal — surface it as a FalsePass
+        // defect alongside the breed result so the caller sees the
+        // breed claim AND the integrity check.
+        let trace_count_str = trace_len.to_string();
+        let intent_hash_full = blake3::hash(breed_input.intent.as_bytes()).to_hex().to_string();
+        let intent_hash = &intent_hash_full[..16];
+        let attrs: [(&str, &str); 3] = [
+            ("breed", breed.as_str()),
+            ("trace_steps", trace_count_str.as_str()),
+            ("intent_hash", intent_hash),
+        ];
+        let now = chrono::Utc::now().to_rfc3339();
+        let event_id = format!(
+            "{}:old_ai_station:{}",
+            self.session_id,
+            chrono::Utc::now().timestamp_millis()
+        );
+        let _ = self.ocel_store().emit_event(
+            &event_id,
+            "old_ai_station",
+            &now,
+            &self.session_id,
+            &attrs,
+            &[],
+            input.scope_token.as_deref(),
+        );
+        let mut response = serde_json::json!({
+            "ok": true,
+            "breed": breed,
+            "output": breed_output,
+            "trace_steps": trace_len,
+        });
+        if trace_len == 0 {
+            response["defect"] = serde_json::json!({
+                "kind": "FalsePass",
+                "reason": "breed produced an empty inference_trace",
+            });
+            response["ok"] = serde_json::json!(false);
+        }
+        self.emit_tool_ocel("onto_old_ai_station", started, trace_len > 0, &[]);
+        response.to_string()
+    }
+
     #[tool(name = "onto_executive_projection", description = "Requirements Andon: project admitted evidence into an executive-readable summary via the Groq translator. READ-ONLY (allowlisted). The summary must only cite tokens that already appear in admitted_evidence — a token-overlap check rejects any summary whose alphabetic words are not all present in the evidence.")]
     async fn onto_executive_projection(&self, Parameters(input): Parameters<OntoExecutiveProjectionInput>) -> String {
         let started = std::time::Instant::now();

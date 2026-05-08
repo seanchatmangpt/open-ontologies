@@ -799,3 +799,23 @@ pub struct OntoExecutiveProjectionInput {
     pub admitted_evidence: String,
 }
 
+/// Run a single old-AI cognition breed (ELIZA / CBR / DENDRAL / STRIPS
+/// / Prolog / MYCIN / GPS / SOAR / Hearsay) against the supplied
+/// `BreedInput` JSON. Read-only / allowlisted — breeds are pure
+/// functions over inputs.
+#[derive(Deserialize, JsonSchema)]
+pub struct OntoOldAiStationInput {
+    /// Breed name: one of `eliza`, `cbr`, `dendral`, `strips`, `prolog`,
+    /// `mycin`, `gps`, `soar`, `hearsay` (case-insensitive).
+    pub breed: String,
+    /// `wasm4pm_cognition::breeds::BreedInput` JSON. Must contain at
+    /// minimum the `intent` field; other fields default to empty
+    /// vectors. Optional `scope_token` field on the wrapper is honoured
+    /// when emitting the OCEL trace step.
+    pub input_json: String,
+    /// Optional scope token for OCEL trace emission. The breed step is
+    /// recorded as an `old_ai_station` event with the breed name and
+    /// trace step count.
+    pub scope_token: Option<String>,
+}
+

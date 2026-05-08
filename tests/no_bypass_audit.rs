@@ -83,6 +83,8 @@ fn read_only_allowlist() -> HashSet<&'static str> {
         // Requirements Andon / CTQ Forge (Phase 1.5):
         "onto_propose_work_order",   // pure echo + validation; no graph mutation
         "onto_executive_projection", // pure summary via Groq; bounded by token-overlap check
+        // Old-AI station dispatcher (Phase 1.6):
+        "onto_old_ai_station",       // pure-function dispatch over wasm4pm-cognition breeds
     ]
     .into_iter()
     .collect()
