@@ -202,7 +202,7 @@ fn push(endpoint: String, graph_name: Option<String>, data_dir: Option<String>) 
     let (_db, g) = setup(dir).map_err(to_verb_err)?;
     let content = g.serialize("ntriples").map_err(to_verb_err)?;
     let msg = tokio::runtime::Handle::current()
-        .block_on(GraphStore::push_sparql_graph(&endpoint, &content, graph_name.as_deref()))
+        .block_on(GraphStore::push_sparql_graph(&endpoint, &content, graph_name.as_deref(), &[]))
         .map_err(to_verb_err)?;
     Ok(serde_json::json!({"ok": true, "message": msg, "graph": graph_name}))
 }

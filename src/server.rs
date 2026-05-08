@@ -625,7 +625,7 @@ impl OpenOntologiesServer {
         out
     }
 
-    #[tool(name = "onto_save", description = "Save the current ontology store to a file. Gated by OntoStar admission.")]
+    #[tool(name = "onto_save", description = "Save the current ontology store to a file. Gated by OntoStar admission. The written file carries an OntoStar receipt header for turtle/n3/trig formats; the JSON response always includes receipt_hash.")]
     async fn onto_save(&self, Parameters(input): Parameters<OntoSaveInput>) -> String {
         let started = std::time::Instant::now();
         if let Err(e) = self.registry.ensure_loaded() {
@@ -635,9 +635,11 @@ impl OpenOntologiesServer {
         }
         let format = input.format.as_deref().unwrap_or("turtle");
         let path = expand_tilde(&input.path);
-        // OntoStar Stream 3: admission gate fires BEFORE the disk write.
+        // OntoStar Stream 3: admission gate fires BEFORE the disk write. The
+        // receipt commits to the header-LESS artifact bytes — we prepend
+        // the header below so external verifiers can strip it back out.
         let artifact_bytes = self.graph.serialize(format).unwrap_or_default();
-        if let Err(denial) = self.evaluate_admission(
+        let receipt = match self.evaluate_admission(
             crate::admission::AdmissionOp::Save,
             input.scope_token.as_deref(),
             "save-artifact",
@@ -645,12 +647,37 @@ impl OpenOntologiesServer {
             input.bypass_admission,
             input.bypass_reason.as_deref(),
         ) {
-            self.emit_tool_ocel("onto_save", started, false, &[]);
-            return denial;
-        }
-        let out = match self.graph.save_file(&path, format) {
-            Ok(_) => format!(r#"{{"ok":true,"path":"{}","format":"{}"}}"#, path, format),
-            Err(e) => format!(r#"{{"error":"{}"}}"#, e),
+            Ok(r) => r,
+            Err(denial) => {
+                self.emit_tool_ocel("onto_save", started, false, &[]);
+                return denial;
+            }
+        };
+        // Comment-supporting formats get an OntoStar header prepended; other
+        // serializations (ntriples, rdf-xml) cannot embed comments and rely
+        // on the JSON response + OCEL trail for receipt binding.
+        let header_embedded = matches!(format, "turtle" | "ttl" | "n3" | "trig");
+        let write_result: anyhow::Result<()> = if header_embedded {
+            let header = crate::receipts::ttl_header(&receipt);
+            let mut out = String::with_capacity(header.len() + artifact_bytes.len());
+            out.push_str(&header);
+            out.push_str(&artifact_bytes);
+            std::fs::write(&path, out.as_bytes()).map_err(anyhow::Error::from)
+        } else {
+            self.graph.save_file(&path, format)
+        };
+        let out = match write_result {
+            Ok(_) => serde_json::json!({
+                "ok": true,
+                "path": path,
+                "format": format,
+                "header_embedded": header_embedded,
+                "receipt_hash": receipt.hex(),
+                "production_law_version": receipt.record.production_law_version,
+                "defects_taxonomy_version": receipt.record.defects_taxonomy_version,
+            })
+            .to_string(),
+            Err(e) => format!(r#"{{"error":"{}"}}"#, e.to_string().replace('"', "'")),
         };
         let ok = !out.contains(r#""error""#);
         self.emit_tool_ocel("onto_save", started, ok, &[]);
@@ -821,12 +848,12 @@ impl OpenOntologiesServer {
         }
     }
 
-    #[tool(name = "onto_push", description = "Push the current ontology store to a remote SPARQL endpoint. Gated by OntoStar admission.")]
+    #[tool(name = "onto_push", description = "Push the current ontology store to a remote SPARQL endpoint. Gated by OntoStar admission. The receipt hash is bound via the X-Ostar-Receipt-Hash HTTP header so an external auditor can verify the push without round-tripping to OntoStar.")]
     async fn onto_push(&self, Parameters(input): Parameters<OntoPushInput>) -> String {
         use crate::graph::GraphStore;
         // OntoStar Stream 3: admission gate fires BEFORE the SPARQL POST.
         let artifact_preview = self.graph.serialize("ntriples").unwrap_or_default();
-        if let Err(denial) = self.evaluate_admission(
+        let receipt = match self.evaluate_admission(
             crate::admission::AdmissionOp::Push,
             input.scope_token.as_deref(),
             "push-artifact",
@@ -834,16 +861,33 @@ impl OpenOntologiesServer {
             input.bypass_admission,
             input.bypass_reason.as_deref(),
         ) {
-            return denial;
-        }
+            Ok(r) => r,
+            Err(denial) => return denial,
+        };
         match self.graph.serialize("ntriples") {
             Ok(content) => {
-                match GraphStore::push_sparql(&input.endpoint, &content).await {
-                    Ok(msg) => format!(r#"{{"ok":true,"message":"{}"}}"#, msg),
-                    Err(e) => format!(r#"{{"error":"{}"}}"#, e),
+                let receipt_hex = receipt.hex();
+                let prod_law = receipt.record.production_law_version.clone();
+                let scope_tok = receipt.record.scope_token.clone();
+                let extra = [
+                    ("X-Ostar-Receipt-Hash", receipt_hex.as_str()),
+                    ("X-Ostar-Production-Law", prod_law.as_str()),
+                    ("X-Ostar-Scope-Token", scope_tok.as_str()),
+                ];
+                match GraphStore::push_sparql_graph(&input.endpoint, &content, None, &extra).await {
+                    Ok(msg) => serde_json::json!({
+                        "ok": true,
+                        "message": msg,
+                        "receipt_hash": receipt.hex(),
+                        "production_law_version": receipt.record.production_law_version,
+                        "defects_taxonomy_version": receipt.record.defects_taxonomy_version,
+                        "binding": "X-Ostar-Receipt-Hash header",
+                    })
+                    .to_string(),
+                    Err(e) => format!(r#"{{"error":"{}"}}"#, e.to_string().replace('"', "'")),
                 }
             }
-            Err(e) => format!(r#"{{"error":"{}"}}"#, e),
+            Err(e) => format!(r#"{{"error":"{}"}}"#, e.to_string().replace('"', "'")),
         }
     }
 
@@ -1272,7 +1316,7 @@ impl OpenOntologiesServer {
         let mode = input.mode.as_deref().unwrap_or("safe");
         // OntoStar Stream 3: admission gate fires BEFORE any state mutation.
         let artifact_bytes = self.graph.serialize("ntriples").unwrap_or_default();
-        if let Err(denial) = self.evaluate_admission(
+        let receipt = match self.evaluate_admission(
             crate::admission::AdmissionOp::Apply,
             input.scope_token.as_deref(),
             "apply-plan",
@@ -1280,8 +1324,9 @@ impl OpenOntologiesServer {
             input.bypass_admission,
             input.bypass_reason.as_deref(),
         ) {
-            return denial;
-        }
+            Ok(r) => r,
+            Err(denial) => return denial,
+        };
         let planner = crate::plan::Planner::new(self.db.clone(), self.graph.clone());
         match planner.apply(mode) {
             Ok(result) => {
@@ -1310,12 +1355,28 @@ impl OpenOntologiesServer {
                     let _ = crate::feedback::exemplars::maybe_mine_exemplar(scope, self.ocel_store());
                 }
                 let monitor_result = self.monitor().run_watchers();
-                if monitor_result.status != "ok" {
-                    let mut parsed: serde_json::Value = serde_json::from_str(&result).unwrap_or_default();
-                    parsed["monitor"] = serde_json::to_value(&monitor_result).unwrap_or_default();
-                    return parsed.to_string();
+                let mut parsed: serde_json::Value =
+                    serde_json::from_str(&result).unwrap_or_else(|_| serde_json::json!({}));
+                if let Some(obj) = parsed.as_object_mut() {
+                    obj.insert("receipt_hash".into(), receipt.hex().into());
+                    obj.insert(
+                        "production_law_version".into(),
+                        receipt.record.production_law_version.clone().into(),
+                    );
+                    obj.insert(
+                        "defects_taxonomy_version".into(),
+                        receipt.record.defects_taxonomy_version.clone().into(),
+                    );
                 }
-                result
+                if monitor_result.status != "ok" {
+                    if let Some(obj) = parsed.as_object_mut() {
+                        obj.insert(
+                            "monitor".into(),
+                            serde_json::to_value(&monitor_result).unwrap_or_default(),
+                        );
+                    }
+                }
+                parsed.to_string()
             }
             Err(e) => format!(r#"{{"error":"{}"}}"#, e),
         }
@@ -2255,7 +2316,7 @@ impl OpenOntologiesServer {
 
         // OntoStar Stream 3: admission gate fires BEFORE invoking ggen.
         let artifact_preview = self.graph.serialize("turtle").unwrap_or_default();
-        if let Err(denial) = self.evaluate_admission(
+        let receipt = match self.evaluate_admission(
             crate::admission::AdmissionOp::Codegen,
             input.scope_token.as_deref(),
             "codegen-input",
@@ -2263,8 +2324,9 @@ impl OpenOntologiesServer {
             input.bypass_admission,
             input.bypass_reason.as_deref(),
         ) {
-            return denial;
-        }
+            Ok(r) => r,
+            Err(denial) => return denial,
+        };
 
         // Check: manifest_path or queries_dir required
         if input.manifest_path.is_none() && input.queries_dir.is_none() {
@@ -2323,6 +2385,19 @@ impl OpenOntologiesServer {
             cmd.arg("--dry_run");
         }
 
+        // Cross-link to ggen's own receipt: future ggen builds can read these
+        // env vars and embed `ostar_receipt_hash` in `.ggen/receipts/latest.json`.
+        cmd.env("OSTAR_RECEIPT_HASH", receipt.hex())
+            .env(
+                "OSTAR_PRODUCTION_LAW",
+                &receipt.record.production_law_version,
+            )
+            .env(
+                "OSTAR_DEFECTS_TAXONOMY",
+                &receipt.record.defects_taxonomy_version,
+            )
+            .env("OSTAR_SCOPE_TOKEN", &receipt.record.scope_token);
+
         // Execute
         let result = match cmd.output() {
             Ok(output) => {
@@ -2337,13 +2412,25 @@ impl OpenOntologiesServer {
                         &[("generator", &input.generator, "string"), ("language", language, "string")],
                     );
 
+                    // Walk the output_dir and prepend the OntoStar receipt header
+                    // to every supported source file. Best-effort — skipped
+                    // files are reported but don't block emission.
+                    let stamped = stamp_codegen_output(output_dir, &receipt);
+
+                    let stamped_str = stamped.to_string();
                     let event_id = format!("{}:codegen:{}", self.session_id, chrono::Utc::now().timestamp_millis());
                     let _ = self.ocel_store().emit_event(
                         &event_id,
                         "codegen_run",
                         &ts,
                         &self.session_id,
-                        &[("generator", &input.generator), ("language", language), ("output_dir", output_dir)],
+                        &[
+                            ("generator", &input.generator),
+                            ("language", language),
+                            ("output_dir", output_dir),
+                            ("receipt_files_stamped", stamped_str.as_str()),
+                            ("receipt_hash", &receipt.hex()),
+                        ],
                         &[(&obj_id, "generated_from")],
                         None,
                     );
@@ -2355,6 +2442,10 @@ impl OpenOntologiesServer {
                         "language": language,
                         "output_dir": output_dir,
                         "stdout": stdout.trim(),
+                        "receipt_hash": receipt.hex(),
+                        "production_law_version": receipt.record.production_law_version,
+                        "defects_taxonomy_version": receipt.record.defects_taxonomy_version,
+                        "receipt_files_stamped": stamped,
                     }).to_string()
                 } else {
                     format!(r#"{{"error":"ggen sync failed: {}"}}"#, stderr)
@@ -2867,6 +2958,36 @@ impl OpenOntologiesServer {
         })
         .to_string()
     }
+}
+
+// ─── Codegen receipt-stamping helper ────────────────────────────────────────
+
+/// Walk `output_dir` recursively and prepend the OntoStar receipt header to
+/// every text source file whose extension supports inline comments. Returns
+/// the count of files actually stamped. Errors on individual files are
+/// silently skipped — emission must not fail because one file was unwritable.
+fn stamp_codegen_output(output_dir: &str, receipt: &crate::receipts::Receipt) -> usize {
+    let mut stamped = 0usize;
+    let mut stack: Vec<std::path::PathBuf> = vec![std::path::PathBuf::from(output_dir)];
+    while let Some(p) = stack.pop() {
+        let entries = match std::fs::read_dir(&p) {
+            Ok(e) => e,
+            Err(_) => continue,
+        };
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if let Ok(ft) = entry.file_type() {
+                if ft.is_dir() {
+                    stack.push(path);
+                } else if ft.is_file() {
+                    if let Ok(true) = crate::receipts::inject_comment_header(&path, receipt) {
+                        stamped += 1;
+                    }
+                }
+            }
+        }
+    }
+    stamped
 }
 
 // ─── Stream 5 helpers ───────────────────────────────────────────────────────

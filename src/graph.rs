@@ -278,21 +278,26 @@ impl GraphStore {
     }
 
     pub async fn push_sparql(endpoint: &str, content: &str) -> anyhow::Result<String> {
-        Self::push_sparql_graph(endpoint, content, None).await
+        Self::push_sparql_graph(endpoint, content, None, &[]).await
     }
 
-    /// SPARQL 1.1 Update push with optional named graph. When `graph_iri` is
-    /// `Some(iri)`, the body becomes `INSERT DATA { GRAPH <iri> { ntriples } }`;
-    /// when `None`, the default graph form is used.
+    /// SPARQL 1.1 Update push with optional named graph and arbitrary extra
+    /// HTTP headers. When `graph_iri` is `Some(iri)`, the body becomes
+    /// `INSERT DATA { GRAPH <iri> { ntriples } }`; when `None`, the default
+    /// graph form is used.
+    ///
+    /// `extra_headers` is a slice of `(name, value)` pairs prepended to the
+    /// request — used by OntoStar to bind a receipt hash to the push via
+    /// `X-Ostar-Receipt-Hash` and `X-Ostar-Production-Law`.
     ///
     /// Validates `graph_iri` syntactically: must be non-empty, must not be
     /// wrapped in `< >` (caller passes the raw IRI), and must not contain
-    /// whitespace. Other absolute-IRI grammar is not enforced here — server
-    /// rejects malformed IRIs with HTTP 400.
+    /// whitespace.
     pub async fn push_sparql_graph(
         endpoint: &str,
         content: &str,
         graph_iri: Option<&str>,
+        extra_headers: &[(&str, &str)],
     ) -> anyhow::Result<String> {
         let body = match graph_iri {
             None => format!("INSERT DATA {{ {} }}", content),
@@ -314,12 +319,13 @@ impl GraphStore {
             }
         };
         let client = reqwest::Client::new();
-        let resp = client
+        let mut req = client
             .post(endpoint)
-            .header("Content-Type", "application/sparql-update")
-            .body(body)
-            .send()
-            .await?;
+            .header("Content-Type", "application/sparql-update");
+        for (name, value) in extra_headers {
+            req = req.header(*name, *value);
+        }
+        let resp = req.body(body).send().await?;
         if !resp.status().is_success() {
             anyhow::bail!("SPARQL update returned HTTP {}", resp.status());
         }

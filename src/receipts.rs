@@ -82,6 +82,97 @@ pub fn latest_for_session(db: &StateDb, session_id: &str) -> Option<[u8; 32]> {
     hex_to_32(&hex)
 }
 
+/// Render a deterministic header block for embedding in a TTL/Turtle artifact.
+///
+/// The block is five `# ostar-…:` comment lines. An external verifier strips
+/// any line matching `^# ostar-[a-z-]+: .+$` from the file head, BLAKE3-hashes
+/// the remainder, and asserts equality with `ostar-artifact-hash`. Receipts
+/// commit to the **header-less** body, so the verifier's stripping is sound.
+pub fn ttl_header(r: &Receipt) -> String {
+    let prior = r
+        .record
+        .prior_receipt
+        .as_ref()
+        .map(hex32_pub)
+        .unwrap_or_else(|| "none".to_string());
+    format!(
+        "# ostar-production-law: {}\n\
+         # ostar-defects-taxonomy: {}\n\
+         # ostar-receipt-hash: {}\n\
+         # ostar-artifact-hash: {}\n\
+         # ostar-scope-token: {}\n\
+         # ostar-prior-receipt: {}\n",
+        r.record.production_law_version,
+        r.record.defects_taxonomy_version,
+        r.hex(),
+        hex32_pub(&r.record.artifact_hash),
+        r.record.scope_token,
+        prior,
+    )
+}
+
+/// Comment-prefix style for a generated source file. Returns `None` for
+/// extensions that do not support inline comments (binaries, JSON without
+/// `JSON5`, etc.) — caller skips those.
+fn comment_prefix_for(path: &std::path::Path) -> Option<&'static str> {
+    match path.extension().and_then(|e| e.to_str()).map(|s| s.to_ascii_lowercase()) {
+        Some(ref ext) if ext == "rs" => Some("//"),
+        Some(ref ext) if ext == "ts" => Some("//"),
+        Some(ref ext) if ext == "tsx" => Some("//"),
+        Some(ref ext) if ext == "js" => Some("//"),
+        Some(ref ext) if ext == "go" => Some("//"),
+        Some(ref ext) if ext == "java" => Some("//"),
+        Some(ref ext) if ext == "kt" => Some("//"),
+        Some(ref ext) if ext == "swift" => Some("//"),
+        Some(ref ext) if ext == "py" => Some("#"),
+        Some(ref ext) if ext == "rb" => Some("#"),
+        Some(ref ext) if ext == "ex" => Some("#"),
+        Some(ref ext) if ext == "exs" => Some("#"),
+        Some(ref ext) if ext == "sh" => Some("#"),
+        Some(ref ext) if ext == "ttl" => Some("#"),
+        Some(ref ext) if ext == "n3" => Some("#"),
+        Some(ref ext) if ext == "trig" => Some("#"),
+        _ => None,
+    }
+}
+
+/// Prepend the OntoStar receipt header to a generated text file. Skips files
+/// whose extension does not support inline comments (returns `Ok(false)` for
+/// those, `Ok(true)` when the file was stamped). Best-effort: I/O errors
+/// surface to the caller.
+pub fn inject_comment_header(path: &std::path::Path, r: &Receipt) -> std::io::Result<bool> {
+    let Some(prefix) = comment_prefix_for(path) else {
+        return Ok(false);
+    };
+    let body = std::fs::read(path)?;
+    let prior = r
+        .record
+        .prior_receipt
+        .as_ref()
+        .map(hex32_pub)
+        .unwrap_or_else(|| "none".to_string());
+    let header = format!(
+        "{prefix} ostar-production-law: {}\n\
+         {prefix} ostar-defects-taxonomy: {}\n\
+         {prefix} ostar-receipt-hash: {}\n\
+         {prefix} ostar-artifact-hash: {}\n\
+         {prefix} ostar-scope-token: {}\n\
+         {prefix} ostar-prior-receipt: {}\n",
+        r.record.production_law_version,
+        r.record.defects_taxonomy_version,
+        r.hex(),
+        hex32_pub(&r.record.artifact_hash),
+        r.record.scope_token,
+        prior,
+        prefix = prefix,
+    );
+    let mut out = Vec::with_capacity(header.len() + body.len());
+    out.extend_from_slice(header.as_bytes());
+    out.extend_from_slice(&body);
+    std::fs::write(path, &out)?;
+    Ok(true)
+}
+
 fn hex_to_32(s: &str) -> Option<[u8; 32]> {
     if s.len() != 64 {
         return None;
