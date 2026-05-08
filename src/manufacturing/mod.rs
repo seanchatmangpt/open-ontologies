@@ -307,17 +307,41 @@ mod tests {
     }
 
     #[test]
-    fn every_file_carries_receipt_header() {
+    fn every_file_is_bound_to_the_work_order_via_inline_header_or_sidecar() {
         let bundle = manufacture(&ok_spec()).unwrap();
+        // IaC .tf.json files MUST NOT contain an inline ostar header
+        // (Terraform's closed schema rejects extra keys); they are
+        // bound via the iac/.ontostar-receipt.json sidecar that names
+        // them. Every other target carries an inline `// ostar-` /
+        // `%% ostar-` / `# ostar-` header.
+        let sidecar = bundle
+            .files
+            .iter()
+            .find(|f| f.path == "iac/.ontostar-receipt.json")
+            .expect("iac sidecar receipt must exist");
+        let sidecar_v: serde_json::Value =
+            serde_json::from_str(&sidecar.contents).expect("sidecar parses");
+        assert!(sidecar_v
+            .get("work_order_receipt")
+            .and_then(|v| v.as_str())
+            == Some(bundle.spec.work_order_receipt_hash.as_str()));
         for f in &bundle.files {
-            // IaC files use a JSON-embedded receipt (top-level
-            // `_ontostar_receipt`); the other targets use a comment-
-            // prefixed receipt header. Either form is accepted.
-            let has_comment = f.contents.contains("ostar-artifact-hash:");
-            let has_json = f.contents.contains("\"_ontostar_receipt\":");
+            if f.path == "iac/.ontostar-receipt.json" {
+                continue;
+            }
+            if f.path.ends_with(".tf.json") {
+                // Bound via sidecar — must NOT contain the inline header,
+                // which would break `terraform validate`.
+                assert!(
+                    !f.contents.contains("ostar-artifact-hash:"),
+                    "{} must NOT contain inline ostar header (breaks terraform validate)",
+                    f.path
+                );
+                continue;
+            }
             assert!(
-                has_comment || has_json,
-                "{} missing receipt binding",
+                f.contents.contains("ostar-artifact-hash:"),
+                "{} missing inline receipt header",
                 f.path
             );
             assert!(

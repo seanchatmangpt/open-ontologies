@@ -1,9 +1,10 @@
 //! IaC generator — Terraform JSON for AWS.
 //!
-//! Emits `iac/main.tf.json` (a Terraform plan in JSON form, not HCL —
-//! valid Terraform input that does not need an HCL parser to validate)
-//! plus `iac/variables.tf.json` and `iac/outputs.tf.json`. Deterministic
-//! over the SolutionSpec.
+//! Emits clean Terraform JSON (no extraneous keys — verified by
+//! `terraform validate` in adversarial test) plus a sidecar
+//! `iac/.ontostar-receipt.json` that binds the bundle to its work
+//! order. Receipts cannot live inside the .tf.json files because
+//! Terraform's top-level schema is closed.
 
 use super::{ManufacturedFile, SolutionSpec};
 
@@ -11,44 +12,43 @@ pub fn generate(spec: &SolutionSpec) -> Vec<ManufacturedFile> {
     if spec.iac_target != "aws" {
         return Vec::new();
     }
-    vec![
-        file("iac/main.tf.json", generate_main(spec), spec),
-        file("iac/variables.tf.json", generate_variables(spec), spec),
-        file("iac/outputs.tf.json", generate_outputs(spec), spec),
-    ]
+    let main_file = tf_file("iac/main.tf.json", generate_main(spec));
+    let vars_file = tf_file("iac/variables.tf.json", generate_variables(spec));
+    let outs_file = tf_file("iac/outputs.tf.json", generate_outputs(spec));
+    // Sidecar receipt that binds the three Terraform JSON bodies to
+    // the work order WITHOUT introducing an unknown key into
+    // Terraform's strict top-level schema. The sidecar is not a
+    // Terraform file — it is OntoStar metadata the verifier loads
+    // alongside the bundle.
+    let body_for_hash = format!(
+        "{}\n{}\n{}",
+        main_file.contents, vars_file.contents, outs_file.contents
+    );
+    let bundle_hash = blake3::hash(body_for_hash.as_bytes()).to_hex().to_string();
+    let receipt = serde_json::json!({
+        "production_law": "ontostar-1.0.0",
+        "defects_taxonomy": crate::defects::DEFECTS_TAXONOMY_VERSION,
+        "target": "iac",
+        "artifact_hash": bundle_hash,
+        "work_order_receipt": spec.work_order_receipt_hash,
+        "solution_name": spec.name,
+        "files": ["main.tf.json", "variables.tf.json", "outputs.tf.json"],
+    });
+    let sidecar = ManufacturedFile {
+        path: "iac/.ontostar-receipt.json".to_string(),
+        contents: serde_json::to_string_pretty(&receipt).expect("sidecar serializes"),
+        target: "iac".to_string(),
+    };
+    vec![main_file, vars_file, outs_file, sidecar]
 }
 
-/// Build a Terraform-JSON file. The receipt header is injected as a
-/// top-level `_ontostar_receipt` JSON key (Terraform ignores unknown
-/// top-level blocks during plan; for strict mode the verifier may
-/// strip this key before passing to `terraform validate`). Comment-
-/// style headers cannot appear in JSON, so the binding goes inside.
-fn file(path: &str, body_json: serde_json::Value, spec: &SolutionSpec) -> ManufacturedFile {
-    let mut obj = match body_json {
-        serde_json::Value::Object(m) => m,
-        other => {
-            // Generator always returns an object; defensive fallback
-            // wraps the value so we still have a valid JSON file.
-            let mut m = serde_json::Map::new();
-            m.insert("body".into(), other);
-            m
-        }
-    };
-    let body_for_hash =
-        serde_json::to_string(&serde_json::Value::Object(obj.clone())).unwrap_or_default();
-    let artifact_hash = blake3::hash(body_for_hash.as_bytes()).to_hex().to_string();
-    obj.insert(
-        "_ontostar_receipt".into(),
-        serde_json::json!({
-            "production_law": "ontostar-1.0.0",
-            "defects_taxonomy": crate::defects::DEFECTS_TAXONOMY_VERSION,
-            "target": "iac",
-            "artifact_hash": artifact_hash,
-            "work_order_receipt": spec.work_order_receipt_hash,
-            "solution_name": spec.name,
-        }),
-    );
-    let contents = serde_json::to_string_pretty(&serde_json::Value::Object(obj))
+/// Build a clean Terraform-JSON file with NO extra keys. Terraform's
+/// top-level schema is closed (terraform / provider / resource /
+/// variable / output / data / module / locals); any other key fails
+/// `terraform validate` with "Extraneous JSON object property". The
+/// receipt lives in a sidecar.
+fn tf_file(path: &str, body_json: serde_json::Value) -> ManufacturedFile {
+    let contents = serde_json::to_string_pretty(&body_json)
         .expect("Terraform JSON serializes");
     ManufacturedFile {
         path: path.to_string(),

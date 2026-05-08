@@ -148,8 +148,33 @@ fn solution_manufacturing_e2e_admits_full_stack() {
     assert!(!bundle.files_for("erlang").is_empty(), "no erlang files");
     assert!(!bundle.files_for("atomvm").is_empty(), "no atomvm files");
 
-    // Every file binds to the work-order receipt.
+    // Every file is bound to the work-order receipt — directly inline
+    // for source files, via the iac/.ontostar-receipt.json sidecar for
+    // Terraform JSON (audit-fix: Terraform's closed schema rejects
+    // extra keys, so receipts moved to a sidecar).
+    let sidecar_path = "iac/.ontostar-receipt.json";
+    let sidecar = bundle
+        .files
+        .iter()
+        .find(|f| f.path == sidecar_path)
+        .expect("iac sidecar receipt must exist");
+    assert!(
+        sidecar.contents.contains(&spec.work_order_receipt_hash),
+        "iac sidecar must bind the work-order receipt"
+    );
     for f in &bundle.files {
+        if f.path.ends_with(".tf.json") {
+            // Bound via sidecar — assert clean Terraform JSON shape.
+            let v: serde_json::Value =
+                serde_json::from_str(&f.contents).expect("tf.json parses");
+            let obj = v.as_object().expect("tf.json is an object");
+            assert!(
+                !obj.contains_key("_ontostar_receipt"),
+                "{} carries extraneous _ontostar_receipt key",
+                f.path
+            );
+            continue;
+        }
         assert!(
             f.contents.contains(&spec.work_order_receipt_hash),
             "{} missing work-order binding",
@@ -208,22 +233,47 @@ fn external_verifier_round_trips_erlang_file_via_header_strip() {
 }
 
 #[test]
-fn iac_files_have_embedded_json_receipt() {
+fn iac_bundle_has_clean_terraform_json_and_a_sidecar_receipt() {
+    // Adversarial-audit fix: Terraform JSON has a closed top-level
+    // schema. We MUST NOT inject `_ontostar_receipt` into .tf.json
+    // (that breaks `terraform validate`). Receipts live in a sidecar.
     let bundle = manufacturing::manufacture(&ok_spec()).unwrap();
+    let sidecar = bundle
+        .files
+        .iter()
+        .find(|f| f.path == "iac/.ontostar-receipt.json")
+        .expect("iac sidecar receipt must exist");
+    let receipt: serde_json::Value =
+        serde_json::from_str(&sidecar.contents).expect("sidecar parses");
+    assert_eq!(
+        receipt.get("solution_name").and_then(|v| v.as_str()),
+        Some("fortune5_revops")
+    );
+    assert_eq!(
+        receipt.get("work_order_receipt").and_then(|v| v.as_str()),
+        Some(bundle.spec.work_order_receipt_hash.as_str())
+    );
+    // .tf.json files must be clean Terraform (no extraneous keys).
     for f in bundle.files_for("iac") {
-        let parsed: serde_json::Value =
-            serde_json::from_str(&f.contents).expect("iac file is valid JSON");
-        let receipt = parsed
-            .get("_ontostar_receipt")
-            .expect("iac file must carry _ontostar_receipt");
-        assert_eq!(
-            receipt.get("solution_name").and_then(|v| v.as_str()),
-            Some("fortune5_revops")
-        );
-        assert_eq!(
-            receipt.get("work_order_receipt").and_then(|v| v.as_str()),
-            Some(bundle.spec.work_order_receipt_hash.as_str())
-        );
+        if f.path.ends_with(".tf.json") {
+            let parsed: serde_json::Value =
+                serde_json::from_str(&f.contents).expect("tf.json parses");
+            let obj = parsed.as_object().expect("tf.json is an object");
+            assert!(
+                !obj.contains_key("_ontostar_receipt"),
+                "{} must NOT carry _ontostar_receipt — that breaks terraform validate",
+                f.path
+            );
+            // Top-level keys must be in Terraform's allowed set.
+            for k in obj.keys() {
+                assert!(
+                    matches!(k.as_str(),
+                        "terraform" | "provider" | "resource" | "variable"
+                        | "output" | "data" | "module" | "locals"),
+                    "{} contains non-Terraform top-level key `{}`", f.path, k
+                );
+            }
+        }
     }
 }
 

@@ -176,8 +176,39 @@ fn full_recursive_admission_chain_from_requirement_to_manufactured_stack() {
     // Every manufactured file carries the upstream WorkOrderAdmitted
     // receipt hash. The entire stack is provably bound to the work
     // order.
+    // Per adversarial-audit fix: Terraform JSON files do NOT embed
+    // the receipt directly (that broke `terraform validate`). The
+    // binding lives in iac/.ontostar-receipt.json. Every other target
+    // carries it inline. Assert: the work-order receipt hex appears
+    // somewhere in the bundle for the IaC target (the sidecar) AND
+    // every non-tf.json file carries it inline.
     let wo_hex = wo_receipt.hex();
+    let bundle_blob = bundle
+        .files
+        .iter()
+        .map(|f| f.contents.as_str())
+        .collect::<Vec<_>>()
+        .join("\n");
+    assert!(
+        bundle_blob.contains(&wo_hex),
+        "work-order receipt hex absent from entire bundle"
+    );
     for f in &bundle.files {
+        if f.path.ends_with(".tf.json") {
+            // Terraform JSON may reference the receipt inside legitimate
+            // resource attributes (e.g. as a tag value); that's fine.
+            // What MUST NOT happen is `_ontostar_receipt` as a top-level
+            // key. Adversarial-audit fix: assert no such top-level key.
+            let parsed: serde_json::Value =
+                serde_json::from_str(&f.contents).expect("tf.json parses");
+            let obj = parsed.as_object().expect("tf.json is an object");
+            assert!(
+                !obj.contains_key("_ontostar_receipt"),
+                "{} re-embeds top-level _ontostar_receipt (breaks terraform validate)",
+                f.path
+            );
+            continue;
+        }
         assert!(
             f.contents.contains(&wo_hex),
             "{} missing upstream WorkOrderAdmitted receipt hex",
