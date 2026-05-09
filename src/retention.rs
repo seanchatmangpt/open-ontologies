@@ -19,6 +19,8 @@
 use crate::config::RetentionConfig;
 use crate::state::StateDb;
 use anyhow::Result;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicI64, Ordering};
 use std::time::Duration;
 
 /// Outcome of a single retention pass. All counts are best-effort and
@@ -43,20 +45,63 @@ pub struct RetentionReport {
 pub struct RetentionWorker {
     pub db: StateDb,
     pub cfg: RetentionConfig,
+    /// R5 WC-2 — emergency kill-switch. When `> Utc::now().timestamp()`,
+    /// [`tick`] returns an empty `RetentionReport` without running ANY
+    /// pruner. Set by the `onto_retention_pause` admin tool; cleared
+    /// (set to 0) by `onto_retention_resume`. Shared `Arc<AtomicI64>`
+    /// so the server can mutate the same atomic the worker reads each
+    /// tick. `Ordering::Relaxed` is sufficient — this is a coarse
+    /// time-since-epoch flag, not a synchronization point.
+    pub paused_until: Arc<AtomicI64>,
 }
 
 impl RetentionWorker {
     pub fn new(db: StateDb, cfg: RetentionConfig) -> Self {
-        Self { db, cfg }
+        Self {
+            db,
+            cfg,
+            paused_until: Arc::new(AtomicI64::new(0)),
+        }
+    }
+
+    /// Construct with an externally-supplied paused_until handle. Used
+    /// by [`spawn_with_pause`] so the spawning caller (the HTTP / stdio
+    /// bootstrap in `src/cmds/server.rs`) can hand the same Arc to the
+    /// MCP server, letting `onto_retention_pause` / `onto_retention_resume`
+    /// drive the worker without an explicit channel.
+    pub fn new_with_pause(
+        db: StateDb,
+        cfg: RetentionConfig,
+        paused_until: Arc<AtomicI64>,
+    ) -> Self {
+        Self { db, cfg, paused_until }
     }
 
     /// Spawn the loop. Returns a detached `JoinHandle`. Mirrors
     /// [`crate::registry::spawn_evictor`] semantics: dropping the handle
     /// does NOT abort.
+    ///
+    /// **Backwards-compat shim**: callers that don't need the pause
+    /// handle (the existing `_retention =` site in stdio bootstrap,
+    /// retention_worker.rs tests) keep working unchanged. New callers
+    /// that DO need pause control use [`spawn_with_pause`].
     pub fn spawn(db: StateDb, cfg: RetentionConfig) -> tokio::task::JoinHandle<()> {
+        Self::spawn_with_pause(db, cfg, Arc::new(AtomicI64::new(0))).0
+    }
+
+    /// R5 WC-2 — spawn with an externally-owned `paused_until` handle.
+    /// Returns `(JoinHandle, Arc<AtomicI64>)`; the caller installs the
+    /// Arc on `OpenOntologiesServer::retention_paused_until` so the
+    /// `onto_retention_pause` / `onto_retention_resume` tools can mutate
+    /// the same atomic the worker reads each tick.
+    pub fn spawn_with_pause(
+        db: StateDb,
+        cfg: RetentionConfig,
+        paused_until: Arc<AtomicI64>,
+    ) -> (tokio::task::JoinHandle<()>, Arc<AtomicI64>) {
         let interval_secs = cfg.poll_interval_secs.max(1);
-        let worker = Self::new(db, cfg);
-        tokio::spawn(async move {
+        let worker = Self::new_with_pause(db, cfg, paused_until.clone());
+        let handle = tokio::spawn(async move {
             let mut ticker = tokio::time::interval(Duration::from_secs(interval_secs));
             // Skip the immediate tick so retention does not run before
             // the server has had a chance to admit anything.
@@ -77,13 +122,32 @@ impl RetentionWorker {
                     }
                 }
             }
-        })
+        });
+        (handle, paused_until)
+    }
+
+    /// Returns true when the worker is currently paused (kill-switch active).
+    pub fn is_paused(&self) -> bool {
+        let until = self.paused_until.load(Ordering::Relaxed);
+        until > 0 && chrono::Utc::now().timestamp() < until
     }
 
     /// Run a single retention pass synchronously. Tests drive this directly
     /// with `RetentionConfig { poll_interval_secs: 1, *_days: 0, … }` to
     /// prove every pruner is wired.
+    ///
+    /// R5 WC-2: returns an empty `RetentionReport` without touching the
+    /// database when [`is_paused`] is true. The pause kill-switch is the
+    /// authoritative consumer of `paused_until`; `Ordering::Relaxed` is
+    /// adequate (no other state is synchronized through the atomic).
     pub fn tick(&self) -> Result<RetentionReport> {
+        if self.is_paused() {
+            tracing::debug!(
+                "retention worker tick skipped: paused_until={}",
+                self.paused_until.load(Ordering::Relaxed)
+            );
+            return Ok(RetentionReport::default());
+        }
         let mut report = RetentionReport::default();
 
         // Cascade order: children first.

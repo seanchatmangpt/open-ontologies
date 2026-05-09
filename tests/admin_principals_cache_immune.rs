@@ -183,6 +183,7 @@ fn resolve_admin_principals_env_overrides_config_file() {
     let _set = ScopedEnv::set(ENV_KEY, "alice");
     let cfg = AuthorityConfig {
         admin_principals: vec!["bob".to_string()],
+        ..Default::default()
     };
     let resolved = resolve_admin_principals(&cfg);
     assert_eq!(resolved, vec!["alice".to_string()]);
@@ -194,6 +195,7 @@ fn resolve_admin_principals_falls_back_to_config_when_env_unset() {
     let _unset = ScopedEnv::unset(ENV_KEY);
     let cfg = AuthorityConfig {
         admin_principals: vec!["carol".to_string(), "dave".to_string()],
+        ..Default::default()
     };
     let resolved = resolve_admin_principals(&cfg);
     assert_eq!(resolved, vec!["carol".to_string(), "dave".to_string()]);

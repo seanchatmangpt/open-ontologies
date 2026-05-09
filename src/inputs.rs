@@ -898,3 +898,51 @@ pub struct OntoOldAiStationInput {
     pub scope_token: Option<String>,
 }
 
+// ─── R5 WC-2 — admin-only operational tool inputs ──────────────────────
+
+/// `onto_receipts_revoke_batch` input. Soft-deletes (UPDATE
+/// `production_law_version`) every receipt whose `scope_token` matches
+/// `scope_token_pattern` and whose `production_law_version` is not the
+/// `seed-v0` sentinel. The chain is preserved for audit (no row is
+/// physically removed).
+#[derive(Deserialize, JsonSchema)]
+pub struct OntoReceiptsRevokeBatchInput {
+    /// SQLite GLOB pattern matched against `receipts.scope_token`.
+    /// Examples: `"scope-prod-*"`, `"tenant:foo:*"`. Pure GLOB syntax
+    /// (`*`, `?`, `[abc]`); does NOT use SQL `LIKE` placeholders.
+    pub scope_token_pattern: String,
+    /// Operator-supplied free-text reason. Recorded verbatim in the
+    /// `receipts_revoke_batch` OCEL audit event so an external auditor
+    /// can correlate the bulk action with a justification.
+    pub reason: String,
+}
+
+/// `onto_session_revoke_by_principal` input. Forcefully revokes all
+/// active sessions owned by a principal in a tenant. Falls back to
+/// bulk-INSERT into `revoked_sessions` until R3 Task B's
+/// `revoked_principals` table lands.
+#[derive(Deserialize, JsonSchema)]
+pub struct OntoSessionRevokeByPrincipalInput {
+    /// Tenant the principal belongs to. Must match the `tenant_id`
+    /// column on `declared_workflows` for the affected workflows.
+    pub tenant_id: String,
+    /// Principal identifier (typically the same as `tenant_id` until
+    /// R3 Task B's principal helper lands). Currently an alias.
+    pub principal_id: String,
+    /// Operator-supplied free-text reason. Recorded as
+    /// `revoked_sessions.reason` for every inserted row and in the
+    /// `session_revoke` OCEL audit event.
+    pub reason: String,
+}
+
+/// `onto_retention_pause` input. Suspends the [`crate::retention::RetentionWorker`]
+/// for `minutes` minutes via a shared `Arc<AtomicI64>`.
+#[derive(Deserialize, JsonSchema)]
+pub struct OntoRetentionPauseInput {
+    /// Number of minutes to suspend retention pruning. The pause
+    /// expires at `now() + minutes * 60`. Bounded to `60 * 24 * 7`
+    /// (one week) to prevent an indefinite forget; longer durations
+    /// require multiple calls.
+    pub minutes: u64,
+}
+

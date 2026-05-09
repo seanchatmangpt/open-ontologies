@@ -120,16 +120,30 @@ fn run_stdio_server(cfg: Config, db: StateDb, graph: Arc<GraphStore>, governance
         "info: admin principals configured = {} entries",
         admin_principals.len()
     );
+    // R5 WC-2 — share the retention pause handle between the worker
+    // and the MCP server so `onto_retention_pause` /
+    // `onto_retention_resume` mutate the same atomic the worker reads.
+    let pause_handle =
+        std::sync::Arc::new(std::sync::atomic::AtomicI64::new(0));
     let server = OpenOntologiesServer::new_with_repo_options(db.clone(), graph, governance_webhook, cfg.embeddings, cache_config, tool_filter, ontology_dirs)
         .with_default_llm_engine(llm_engine)
-        .with_admin_principals(admin_principals);
+        .with_admin_principals(admin_principals)
+        .with_retention_pause(pause_handle.clone());
     let _evictor = open_ontologies::registry::spawn_evictor(server.registry());
     // Round 4 WD — §29 Cell8 retirement closure. Spawn the retention
     // worker alongside the cache evictor so every persistent table has
     // a defined retirement path. The worker logs (does not panic) on
     // failure; dropping the handle does not abort.
-    let _retention =
-        open_ontologies::retention::RetentionWorker::spawn(db, cfg.retention.clone());
+    //
+    // R5 WC-2 — spawn with the externally-owned pause handle so the
+    // server's `onto_retention_pause` admin tool can drive the
+    // worker's tick.
+    let (_retention, _pause_handle_kept) =
+        open_ontologies::retention::RetentionWorker::spawn_with_pause(
+            db,
+            cfg.retention.clone(),
+            pause_handle,
+        );
     tokio::runtime::Handle::current().block_on(async {
         let service = server.serve(rmcp::transport::stdio()).await
             .map_err(|e| anyhow::anyhow!(e))?;
@@ -199,6 +213,22 @@ fn build_http_axum_router(cfg: &Config, shared_graph: Arc<GraphStore>, shared_db
         admin_principals_for_factory.len()
     );
 
+    // R5 WC-2 — resolve the X-Ontostar-Tenant allowlist ONCE at HTTP
+    // startup. Empty list preserves backwards-compat (any well-formed
+    // tenant accepted); non-empty list enforces strict allowlist with
+    // 403 on unknown.
+    let known_tenants_for_layer = std::sync::Arc::new(
+        open_ontologies::config::resolve_known_tenants(&cfg.authority),
+    );
+    eprintln!(
+        "info: known tenants allowlist = {} entries (empty = open)",
+        known_tenants_for_layer.len()
+    );
+    // Admin allowlist Arc for the principal_extract_layer — shared with
+    // the factory closure (same Vec resolved once).
+    let admin_principals_for_layer =
+        std::sync::Arc::new(admin_principals_for_factory.clone());
+
     let service: StreamableHttpService<_, LocalSessionManager> = StreamableHttpService::new(
         move || {
             let db = StateDb::open(&db_path).map_err(std::io::Error::other)?;
@@ -225,11 +255,39 @@ fn build_http_axum_router(cfg: &Config, shared_graph: Arc<GraphStore>, shared_db
     let api = build_api_router(shared_graph, shared_db, llm_cfg_for_health);
     let mut router = axum::Router::new().nest("/api", api).nest_service("/mcp", service);
 
-    // X-Ontostar-Tenant extraction layer (Phase 11). Validates the value
-    // against `^[a-z][a-z0-9_-]{0,63}$` and parks it in the
-    // `TENANT_OVERRIDE` task-local for the per-request server factory.
-    // Must precede `llm_engine_extract_layer` so layers compose correctly.
-    router = router.layer(axum::middleware::from_fn(tenant_extract_layer));
+    // R5 WC-2 — X-Ontostar-Principal extraction layer. Wired AFTER the
+    // bearer-token layer (added below) so the caller's principal is
+    // known. When the header is set, only callers in the admin
+    // allowlist may carry it; non-admin → 403 with FalsePass shape.
+    // Empty header is silently allowed (default principal resolution
+    // unchanged). Layers in axum apply outside-in (last `.layer(...)`
+    // runs first), so this is added AFTER tenant_extract_layer.
+    {
+        let admins = admin_principals_for_layer.clone();
+        router = router.layer(axum::middleware::from_fn(
+            move |req: axum::extract::Request, next: axum::middleware::Next| {
+                let admins = admins.clone();
+                async move { principal_extract_layer(admins, req, next).await }
+            },
+        ));
+    }
+
+    // R5 WC-2 — X-Ontostar-Tenant extraction layer with allowlist
+    // enforcement. Empty `known_tenants` preserves Phase 11 behaviour
+    // (any well-formed tenant accepted); non-empty enforces strict
+    // 403 on unknown. Validates the value against
+    // `^[a-z][a-z0-9_-]{0,63}$` and parks it in the `TENANT_OVERRIDE`
+    // task-local for the per-request server factory. Must precede
+    // `llm_engine_extract_layer` so layers compose correctly.
+    {
+        let known = known_tenants_for_layer.clone();
+        router = router.layer(axum::middleware::from_fn(
+            move |req: axum::extract::Request, next: axum::middleware::Next| {
+                let known = known.clone();
+                async move { tenant_extract_layer_with_allowlist(known, req, next).await }
+            },
+        ));
+    }
 
     // X-Ontostar-LLM-Engine extraction layer. Validates the value
     // against `config::VALID_LLM_ENGINES` and parks it in the
@@ -271,6 +329,13 @@ pub(crate) fn is_valid_tenant_id(s: &str) -> bool {
 /// [`open_ontologies::server::TENANT_OVERRIDE`] set. An invalid /
 /// missing header falls back to `"default"` (the server's compile-time
 /// default tenant) — single-tenant deployments work unchanged.
+///
+/// **R5 WC-2**: this function preserves the original (pre-allowlist)
+/// behaviour for tests and code paths that don't have the allowlist
+/// available. The HTTP router uses
+/// [`tenant_extract_layer_with_allowlist`] for the allowlist-enforced
+/// path.
+#[allow(dead_code)] // retained for test compat; HTTP router uses allowlist variant
 pub(crate) async fn tenant_extract_layer(
     req: axum::extract::Request,
     next: axum::middleware::Next,
@@ -286,6 +351,142 @@ pub(crate) async fn tenant_extract_layer(
     open_ontologies::server::TENANT_OVERRIDE
         .scope(Some(tenant), next.run(req))
         .await
+}
+
+/// R5 WC-2 — strict-allowlist variant of [`tenant_extract_layer`].
+///
+/// When `allowlist` is empty: behaves exactly like `tenant_extract_layer`
+/// (backward-compat — any well-formed tenant accepted, invalid /
+/// missing falls back to `"default"`).
+///
+/// When `allowlist` is non-empty:
+///   * If the header is set AND its value is in the allowlist: parks it
+///     in `TENANT_OVERRIDE` and passes through.
+///   * If the header is set AND its value is NOT in the allowlist:
+///     returns HTTP 403 with `FalsePass { reason: "tenant_not_in_allowlist" }`.
+///     The downstream factory is never invoked.
+///   * If the header is unset / blank / invalid syntax: falls back to
+///     `"default"` (single-tenant operators set the env / config to
+///     match their `tenant_id`).
+///
+/// This intentionally enforces 403 instead of silent fallback for
+/// known-invalid tenants — closes the §28 path where a malicious
+/// caller spoofs a tenant header and gets quietly downgraded to
+/// `default`.
+pub(crate) async fn tenant_extract_layer_with_allowlist(
+    allowlist: std::sync::Arc<Vec<String>>,
+    req: axum::extract::Request,
+    next: axum::middleware::Next,
+) -> axum::response::Response {
+    let header_raw = req
+        .headers()
+        .get("x-ontostar-tenant")
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty());
+    if !allowlist.is_empty() {
+        if let Some(ref hv) = header_raw {
+            // Caller explicitly set the header — strictly validate.
+            if !is_valid_tenant_id(hv) || !allowlist.iter().any(|t| t == hv) {
+                let body = serde_json::json!({
+                    "ok": false,
+                    "defect": {
+                        "kind": "FalsePass",
+                        "reason": "tenant_not_in_allowlist",
+                    },
+                    "error": format!("tenant '{}' is not in OPEN_ONTOLOGIES_KNOWN_TENANTS allowlist",
+                        hv.replace('"', "'")),
+                })
+                .to_string();
+                return axum::http::Response::builder()
+                    .status(403)
+                    .header("content-type", "application/json")
+                    .body(axum::body::Body::from(body))
+                    .unwrap();
+            }
+        }
+    }
+    let tenant = header_raw
+        .filter(|s| is_valid_tenant_id(s))
+        .unwrap_or_else(|| "default".to_string());
+    open_ontologies::server::TENANT_OVERRIDE
+        .scope(Some(tenant), next.run(req))
+        .await
+}
+
+/// R5 WC-2 — principal override extraction layer.
+///
+/// Reads the `X-Ontostar-Principal` header (if any). When set, the
+/// caller MUST appear in the admin allowlist; a non-admin caller
+/// presenting the header receives HTTP 403 with
+/// `FalsePass { reason: "principal_override_requires_admin" }`. When
+/// the header is unset, default principal resolution is unchanged
+/// (the per-request server factory uses the tenant_id as principal_id
+/// fallback).
+///
+/// The admin gate uses the same allowlist resolved at startup for
+/// `OpenOntologiesServer::admin_principals` — TOCTOU-immune by virtue
+/// of being captured into this closure once at router construction.
+///
+/// NOTE: this layer must be wired AFTER the bearer-token layer (in axum
+/// `.layer(...)` order, which is outside-in: later `.layer` runs
+/// first) so the bearer token has already been validated by the time
+/// we check the principal header. The bearer token authenticates the
+/// caller; this layer authorises an admin override of the per-request
+/// principal identity.
+async fn principal_extract_layer(
+    admin_allowlist: std::sync::Arc<Vec<String>>,
+    req: axum::extract::Request,
+    next: axum::middleware::Next,
+) -> axum::response::Response {
+    let header_val = req
+        .headers()
+        .get("x-ontostar-principal")
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty());
+    if let Some(ref pid) = header_val {
+        // The header is set — admin gate.
+        // Until R3 Task B's principal helper lands, we authorise on
+        // the same identity space as `is_admin_principal`: an admin
+        // is a tenant_id in the cached allowlist. The tenant header
+        // carries that identity. If the tenant header is unset, the
+        // override is rejected (no default-tenant admin).
+        let caller_tenant = req
+            .headers()
+            .get("x-ontostar-tenant")
+            .and_then(|v| v.to_str().ok())
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .unwrap_or_default();
+        let is_admin = !admin_allowlist.is_empty()
+            && admin_allowlist.iter().any(|p| p == &caller_tenant);
+        if !is_admin {
+            let body = serde_json::json!({
+                "ok": false,
+                "defect": {
+                    "kind": "FalsePass",
+                    "reason": "principal_override_requires_admin",
+                },
+                "error": format!(
+                    "X-Ontostar-Principal='{}' presented by non-admin caller (tenant='{}')",
+                    pid.replace('"', "'"),
+                    caller_tenant.replace('"', "'")
+                ),
+            })
+            .to_string();
+            return axum::http::Response::builder()
+                .status(403)
+                .header("content-type", "application/json")
+                .body(axum::body::Body::from(body))
+                .unwrap();
+        }
+        // Admin caller — accept the override. Currently we do not have
+        // a per-request principal task-local (R3 Task B's territory);
+        // when it lands, install it here. The header presence is
+        // already audit-logged via the request log.
+    }
+    next.run(req).await
 }
 
 /// Read the `X-Ontostar-LLM-Engine` header (if any), validate it

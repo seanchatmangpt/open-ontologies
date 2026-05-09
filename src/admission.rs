@@ -117,6 +117,28 @@ pub enum AdmissionOp {
     /// `admission_bypass` event for backward compat.
     /// TODO(R3 W3): add `op_class()` arm "governance" once the method lands.
     Bypass,
+    // ── R5 WC-2 — admin-only operational tools ────────────────────────
+    /// Audit-only. Last-resort recovery for the `bootstrap_lock` row.
+    /// Distinct OCEL audit name (`bootstrap_unlock`) so an external
+    /// auditor reviewing the trail sees a different event_type from
+    /// any normal operation. Always admin-gated at the handler.
+    /// TODO(R3 W3): add `op_class()` arm "governance" once the method lands.
+    BootstrapUnlock,
+    /// Audit-only. Bulk soft-delete (UPDATE production_law_version)
+    /// over a `scope_token` GLOB pattern. Audit event name
+    /// `receipts_revoke_batch` carries the pattern + reason + count
+    /// so auditors can correlate against the affected receipts table.
+    /// TODO(R3 W3): add `op_class()` arm "data" once the method lands.
+    ReceiptsBatchRevoke,
+    /// Audit-only. Bulk-INSERT into `revoked_sessions` for every active
+    /// scope owned by a principal. Distinct from generic `Bypass`:
+    /// `Bypass` tags self-attributed bypass ops by the caller; this
+    /// tag marks an admin forcefully revoking *another* principal's
+    /// sessions.
+    /// TODO(R3 Task B): switch from `revoked_sessions` fallback to the
+    /// canonical `revoked_principals` table once Task B lands.
+    /// TODO(R3 W3): add `op_class()` arm "governance" once the method lands.
+    SessionRevoke,
 }
 
 impl AdmissionOp {
@@ -146,6 +168,10 @@ impl AdmissionOp {
             AdmissionOp::WorkflowPlanned => "workflow_planned",
             AdmissionOp::ExemplarSeeded => "exemplar_seeded",
             AdmissionOp::Bypass => "bypass",
+            // R5 WC-2 — distinct OCEL audit names per admin tool.
+            AdmissionOp::BootstrapUnlock => "bootstrap_unlock",
+            AdmissionOp::ReceiptsBatchRevoke => "receipts_batch_revoke",
+            AdmissionOp::SessionRevoke => "session_revoke",
         }
     }
 
@@ -165,6 +191,14 @@ impl AdmissionOp {
                 | AdmissionOp::TenantSwitch
                 | AdmissionOp::ExemplarSeeded
                 | AdmissionOp::Bypass
+                // R5 WC-2 — admin tools are audit-only: they emit a
+                // tamper-evident OCEL trail but cannot deny themselves
+                // (they are the recovery path; full admission would
+                // create a deadlock for `onto_bootstrap_unlock` in
+                // particular).
+                | AdmissionOp::BootstrapUnlock
+                | AdmissionOp::ReceiptsBatchRevoke
+                | AdmissionOp::SessionRevoke
         )
     }
 }

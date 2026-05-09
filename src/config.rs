@@ -684,6 +684,16 @@ pub struct AuthorityConfig {
     /// Principal IDs (typically tenant IDs in the current implementation)
     /// authorised to invoke admin-only MCP tools. Empty list → no admins.
     pub admin_principals: Vec<String>,
+    /// R5 WC-2 — tenant allowlist for the HTTP `X-Ontostar-Tenant` header.
+    /// When non-empty, requests carrying a tenant header NOT in this list
+    /// are rejected with HTTP 403 + `FalsePass { reason:
+    /// "tenant_not_in_allowlist" }`. Empty list preserves the
+    /// pre-R5-WC-2 behaviour (any well-formed tenant accepted), so
+    /// existing single-tenant deployments are unaffected. Resolved at
+    /// startup by [`resolve_known_tenants`] and cached on the HTTP
+    /// router; subsequent env-var mutations are ignored. Closed-by-
+    /// default once any value is configured.
+    pub known_tenants: Vec<String>,
 }
 
 /// Resolve the admin principal allowlist ONCE at startup. Precedence:
@@ -712,6 +722,46 @@ pub fn resolve_admin_principals(cfg: &AuthorityConfig) -> Vec<String> {
             .collect(),
     };
     // Deduplicate while preserving order.
+    let mut seen = std::collections::HashSet::new();
+    let mut out = Vec::with_capacity(raw_iter.len());
+    for entry in raw_iter {
+        if seen.insert(entry.clone()) {
+            out.push(entry);
+        }
+    }
+    out
+}
+
+/// R5 WC-2 — resolve the tenant allowlist for the HTTP
+/// `X-Ontostar-Tenant` header ONCE at startup. Precedence:
+/// `OPEN_ONTOLOGIES_KNOWN_TENANTS` env var (comma-separated) > config
+/// file (`[authority] known_tenants = [...]`) > empty (open: any
+/// well-formed tenant accepted).
+///
+/// The env var is the **only** source read in production code; any
+/// other reader is a §28 HumanOverride leak. Mirrors
+/// [`resolve_admin_principals`] semantics: trims whitespace, drops
+/// empty entries, deduplicates while preserving order.
+///
+/// An empty result means "no allowlist configured" — backward-compatible
+/// with single-tenant deployments. A non-empty result enforces the
+/// allowlist; unknown tenants are rejected at the HTTP middleware layer
+/// before the per-request server is constructed.
+pub fn resolve_known_tenants(cfg: &AuthorityConfig) -> Vec<String> {
+    let from_env = std::env::var("OPEN_ONTOLOGIES_KNOWN_TENANTS").ok();
+    let raw_iter: Vec<String> = match from_env {
+        Some(v) if !v.trim().is_empty() => v
+            .split(',')
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .collect(),
+        _ => cfg
+            .known_tenants
+            .iter()
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .collect(),
+    };
     let mut seen = std::collections::HashSet::new();
     let mut out = Vec::with_capacity(raw_iter.len());
     for entry in raw_iter {

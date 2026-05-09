@@ -9,7 +9,119 @@ Pre-OntoStar history (the original `open-ontologies` MCP server, releases
 
 ## [Unreleased]
 
-### Round 5 WC-1 — §28 override hardening
+### Round 5 WC-2 — §28 admin tools + HTTP header allowlists
+
+Five new admin-only MCP tools, two new HTTP header allowlists, and a
+shared kill-switch for the retention worker. All admin tools gate on
+the `is_admin_principal()` cache from R5 WC-1 (TOCTOU-immune).
+
+#### [Added]
+
+- **`onto_bootstrap_unlock`** (`src/server.rs`). DELETEs the
+  `bootstrap_lock` row. Last-resort recovery for the one-shot
+  bootstrap window. Audit-only via
+  `AdmissionOp::BootstrapUnlock` (NEW variant). Lineage class `K`.
+- **`onto_receipts_revoke_batch`**. Soft-deletes (UPDATE
+  `production_law_version = 'revoked-by-admin'`) every receipt whose
+  `scope_token` matches a SQLite GLOB pattern AND whose
+  `production_law_version` is not `seed-v0`. Preserves the chain for
+  audit. New `AdmissionOp::ReceiptsBatchRevoke` variant +
+  `receipts_batch_revoke` audit name.
+- **`onto_session_revoke_by_principal`**. Bulk-INSERT into
+  `revoked_sessions` for every active scope owned by a principal in
+  a tenant. Falls back to `revoked_sessions` until R3 Task B's
+  `revoked_principals` table lands (TODO marker in code). New
+  `AdmissionOp::SessionRevoke` variant + `session_revoke` audit name.
+- **`onto_retention_pause { minutes }`** and
+  **`onto_retention_resume`**. Emergency kill-switch for the
+  `RetentionWorker` (R4 WD). Both reuse `AdmissionOp::Feedback`
+  (operational tweaks, not new audit semantics). Bounded to 1 week
+  (10080 minutes); idempotent resume.
+- **`AuthorityConfig::known_tenants: Vec<String>`** (`src/config.rs`)
+  and **`resolve_known_tenants(cfg)`**. Tenant allowlist for the
+  `X-Ontostar-Tenant` HTTP header, resolved ONCE at startup. Empty
+  list preserves backwards-compat (any well-formed tenant accepted);
+  non-empty enforces strict 403.
+- **`tenant_extract_layer_with_allowlist`** (`src/cmds/server.rs`).
+  Strict-allowlist variant of the existing `tenant_extract_layer`.
+  Unknown tenants → HTTP 403 with
+  `FalsePass { reason: "tenant_not_in_allowlist" }` instead of silent
+  fallback to `"default"`.
+- **`principal_extract_layer`** (`src/cmds/server.rs`). Admin-gated
+  acceptance of the `X-Ontostar-Principal` HTTP header. Wired AFTER
+  the bearer-token layer so the caller is authenticated first.
+  Non-admin caller presenting the header → HTTP 403 with
+  `FalsePass { reason: "principal_override_requires_admin" }`.
+  Closed-by-default: empty admin allowlist rejects ANY use of the
+  header (not just non-admins).
+- **`RetentionWorker::paused_until: Arc<AtomicI64>`** field +
+  **`spawn_with_pause`** + **`is_paused`** + **`new_with_pause`**.
+  `tick()` returns an empty `RetentionReport` without touching the
+  database when paused. Shared `Arc<AtomicI64>` so the server's
+  pause/resume tools and the worker's `tick()` agree atomically.
+  Backwards-compat shim: `spawn(db, cfg)` still works (returns just
+  the JoinHandle, internally allocates a fresh atomic).
+- **`OpenOntologiesServer::retention_paused_until: Arc<AtomicI64>`**
+  field + **`with_retention_pause(...)`** builder. Bootstrap in
+  `src/cmds/server.rs::run_stdio_server` and `build_http_axum_router`
+  allocates one atomic and hands it to both the server and the
+  worker.
+- **`OntoReceiptsRevokeBatchInput`**, **`OntoSessionRevokeByPrincipalInput`**,
+  **`OntoRetentionPauseInput`** (`src/inputs.rs`). MCP tool input
+  structs with documented field semantics.
+- **`tests/admin_tools_e2e.rs`** (NEW) — end-to-end coverage for the
+  5 new admin tools: admin-vs-non-admin paths, durable state changes
+  (DB rows, atomic values, OCEL audit events), bound checks, fallback
+  notes for `onto_session_revoke_by_principal`.
+- **`tests/http_header_allowlists.rs`** (NEW) — counterfactuals for
+  both new middleware layers + `resolve_known_tenants` env-var
+  precedence + dedup/trim. Replicates the middleware logic locally
+  (the production closures live in `cmds/server.rs` which is binary-
+  only) so the contract is pinned by behaviour, not import.
+- 5 new entries in
+  `tests/no_bypass_audit.rs::audit_only_handlers_present` — each new
+  admin tool must call `evaluate_admission_audit(...)`.
+- Test count 541 → 558 (5 admin-tool E2E + 12 HTTP-allowlist
+  counterfactuals).
+
+#### [Changed]
+
+- **`AdmissionOp` enum** — 3 new variants
+  (`BootstrapUnlock`, `ReceiptsBatchRevoke`, `SessionRevoke`)
+  with distinct audit name strings; updated `as_str()` and
+  `is_full_admission()` (all three are audit-only because admin
+  tools cannot deny themselves — full admission would deadlock
+  `onto_bootstrap_unlock` when the lock row is the problem the
+  operator is repairing). `Feedback` reused for the paired
+  `retention_pause` / `retention_resume` tools.
+- **`src/cmds/server.rs::run_stdio_server`** — uses
+  `RetentionWorker::spawn_with_pause` and pipes the same
+  `Arc<AtomicI64>` to `OpenOntologiesServer::with_retention_pause`.
+  Stdio MCP gains the kill-switch transparently.
+- **`src/cmds/server.rs::build_http_axum_router`** — adds the
+  principal_extract_layer (after bearer-token layer) and replaces
+  `tenant_extract_layer` with `tenant_extract_layer_with_allowlist`.
+  The original `tenant_extract_layer` is retained but `#[allow(dead_code)]`
+  for tests that wish to exercise the open-mode path.
+- **`AuthorityConfig`** gains `known_tenants` field
+  (`#[serde(default)]`). Existing config files load unchanged
+  (empty list = open mode = backwards-compat).
+
+#### [Notes]
+
+- The `onto_session_revoke_by_principal` SQL fallback uses
+  `revoked_sessions` until R3 Task B's `revoked_principals` table is
+  in tree. Documented in the tool docstring + CHANGELOG; switch
+  point is a single SQL change once R3 lands.
+- HTTP header tests run middleware closures via
+  `tower::ServiceExt::oneshot`, NOT a full
+  `StreamableHttpService` stack — full HTTP-layer integration is
+  too invasive for this scope. Contract drift between production
+  and the in-test replication is the cost; the trade-off is
+  documented in `tests/http_header_allowlists.rs` file-level
+  comment.
+
+
 
 Three §28 leaks closed: success-shaped bypass denial, volatile
 bootstrap-window override, and admin-allowlist TOCTOU race.

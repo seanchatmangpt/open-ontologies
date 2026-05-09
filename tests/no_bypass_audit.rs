@@ -865,6 +865,19 @@ fn audit_only_handlers_present() {
         "onto_threshold_sweep",
         // R4 WE — §14: bootstrap-only seed handler.
         "onto_exemplar_seed",
+        // R5 WC-2 — admin-only operational tools. Each emits a
+        // tamper-evident OCEL audit event via evaluate_admission_audit
+        // with a distinct AdmissionOp variant (BootstrapUnlock,
+        // ReceiptsBatchRevoke, SessionRevoke for distinct audit
+        // semantics; Feedback for the paired pause/resume tweaks).
+        // Audit-only because these are recovery / governance ops; full
+        // admission would deadlock onto_bootstrap_unlock when the lock
+        // row itself is the problem the operator is repairing.
+        "onto_bootstrap_unlock",
+        "onto_receipts_revoke_batch",
+        "onto_session_revoke_by_principal",
+        "onto_retention_pause",
+        "onto_retention_resume",
     ] {
         let body = by_name
             .get(*required)

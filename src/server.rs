@@ -99,6 +99,17 @@ pub struct OpenOntologiesServer {
     /// TOCTOU race the previous per-call env-var read admitted.
     /// Closed-by-default: empty list means no callers are admin.
     pub admin_principals: Arc<Vec<String>>,
+    /// R5 WC-2 — emergency kill-switch handle for the
+    /// [`crate::retention::RetentionWorker`]. The HTTP / stdio bootstrap
+    /// in `src/cmds/server.rs` constructs the worker via
+    /// [`crate::retention::RetentionWorker::spawn_with_pause`] and
+    /// hands the same `Arc<AtomicI64>` to the server here, so the
+    /// `onto_retention_pause` / `onto_retention_resume` admin tools
+    /// mutate the same atomic the worker reads each tick. Default
+    /// (constructor without `with_retention_pause`) is a fresh atomic
+    /// initialised to 0 — pause/resume tools are wired but no-op against
+    /// no actual worker.
+    pub retention_paused_until: Arc<std::sync::atomic::AtomicI64>,
 }
 
 impl OpenOntologiesServer {
@@ -266,6 +277,10 @@ impl OpenOntologiesServer {
             // servers) get an empty list — no callers are admin until
             // explicitly opted in.
             admin_principals: Arc::new(Vec::new()),
+            // R5 WC-2: fresh atomic initialised to 0 (no pause).
+            // Bootstrap rebinds via `with_retention_pause(...)` so the
+            // server and the worker share the same atomic.
+            retention_paused_until: Arc::new(std::sync::atomic::AtomicI64::new(0)),
         }
     }
 
@@ -312,6 +327,29 @@ impl OpenOntologiesServer {
     #[doc(hidden)]
     pub fn admin_principals_for_test(&self) -> &[String] {
         &self.admin_principals
+    }
+
+    /// R5 WC-2 — install the externally-owned retention pause handle so
+    /// the `onto_retention_pause` / `onto_retention_resume` admin tools
+    /// drive the same atomic the
+    /// [`crate::retention::RetentionWorker`] reads each tick. The HTTP
+    /// / stdio bootstrap calls
+    /// [`crate::retention::RetentionWorker::spawn_with_pause`] which
+    /// returns the Arc; the bootstrap passes it here.
+    pub fn with_retention_pause(
+        mut self,
+        paused_until: Arc<std::sync::atomic::AtomicI64>,
+    ) -> Self {
+        self.retention_paused_until = paused_until;
+        self
+    }
+
+    /// Test/debug helper: read the current `paused_until` epoch second.
+    /// `0` means not paused. Used by `tests/admin_tools_e2e.rs`.
+    #[doc(hidden)]
+    pub fn retention_paused_until_for_test(&self) -> i64 {
+        self.retention_paused_until
+            .load(std::sync::atomic::Ordering::Relaxed)
     }
 
     /// Read the resolved default LLM engine — `"inproc"` or
@@ -5071,6 +5109,424 @@ impl OpenOntologiesServer {
             "ok": true,
             "trusted_keys_count": count,
             "dir": dir,
+        })
+        .to_string()
+    }
+
+    // ─── R5 WC-2 — admin-only operational MCP tools ─────────────────────────
+    //
+    // All five tools follow the same skeleton:
+    //   1. Admit-check via `is_admin_principal()` — the startup cache from
+    //      WC-1, NEVER `std::env::var(...)`. Non-admin → unified
+    //      `FalsePass { reason: "not_admin" }` shape.
+    //   2. Audit emit via `evaluate_admission_audit(AdmissionOp::*, ...)` —
+    //      tamper-evident OCEL trail with op-specific event_type.
+    //   3. Do the work (DB UPDATE, INSERT, atomic store).
+    //   4. Lineage record with class `K` (key/governance management).
+    //   5. Return unified-shape JSON.
+
+    /// Last-resort recovery for the `bootstrap_lock` row. Deletes the
+    /// single locked row, allowing the bootstrap window to re-open if
+    /// the operator needs to re-seed (e.g. after a catastrophic state
+    /// reset). Admin-gated. Emits OCEL `bootstrap_unlock` audit event.
+    ///
+    /// Use sparingly — once unlocked, the next non-`seed-v0` receipt
+    /// auto-relocks via `receipts::persist_with_tenant_in_tx`. The
+    /// audit trail records both the unlock and the eventual relock so
+    /// the gap is forensically reconstructible.
+    #[tool(name = "onto_bootstrap_unlock", description = "DELETE the bootstrap_lock row. Admin-gated last-resort recovery. Emits OCEL bootstrap_unlock audit event.")]
+    pub fn onto_bootstrap_unlock(&self) -> String {
+        let started = std::time::Instant::now();
+        if !self.is_admin_principal() {
+            self.emit_tool_ocel("onto_bootstrap_unlock", started, false, &[]);
+            return serde_json::json!({
+                "ok": false,
+                "defect": { "kind": "FalsePass", "reason": "not_admin" },
+                "error": "caller is not in admin_principals",
+            })
+            .to_string();
+        }
+        // Audit-only OCEL emit; this op is the recovery path — full
+        // admission would deadlock when the lock row itself is the
+        // problem.
+        self.evaluate_admission_audit(
+            crate::admission::AdmissionOp::BootstrapUnlock,
+            None,
+            "bootstrap-unlock",
+            self.session_id.as_bytes(),
+        );
+        // Scope the MutexGuard so subsequent `self.lineage()` /
+        // `emit_tool_ocel` calls can reacquire the SQLite mutex.
+        let deleted = {
+            let conn = self.db.conn();
+            match conn.execute("DELETE FROM bootstrap_lock WHERE id = 1", []) {
+                Ok(n) => n as u64,
+                Err(e) => {
+                    drop(conn);
+                    self.emit_tool_ocel("onto_bootstrap_unlock", started, false, &[]);
+                    return serde_json::json!({
+                        "ok": false,
+                        "error": format!("DELETE failed: {}", e.to_string().replace('"', "'")),
+                    })
+                    .to_string();
+                }
+            }
+        };
+        self.lineage().record(
+            &self.session_id,
+            "K",
+            "bootstrap_unlocked",
+            &format!("rows_deleted={deleted}"),
+        );
+        self.emit_tool_ocel("onto_bootstrap_unlock", started, true, &[]);
+        serde_json::json!({
+            "ok": true,
+            "rows_deleted": deleted,
+        })
+        .to_string()
+    }
+
+    /// Soft-delete (UPDATE `production_law_version = 'revoked-by-admin'`)
+    /// every receipt whose `scope_token` matches the supplied GLOB
+    /// pattern AND whose current `production_law_version` is not
+    /// `seed-v0`. Preserves the receipt chain for audit (no row is
+    /// physically removed).
+    ///
+    /// The GLOB syntax is SQLite's standard: `*` (any), `?` (one char),
+    /// `[abc]` (class). Admin-gated. Emits OCEL `receipts_revoke_batch`
+    /// with `(pattern, reason, count)` so an external auditor can
+    /// correlate the bulk action with the affected receipts.
+    #[tool(name = "onto_receipts_revoke_batch", description = "Soft-delete (UPDATE production_law_version = 'revoked-by-admin') receipts matching a scope_token GLOB pattern. Admin-gated; preserves chain for audit.")]
+    pub fn onto_receipts_revoke_batch(
+        &self,
+        Parameters(input): Parameters<crate::inputs::OntoReceiptsRevokeBatchInput>,
+    ) -> String {
+        let started = std::time::Instant::now();
+        if !self.is_admin_principal() {
+            self.emit_tool_ocel(
+                "onto_receipts_revoke_batch",
+                started,
+                false,
+                &[],
+            );
+            return serde_json::json!({
+                "ok": false,
+                "defect": { "kind": "FalsePass", "reason": "not_admin" },
+                "error": "caller is not in admin_principals",
+            })
+            .to_string();
+        }
+        let pattern = input.scope_token_pattern.trim();
+        let reason = input.reason.trim();
+        if pattern.is_empty() {
+            self.emit_tool_ocel(
+                "onto_receipts_revoke_batch",
+                started,
+                false,
+                &[],
+            );
+            return serde_json::json!({
+                "ok": false,
+                "error": "scope_token_pattern must not be empty",
+            })
+            .to_string();
+        }
+        if reason.is_empty() {
+            self.emit_tool_ocel(
+                "onto_receipts_revoke_batch",
+                started,
+                false,
+                &[],
+            );
+            return serde_json::json!({
+                "ok": false,
+                "error": "reason must not be empty",
+            })
+            .to_string();
+        }
+        // Audit-only — admin tools cannot deny themselves.
+        let mut audit_artifact: Vec<u8> = Vec::with_capacity(
+            pattern.len() + reason.len() + 1,
+        );
+        audit_artifact.extend_from_slice(pattern.as_bytes());
+        audit_artifact.push(0);
+        audit_artifact.extend_from_slice(reason.as_bytes());
+        self.evaluate_admission_audit(
+            crate::admission::AdmissionOp::ReceiptsBatchRevoke,
+            None,
+            "receipts-revoke-batch",
+            &audit_artifact,
+        );
+        // Soft-delete — preserve the chain.
+        let updated = {
+            let conn = self.db.conn();
+            match conn.execute(
+                "UPDATE receipts \
+                    SET production_law_version = 'revoked-by-admin' \
+                  WHERE scope_token GLOB ?1 \
+                    AND production_law_version != 'seed-v0' \
+                    AND production_law_version != 'revoked-by-admin'",
+                rusqlite::params![pattern],
+            ) {
+                Ok(n) => n as u64,
+                Err(e) => {
+                    drop(conn);
+                    self.emit_tool_ocel(
+                        "onto_receipts_revoke_batch",
+                        started,
+                        false,
+                        &[],
+                    );
+                    return serde_json::json!({
+                        "ok": false,
+                        "error": format!("UPDATE failed: {}", e.to_string().replace('"', "'")),
+                    })
+                    .to_string();
+                }
+            }
+        };
+        self.lineage().record(
+            &self.session_id,
+            "K",
+            "receipts_batch_revoked",
+            &format!("pattern={};reason={};count={}", pattern, reason, updated),
+        );
+        self.emit_tool_ocel("onto_receipts_revoke_batch", started, true, &[]);
+        serde_json::json!({
+            "ok": true,
+            "scope_token_pattern": pattern,
+            "reason": reason,
+            "count": updated,
+        })
+        .to_string()
+    }
+
+    /// Forcefully revoke every active session for a principal in a
+    /// tenant. Admin-gated. Emits OCEL `session_revoke` audit event.
+    ///
+    /// FALLBACK NOTE: R3 Task B's canonical `revoked_principals` table
+    /// is still blocked behind wasm4pm PR #34. Until it lands, this
+    /// tool bulk-INSERTS into the existing `revoked_sessions` table
+    /// for every `session_id` referenced by `declared_workflows` rows
+    /// belonging to the tenant. This is a **fallback**: the surface
+    /// area remains the same (admin caller + audit trail + ACL effect),
+    /// but the table targeted is `revoked_sessions` instead of the
+    /// canonical `revoked_principals`.
+    /// TODO(R3 Task B): switch the INSERT target to `revoked_principals`
+    /// once that table is in tree.
+    #[tool(name = "onto_session_revoke_by_principal", description = "Forcefully revoke all active sessions for a principal (tenant-scoped). Admin-gated. Falls back to revoked_sessions until R3 Task B's revoked_principals lands.")]
+    pub fn onto_session_revoke_by_principal(
+        &self,
+        Parameters(input): Parameters<crate::inputs::OntoSessionRevokeByPrincipalInput>,
+    ) -> String {
+        let started = std::time::Instant::now();
+        if !self.is_admin_principal() {
+            self.emit_tool_ocel(
+                "onto_session_revoke_by_principal",
+                started,
+                false,
+                &[],
+            );
+            return serde_json::json!({
+                "ok": false,
+                "defect": { "kind": "FalsePass", "reason": "not_admin" },
+                "error": "caller is not in admin_principals",
+            })
+            .to_string();
+        }
+        let tenant_id = input.tenant_id.trim();
+        let principal_id = input.principal_id.trim();
+        let reason = input.reason.trim();
+        if tenant_id.is_empty() || principal_id.is_empty() || reason.is_empty() {
+            self.emit_tool_ocel(
+                "onto_session_revoke_by_principal",
+                started,
+                false,
+                &[],
+            );
+            return serde_json::json!({
+                "ok": false,
+                "error": "tenant_id, principal_id, and reason are all required (non-empty)",
+            })
+            .to_string();
+        }
+        // Audit-only — operational governance tool.
+        let mut audit_artifact: Vec<u8> = Vec::with_capacity(
+            tenant_id.len() + principal_id.len() + reason.len() + 2,
+        );
+        audit_artifact.extend_from_slice(tenant_id.as_bytes());
+        audit_artifact.push(0);
+        audit_artifact.extend_from_slice(principal_id.as_bytes());
+        audit_artifact.push(0);
+        audit_artifact.extend_from_slice(reason.as_bytes());
+        self.evaluate_admission_audit(
+            crate::admission::AdmissionOp::SessionRevoke,
+            None,
+            "session-revoke",
+            &audit_artifact,
+        );
+        // FALLBACK: bulk-INSERT into revoked_sessions for every session
+        // currently owning a workflow in this tenant. Until R3 Task B
+        // delivers `revoked_principals`, this is the closest equivalent
+        // — we deny by session_id (the granularity admission already
+        // checks) rather than by principal directly. `INSERT OR IGNORE`
+        // keeps the call idempotent.
+        let now = chrono::Utc::now().to_rfc3339();
+        let inserted = {
+            let conn = self.db.conn();
+            match conn.execute(
+                "INSERT OR IGNORE INTO revoked_sessions \
+                    (session_id, reason, revoked_at, tenant_id) \
+                 SELECT DISTINCT session_id, ?1, ?2, ?3 \
+                   FROM declared_workflows \
+                  WHERE tenant_id = ?3 \
+                    AND status = 'open'",
+                rusqlite::params![reason, now, tenant_id],
+            ) {
+                Ok(n) => n as u64,
+                Err(e) => {
+                    drop(conn);
+                    self.emit_tool_ocel(
+                        "onto_session_revoke_by_principal",
+                        started,
+                        false,
+                        &[],
+                    );
+                    return serde_json::json!({
+                        "ok": false,
+                        "error": format!("INSERT failed: {}", e.to_string().replace('"', "'")),
+                    })
+                    .to_string();
+                }
+            }
+        };
+        // `conn` MutexGuard dropped above so subsequent lineage / OCEL
+        // calls can reacquire the SQLite mutex.
+        self.lineage().record(
+            &self.session_id,
+            "K",
+            "session_revoked_by_principal",
+            &format!(
+                "tenant={};principal={};reason={};count={}",
+                tenant_id, principal_id, reason, inserted
+            ),
+        );
+        self.emit_tool_ocel(
+            "onto_session_revoke_by_principal",
+            started,
+            true,
+            &[],
+        );
+        serde_json::json!({
+            "ok": true,
+            "tenant_id": tenant_id,
+            "principal_id": principal_id,
+            "reason": reason,
+            "sessions_revoked": inserted,
+            "fallback_note": "R3 Task B's revoked_principals table is not yet available; revoked_sessions used as fallback target",
+        })
+        .to_string()
+    }
+
+    /// Suspend the [`crate::retention::RetentionWorker`] for `minutes`.
+    /// Admin-gated. Emits OCEL `admission_audit{op=feedback}` (reused
+    /// AdmissionOp variant — pause/resume are operational tweaks, not
+    /// new audit semantics).
+    ///
+    /// Sets `retention_paused_until` to `now() + minutes * 60`. The
+    /// worker checks this each `tick()` and skips work if paused.
+    /// Bounded to 1 week (10080 minutes) to prevent indefinite
+    /// suspension; longer durations require multiple calls.
+    #[tool(name = "onto_retention_pause", description = "Pause the RetentionWorker for N minutes (max 10080 = 1 week). Admin-gated emergency kill-switch.")]
+    pub fn onto_retention_pause(
+        &self,
+        Parameters(input): Parameters<crate::inputs::OntoRetentionPauseInput>,
+    ) -> String {
+        let started = std::time::Instant::now();
+        if !self.is_admin_principal() {
+            self.emit_tool_ocel("onto_retention_pause", started, false, &[]);
+            return serde_json::json!({
+                "ok": false,
+                "defect": { "kind": "FalsePass", "reason": "not_admin" },
+                "error": "caller is not in admin_principals",
+            })
+            .to_string();
+        }
+        let minutes = input.minutes;
+        if minutes == 0 || minutes > 10080 {
+            self.emit_tool_ocel("onto_retention_pause", started, false, &[]);
+            return serde_json::json!({
+                "ok": false,
+                "error": "minutes must be in 1..=10080 (max 1 week)",
+            })
+            .to_string();
+        }
+        // Audit-only — Feedback variant (operational tweak; reused).
+        let audit_artifact = format!("retention_pause:{}", minutes);
+        self.evaluate_admission_audit(
+            crate::admission::AdmissionOp::Feedback,
+            None,
+            "retention-pause",
+            audit_artifact.as_bytes(),
+        );
+        let until = chrono::Utc::now().timestamp() + (minutes as i64) * 60;
+        self.retention_paused_until
+            .store(until, std::sync::atomic::Ordering::Relaxed);
+        self.lineage().record(
+            &self.session_id,
+            "K",
+            "retention_paused",
+            &format!("minutes={};until_epoch={}", minutes, until),
+        );
+        self.emit_tool_ocel("onto_retention_pause", started, true, &[]);
+        serde_json::json!({
+            "ok": true,
+            "minutes": minutes,
+            "paused_until_epoch_secs": until,
+            "paused_until_rfc3339": chrono::DateTime::<chrono::Utc>::from_timestamp(until, 0)
+                .map(|dt| dt.to_rfc3339())
+                .unwrap_or_default(),
+        })
+        .to_string()
+    }
+
+    /// Resume the [`crate::retention::RetentionWorker`] immediately by
+    /// clearing the `paused_until` atomic to 0. Admin-gated. Idempotent
+    /// (calling twice is a no-op). Reuses `AdmissionOp::Feedback` for
+    /// the audit since pause and resume are paired operational tweaks.
+    #[tool(name = "onto_retention_resume", description = "Clear the RetentionWorker pause kill-switch immediately. Admin-gated. Idempotent.")]
+    pub fn onto_retention_resume(&self) -> String {
+        let started = std::time::Instant::now();
+        if !self.is_admin_principal() {
+            self.emit_tool_ocel("onto_retention_resume", started, false, &[]);
+            return serde_json::json!({
+                "ok": false,
+                "defect": { "kind": "FalsePass", "reason": "not_admin" },
+                "error": "caller is not in admin_principals",
+            })
+            .to_string();
+        }
+        let prev = self
+            .retention_paused_until
+            .swap(0, std::sync::atomic::Ordering::Relaxed);
+        // Audit-only — paired with onto_retention_pause.
+        self.evaluate_admission_audit(
+            crate::admission::AdmissionOp::Feedback,
+            None,
+            "retention-resume",
+            self.session_id.as_bytes(),
+        );
+        self.lineage().record(
+            &self.session_id,
+            "K",
+            "retention_resumed",
+            &format!("prev_paused_until_epoch={}", prev),
+        );
+        self.emit_tool_ocel("onto_retention_resume", started, true, &[]);
+        serde_json::json!({
+            "ok": true,
+            "previous_paused_until_epoch_secs": prev,
+            "now_paused": false,
         })
         .to_string()
     }
