@@ -3428,9 +3428,156 @@ impl OpenOntologiesServer {
         out
     }
 
-    #[tool(name = "onto_translate_candidate", description = "Requirements Andon: invoke the Groq LLM boundary translator on a previously-proposed requirement. AUDIT-ONLY — output is provisional and must pass through onto_admit_ctq before any work order is admitted. Emits `llm_candidate_translated` OCEL event with candidate_ctq_id (BLAKE3 of the candidate JSON) but never the API key.")]
-    async fn onto_translate_candidate(&self, Parameters(input): Parameters<OntoTranslateCandidateInput>) -> String {
+    #[tool(name = "onto_translate_candidate", description = "Requirements Andon: invoke the Groq LLM boundary translator on a previously-proposed requirement. AUDIT-ONLY — output is provisional and must pass through onto_admit_ctq before any work order is admitted. Emits `llm_candidate_translated` + `llm_invoked` OCEL events with candidate_ctq_id (BLAKE3 of the candidate JSON) but never the API key. `engine` selects `inproc` (default) or `groq_pm4py` (shells to scripts/ctq_from_voice.py).")]
+    pub async fn onto_translate_candidate(&self, Parameters(input): Parameters<OntoTranslateCandidateInput>) -> String {
         let started = std::time::Instant::now();
+
+        // ── Alternative engine: real Groq via pm4py-style DSPy subprocess ──
+        // Mirrors the `groq_powl` branch in onto_plan_workflow. Output JSON
+        // matches scripts/ctq_from_voice.py's contract.
+        if input.engine.as_deref() == Some("groq_pm4py") {
+            let script = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .join("scripts/ctq_from_voice.py");
+            let python = input
+                .python
+                .clone()
+                .unwrap_or_else(|| "python3".to_string());
+
+            let mut cmd = std::process::Command::new(&python);
+            cmd.arg(&script).arg(&input.source_voice);
+            // GROQ_API_KEY must already be in env. Never logged.
+
+            let sub_started = std::time::Instant::now();
+            let out = match cmd.output() {
+                Ok(o) => o,
+                Err(e) => {
+                    self.emit_tool_ocel("onto_translate_candidate", started, false, &[]);
+                    return format!(
+                        r#"{{"ok":false,"error":"failed to spawn ctq_from_voice.py: {}"}}"#,
+                        e.to_string().replace('"', "'")
+                    );
+                }
+            };
+            if !out.status.success() {
+                let stderr = String::from_utf8_lossy(&out.stderr);
+                self.emit_tool_ocel("onto_translate_candidate", started, false, &[]);
+                return format!(
+                    r#"{{"ok":false,"error":"ctq_from_voice.py exit nonzero: {}"}}"#,
+                    stderr.replace('"', "'").replace('\n', " ")
+                );
+            }
+            let stdout = String::from_utf8_lossy(&out.stdout).into_owned();
+            let json_line = match stdout
+                .lines()
+                .rev()
+                .find(|l| l.trim_start().as_bytes().first().copied() == Some(123u8))
+            {
+                Some(l) => l.trim().to_string(),
+                None => {
+                    self.emit_tool_ocel("onto_translate_candidate", started, false, &[]);
+                    return format!(
+                        r#"{{"ok":false,"error":"ctq_from_voice.py produced no JSON line: {}"}}"#,
+                        stdout.replace('"', "'").replace('\n', " ")
+                    );
+                }
+            };
+            let result: serde_json::Value = match serde_json::from_str(&json_line) {
+                Ok(v) => v,
+                Err(e) => {
+                    self.emit_tool_ocel("onto_translate_candidate", started, false, &[]);
+                    return format!(
+                        r#"{{"ok":false,"error":"ctq_from_voice.py non-JSON: {} (raw={})"}}"#,
+                        e,
+                        json_line.replace('"', "'")
+                    );
+                }
+            };
+            let latency_ms = sub_started.elapsed().as_millis() as u64;
+
+            let get_str = |k: &str| -> String {
+                result.get(k).and_then(|v| v.as_str()).unwrap_or("").to_string()
+            };
+            let candidate = crate::llm_translator::CandidateCtq {
+                source_voice_echo: input.source_voice.clone(),
+                defect_class_hint: get_str("defect_class_hint"),
+                ctq_text: get_str("ctq_text"),
+                measure_text: get_str("measure_text"),
+                verification_text: get_str("verification_text"),
+                negative_case_text: get_str("negative_case_text"),
+                control_plan_text: get_str("control_plan_text"),
+                provisional: true,
+            };
+            let verdict = result.get("verdict").and_then(|v| v.as_bool()).unwrap_or(false);
+            let refinements = result.get("refinements").and_then(|v| v.as_u64()).unwrap_or(0);
+
+            let candidate_json = serde_json::to_string(&candidate).unwrap_or_else(|_| "{}".into());
+            let candidate_id_hex = blake3::hash(candidate_json.as_bytes()).to_hex().to_string();
+            let model = std::env::var("CTQ_MODEL")
+                .unwrap_or_else(|_| "groq/openai/gpt-oss-20b".to_string());
+
+            let now = chrono::Utc::now().to_rfc3339();
+            let ts_ms = chrono::Utc::now().timestamp_millis();
+            let _ = self.ocel_store().emit_event(
+                &format!("{}:llm_candidate_translated:{}", self.session_id, ts_ms),
+                "llm_candidate_translated",
+                &now,
+                &self.session_id,
+                &[
+                    ("candidate_ctq_id", &candidate_id_hex[..16]),
+                    ("model", &model),
+                    ("provisional", "true"),
+                    ("engine", "groq_pm4py"),
+                ],
+                &[],
+                Some(&input.scope_token),
+            );
+            let latency_str = latency_ms.to_string();
+            let refinements_str = refinements.to_string();
+            let _ = self.ocel_store().emit_event(
+                &format!("{}:llm_invoked:{}", self.session_id, ts_ms),
+                "llm_invoked",
+                &now,
+                &self.session_id,
+                &[
+                    ("model", &model),
+                    ("latency_ms", &latency_str),
+                    ("refinements", &refinements_str),
+                    ("engine", "groq_pm4py"),
+                ],
+                &[],
+                Some(&input.scope_token),
+            );
+            self.lineage().record(
+                &self.session_id,
+                "LM",
+                "llm_invoked",
+                &format!(
+                    "engine=groq_pm4py model={} latency_ms={} refinements={} verdict={}",
+                    model, latency_ms, refinements, verdict
+                ),
+            );
+            self.evaluate_admission_audit(
+                crate::admission::AdmissionOp::LlmTranslate,
+                Some(&input.scope_token),
+                "llm-translate",
+                candidate_json.as_bytes(),
+            );
+            let ctq_text_top = candidate.ctq_text.clone();
+            let response = serde_json::json!({
+                "ok": true,
+                "provisional": true,
+                "engine": "groq_pm4py",
+                "candidate_ctq_id": &candidate_id_hex[..16],
+                "candidate": candidate,
+                "ctq_text": ctq_text_top,
+                "verdict": verdict,
+                "refinements": refinements,
+                "latency_ms": latency_ms,
+            }).to_string();
+            self.emit_tool_ocel("onto_translate_candidate", started, true, &[]);
+            return response;
+        }
+
         // Build a per-call translator from env-resolved config. The key is
         // resolved fresh on each call and never stored on the server.
         let llm_cfg = crate::config::LlmConfig::default();
@@ -3496,15 +3643,12 @@ impl OpenOntologiesServer {
             Err(_) => "{}".to_string(),
         };
         let candidate_id_hex = blake3::hash(candidate_json.as_bytes()).to_hex().to_string();
+        let inproc_latency_ms = started.elapsed().as_millis() as u64;
 
         let now = chrono::Utc::now().to_rfc3339();
-        let event_id = format!(
-            "{}:llm_candidate_translated:{}",
-            self.session_id,
-            chrono::Utc::now().timestamp_millis()
-        );
+        let ts_ms = chrono::Utc::now().timestamp_millis();
         let _ = self.ocel_store().emit_event(
-            &event_id,
+            &format!("{}:llm_candidate_translated:{}", self.session_id, ts_ms),
             "llm_candidate_translated",
             &now,
             &self.session_id,
@@ -3512,9 +3656,35 @@ impl OpenOntologiesServer {
                 ("candidate_ctq_id", &candidate_id_hex[..16]),
                 ("model", translator.model()),
                 ("provisional", "true"),
+                ("engine", "inproc"),
             ],
             &[],
             Some(&input.scope_token),
+        );
+        let latency_str = inproc_latency_ms.to_string();
+        let _ = self.ocel_store().emit_event(
+            &format!("{}:llm_invoked:{}", self.session_id, ts_ms),
+            "llm_invoked",
+            &now,
+            &self.session_id,
+            &[
+                ("model", translator.model()),
+                ("latency_ms", &latency_str),
+                ("refinements", "0"),
+                ("engine", "inproc"),
+            ],
+            &[],
+            Some(&input.scope_token),
+        );
+        self.lineage().record(
+            &self.session_id,
+            "LM",
+            "llm_invoked",
+            &format!(
+                "engine=inproc model={} latency_ms={}",
+                translator.model(),
+                inproc_latency_ms
+            ),
         );
         // Audit-only admission tier — never blocks, always logs.
         self.evaluate_admission_audit(
@@ -3526,6 +3696,7 @@ impl OpenOntologiesServer {
         let out = serde_json::json!({
             "ok": true,
             "provisional": true,
+            "engine": "inproc",
             "candidate_ctq_id": &candidate_id_hex[..16],
             "candidate": candidate,
         }).to_string();
@@ -3948,8 +4119,8 @@ impl OpenOntologiesServer {
         response.to_string()
     }
 
-    #[tool(name = "onto_executive_projection", description = "Requirements Andon: project admitted evidence into an executive-readable summary via the Groq translator. READ-ONLY (allowlisted). The summary must only cite tokens that already appear in admitted_evidence — a token-overlap check rejects any summary whose alphabetic words are not all present in the evidence.")]
-    async fn onto_executive_projection(&self, Parameters(input): Parameters<OntoExecutiveProjectionInput>) -> String {
+    #[tool(name = "onto_executive_projection", description = "Requirements Andon: project admitted evidence into an executive-readable summary via the Groq translator. READ-ONLY (allowlisted). `engine` selects `inproc` (default) or `groq_pm4py` (shells to scripts/executive_projection.py). The summary must only cite tokens that already appear in admitted_evidence — token-overlap check rejects invented tokens.")]
+    pub async fn onto_executive_projection(&self, Parameters(input): Parameters<OntoExecutiveProjectionInput>) -> String {
         let started = std::time::Instant::now();
         let evidence = input.admitted_evidence.trim();
         if evidence.is_empty() {
@@ -3959,6 +4130,116 @@ impl OpenOntologiesServer {
                 "error": "admitted_evidence is empty",
             }).to_string();
         }
+
+        // ── Alternative engine: real-Groq subprocess ─────────────────────
+        if input.engine.as_deref() == Some("groq_pm4py") {
+            let script = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .join("scripts/executive_projection.py");
+            let python = input.python.clone().unwrap_or_else(|| "python3".to_string());
+            let mut cmd = std::process::Command::new(&python);
+            cmd.arg(&script).arg(evidence);
+            let sub_started = std::time::Instant::now();
+            let out = match cmd.output() {
+                Ok(o) => o,
+                Err(e) => {
+                    self.emit_tool_ocel("onto_executive_projection", started, false, &[]);
+                    return format!(
+                        r#"{{"ok":false,"error":"failed to spawn executive_projection.py: {}"}}"#,
+                        e.to_string().replace('"', "'")
+                    );
+                }
+            };
+            if !out.status.success() {
+                let stderr = String::from_utf8_lossy(&out.stderr);
+                self.emit_tool_ocel("onto_executive_projection", started, false, &[]);
+                return format!(
+                    r#"{{"ok":false,"error":"executive_projection.py exit nonzero: {}"}}"#,
+                    stderr.replace('"', "'").replace('\n', " ")
+                );
+            }
+            let stdout = String::from_utf8_lossy(&out.stdout).into_owned();
+            let json_line = match stdout
+                .lines()
+                .rev()
+                .find(|l| l.trim_start().as_bytes().first().copied() == Some(123u8))
+            {
+                Some(l) => l.trim().to_string(),
+                None => {
+                    self.emit_tool_ocel("onto_executive_projection", started, false, &[]);
+                    return format!(
+                        r#"{{"ok":false,"error":"executive_projection.py produced no JSON: {}"}}"#,
+                        stdout.replace('"', "'").replace('\n', " ")
+                    );
+                }
+            };
+            let result: serde_json::Value = match serde_json::from_str(&json_line) {
+                Ok(v) => v,
+                Err(e) => {
+                    self.emit_tool_ocel("onto_executive_projection", started, false, &[]);
+                    return format!(
+                        r#"{{"ok":false,"error":"executive_projection.py non-JSON: {}"}}"#,
+                        e
+                    );
+                }
+            };
+            let latency_ms = sub_started.elapsed().as_millis() as u64;
+            let summary_str = result.get("summary").and_then(|v| v.as_str()).unwrap_or("").to_string();
+            let verdict = result.get("verdict").and_then(|v| v.as_bool()).unwrap_or(false);
+            let refinements = result.get("refinements").and_then(|v| v.as_u64()).unwrap_or(0);
+            let invented = result.get("tokens_invented").cloned().unwrap_or(serde_json::Value::Array(vec![]));
+            let model = std::env::var("POWL_MODEL")
+                .unwrap_or_else(|_| "groq/openai/gpt-oss-20b".to_string());
+
+            let now = chrono::Utc::now().to_rfc3339();
+            let ts_ms = chrono::Utc::now().timestamp_millis();
+            let latency_str = latency_ms.to_string();
+            let refinements_str = refinements.to_string();
+            let _ = self.ocel_store().emit_event(
+                &format!("{}:llm_invoked:{}", self.session_id, ts_ms),
+                "llm_invoked",
+                &now,
+                &self.session_id,
+                &[
+                    ("model", &model),
+                    ("latency_ms", &latency_str),
+                    ("refinements", &refinements_str),
+                    ("engine", "groq_pm4py"),
+                ],
+                &[],
+                Some(&input.scope_token),
+            );
+            self.lineage().record(
+                &self.session_id,
+                "LM",
+                "llm_invoked",
+                &format!(
+                    "engine=groq_pm4py op=executive_projection model={} latency_ms={} refinements={} verdict={}",
+                    model, latency_ms, refinements, verdict
+                ),
+            );
+            if !verdict {
+                self.emit_tool_ocel("onto_executive_projection", started, false, &[]);
+                return serde_json::json!({
+                    "ok": false,
+                    "engine": "groq_pm4py",
+                    "defect": { "kind": "FalsePass" },
+                    "reason": "executive projection introduced tokens not present in admitted evidence",
+                    "invented_tokens": invented,
+                    "summary": summary_str,
+                    "refinements": refinements,
+                }).to_string();
+            }
+            self.emit_tool_ocel("onto_executive_projection", started, true, &[]);
+            return serde_json::json!({
+                "ok": true,
+                "engine": "groq_pm4py",
+                "scope_token": input.scope_token,
+                "summary": summary_str,
+                "refinements": refinements,
+                "latency_ms": latency_ms,
+            }).to_string();
+        }
+
         let llm_cfg = crate::config::LlmConfig::default();
         let translator = match crate::llm_translator::GroqTranslator::from_config(&llm_cfg) {
             Ok(t) => t,
@@ -4018,8 +4299,37 @@ impl OpenOntologiesServer {
                 "invented_tokens": invented,
             }).to_string();
         }
+        let inproc_latency_ms = started.elapsed().as_millis() as u64;
+        let now = chrono::Utc::now().to_rfc3339();
+        let ts_ms = chrono::Utc::now().timestamp_millis();
+        let latency_str = inproc_latency_ms.to_string();
+        let _ = self.ocel_store().emit_event(
+            &format!("{}:llm_invoked:{}", self.session_id, ts_ms),
+            "llm_invoked",
+            &now,
+            &self.session_id,
+            &[
+                ("model", translator.model()),
+                ("latency_ms", &latency_str),
+                ("refinements", "0"),
+                ("engine", "inproc"),
+            ],
+            &[],
+            Some(&input.scope_token),
+        );
+        self.lineage().record(
+            &self.session_id,
+            "LM",
+            "llm_invoked",
+            &format!(
+                "engine=inproc op=executive_projection model={} latency_ms={}",
+                translator.model(),
+                inproc_latency_ms
+            ),
+        );
         let out = serde_json::json!({
             "ok": true,
+            "engine": "inproc",
             "scope_token": input.scope_token,
             "summary": {
                 "ctq_text": candidate.ctq_text,
@@ -4031,6 +4341,48 @@ impl OpenOntologiesServer {
         }).to_string();
         self.emit_tool_ocel("onto_executive_projection", started, true, &[]);
         out
+    }
+
+    #[tool(name = "onto_groq_status", description = "Read-only liveness probe for the real-Groq subprocess engine. Spawns scripts/groq_status.py which (1) imports dspy, (2) checks GROQ_API_KEY is non-empty, (3) constructs a dspy.LM SDK handle. NEVER makes a real Groq HTTP request and NEVER logs the API key. Returns {ok, model_reachable, key_present, model, error}.")]
+    pub async fn onto_groq_status(&self, Parameters(input): Parameters<OntoGroqStatusInput>) -> String {
+        let started = std::time::Instant::now();
+        let script = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("scripts/groq_status.py");
+        let python = input.python.clone().unwrap_or_else(|| "python3".to_string());
+        let out = match std::process::Command::new(&python).arg(&script).output() {
+            Ok(o) => o,
+            Err(e) => {
+                self.emit_tool_ocel("onto_groq_status", started, false, &[]);
+                return serde_json::json!({
+                    "ok": false,
+                    "model_reachable": false,
+                    "key_present": false,
+                    "model": "",
+                    "error": format!("failed to spawn groq_status.py: {e}"),
+                }).to_string();
+            }
+        };
+        let stdout = String::from_utf8_lossy(&out.stdout).into_owned();
+        let stderr = String::from_utf8_lossy(&out.stderr).into_owned();
+        let json_line = stdout
+            .lines()
+            .rev()
+            .find(|l| l.trim_start().as_bytes().first().copied() == Some(123u8))
+            .map(|s| s.trim().to_string());
+        let resp = match json_line.and_then(|l| serde_json::from_str::<serde_json::Value>(&l).ok()) {
+            Some(v) => v,
+            None => serde_json::json!({
+                "ok": false,
+                "model_reachable": false,
+                "key_present": false,
+                "model": "",
+                "error": format!("groq_status.py produced no JSON: stderr={}",
+                    stderr.replace('"', "'").replace('\n', " ")),
+            }),
+        };
+        let ok_flag = resp.get("ok").and_then(|v| v.as_bool()).unwrap_or(false);
+        self.emit_tool_ocel("onto_groq_status", started, ok_flag, &[]);
+        resp.to_string()
     }
 }
 

@@ -736,6 +736,15 @@ pub struct OntoTranslateCandidateInput {
     /// Source-voice signal to translate (re-echoed for self-contained
     /// audit; must match the value provided to `onto_propose_requirement`).
     pub source_voice: String,
+    /// Translation engine. `"inproc"` (default) — drives the in-process
+    /// `GroqTranslator` shaped-signature path. `"groq_pm4py"` — shells
+    /// out to `scripts/ctq_from_voice.py`, the same pm4py/dspy subprocess
+    /// proven against real Groq in `tests/real_groq_ctq.rs`. Unknown
+    /// values are treated as `"inproc"`.
+    pub engine: Option<String>,
+    /// Override the python interpreter used by the `groq_pm4py` engine
+    /// (default: `"python3"`). Ignored by the in-process engine.
+    pub python: Option<String>,
 }
 
 /// Admit a CTQ. The deterministic gate denies with
@@ -801,6 +810,23 @@ pub struct OntoExecutiveProjectionInput {
     /// admitted OCEL events / receipts). The translator's summary
     /// must be a token-overlap subset of this.
     pub admitted_evidence: String,
+    /// Projection engine. `"inproc"` (default) — uses the in-process
+    /// `GroqTranslator`. `"groq_pm4py"` — shells out to
+    /// `scripts/executive_projection.py`. Unknown values treated as
+    /// `"inproc"`.
+    pub engine: Option<String>,
+    /// Override the python interpreter used by the `groq_pm4py` engine
+    /// (default: `"python3"`).
+    pub python: Option<String>,
+}
+
+/// Read-only liveness probe for the real-Groq subprocess engine.
+/// Invokes a tiny Python harness that imports `dspy` and inspects the
+/// `GROQ_API_KEY` env var. Never logs the key.
+#[derive(Deserialize, JsonSchema, Default)]
+pub struct OntoGroqStatusInput {
+    /// Override the python interpreter (default: `"python3"`).
+    pub python: Option<String>,
 }
 
 /// Manufacture a complete multi-target solution stack (IaC + Rust +

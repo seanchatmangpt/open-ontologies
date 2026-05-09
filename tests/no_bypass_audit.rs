@@ -92,6 +92,8 @@ fn read_only_allowlist() -> HashSet<&'static str> {
         "onto_executive_projection", // pure summary via Groq; bounded by token-overlap check
         // Old-AI station dispatcher (Phase 1.6):
         "onto_old_ai_station",       // pure-function dispatch over wasm4pm-cognition breeds
+        // Phase 8 — real-Groq subprocess engine:
+        "onto_groq_status",          // read-only liveness probe; never makes a real Groq HTTP call; never logs key
         // Phase 9 — external verifier:
         "onto_verify",               // External verifier — pure read-only file-and-chain inspection
     ]
