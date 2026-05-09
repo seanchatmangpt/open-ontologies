@@ -111,14 +111,15 @@ fn groq_admitted_ctq_with_blanked_negative_case_is_refused_by_admission_gate() {
         "Sales says deals are real, Finance can't reconcile bookings".to_string(),
     );
     inputs.insert("voice_kind".to_string(), "operator".to_string());
-    let admitted = match block_on(translator.translate_with_signature(&shape, &inputs, 2)) {
-        Ok(m) => m,
+    let parsed = match block_on(translator.translate_with_signature(&shape, &inputs, 2)) {
+        Ok(p) => p,
         Err(e) => {
             // Real Groq flake or model drift: SKIP rather than redden CI.
             eprintln!("SKIP: real Groq shaped translator failed: {e}");
             return;
         }
     };
+    let admitted = &parsed.fields;
     // Sanity: the admitted field map carries every required output.
     for k in [
         "ctq_text",

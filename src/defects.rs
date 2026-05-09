@@ -48,7 +48,17 @@ use serde::{Deserialize, Serialize};
 /// [`DefectClass::AttestationInvalid`] for the real-Ed25519 A10 path
 /// (replaces the digest-equality tautology stub). Forward-compatible —
 /// existing variants are unchanged, only one variant is added.
-pub const DEFECTS_TAXONOMY_VERSION: &str = "ontostar-defects-4.1.0";
+///
+/// Bumped from `4.1.0` → `4.2.0` (Round 4 WC) after wiring
+/// `LlmAuthorityClaimed` from theatrical-only into a load-bearing
+/// emission. The `signature_shape::parse_and_validate` gauge now
+/// detects the LLM's `provisional: false` / `authoritative: true`
+/// claim, surfaces it via `ParsedFields::llm_claimed_authority`, and
+/// `onto_translate_candidate` emits an `llm_authority_claimed` OCEL
+/// audit event before lifting the fields into a `CandidateCtq`. The
+/// tag set is unchanged (no new variants, no renames) — the
+/// discriminant hash carries forward unchanged. Forward-compatible.
+pub const DEFECTS_TAXONOMY_VERSION: &str = "ontostar-defects-4.2.0";
 
 /// BLAKE3 hex of `tag1\0tag2\0...\0` for [`DefectClass::all_tags()`].
 /// CI-pinned. Adding/renaming/removing a variant changes this, forcing a

@@ -125,12 +125,12 @@ async fn shaped_translation_admits_canonical_response_on_first_try() {
     inputs.insert("source_voice".into(), "Sales says committed; Finance can't reconcile".into());
     inputs.insert("voice_kind".into(), "operator".into());
 
-    let out = translator
+    let parsed = translator
         .translate_with_signature(&ctq_signature(), &inputs, 2)
         .await
         .expect("admitted on first attempt");
-    assert_eq!(out.len(), 6);
-    assert!(out["ctq_text"].len() >= 20);
+    assert_eq!(parsed.fields.len(), 6);
+    assert!(parsed.fields["ctq_text"].len() >= 20);
 }
 
 #[tokio::test]
@@ -166,11 +166,11 @@ async fn shaped_translation_refines_after_validation_failure() {
     inputs.insert("source_voice".into(), "voice".into());
     inputs.insert("voice_kind".into(), "operator".into());
 
-    let out = translator
+    let parsed = translator
         .translate_with_signature(&ctq_signature(), &inputs, 3)
         .await
         .expect("admitted on second attempt after refinement");
-    assert_eq!(out["ctq_text"].len() >= 20, true);
+    assert_eq!(parsed.fields["ctq_text"].len() >= 20, true);
 
     // The captured system prompts: attempt 2's prompt MUST contain the
     // revision hints derived from attempt 1's failures.
@@ -242,11 +242,11 @@ async fn shaped_translation_handles_llm_with_code_fences_and_prose() {
     inputs.insert("source_voice".into(), "voice".into());
     inputs.insert("voice_kind".into(), "operator".into());
 
-    let out = translator
+    let parsed = translator
         .translate_with_signature(&ctq_signature(), &inputs, 1)
         .await
         .expect("fence-wrapped JSON must be extracted and admitted");
-    assert!(out["ctq_text"].len() >= 20);
+    assert!(parsed.fields["ctq_text"].len() >= 20);
 }
 
 #[tokio::test]
@@ -272,11 +272,11 @@ async fn shaped_translation_disallowed_value_triggers_refine() {
     .unwrap();
     let mut inputs = BTreeMap::new();
     inputs.insert("voice".into(), "x".into());
-    let out = translator
+    let parsed = translator
         .translate_with_signature(&shape, &inputs, 2)
         .await
         .expect("admit after refining the disallowed value");
-    assert_eq!(out["voice_kind"], "operator");
+    assert_eq!(parsed.fields["voice_kind"], "operator");
 
     let systems = captured.lock().await.clone();
     assert!(systems[1].contains("not allowed"));

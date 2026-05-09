@@ -43,14 +43,15 @@ fn inproc_fixture_passes_the_same_shape_real_groq_is_gauged_against() {
 
     let sig = ctq_signature();
     let result = sig.parse_and_validate(&payload);
-    let admitted = match result {
-        Ok(map) => map,
+    let parsed = match result {
+        Ok(p) => p,
         Err(failures) => {
             panic!(
                 "fixture_candidate_ctq() must satisfy ctq_signature() — got failures: {failures:?}\npayload: {payload}"
             );
         }
     };
+    let admitted = &parsed.fields;
 
     // Every declared output field must be present in the admitted map.
     for f in &sig.output_fields {

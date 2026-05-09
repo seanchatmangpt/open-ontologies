@@ -3694,7 +3694,25 @@ impl OpenOntologiesServer {
         out
     }
 
-    #[tool(name = "onto_translate_candidate", description = "Requirements Andon: invoke the Groq LLM boundary translator on a previously-proposed requirement. AUDIT-ONLY — output is provisional and must pass through onto_admit_ctq before any work order is admitted. Emits `llm_candidate_translated` + `llm_invoked` OCEL events with candidate_ctq_id (BLAKE3 of the candidate JSON) but never the API key. `engine` selects `inproc` (default) or `groq_pm4py` (shells to scripts/ctq_from_voice.py).")]
+    /// Projection-only contract (§7 LLMAuthority + §13 JSON-as-authority):
+    ///
+    /// The JSON returned by `onto_translate_candidate` is **a projection
+    /// of an LLM proposal**, not authority. Every response carries the
+    /// field `_projection_only: true`. The `candidate` object embedded
+    /// in the response is provisional — admission flows exclusively
+    /// through `onto_admit_ctq`. Downstream consumers MUST NOT lift
+    /// fields from this JSON into receipts, production records, or
+    /// trust structures without first passing them through the
+    /// deterministic admission gate.
+    ///
+    /// When the LLM marks its own output authoritative (`provisional:
+    /// false` or `authoritative: true` in the reply), the
+    /// [`crate::signature_shape::ParsedFields`] returned by the gauge
+    /// flips `llm_claimed_authority`. This handler emits
+    /// `llm_authority_claimed` OCEL **before** lifting the fields into
+    /// `CandidateCtq`, so the audit trail records the adversarial
+    /// claim independently of any downstream defect classification.
+    #[tool(name = "onto_translate_candidate", description = "Requirements Andon: invoke the Groq LLM boundary translator on a previously-proposed requirement. AUDIT-ONLY — output is provisional and must pass through onto_admit_ctq before any work order is admitted. Response is projection-only (`_projection_only: true`); admission flows through `onto_admit_ctq`. Emits `llm_candidate_translated` + `llm_invoked` OCEL events with candidate_ctq_id (BLAKE3 of the candidate JSON) but never the API key. `engine` selects `inproc` (default) or `groq_pm4py` (shells to scripts/ctq_from_voice.py).")]
     pub async fn onto_translate_candidate(&self, Parameters(input): Parameters<OntoTranslateCandidateInput>) -> String {
         let started = std::time::Instant::now();
 
@@ -3765,6 +3783,39 @@ impl OpenOntologiesServer {
             let get_str = |k: &str| -> String {
                 result.get(k).and_then(|v| v.as_str()).unwrap_or("").to_string()
             };
+            // §7 LLMAuthority: detect whether the `groq_pm4py`
+            // subprocess's JSON output claims authority. The shape is
+            // identical to the `inproc` detection in
+            // `signature_shape::parse_and_validate` — `provisional:
+            // false` OR `authoritative: true`. Emit OCEL **before**
+            // lifting the data into a `CandidateCtq`, so the audit
+            // trail records the claim independently.
+            let llm_claimed_authority_pm4py = result
+                .get("provisional")
+                .and_then(|v| v.as_bool())
+                .map(|b| !b)
+                .unwrap_or(false)
+                || result
+                    .get("authoritative")
+                    .and_then(|v| v.as_bool())
+                    .unwrap_or(false);
+            if llm_claimed_authority_pm4py {
+                let now_pre = chrono::Utc::now().to_rfc3339();
+                let ts_pre = chrono::Utc::now().timestamp_millis();
+                let _ = self.ocel_store().emit_event(
+                    &format!("{}:llm_authority_claimed:{}", self.session_id, ts_pre),
+                    "llm_authority_claimed",
+                    &now_pre,
+                    &self.session_id,
+                    &[
+                        ("engine", "groq_pm4py"),
+                        ("defect_class", "llm_authority_claimed"),
+                        ("provisional_forced_to", "true"),
+                    ],
+                    &[],
+                    Some(&input.scope_token),
+                );
+            }
             let candidate = crate::llm_translator::CandidateCtq {
                 source_voice_echo: input.source_voice.clone(),
                 defect_class_hint: get_str("defect_class_hint"),
@@ -3834,6 +3885,10 @@ impl OpenOntologiesServer {
             let response = serde_json::json!({
                 "ok": true,
                 "provisional": true,
+                // §13 JSON-as-authority: the response is a projection
+                // of an LLM proposal, not authority. Admission flows
+                // through `onto_admit_ctq`.
+                "_projection_only": true,
                 "engine": "groq_pm4py",
                 "candidate_ctq_id": &candidate_id_hex[..16],
                 "candidate": candidate,
@@ -3841,6 +3896,7 @@ impl OpenOntologiesServer {
                 "verdict": verdict,
                 "refinements": refinements,
                 "latency_ms": latency_ms,
+                "llm_claimed_authority": llm_claimed_authority_pm4py,
             }).to_string();
             self.emit_tool_ocel("onto_translate_candidate", started, true, &[]);
             return response;
@@ -3882,16 +3938,41 @@ impl OpenOntologiesServer {
         let mut shape_inputs = std::collections::BTreeMap::new();
         shape_inputs.insert("source_voice".into(), input.source_voice.clone());
         shape_inputs.insert("voice_kind".into(), "operator".into());
-        let fields = match translator
+        let parsed = match translator
             .translate_with_signature(&crate::signature_shape::ctq_signature(), &shape_inputs, 2)
             .await
         {
-            Ok(f) => f,
+            Ok(p) => p,
             Err(e) => {
                 self.emit_tool_ocel("onto_translate_candidate", started, false, &[]);
                 return format!(r#"{{"error":"shaped translation failed: {}"}}"#, e.to_string().replace('"', "'"));
             }
         };
+        // §7 LLMAuthority: the gauge surfaced an LLM authority claim
+        // (`provisional: false` or `authoritative: true` in the LLM's
+        // reply). Emit the OCEL audit event **before** lifting the
+        // fields into `CandidateCtq` so the trail records the claim
+        // independently of any downstream defect classification. The
+        // gate still forces `provisional = true`; the LLM's claim is
+        // observed, not honoured.
+        if parsed.llm_claimed_authority {
+            let now_pre = chrono::Utc::now().to_rfc3339();
+            let ts_pre = chrono::Utc::now().timestamp_millis();
+            let _ = self.ocel_store().emit_event(
+                &format!("{}:llm_authority_claimed:{}", self.session_id, ts_pre),
+                "llm_authority_claimed",
+                &now_pre,
+                &self.session_id,
+                &[
+                    ("engine", "inproc"),
+                    ("defect_class", "llm_authority_claimed"),
+                    ("provisional_forced_to", "true"),
+                ],
+                &[],
+                Some(&input.scope_token),
+            );
+        }
+        let fields = &parsed.fields;
         // Lift the validated fields back into a CandidateCtq. Each
         // mandatory field is guaranteed present by parse_and_validate;
         // we mark provisional=true regardless (the LLM never gets to
@@ -3964,9 +4045,14 @@ impl OpenOntologiesServer {
         let out = serde_json::json!({
             "ok": true,
             "provisional": true,
+            // §13 JSON-as-authority: the response is a projection of
+            // an LLM proposal, not authority. Admission flows through
+            // `onto_admit_ctq`.
+            "_projection_only": true,
             "engine": "inproc",
             "candidate_ctq_id": &candidate_id_hex[..16],
             "candidate": candidate,
+            "llm_claimed_authority": parsed.llm_claimed_authority,
         }).to_string();
         self.emit_tool_ocel("onto_translate_candidate", started, true, &[]);
         out

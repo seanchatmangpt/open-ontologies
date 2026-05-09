@@ -237,8 +237,11 @@ impl GroqTranslator {
     /// parse the response back through the shape's gauge, and refine
     /// up to `max_refinements` times on validation failure.
     ///
-    /// Returns the admitted field map on success. Returns the FINAL
-    /// validation failure list (not partial parses) on exhaust.
+    /// Returns a [`crate::signature_shape::ParsedFields`] carrying the
+    /// admitted field map and a `llm_claimed_authority` flag (set when
+    /// the LLM emitted `provisional: false` or `authoritative: true`).
+    /// Returns the FINAL validation failure list (not partial parses)
+    /// on exhaust.
     ///
     /// The LLM is the *forming pressure*; the signature is the *mold*;
     /// the validator is the *gauge*. The downstream CTQ admission gate
@@ -248,7 +251,7 @@ impl GroqTranslator {
         shape: &crate::signature_shape::SignatureShape,
         inputs: &std::collections::BTreeMap<String, String>,
         max_refinements: u32,
-    ) -> Result<std::collections::BTreeMap<String, String>> {
+    ) -> Result<crate::signature_shape::ParsedFields> {
         let api_key = self
             .api_key
             .as_ref()
@@ -301,7 +304,7 @@ impl GroqTranslator {
                 .ok_or_else(|| anyhow::anyhow!("Groq response had empty choices array"))?;
 
             match shape.parse_and_validate(&content) {
-                Ok(fields) => return Ok(fields),
+                Ok(parsed) => return Ok(parsed),
                 Err(failures) => {
                     last_failures = failures;
                     // Continue to next refinement attempt.

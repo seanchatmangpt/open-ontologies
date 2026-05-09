@@ -117,3 +117,76 @@ Subprocess-induced denials surface as `LlmAuthorityClaimed { reason,
 remediation }`. Recognised reasons: `"subprocess_unavailable"`,
 `"key_invalid"`, `"timeout"`. The tag string is unchanged
 (`"llm_authority_claimed"`); auditors that match on tags keep working.
+
+## Translate-vs-admit ratio audit
+
+`onto_translate_candidate` is **projection-only**. Its response JSON
+carries `_projection_only: true` and the embedded `candidate` object is
+provisional. No field of that JSON may be lifted into a receipt,
+production record, or trust structure without first passing through the
+deterministic admission gate (`onto_admit_ctq` / `OntoStarAdmissionGate`).
+
+### The §7 LLMAuthority signal
+
+`signature_shape::parse_and_validate` returns a `ParsedFields` struct
+that pairs the admitted output map with a `llm_claimed_authority` flag.
+The flag is set when the LLM's reply contains either of:
+
+- `"provisional": false` — the LLM denies its output is provisional.
+- `"authoritative": true` — the LLM asserts authority over its output.
+
+The validator NEVER trusts the claim. It records it.
+`onto_translate_candidate` emits an `llm_authority_claimed` OCEL event
+**before** lifting the fields into a `CandidateCtq`, with attributes
+`engine`, `defect_class = "llm_authority_claimed"`, and
+`provisional_forced_to = "true"`. This makes the claim observable
+independently of any downstream admission outcome — auditors querying
+the OCEL log see the adversarial reply directly, rather than inferring
+it from a defect-class stack trace.
+
+### The translate-vs-admit ratio
+
+Healthy operation: every `llm_candidate_translated` OCEL event is
+followed (within the same scope) by either a `ctq_admitted` event or a
+typed admission denial. A high ratio of `llm_candidate_translated`
+events to `ctq_admitted` events indicates either:
+
+1. The LLM is producing CTQs that fail admission deterministically
+   (legitimate gauge work — gate is doing its job).
+2. Callers are reading the projection JSON and acting on it without
+   passing it through `onto_admit_ctq` (projection-as-authority bug —
+   the projection-only contract is being violated).
+
+A ratio query against the OCEL store can be added to monitor:
+
+```sparql
+SELECT (COUNT(?translated) AS ?translated_count)
+       (COUNT(?admitted) AS ?admitted_count)
+WHERE {
+  ?translated a ocel:Event ; ocel:type "llm_candidate_translated" .
+  OPTIONAL {
+    ?admitted a ocel:Event ; ocel:type "ctq_admitted" .
+  }
+}
+```
+
+When the count of `llm_authority_claimed` events is non-zero, the
+deployment is seeing adversarial LLM responses — the next remediation is
+to harden the system prompt (`SignatureShape::compile_prompt`) or
+escalate to the model's safety endpoint.
+
+### Saboteur ratchets
+
+Three test-layer ratchets pin the closure:
+
+- `tests/llm_provisional_override.rs` — pins the detection logic.
+  Adversarial JSON containing `"provisional": false` or
+  `"authoritative": true` MUST flip `ParsedFields::llm_claimed_authority`.
+- `tests/llm_authority_zero.rs` — lexical scan ensures no production
+  module assigns LLM-output identifiers (`fields[...]`,
+  `parsed.fields`, `candidate.ctq_text`, etc.) into authority
+  structures (`Receipt`, `ProductionRecord`, `TrustedKeys`). Self-reference
+  safe (forbidden patterns stored as byte arrays).
+- `tests/hearsay_returns_typed_consensus.rs` — compile-time pin: the
+  swarm fusion function `fuse_via_hearsay` MUST return `SwarmConsensus`,
+  not `serde_json::Value`. Fails to compile on a return-type drift.

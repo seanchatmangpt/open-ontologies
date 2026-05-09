@@ -84,6 +84,34 @@ pub struct SignatureShape {
     pub demos: Vec<Demo>,
 }
 
+/// Successful parse of an LLM response against a [`SignatureShape`].
+///
+/// Carries the admitted output fields plus a side-channel flag
+/// `llm_claimed_authority` that records whether the LLM tried to mark
+/// its own output authoritative (e.g. by emitting `provisional: false`
+/// or `authoritative: true`). The flag is **observation-only** at this
+/// layer — the validator never trusts the LLM's claim. Downstream code
+/// (`onto_translate_candidate` in `src/server.rs`) consumes this flag
+/// to emit an `llm_authority_claimed` OCEL event so external auditors
+/// can detect adversarial LLM responses without parsing free text.
+///
+/// Doctrine (§7 LLMAuthority): the LLM is a proposer; admission is a
+/// deterministic gate. A `provisional: false` field in the LLM's reply
+/// is a **claim**, not a fact — the gate forces `provisional = true`
+/// regardless. This struct exposes the claim so it can be audited.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ParsedFields {
+    /// Admitted output fields (`field_name` → `trimmed_value`). Every
+    /// field declared in the signature's `output_fields` and present in
+    /// the LLM's reply (subject to validation) appears here.
+    pub fields: BTreeMap<String, String>,
+    /// True when the LLM emitted `provisional: false` or
+    /// `authoritative: true` in its reply. The downstream gate emits
+    /// `llm_authority_claimed` OCEL on this signal. False otherwise
+    /// (including when the field is absent).
+    pub llm_claimed_authority: bool,
+}
+
 /// Why a candidate output failed validation. Each variant maps to a
 /// specific revision hint the refine loop feeds back to the LLM.
 #[derive(Debug, Clone, PartialEq)]
@@ -200,13 +228,19 @@ impl SignatureShape {
     }
 
     /// Parse the LLM's response (a JSON object) and validate every
-    /// output field against the shape. Returns a flat
-    /// `BTreeMap<String, String>` of admitted field values OR a list
-    /// of validation failures (the refine loop's input).
+    /// output field against the shape. Returns a [`ParsedFields`] with
+    /// admitted field values plus a `llm_claimed_authority` flag (true
+    /// when the LLM emitted `provisional: false` or
+    /// `authoritative: true`) OR a list of validation failures (the
+    /// refine loop's input).
+    ///
+    /// The authority flag is **diagnostic, not enforcement**: the
+    /// validator never accepts the LLM's authority claim. Downstream
+    /// (`onto_translate_candidate`) emits the OCEL audit event.
     pub fn parse_and_validate(
         &self,
         raw: &str,
-    ) -> Result<BTreeMap<String, String>, Vec<ValidationFailure>> {
+    ) -> Result<ParsedFields, Vec<ValidationFailure>> {
         // Pull a JSON object out of the response. LLMs sometimes wrap
         // JSON in ```json fences or prefix with prose; we extract the
         // first balanced `{...}` block.
@@ -230,6 +264,22 @@ impl SignatureShape {
                 }]);
             }
         };
+
+        // §7 LLMAuthority detection. The validator never trusts the
+        // claim — it only records it for the OCEL audit event.
+        // `provisional: false` (LLM denies provisional status) OR
+        // `authoritative: true` (LLM asserts authority) both flip the
+        // flag. Any other shape (absent, true/false-with-other-shape,
+        // wrong type) is treated as not-claimed.
+        let llm_claimed_authority = obj
+            .get("provisional")
+            .and_then(|v| v.as_bool())
+            .map(|b| !b)
+            .unwrap_or(false)
+            || obj
+                .get("authoritative")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
 
         let mut out: BTreeMap<String, String> = BTreeMap::new();
         let mut failures: Vec<ValidationFailure> = Vec::new();
@@ -289,7 +339,10 @@ impl SignatureShape {
             out.insert(f.name.clone(), trimmed);
         }
         if failures.is_empty() {
-            Ok(out)
+            Ok(ParsedFields {
+                fields: out,
+                llm_claimed_authority,
+            })
         } else {
             Err(failures)
         }
@@ -465,9 +518,40 @@ Hope that helps."#;
     #[test]
     fn parse_and_validate_admits_canonical() {
         let r = r#"{"ctq": "this is fine", "kind": "a"}"#;
-        let out = ok_shape().parse_and_validate(r).expect("ok");
-        assert_eq!(out["ctq"], "this is fine");
-        assert_eq!(out["kind"], "a");
+        let parsed = ok_shape().parse_and_validate(r).expect("ok");
+        assert_eq!(parsed.fields["ctq"], "this is fine");
+        assert_eq!(parsed.fields["kind"], "a");
+        // No `provisional` / `authoritative` field in the response →
+        // claim flag is false.
+        assert!(!parsed.llm_claimed_authority);
+    }
+
+    #[test]
+    fn parse_and_validate_detects_provisional_false_claim() {
+        // §7 LLMAuthority: an LLM that returns `provisional: false` is
+        // claiming authority over its own output. The validator
+        // observes the claim but does not trust it.
+        let r = r#"{"ctq": "this is fine", "kind": "a", "provisional": false}"#;
+        let parsed = ok_shape().parse_and_validate(r).expect("ok");
+        assert!(parsed.llm_claimed_authority,
+            "provisional=false must flip llm_claimed_authority");
+    }
+
+    #[test]
+    fn parse_and_validate_detects_authoritative_true_claim() {
+        let r = r#"{"ctq": "this is fine", "kind": "a", "authoritative": true}"#;
+        let parsed = ok_shape().parse_and_validate(r).expect("ok");
+        assert!(parsed.llm_claimed_authority,
+            "authoritative=true must flip llm_claimed_authority");
+    }
+
+    #[test]
+    fn parse_and_validate_provisional_true_is_not_a_claim() {
+        // The honest case: LLM acknowledges provisional output. Flag
+        // stays false.
+        let r = r#"{"ctq": "this is fine", "kind": "a", "provisional": true}"#;
+        let parsed = ok_shape().parse_and_validate(r).expect("ok");
+        assert!(!parsed.llm_claimed_authority);
     }
 
     #[test]
@@ -554,9 +638,10 @@ Hope that helps."#;
             "control_plan_text": "block booking_complete without chain evidence",
             "defect_class_hint": "ctq_incomplete"
         }"#;
-        let out = ctq_signature().parse_and_validate(r).expect("ok");
-        assert_eq!(out.len(), 6);
-        assert!(out["ctq_text"].len() >= 20);
+        let parsed = ctq_signature().parse_and_validate(r).expect("ok");
+        assert_eq!(parsed.fields.len(), 6);
+        assert!(parsed.fields["ctq_text"].len() >= 20);
+        assert!(!parsed.llm_claimed_authority);
     }
 
     #[test]

@@ -7,6 +7,61 @@ Versions are organized per OntoStar phase on the `ontostar-integration` branch.
 Pre-OntoStar history (the original `open-ontologies` MCP server, releases
 0.1.x) is summarized at the bottom.
 
+## [Unreleased] — Round 4 WC: §7 + §13 LLMAuthority closure
+
+### Changed
+
+- `signature_shape::parse_and_validate` return type: `Result<BTreeMap<String, String>, Vec<...>>`
+  → `Result<ParsedFields { fields, llm_claimed_authority }, Vec<...>>`. The new
+  `ParsedFields::llm_claimed_authority` flag is set when the LLM's reply contains
+  `"provisional": false` or `"authoritative": true` — the canonical adversarial
+  pattern that R3 only forced silently to `true` without auditing. Callers in
+  `src/llm_translator.rs` and `src/server.rs` updated; in-tree tests updated.
+- `onto_translate_candidate` MCP tool now emits `llm_authority_claimed` OCEL
+  audit events **before** lifting the LLM's fields into a `CandidateCtq` when
+  `parsed.llm_claimed_authority` is set. Both the `inproc` and `groq_pm4py`
+  engines participate; the gate still forces `provisional = true` regardless,
+  the OCEL event records the claim independently. Wires
+  `DefectClass::LlmAuthorityClaimed` from theatrical (defined-not-emitted) to
+  load-bearing.
+- `onto_translate_candidate` response JSON now carries `_projection_only: true`
+  (§13 JSON-as-authority) and `llm_claimed_authority: <bool>` for downstream
+  inspection. The handler doc-comment states the projection-only contract:
+  admission flows exclusively through `onto_admit_ctq`.
+- `src/batch.rs`: 13 `serde_json::from_str(...).unwrap_or(json!({"raw": s}))`
+  fail-open call sites replaced with `parse_subprocess_json(&s).into_value()`,
+  backed by a new local `BatchOutcome::{Parsed(Value), Malformed { reason,
+  snippet }}` enum. Malformed payloads now surface `error` and
+  `subprocess_malformed: true` keys, which the existing `has_error` detector
+  picks up — closing the silent fail-open hole. The enum is intentionally
+  local; conflating subprocess-CLI parse errors with `DefectClass`
+  variants would pollute the typed taxonomy (§21).
+
+- Defects taxonomy bumped 4.1.0 → 4.2.0 (forward-compatible). Discriminant
+  hash unchanged (tag set unchanged).
+
+### Added
+
+- `tests/llm_provisional_override.rs` — pins the §7 detection logic against an
+  adversarial LLM reply (`"provisional": false` and `"authoritative": true`);
+  pure unit-level — no HTTP, no mock — by calling `parse_and_validate`
+  directly with hand-crafted JSON.
+- `tests/llm_authority_zero.rs` — saboteur ratchet: lexical scan over
+  `src/admission.rs`, `src/cell_ready.rs`, `src/receipts.rs`, `src/defects.rs`,
+  `src/production_record.rs` ensuring no LLM-output identifier (`fields[`,
+  `parsed.fields`, `candidate.ctq_text`, etc.) is assigned into authority
+  structures. Self-reference safe: the forbidden patterns are stored as
+  byte arrays so the test file's own source does not match.
+- `tests/hearsay_returns_typed_consensus.rs` — compile-time `fn(...) ->
+  SwarmConsensus` type pin via `let _: fn(...) = fuse_via_hearsay;`. Fails to
+  compile if the swarm fusion function ever returns `serde_json::Value`.
+
+### Truth-up
+
+- `docs/06-llm-boundary.md`: new "Translate-vs-admit ratio audit" section
+  documenting the projection-only contract and the `llm_authority_claimed`
+  OCEL signal.
+
 ## [Unreleased] — Real Ed25519 attestation (Round-2 cascade Plan 1)
 
 ### Changed (BREAKING)
