@@ -219,6 +219,31 @@ CREATE TABLE IF NOT EXISTS discovered_workflows (
 
 CREATE INDEX IF NOT EXISTS idx_mined_exemplars_domain ON mined_exemplars(domain);
 CREATE INDEX IF NOT EXISTS idx_discovered_workflows_status ON discovered_workflows(status);
+
+-- R5 WC-1 — §28 HiddenWIP closure: one-shot bootstrap-window enforcement.
+--
+-- The legacy `OPEN_ONTOLOGIES_BOOTSTRAP_MODE` env var (and the
+-- receipt-count heuristic) are volatile: a retention worker that prunes
+-- seed receipts can silently re-open the bootstrap window. This table
+-- enforces one-shot semantics at the DB level:
+--
+--   * `id INTEGER PRIMARY KEY DEFAULT 1, CHECK (id = 1)` — single-row
+--     enforcement; only one row can ever exist.
+--   * Inserted (idempotently via `INSERT OR IGNORE`) on the first
+--     non-`seed-v0` receipt persisted by `receipts::persist_with_tenant_in_tx`.
+--   * Read by `BootstrapState::is_bootstrap` — if this row exists the
+--     window is CLOSED, regardless of receipt counts or env vars.
+--
+-- DO NOT add to RetentionWorker pruning — this is one-shot enforcement
+-- state. Pruning it would re-open the bootstrap window and reintroduce
+-- the §28 hidden-WIP leak. (Verified: no DELETE statement in
+-- src/retention.rs targets `bootstrap_lock`.)
+CREATE TABLE IF NOT EXISTS bootstrap_lock (
+    id        INTEGER PRIMARY KEY DEFAULT 1,
+    locked_at TEXT NOT NULL,
+    locked_by TEXT NOT NULL,
+    CHECK (id = 1)
+);
 ";
 
 /// Minimal SQLite state store for ontology versioning.

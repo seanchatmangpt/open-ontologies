@@ -176,8 +176,17 @@ pub fn cell_ready(
     }
 
     // 7. NoBypassRevocation — session not in revoked_sessions.
+    // R5 WC-1: variant gained a `reason` field. cell_ready inputs do not
+    // currently surface the revocation reason (it lives in
+    // `revoked_sessions.reason` and is set upstream by the bypass branch
+    // in `OpenOntologiesServer::evaluate_admission`); leave empty here.
+    // The denial path in `OntoStarAdmissionGate::evaluate_in_tenant`
+    // populates the reason from the DB when reaching this state via
+    // session_is_revoked.
     if inp.session_revoked {
-        return Err(DefectClass::BypassRevoked);
+        return Err(DefectClass::BypassRevoked {
+            reason: String::new(),
+        });
     }
 
     // 8. ReceiptValid — canonical hashes recompute.

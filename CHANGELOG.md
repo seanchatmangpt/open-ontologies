@@ -9,6 +9,88 @@ Pre-OntoStar history (the original `open-ontologies` MCP server, releases
 
 ## [Unreleased]
 
+### Round 5 WC-1 — §28 override hardening
+
+Three §28 leaks closed: success-shaped bypass denial, volatile
+bootstrap-window override, and admin-allowlist TOCTOU race.
+
+#### [Breaking]
+
+- **`bypass_admission` denial JSON shape changed.** The previous
+  shape `Err({"ok": true, "admission": "bypassed", "reason": <...>})`
+  claimed success while the internal state was a denial — auditors
+  keying on `ok` were misled. The new unified denial shape:
+  ```json
+  {
+    "ok": false,
+    "admission": "bypassed_session_revoked",
+    "defect": { "kind": "BypassRevoked", "reason": "<reason>" },
+    "principal_revoked_at": "<RFC3339 timestamp>"
+  }
+  ```
+  Tooling that read `result.reason` at the top level must migrate to
+  `result.defect.reason`. The OCEL `admission_audit{op=bypass}` and
+  `admission_bypass` events still emit (audit precedence unchanged);
+  only the JSON response shape is breaking. Pinned by
+  `tests/bypass_response_shape_unified.rs`.
+- **Admin operations require explicit configuration.** The new
+  `[authority] admin_principals = [...]` config section (or
+  `OPEN_ONTOLOGIES_ADMIN_PRINCIPALS` env var, env wins) is now
+  resolved ONCE at startup instead of being re-read per call. Servers
+  built without `with_admin_principals(...)` get an empty cache —
+  closed-by-default. Operators that previously relied on setting the
+  env var post-startup will see admin tools refuse: set the env BEFORE
+  starting the server, or add `[authority]` to `config.toml`.
+
+#### [Added]
+
+- `bootstrap_lock` table (`src/state.rs`) — single-row
+  (`CHECK (id = 1)`) DB-level enforcement of the bootstrap window.
+  Auto-inserted via `INSERT OR IGNORE` on the first non-`seed-v0`
+  receipt persisted by `receipts::persist_with_tenant_in_tx`. Excluded
+  from `RetentionWorker` pruning by design — pruning would re-open
+  the window and reintroduce the §28 leak. Pinned by
+  `tests/bootstrap_lock_persists.rs`.
+- `BootstrapState::is_bootstrap` rewritten with lock-row precedence:
+  (1) lock row → CLOSED, (2) `OPEN_ONTOLOGIES_BOOTSTRAP_MODE=1` →
+  advisory open (only when lock absent), (3) zero non-seed receipts →
+  bootstrap, (4) else CLOSED. The env var is now demoted to advisory.
+- `DefectClass::BypassRevoked { reason: String }` — promoted from a
+  unit variant to a struct variant carrying the operator's reason.
+  Tag (`"bypass_revoked"`) unchanged; `all_tags()` ordering unchanged;
+  `DEFECTS_TAXONOMY_DISCRIMINANT_HASH` therefore stable. The variant
+  shape change is forward-compatible (`#[serde(default)]` on the new
+  field). `DEFECTS_TAXONOMY_VERSION` bumped 4.3.0 → 4.4.0 (MINOR).
+- `AuthorityConfig` (`src/config.rs`) — new `[authority]` section
+  exposing `admin_principals: Vec<String>`. `#[serde(default)]` on the
+  field for silent upgrade of existing config files.
+- `resolve_admin_principals(cfg)` (`src/config.rs`) — startup-time
+  resolver: env var > config file > empty. Reads
+  `OPEN_ONTOLOGIES_ADMIN_PRINCIPALS` ONCE; the only place in
+  production code that reads that env var.
+- `OpenOntologiesServer::admin_principals: Arc<Vec<String>>` and
+  `OpenOntologiesServer::with_admin_principals(self, Vec<String>)
+  -> Self` — startup-cached allowlist + builder method. Mirrors
+  `with_default_llm_engine` wiring in `src/cmds/server.rs`.
+  `is_admin_principal` reads from the cache, not from
+  `std::env::var(...)`. Pinned by
+  `tests/admin_principals_cache_immune.rs`.
+- 10 new counterfactual `#[test]` / `#[tokio::test]` functions across
+  three new test files. Each proves Δ > 0 versus the pre-fix
+  implementation (the test would FAIL against the previous code).
+  Test count 531 → 541.
+
+#### [Changed]
+
+- `src/admission.rs::evaluate_in_tenant` — when `session_is_revoked`
+  is true, the `BypassRevoked` denial now carries the original reason
+  read from `revoked_sessions.reason` (read-only `SELECT`; no schema
+  change). Auditors no longer need to JOIN to recover the reason.
+- `src/cell_ready.rs` — `BypassRevoked` construction at the
+  `session_revoked` conjunct uses the new struct variant with empty
+  reason (the upstream call site populates the reason; cell_ready
+  inputs do not currently surface it).
+
 ### Round 5 WB-2 — §15 OCEL anchor closure
 
 3 emit swallows replaced with primary+fallback+log pattern. New OCEL

@@ -26,6 +26,12 @@ pub struct Config {
     /// background job. Defaults are chosen so that single-tenant deployments
     /// with no explicit `[retention]` section still cap unbounded growth.
     pub retention: RetentionConfig,
+    /// `[authority]` — R5 WC-1 §28 HumanOverride closure. Cached at
+    /// startup; subsequent env-var changes are ignored (TOCTOU-immune).
+    /// Closed-by-default: an empty `admin_principals` list means NO
+    /// admin operations are permitted (admin-only handlers reject all
+    /// callers). Operators must opt in explicitly.
+    pub authority: AuthorityConfig,
 }
 
 
@@ -656,6 +662,64 @@ impl Default for CodegenConfig {
     fn default() -> Self {
         Self { ggen_path: "ggen".to_string() }
     }
+}
+
+/// `[authority]` — R5 WC-1 §28 HumanOverride closure.
+///
+/// `admin_principals` lists the principal IDs (currently the
+/// caller's `tenant_id` until R3 Task B's principal helper lands)
+/// that may invoke admin-only MCP tools. The list is read from the
+/// config file AND, if set, the `OPEN_ONTOLOGIES_ADMIN_PRINCIPALS`
+/// env var (env wins over config); the resolution is performed
+/// **once at startup** by [`resolve_admin_principals`] and cached
+/// on `OpenOntologiesServer` as `Arc<Vec<String>>`. Subsequent env
+/// changes do not affect already-running servers — closes the
+/// TOCTOU race that the previous per-call `std::env::var(...)` read
+/// admitted.
+///
+/// Closed by default: an empty list means NO callers are admin.
+#[derive(Debug, Default, Deserialize, Clone)]
+#[serde(default)]
+pub struct AuthorityConfig {
+    /// Principal IDs (typically tenant IDs in the current implementation)
+    /// authorised to invoke admin-only MCP tools. Empty list → no admins.
+    pub admin_principals: Vec<String>,
+}
+
+/// Resolve the admin principal allowlist ONCE at startup. Precedence:
+/// `OPEN_ONTOLOGIES_ADMIN_PRINCIPALS` env var (comma-separated) > config
+/// file (`[authority] admin_principals = [...]`) > empty (closed).
+///
+/// Trims whitespace and drops empty entries. The returned `Vec<String>`
+/// is intended to be wrapped in an `Arc` and stored on the server so
+/// subsequent calls to `is_admin_principal` are TOCTOU-immune.
+///
+/// This is the **only** place the env var is read in production code;
+/// any other reader is a §28 HumanOverride leak.
+pub fn resolve_admin_principals(cfg: &AuthorityConfig) -> Vec<String> {
+    let from_env = std::env::var("OPEN_ONTOLOGIES_ADMIN_PRINCIPALS").ok();
+    let raw_iter: Vec<String> = match from_env {
+        Some(v) if !v.trim().is_empty() => v
+            .split(',')
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .collect(),
+        _ => cfg
+            .admin_principals
+            .iter()
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .collect(),
+    };
+    // Deduplicate while preserving order.
+    let mut seen = std::collections::HashSet::new();
+    let mut out = Vec::with_capacity(raw_iter.len());
+    for entry in raw_iter {
+        if seen.insert(entry.clone()) {
+            out.push(entry);
+        }
+    }
+    out
 }
 
 // ─── Env-override resolvers for the most operationally critical fields ──

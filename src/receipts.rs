@@ -127,6 +127,21 @@ pub fn persist_with_tenant_in_tx(
             key_valid_at,
         ],
     )?;
+
+    // R5 WC-1 — §28 HiddenWIP closure. The first non-seed receipt across
+    // the whole DB closes the bootstrap window at the DB level. The
+    // `INSERT OR IGNORE` makes this idempotent (the table has a single
+    // PK row enforced by `CHECK (id = 1)`); subsequent non-seed receipts
+    // never overwrite the original `locked_at` / `locked_by`. Retention
+    // pruning explicitly excludes `bootstrap_lock` (see state.rs schema
+    // comment) so the window cannot be silently re-opened.
+    if receipt.record.production_law_version != "seed-v0" {
+        tx.execute(
+            "INSERT OR IGNORE INTO bootstrap_lock (id, locked_at, locked_by) \
+             VALUES (1, ?1, ?2)",
+            rusqlite::params![granted_at, tenant_id],
+        )?;
+    }
     Ok(())
 }
 

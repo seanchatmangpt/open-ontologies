@@ -312,7 +312,7 @@ fn bypass_revokes_subsequent_operations() {
         &observed,
     );
     match result {
-        Err((DefectClass::BypassRevoked, _)) => {}
+        Err((DefectClass::BypassRevoked { .. }, _)) => {}
         other => panic!("expected BypassRevoked, got {:?}", other),
     }
 

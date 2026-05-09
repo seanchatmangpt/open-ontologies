@@ -91,6 +91,14 @@ pub struct OpenOntologiesServer {
     /// `evaluate_in_tenant` method, so ALL 27 #[tool] mutations are
     /// tenant-ACL-checked.
     tenant: crate::tenant::TenantHandle,
+    /// R5 WC-1 — §28 HumanOverride closure. Admin principal allowlist
+    /// resolved once at startup via
+    /// [`crate::config::resolve_admin_principals`] and shared via
+    /// `Arc` so the lookup in [`Self::is_admin_principal`] reads from
+    /// this cached list — never from `std::env::var(...)`. Closes the
+    /// TOCTOU race the previous per-call env-var read admitted.
+    /// Closed-by-default: empty list means no callers are admin.
+    pub admin_principals: Arc<Vec<String>>,
 }
 
 impl OpenOntologiesServer {
@@ -251,6 +259,13 @@ impl OpenOntologiesServer {
             text_embedder,
             default_llm_engine,
             tenant: crate::tenant::TenantHandle::from_env(),
+            // R5 WC-1: closed-by-default. The HTTP/stdio bootstrap calls
+            // `with_admin_principals(...)` after construction to wire the
+            // resolved allowlist (config + env, read ONCE). Constructors
+            // that bypass that path (test scaffolding, in-memory MCP
+            // servers) get an empty list — no callers are admin until
+            // explicitly opted in.
+            admin_principals: Arc::new(Vec::new()),
         }
     }
 
@@ -277,6 +292,26 @@ impl OpenOntologiesServer {
     pub fn with_default_llm_engine(mut self, engine: String) -> Self {
         self.default_llm_engine = engine;
         self
+    }
+
+    /// R5 WC-1 — install the startup-resolved admin principal allowlist
+    /// (see [`crate::config::resolve_admin_principals`]). Wired by the
+    /// stdio + HTTP bootstrap in `src/cmds/server.rs`, mirroring
+    /// [`Self::with_default_llm_engine`]. Once installed, the cache is
+    /// authoritative and [`Self::is_admin_principal`] never re-reads
+    /// `OPEN_ONTOLOGIES_ADMIN_PRINCIPALS` — closes the §28 TOCTOU leak.
+    pub fn with_admin_principals(mut self, principals: Vec<String>) -> Self {
+        self.admin_principals = Arc::new(principals);
+        self
+    }
+
+    /// Test/debug helper: read-only view of the cached admin allowlist.
+    /// Used by `tests/admin_principals_cache_immune.rs` to prove the
+    /// startup cache is authoritative regardless of post-startup env
+    /// mutation.
+    #[doc(hidden)]
+    pub fn admin_principals_for_test(&self) -> &[String] {
+        &self.admin_principals
     }
 
     /// Read the resolved default LLM engine — `"inproc"` or
@@ -390,10 +425,33 @@ impl OpenOntologiesServer {
             let _ = crate::admission::revoke_session(&self.db, &self.session_id, reason);
             self.lineage().record_admission_bypass(&self.session_id, reason);
             self.lineage().record_session_revoked(&self.session_id, reason);
+            // R5 WC-1 — §22 success-shaped denial closure. The previous
+            // shape returned `Err({"ok": true, "admission": "bypassed"})`
+            // — a JSON object claiming success while the internal state
+            // (revoked_sessions, OCEL bypass audit) said the operation
+            // was DENIED. External auditors keying on `ok` were misled.
+            //
+            // The unified denial shape:
+            //   * `ok: false` matches the internal denial state.
+            //   * `admission: "bypassed_session_revoked"` distinguishes
+            //     this denial path from `"denied"` (gate refusal) and
+            //     `"granted"` (admitted).
+            //   * `defect: {kind: "BypassRevoked", reason}` is the
+            //     structured DefectClass surface; auditors can drive
+            //     workflows on `defect.kind` instead of free text.
+            //   * `principal_revoked_at` records the RFC3339 timestamp
+            //     of the revoke_session write so downstream forensic
+            //     tooling can correlate against `revoked_sessions.revoked_at`.
+            //
+            // BREAKING JSON shape change — see CHANGELOG `[Breaking]`.
             return Err(serde_json::json!({
-                "ok": true,
-                "admission": "bypassed",
-                "reason": reason,
+                "ok": false,
+                "admission": "bypassed_session_revoked",
+                "defect": {
+                    "kind": "BypassRevoked",
+                    "reason": reason,
+                },
+                "principal_revoked_at": now,
             }).to_string());
         }
 
@@ -602,31 +660,36 @@ impl OpenOntologiesServer {
         Ok(())
     }
 
-    /// Round 4 WD — admin gate for rotation tools. Reads
-    /// `OPEN_ONTOLOGIES_ADMIN_PRINCIPALS` (comma-separated principal IDs)
-    /// and matches against the caller's principal. Round 3 Task B has not
-    /// landed a real principal-id helper yet, so until it does we fall
-    /// back to the caller's tenant_id as the principal identifier. Once
-    /// R3 Task B's `current_principal_id` and `require_admin` helpers
-    /// land, this function becomes a thin wrapper around `require_admin`.
+    /// Admin gate for rotation tools and other admin-only handlers.
+    ///
+    /// R5 WC-1 — §28 HumanOverride closure. The allowlist is resolved
+    /// ONCE at server startup by
+    /// [`crate::config::resolve_admin_principals`] and stored on
+    /// `self.admin_principals`. This function reads from that cache,
+    /// never from `std::env::var(...)`. Subsequent env-var mutations
+    /// after server construction have NO effect — closes the TOCTOU
+    /// race the previous implementation admitted.
+    ///
+    /// Round 3 Task B has not landed a real principal-id helper yet, so
+    /// until it does we match against the caller's `tenant_id` as the
+    /// principal identifier. Once R3 Task B's `current_principal_id`
+    /// and `require_admin` helpers land, this function becomes a thin
+    /// wrapper around `require_admin`.
     ///
     /// Returns `true` when the caller is admin; `false` otherwise. The
     /// closed-by-default semantics match the §27 EscapeRoutes axiom: an
-    /// empty / unset `OPEN_ONTOLOGIES_ADMIN_PRINCIPALS` env var means
-    /// NOBODY is admin (no silent downgrade to "trust all").
+    /// empty cached list means NOBODY is admin (no silent downgrade to
+    /// "trust all").
     fn is_admin_principal(&self) -> bool {
-        let allowlist = match std::env::var("OPEN_ONTOLOGIES_ADMIN_PRINCIPALS") {
-            Ok(v) if !v.trim().is_empty() => v,
-            _ => return false,
-        };
+        if self.admin_principals.is_empty() {
+            return false;
+        }
         // TODO(R3 Task B): replace tenant_id fallback with
         // `current_principal_id()` once that helper lands.
         let principal = self.tenant_snapshot();
-        allowlist
-            .split(',')
-            .map(|s| s.trim())
-            .filter(|s| !s.is_empty())
-            .any(|allowed| allowed == principal)
+        self.admin_principals
+            .iter()
+            .any(|allowed| allowed.as_str() == principal.as_str())
     }
 
     /// OntoStar Stream 1: emit a uniform `<tool>` OCEL event for handlers that

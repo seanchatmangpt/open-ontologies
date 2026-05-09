@@ -511,10 +511,25 @@ impl OntoStarAdmissionGate {
             return Err((defect, vec![]));
         }
 
-        // Bypass-revoked sessions auto-deny.
+        // Bypass-revoked sessions auto-deny. R5 WC-1: variant gained a
+        // `reason` field; we read it from `revoked_sessions` so the
+        // denial carries the original bypass reason all the way through
+        // to the auditor (read-only query — no schema change).
         if store.session_is_revoked(session_id).unwrap_or(false) {
-            self.emit_denied(store, session_id, op, &DefectClass::BypassRevoked);
-            return Err((DefectClass::BypassRevoked, vec![]));
+            let reason: String = {
+                let conn = store.db().conn();
+                conn.query_row(
+                    "SELECT reason FROM revoked_sessions \
+                     WHERE session_id = ?1 AND cleared_at IS NULL \
+                     ORDER BY revoked_at DESC LIMIT 1",
+                    rusqlite::params![session_id],
+                    |r| r.get::<_, String>(0),
+                )
+                .unwrap_or_default()
+            };
+            let defect = DefectClass::BypassRevoked { reason };
+            self.emit_denied(store, session_id, op, &defect);
+            return Err((defect, vec![]));
         }
 
         // Hash the canonical POWL string.

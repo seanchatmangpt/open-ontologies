@@ -65,7 +65,15 @@ use serde::{Deserialize, Serialize};
 /// variant added, no renames or removals. Discriminant hash changes
 /// (a new tag joins `all_tags()`), so [`DEFECTS_TAXONOMY_DISCRIMINANT_HASH`]
 /// is updated in lockstep.
-pub const DEFECTS_TAXONOMY_VERSION: &str = "ontostar-defects-4.3.0";
+///
+/// Bumped from `4.3.0` → `4.4.0` (Round 5 WC-1) after enriching
+/// [`DefectClass::BypassRevoked`] with a structured `reason` field so
+/// the unified bypass denial JSON can surface the operator's reason
+/// without auditors parsing free text. The variant tag is unchanged
+/// (`bypass_revoked`), so [`DEFECTS_TAXONOMY_DISCRIMINANT_HASH`]
+/// remains stable; the version bump is forward-compatible (the new
+/// field defaults to an empty string for legacy emitters).
+pub const DEFECTS_TAXONOMY_VERSION: &str = "ontostar-defects-4.4.0";
 
 /// BLAKE3 hex of `tag1\0tag2\0...\0` for [`DefectClass::all_tags()`].
 /// CI-pinned. Adding/renaming/removing a variant changes this, forcing a
@@ -83,8 +91,18 @@ pub enum DefectClass {
     SkippedTask { stage: String },
     ExtraTask { stage: String },
     WrongOrder { expected: String, got: String },
-    /// Session under `bypass_admission` revocation.
-    BypassRevoked,
+    /// Session under `bypass_admission` revocation. R5 WC-1: enriched
+    /// with a structured `reason` field so the unified bypass denial
+    /// JSON (`Err({ok:false, admission:"bypassed_session_revoked",
+    /// defect:{kind:"BypassRevoked", reason:..}})`) surfaces the
+    /// operator's reason without auditors parsing free text. The tag
+    /// remains `"bypass_revoked"` so [`all_tags`] / discriminant hash
+    /// are stable; only the variant shape changed (additive, with
+    /// `#[serde(default)]` for forward compat).
+    BypassRevoked {
+        #[serde(default)]
+        reason: String,
+    },
     ReceiptMissing,
     ScopeUnclosed,
     OcelIncomplete,
@@ -203,7 +221,7 @@ impl DefectClass {
             DefectClass::SkippedTask { .. } => "skipped_task",
             DefectClass::ExtraTask { .. } => "extra_task",
             DefectClass::WrongOrder { .. } => "wrong_order",
-            DefectClass::BypassRevoked => "bypass_revoked",
+            DefectClass::BypassRevoked { .. } => "bypass_revoked",
             DefectClass::ReceiptMissing => "receipt_missing",
             DefectClass::ScopeUnclosed => "scope_unclosed",
             DefectClass::OcelIncomplete => "ocel_incomplete",

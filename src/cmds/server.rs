@@ -112,8 +112,17 @@ fn run_stdio_server(cfg: Config, db: StateDb, graph: Arc<GraphStore>, governance
     }
     let llm_engine = open_ontologies::config::resolve_llm_engine(&cfg.llm);
     eprintln!("info: default LLM engine = {}", llm_engine);
+    // R5 WC-1 — resolve the admin principal allowlist ONCE at startup.
+    // Subsequent env mutations are ignored (TOCTOU-immune).
+    let admin_principals =
+        open_ontologies::config::resolve_admin_principals(&cfg.authority);
+    eprintln!(
+        "info: admin principals configured = {} entries",
+        admin_principals.len()
+    );
     let server = OpenOntologiesServer::new_with_repo_options(db.clone(), graph, governance_webhook, cfg.embeddings, cache_config, tool_filter, ontology_dirs)
-        .with_default_llm_engine(llm_engine);
+        .with_default_llm_engine(llm_engine)
+        .with_admin_principals(admin_principals);
     let _evictor = open_ontologies::registry::spawn_evictor(server.registry());
     // Round 4 WD — §29 Cell8 retirement closure. Spawn the retention
     // worker alongside the cache evictor so every persistent table has
@@ -179,6 +188,16 @@ fn build_http_axum_router(cfg: &Config, shared_graph: Arc<GraphStore>, shared_db
     let llm_engine = open_ontologies::config::resolve_llm_engine(&cfg.llm);
     let llm_engine_for_factory = llm_engine.clone();
     eprintln!("info: default LLM engine = {}", llm_engine);
+    // R5 WC-1 — resolve admin principal allowlist ONCE at HTTP startup.
+    // Cloned into each per-request server (the cache itself is an Arc, so
+    // the actual Vec is shared, not duplicated). Env-var mutations
+    // post-startup are ignored across all subsequent factory invocations.
+    let admin_principals_for_factory =
+        open_ontologies::config::resolve_admin_principals(&cfg.authority);
+    eprintln!(
+        "info: admin principals configured = {} entries",
+        admin_principals_for_factory.len()
+    );
 
     let service: StreamableHttpService<_, LocalSessionManager> = StreamableHttpService::new(
         move || {
@@ -195,6 +214,7 @@ fn build_http_axum_router(cfg: &Config, shared_graph: Arc<GraphStore>, shared_db
                 .unwrap_or_else(|| "default".to_string());
             Ok(OpenOntologiesServer::new_with_repo_options(db, sg.clone(), gw.clone(), embed.clone(), cc.clone(), tf.clone(), dirs.clone())
                 .with_default_llm_engine(llm_engine_for_factory.clone())
+                .with_admin_principals(admin_principals_for_factory.clone())
                 .with_tenant(&tenant))
         },
         Default::default(),
