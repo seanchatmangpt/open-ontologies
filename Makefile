@@ -1,4 +1,4 @@
-.PHONY: build test lint audit check adversarial check-dead-params bench bench-pizza bench-ontoaxiom bench-mushroom bench-vision bench-reasoner bench-oaei docker docker-run init serve serve-http clean
+.PHONY: build test lint audit check adversarial check-dead-params check-test-count bench bench-pizza bench-ontoaxiom bench-mushroom bench-vision bench-reasoner bench-oaei docker docker-run init serve serve-http clean
 
 # ─── Development ─────────────────────────────────────────────────────────────
 
@@ -14,7 +14,10 @@ lint:
 check-dead-params:
 	bash tools/dead-param-gate.sh
 
-adversarial: check-dead-params
+check-test-count:
+	bash tools/check-test-count.sh
+
+adversarial: check-dead-params check-test-count
 	cargo clippy -- -D clippy::todo -D clippy::unimplemented
 	cargo test --test adversarial_jtbd_test -- --test-threads=1
 	@echo "✓ All adversarial JTBD gates passed"

@@ -1,6 +1,6 @@
-# 04 — DefectClass Taxonomy v3.0.0
+# 04 — DefectClass Taxonomy v4.1.0
 
-`DEFECTS_TAXONOMY_VERSION = "ontostar-defects-3.0.0"` (commit `bea21b4`).
+`DEFECTS_TAXONOMY_VERSION = "ontostar-defects-4.1.0"` (commit `bea21b4`; bumped from `3.0.0` in Round-2 cascade Plan 1 — Ed25519 attestation introduced `AttestationInvalid`).
 
 Phase 6 Task D Part 2 removed ten zero-emission speculative variants (`LawZero`, `MissingGatewayChoice`, `UnreachableTask`, `ShaclSkipped`, `ProjectionAsAuthority`, `StubGate`, `UnreplayableClaim`, `FalsePass`, `SecretLeak`, `GeneratedArtifactDirectEdit`). Every variant in the current taxonomy has at least one production emission site and a deny-path test.
 
@@ -36,6 +36,7 @@ The taxonomy is pinned by `DEFECTS_TAXONOMY_DISCRIMINANT_HASH` — a BLAKE3 over
 | `tenant_boundary` | `TenantBoundary { caller_tenant, scope_tenant }` | Caller's `TenantContext` ≠ scope's owning tenant | Cross-tenant scope access attempt | `tests/multi_tenant_isolation.rs` |
 | `provenance_missing` | `ProvenanceMissing { stage }` | Cell8 A9 `ProvenanceChain` conjunct fails | Receipt not bound to upstream evidence | `tests/cell8_thirteen_gates.rs` |
 | `attestation_missing` | `AttestationMissing` | Cell8 A10 `ExternalAttestation` conjunct fails | Stub digest mismatch | `tests/cell8_thirteen_gates.rs` |
+| `attestation_invalid` | `AttestationInvalid { reason }` | Cell8 A10 verifier rejects the Ed25519 signature | `signature_invalid` / `unknown_signing_key:<fpr>` / `missing_signing_key_fpr` / `no_trust_set` / `no_signer_configured` | `tests/ed25519_attestation.rs` |
 | `temporal_skew` | `TemporalSkew { skew_ms }` | Cell8 A11 `TemporalValidity` conjunct fails | Receipt timestamp earlier than predecessor | `tests/cell8_thirteen_gates.rs` |
 | `dependency_closure_broken` | `DependencyClosureBroken { missing }` | Cell8 A12 `DependencyClosure` conjunct fails | Cited dependency receipt absent | `tests/cell8_thirteen_gates.rs` |
 | `replay_divergence` | `ReplayDivergence { expected, observed }` | Cell8 A13 `ReplayProof` conjunct fails | Replay produces different artifact bytes | `tests/cell8_thirteen_gates.rs` |

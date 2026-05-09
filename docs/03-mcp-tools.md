@@ -60,6 +60,7 @@ Every tool registered with `#[tool(name = "onto_*")]` in `src/server.rs`, groupe
 | Tool | What it returns |
 |------|-----------------|
 | `onto_status` | Server health |
+| `onto_verify` | Walk the receipt chain for a given hash; return verdict (`Admitted` / `Tampered { reason }` / `Orphan`) and ASCII chain tree. Pure read-only; no admission, no OCEL emission. |
 | `onto_groq_status` | Groq API connectivity |
 | `onto_stats` | Class/property/triple counts |
 | `onto_query` | SPARQL SELECT/CONSTRUCT/ASK/DESCRIBE |
