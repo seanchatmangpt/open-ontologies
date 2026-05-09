@@ -12,71 +12,31 @@ env:
   RUST_BACKTRACE: 1
 
 jobs:
-  lib-unit:
-    name: lib + unit tests (${{ matrix.os }} / ${{ matrix.toolchain }})
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest]
-        toolchain: [stable, nightly]
-    runs-on: ${{ matrix.os }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: ${{ matrix.toolchain }}
-          components: clippy
-      - uses: Swatinem/rust-cache@v2
-        with:
-          key: ${{ matrix.os }}-${{ matrix.toolchain }}-libunit
-      - name: cargo test --lib
-        run: cargo test --lib --all-features
+  # The bulk of unit + integration + lint coverage is now driven by the single
+  # verification matrix in regression-gates.yml. CI here keeps only the jobs
+  # that need extra toolchains or secrets that the matrix runner cannot satisfy.
 
-  integration-suites:
-    name: integration / ${{ matrix.suite }}
-    needs: lib-unit
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest]
-        suite:
-          - admission
-          - admission_real_replay
-          - cli_test
-          - adversarial_jtbd_test
-          - receipt_chain_adversarial
-          - recursive_admission_e2e
-          - requirements_small_e2e
-          - revops_e2e
-          - revops_ctq_admission
-          - revops_counterfactual
-          - revops_groq_boundary
-          - revops_negative
-          - revops_old_ai_stations
-          - solution_manufacturing_e2e
-          - manufacturing_validators
-          - cell_ready_deny_paths
-          - powl_bridge_extras
-          - no_bypass_audit
-          - secret_grep_ratchet
-          - ratchet_red_team
-          - external_verifier_e2e
-          - cell8_thirteen_gates
-          - multi_tenant_isolation
-          - real_swarm_e2e
-    runs-on: ${{ matrix.os }}
+  verification-matrix:
+    name: verification matrix
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_PR_LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
       - uses: Swatinem/rust-cache@v2
         with:
-          key: integ-${{ matrix.suite }}
-      - name: cargo test --test ${{ matrix.suite }}
-        run: cargo test --test ${{ matrix.suite }} -- --nocapture
+          key: ci-verification-matrix
+      - name: chmod scripts
+        run: chmod +x .github/scripts/*.sh tools/dead-param-gate.sh
+      - name: run verification matrix
+        run: bash .github/scripts/run-verification-matrix.sh
 
   real-toolchain-smoke:
     name: real-toolchain smoke (${{ matrix.os }})
-    needs: lib-unit
+    needs: verification-matrix
     strategy:
       fail-fast: false
       matrix:
@@ -110,7 +70,7 @@ jobs:
 
   real-groq-sweep:
     name: real-Groq sweep (gated)
-    needs: lib-unit
+    needs: verification-matrix
     runs-on: ubuntu-latest
     continue-on-error: true
     env:
@@ -150,27 +110,3 @@ jobs:
       - name: real_groq_solution_spec
         if: env.GROQ_API_KEY != ''
         run: cargo test --test real_groq_solution_spec -- --nocapture --test-threads=1
-
-  dead-param-gate:
-    name: dead-param gate
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Run dead-param-gate.sh
-        run: bash tools/dead-param-gate.sh
-
-  ratchet-sweep:
-    name: ratchet sweep (no_bypass + secret_grep + ratchet_red_team)
-    needs: lib-unit
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-        with:
-          key: ratchet
-      - name: cargo test ratchet sweep
-        run: |
-          cargo test --test no_bypass_audit \
-                     --test secret_grep_ratchet \
-                     --test ratchet_red_team -- --nocapture
