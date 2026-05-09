@@ -43,13 +43,18 @@ use serde::{Deserialize, Serialize};
 /// `observed_skew_ms`, `missing_hash`, `expected`, `observed`). The variant
 /// enum shape changed (added fields) so external auditors must re-deserialize
 /// — MAJOR bump.
-pub const DEFECTS_TAXONOMY_VERSION: &str = "ontostar-defects-4.0.0";
+///
+/// Bumped from `4.0.0` → `4.1.0` after the addition of
+/// [`DefectClass::AttestationInvalid`] for the real-Ed25519 A10 path
+/// (replaces the digest-equality tautology stub). Forward-compatible —
+/// existing variants are unchanged, only one variant is added.
+pub const DEFECTS_TAXONOMY_VERSION: &str = "ontostar-defects-4.1.0";
 
 /// BLAKE3 hex of `tag1\0tag2\0...\0` for [`DefectClass::all_tags()`].
 /// CI-pinned. Adding/renaming/removing a variant changes this, forcing a
 /// taxonomy version bump.
 pub const DEFECTS_TAXONOMY_DISCRIMINANT_HASH: &str =
-    "f59ef81f3ccc906947035fe014fad09bedb1e38da0aa8238cca8ddf32d21780c";
+    "a0d498dba7d299c8c105a3713186f6d7df79428896fd5133cb4575d3a18fd1f2";
 
 /// Typed denial classes. Every `Denied` outcome in admission/cell-ready
 /// machinery short-circuits on the first failing variant.
@@ -86,7 +91,24 @@ pub enum DefectClass {
     WorkOrderMissingCounterfactual,
     /// LLM (Groq) output was treated as authoritative without passing the
     /// deterministic CTQ admission gate.
-    LlmAuthorityClaimed,
+    ///
+    /// Phase 8 (Plan 4): the variant carries structured `reason` /
+    /// `remediation` strings so external auditors can distinguish
+    /// transient subprocess failures from configuration mistakes
+    /// without parsing free text. The shape change is additive at the
+    /// tag level (`tag()` still returns `"llm_authority_claimed"`),
+    /// hence no taxonomy hash bump.
+    ///
+    /// Recognised `reason` values:
+    /// - `"subprocess_unavailable"` — `scripts/*.py` could not be spawned.
+    /// - `"key_invalid"` — the API key was missing or rejected upstream.
+    /// - `"timeout"` — the subprocess exceeded `subprocess_timeout_secs`.
+    LlmAuthorityClaimed {
+        #[serde(default)]
+        reason: String,
+        #[serde(default)]
+        remediation: String,
+    },
     /// Export contains a restricted raw-data field (e.g. customer email,
     /// real account name).
     RawDataLeak { field: String },
@@ -141,6 +163,14 @@ pub enum DefectClass {
     /// A13 ReplayProof failed: deterministic POWL replay produced an OCEL
     /// canonical hash that diverges from the recorded `ocel_trace_hash`.
     ReplayDivergence { expected: String, observed: String },
+    /// A10 ExternalAttestation failed under the real-Ed25519 path: a
+    /// signature was supplied but `verify_strict` rejected it. `reason`
+    /// distinguishes "signature_invalid" (key found, signature did not
+    /// verify), "unknown_signing_key" (`signing_key_fpr` not in the
+    /// trust set), and "no_trust_set" (admission gate had no trust set
+    /// loaded). The legacy `AttestationMissing` is reserved for the
+    /// signature-absent path.
+    AttestationInvalid { reason: String },
 }
 
 impl DefectClass {
@@ -161,7 +191,7 @@ impl DefectClass {
             DefectClass::RequirementWithoutSource => "requirement_without_source",
             DefectClass::CtqIncomplete { .. } => "ctq_incomplete",
             DefectClass::WorkOrderMissingCounterfactual => "work_order_missing_counterfactual",
-            DefectClass::LlmAuthorityClaimed => "llm_authority_claimed",
+            DefectClass::LlmAuthorityClaimed { .. } => "llm_authority_claimed",
             DefectClass::RawDataLeak { .. } => "raw_data_leak",
             DefectClass::GeneratorEmpty { .. } => "generator_empty",
             DefectClass::IacInvalid { .. } => "iac_invalid",
@@ -176,6 +206,7 @@ impl DefectClass {
             DefectClass::TemporalSkew { .. } => "temporal_skew",
             DefectClass::DependencyClosureBroken { .. } => "dependency_closure_broken",
             DefectClass::ReplayDivergence { .. } => "replay_divergence",
+            DefectClass::AttestationInvalid { .. } => "attestation_invalid",
         }
     }
 
@@ -213,6 +244,7 @@ impl DefectClass {
             "temporal_skew",
             "dependency_closure_broken",
             "replay_divergence",
+            "attestation_invalid",
         ]
     }
 }

@@ -92,6 +92,8 @@ fn admits_clean_ttl_file_with_receipts_header() {
         gates_passed: vec!["g".into()],
         gates_refused: vec![],
         prior_receipt: None,
+        signature: None,
+        signing_key_fpr: None,
     };
     let receipt = receipts::build(record);
     let header = receipts::ttl_header(&receipt);
@@ -139,7 +141,7 @@ fn detects_tampered_body_byte_in_rust_file() {
 
     let v = verify_artifact(&p, None);
     match v {
-        Verdict::Tampered { mismatch_at, expected, actual } => {
+        Verdict::Tampered { mismatch_at, expected, actual, reason: _ } => {
             assert!(mismatch_at.contains("lib.rs"));
             assert_ne!(expected, actual);
             assert_eq!(expected.len(), 64);
@@ -227,6 +229,8 @@ fn walks_receipt_chain_in_correct_order_and_renders_ascii() {
         gates_passed: vec!["g".into()],
         gates_refused: vec![],
         prior_receipt: prior,
+        signature: None,
+        signing_key_fpr: None,
     };
 
     let r1 = receipts::build(mk_record(1, None));
@@ -272,6 +276,8 @@ fn walks_chain_terminates_on_missing_link() {
         gates_passed: vec!["g".into()],
         gates_refused: vec![],
         prior_receipt: Some(phantom_prior),
+        signature: None,
+        signing_key_fpr: None,
     });
     receipts::persist(&r2, &db, "orphan-sess").unwrap();
 

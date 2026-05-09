@@ -1,4 +1,5 @@
 pub mod admission;
+pub mod attestation;
 pub mod batch;
 pub mod cache;
 pub mod cell8;

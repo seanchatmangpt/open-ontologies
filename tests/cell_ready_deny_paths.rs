@@ -131,6 +131,10 @@ fn inputs_from(bag: &Bag) -> CellReadyInputs<'_> {
         granted_at_chain: granted,
         admitted_receipts: admitted,
         replay_canonical_hash: replay_hash,
+        signature: None,
+        signing_key_fpr: None,
+        trusted_keys: None,
+        allow_legacy_unsigned: true,
     }
 }
 

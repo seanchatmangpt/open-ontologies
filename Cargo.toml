@@ -52,6 +52,8 @@ wasm4pm-cognition = { path = "/Users/sac/wasm4pm/crates/wasm4pm-cognition", defa
 blake3 = "1"
 ulid = "1"
 dotenvy = "0.15"
+ed25519-dalek = { version = "2", features = ["pkcs8", "pem", "rand_core"] }
+rand_core = "0.6"
 
 [features]
 default = []

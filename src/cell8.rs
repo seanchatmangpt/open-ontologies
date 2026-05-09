@@ -155,6 +155,8 @@ mod tests {
             gates_passed: GATE_NAMES.iter().map(|s| s.to_string()).collect(),
             gates_refused: Vec::new(),
             prior_receipt: None,
+            signature: None,
+            signing_key_fpr: None,
         };
         crate::receipts::build(rec)
     }

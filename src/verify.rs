@@ -59,10 +59,16 @@ pub enum Verdict {
     },
     /// Body bytes do not match the named hash. Either the file body was
     /// modified post-manufacturing, or the header itself was edited.
+    /// `reason` is one of:
+    ///   - `"body_hash_mismatch"` (default — body BLAKE3 disagrees with header)
+    ///   - `"signature_invalid"` (Ed25519 verification rejected the signature)
+    ///   - `"unknown_signing_key"` (`signing_key_fpr` not in trust set)
     Tampered {
         mismatch_at: String,
         expected: String,
         actual: String,
+        #[serde(default)]
+        reason: String,
     },
     /// The chain references a receipt that is not present in the
     /// supplied StateDb. The artifact looks intact byte-wise but is
@@ -313,6 +319,7 @@ fn verify_inline_header(
             mismatch_at: path.to_string(),
             expected,
             actual,
+            reason: "body_hash_mismatch".into(),
         };
     }
     // The inline-header artifacts may name a `receipt-hash` (TTL stamps,
@@ -388,6 +395,7 @@ fn verify_sidecar_against_siblings(
             mismatch_at: sidecar_path.to_string_lossy().into_owned(),
             expected,
             actual,
+            reason: "body_hash_mismatch".into(),
         };
     }
     let receipt_hash = parsed

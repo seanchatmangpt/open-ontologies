@@ -82,6 +82,7 @@ struct Bag {
     admitted_receipts: Vec<String>,
     replay_canonical_hash: String,
     prior_receipt: Option<[u8; 32]>,
+    allow_legacy_unsigned: bool,
 }
 
 fn ok_bag(scope_token: String, session: &str) -> Bag {
@@ -110,6 +111,7 @@ fn ok_bag(scope_token: String, session: &str) -> Bag {
         admitted_receipts: Vec::new(),
         replay_canonical_hash: HEX32.to_string(),
         prior_receipt: None,
+        allow_legacy_unsigned: true,
     }
 }
 
@@ -140,6 +142,10 @@ fn inputs_from(bag: &Bag) -> CellReadyInputs<'_> {
         granted_at_chain: &bag.granted_at_chain,
         admitted_receipts: &bag.admitted_receipts,
         replay_canonical_hash: &bag.replay_canonical_hash,
+        signature: None,
+        signing_key_fpr: None,
+        trusted_keys: None,
+        allow_legacy_unsigned: bag.allow_legacy_unsigned,
     }
 }
 
@@ -213,10 +219,11 @@ fn a10_attestation_missing_denies() {
     let session = "c8-a10";
     let token = setup_scope(&db, session);
     let mut bag = ok_bag(token, session);
-    // Phase-10 stub: A10 is a digest-equality stand-in. An empty
-    // attestation cannot match the artifact hash, so we expect
-    // AttestationMissing.
+    // Real Ed25519: a missing signature with `allow_legacy_unsigned=false`
+    // raises AttestationMissing. (The legacy `external_attestation` field
+    // is now ignored; the new path is signature-driven.)
     bag.external_attestation = String::new();
+    bag.allow_legacy_unsigned = false;
 
     match cell_ready(inputs_from(&bag), &store) {
         Err(DefectClass::AttestationMissing) => {}

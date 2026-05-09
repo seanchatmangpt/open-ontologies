@@ -23,6 +23,8 @@ fn build_test_receipt(artifact_bytes: &[u8]) -> Receipt {
         gates_passed: vec!["WorkflowDeclared".into()],
         gates_refused: vec![],
         prior_receipt: None,
+        signature: None,
+        signing_key_fpr: None,
     };
     receipts::build(record)
 }

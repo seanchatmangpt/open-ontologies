@@ -22,6 +22,7 @@
 //! failing typed [`DefectClass`]. **No `bail!`, no `anyhow!`, no string
 //! error authority** — every denial is a typed defect class.
 
+use crate::attestation::{self, KeyFingerprint, TrustedKeys, VerifyOutcome};
 use crate::defects::DefectClass;
 use crate::ocel_store::OcelStore;
 use crate::production_record::ProductionRecord;
@@ -87,6 +88,28 @@ pub struct CellReadyInputs<'a> {
     /// deterministic POWL replay. Must equal `ocel_trace_hash` byte-
     /// for-byte. Empty string → fail.
     pub replay_canonical_hash: &'a str,
+
+    // ── Real Ed25519 attestation (replaces the A10 tautology stub) ──
+    /// Ed25519 signature over [`ProductionRecord::canonical_bytes_for_signing`]
+    /// of the record cell_ready will build. `None` activates the
+    /// legacy-unsigned branch (A10 either passes-with-warning or fails
+    /// based on `allow_legacy_unsigned`).
+    pub signature: Option<[u8; 64]>,
+
+    /// 8-byte BLAKE3-prefix fingerprint of the public key that produced
+    /// `signature`. Required when `signature` is `Some`.
+    pub signing_key_fpr: Option<KeyFingerprint>,
+
+    /// Trust set used to resolve `signing_key_fpr`. `None` → A10 cannot
+    /// verify even when `signature` is present; falls through to
+    /// `AttestationInvalid { reason: "no_trust_set" }`.
+    pub trusted_keys: Option<&'a TrustedKeys>,
+
+    /// When `true`, A10 admits a record with `signature: None` by
+    /// emitting a `legacy_unsigned_receipt` OCEL event and passing the
+    /// conjunct. When `false`, `signature: None` raises
+    /// [`DefectClass::AttestationMissing`].
+    pub allow_legacy_unsigned: bool,
 }
 
 /// Compute the `CellReady` predicate. Returns a freshly built (but not yet
@@ -163,15 +186,117 @@ pub fn cell_ready(
         });
     }
 
-    // 10. A10_external_attestation — at least one attestation digest
-    //     verifies (must equal the artifact hash byte-for-byte).
-    //     Phase-10 stub: digest-equality stand-in for Ed25519. A real
-    //     impl would verify a signature against a public key here.
-    if inp.external_attestation.is_empty()
-        || inp.external_attestation != inp.artifact_hash
-    {
-        return Err(DefectClass::AttestationMissing);
+    // 10. A10_external_attestation — REAL Ed25519 verification.
+    //     The Phase-10 tautology (`external_attestation == artifact_hash`)
+    //     is gone. Three branches:
+    //       (a) signature: None + allow_legacy_unsigned: true → emit a
+    //           `legacy_unsigned_receipt` OCEL event and pass the conjunct.
+    //       (b) signature: None + allow_legacy_unsigned: false →
+    //           DefectClass::AttestationMissing.
+    //       (c) signature: Some(sig) → call verify_strict over
+    //           ProductionRecord::canonical_bytes_for_signing for the
+    //           record we are about to build. Failure raises
+    //           DefectClass::AttestationInvalid { reason }.
+    match inp.signature {
+        None => {
+            if !inp.allow_legacy_unsigned {
+                return Err(DefectClass::AttestationMissing);
+            }
+            // Legacy-unsigned-receipt audit event (best-effort).
+            let event_id = format!(
+                "{}:legacy_unsigned_receipt:{}",
+                inp.session_id,
+                chrono::Utc::now().timestamp_millis()
+            );
+            let _ = store.emit_event(
+                &event_id,
+                "legacy_unsigned_receipt",
+                &chrono::Utc::now().to_rfc3339(),
+                inp.session_id,
+                &[
+                    ("scope_token", inp.scope_token),
+                    ("artifact_hash", inp.artifact_hash),
+                    ("reason", "no signature; verify_legacy_receipts=true"),
+                ],
+                &[],
+                Some(inp.scope_token),
+            );
+        }
+        Some(sig) => {
+            let trust = match inp.trusted_keys {
+                Some(t) => t,
+                None => {
+                    return Err(DefectClass::AttestationInvalid {
+                        reason: "no_trust_set".into(),
+                    });
+                }
+            };
+            let fpr = match inp.signing_key_fpr.as_ref() {
+                Some(f) => f,
+                None => {
+                    return Err(DefectClass::AttestationInvalid {
+                        reason: "missing_signing_key_fpr".into(),
+                    });
+                }
+            };
+            // Build the would-be record (without sig/fpr) so we can
+            // recompute canonical_bytes_for_signing — the exact bytes
+            // the admission gate signed.
+            let preview = ProductionRecord {
+                artifact_hash,
+                scope_token: inp.scope_token.to_string(),
+                declared_powl_hash: inp.declared_powl.powl_hash,
+                ocel_canonical_hash,
+                conformance_run_id: inp.conformance_run_id.to_string(),
+                gate_config_hash,
+                production_law_version: inp.production_law_version.to_string(),
+                defects_taxonomy_version: crate::defects::DEFECTS_TAXONOMY_VERSION
+                    .to_string(),
+                gates_passed: vec![
+                    "A1_WorkflowDeclared".into(),
+                    "A2_ScopeClosed".into(),
+                    "A3_OCELComplete".into(),
+                    "A4_POWLReplayPass".into(),
+                    "A5_ThresholdPass".into(),
+                    "A6_RequiredStagesPresent".into(),
+                    "A7_NoBypassRevocation".into(),
+                    "A8_ReceiptValid".into(),
+                    "A9_ProvenanceChain".into(),
+                    "A10_ExternalAttestation".into(),
+                    "A11_TemporalValidity".into(),
+                    "A12_DependencyClosure".into(),
+                    "A13_ReplayProof".into(),
+                ],
+                gates_refused: Vec::new(),
+                prior_receipt: inp.prior_receipt,
+                signature: None,
+                signing_key_fpr: None,
+            };
+            let msg = preview.canonical_bytes_for_signing();
+            match attestation::verify_strict(trust, fpr, &msg, &sig) {
+                VerifyOutcome::Valid => {
+                    // Pass.
+                }
+                VerifyOutcome::UnknownKey => {
+                    return Err(DefectClass::AttestationInvalid {
+                        reason: format!(
+                            "unknown_signing_key:{}",
+                            attestation::fingerprint_hex(fpr)
+                        ),
+                    });
+                }
+                VerifyOutcome::SignatureInvalid => {
+                    return Err(DefectClass::AttestationInvalid {
+                        reason: "signature_invalid".into(),
+                    });
+                }
+            }
+        }
     }
+    // legacy `external_attestation` field is intentionally ignored — kept
+    // in CellReadyInputs only for source-compat with older test scaffolding.
+    // Touch it via a no-op debug assertion so the compiler doesn't warn.
+    debug_assert!(inp.external_attestation.is_empty() || !inp.external_attestation.is_empty());
 
     // 11. A11_temporal_validity — granted_at chain monotonic.
     if inp.granted_at_chain.is_empty() {
@@ -230,6 +355,8 @@ pub fn cell_ready(
         ],
         gates_refused: Vec::new(),
         prior_receipt: inp.prior_receipt,
+        signature: inp.signature,
+        signing_key_fpr: inp.signing_key_fpr,
     };
 
     Ok(receipts::build(record))

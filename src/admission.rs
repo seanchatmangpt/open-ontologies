@@ -14,6 +14,7 @@
 //! **No `bail!`, no `anyhow!`, no string error authority.** Every denial
 //! path returns a typed `(DefectClass, Vec<Deviation>)`.
 
+use crate::attestation::{Signer, TrustedKeys};
 use crate::cell_ready::{cell_ready, CellReadyInputs, PowlOpRef};
 use crate::defects::{DefectClass, Deviation};
 use crate::ocel_store::OcelStore;
@@ -208,6 +209,26 @@ pub struct OntoStarAdmissionGate {
     pub required_stages: Vec<String>,
     pub taxonomy_version: String,
     pub gate_config_hash: [u8; 32],
+    /// Real-Ed25519 attestation: when `Some`, the gate signs every
+    /// admitted [`crate::production_record::ProductionRecord`] before
+    /// persistence. When `None`, receipts are emitted unsigned (and
+    /// `verify_legacy_receipts` controls whether downstream A10 admits
+    /// them). Loaded from `OPEN_ONTOLOGIES_SIGNING_KEY_PATH`.
+    pub signer: Option<std::sync::Arc<Signer>>,
+    /// Trust set used by A10. Loaded from
+    /// `OPEN_ONTOLOGIES_TRUSTED_KEYS_DIR`. Required to verify any signed
+    /// receipt; unset turns A10 into legacy-only mode.
+    pub trusted_keys: Option<std::sync::Arc<TrustedKeys>>,
+    /// `[admission] require_attestation`. When `true` (default) and no
+    /// signer is configured, admission ALSO refuses to run — a missing
+    /// signing key in production is a configuration defect, not a
+    /// silent downgrade.
+    pub require_attestation: bool,
+    /// `[admission] verify_legacy_receipts`. When `true`, A10 admits
+    /// receipts with `signature: None` (emits a `legacy_unsigned_receipt`
+    /// audit event). When `false` (default), unsigned receipts fail A10
+    /// with `DefectClass::AttestationMissing`.
+    pub verify_legacy_receipts: bool,
 }
 
 impl OntoStarAdmissionGate {
@@ -234,7 +255,38 @@ impl OntoStarAdmissionGate {
             required_stages,
             taxonomy_version,
             gate_config_hash,
+            signer: None,
+            trusted_keys: None,
+            require_attestation: false,
+            verify_legacy_receipts: true,
         }
+    }
+
+    /// Attach an Ed25519 signer (used to sign every admitted receipt).
+    /// Builder-style; returns self.
+    pub fn with_signer(mut self, signer: std::sync::Arc<Signer>) -> Self {
+        self.signer = Some(signer);
+        self
+    }
+
+    /// Attach a trust set (used by A10 to verify signatures).
+    pub fn with_trusted_keys(mut self, trust: std::sync::Arc<TrustedKeys>) -> Self {
+        self.trusted_keys = Some(trust);
+        self
+    }
+
+    /// Set the `require_attestation` flag. When `true`, admission refuses
+    /// to run unless a signer is configured.
+    pub fn require_attestation(mut self, v: bool) -> Self {
+        self.require_attestation = v;
+        self
+    }
+
+    /// Set the `verify_legacy_receipts` flag. When `true`, A10 admits
+    /// receipts that lack a signature.
+    pub fn verify_legacy_receipts(mut self, v: bool) -> Self {
+        self.verify_legacy_receipts = v;
+        self
     }
 
     /// Phase 11 — tenant-aware admission. Looks up the scope's tenant_id
@@ -305,6 +357,17 @@ impl OntoStarAdmissionGate {
         if scope_token.is_empty() {
             self.emit_denied(store, session_id, op, &DefectClass::ScopeUnclosed);
             return Err((DefectClass::ScopeUnclosed, vec![]));
+        }
+
+        // require_attestation: if the gate was configured to demand a
+        // signer and none is loaded, refuse loud-and-early — a missing
+        // signing key is a configuration defect, not a silent downgrade.
+        if self.require_attestation && self.signer.is_none() {
+            let defect = DefectClass::AttestationInvalid {
+                reason: "no_signer_configured".into(),
+            };
+            self.emit_denied(store, session_id, op, &defect);
+            return Err((defect, vec![]));
         }
 
         // Bypass-revoked sessions auto-deny.
@@ -397,6 +460,52 @@ impl OntoStarAdmissionGate {
             None => Vec::new(),
         };
 
+        // Real-Ed25519: when a signer is configured, sign the would-be
+        // record (canonical_bytes_for_signing) and pass the signature +
+        // fingerprint into cell_ready so its A10 conjunct can
+        // `verify_strict` against the trust set. The preview record we
+        // sign here MUST match the record cell_ready will build on the
+        // ok-path; cell_ready rebuilds the same preview internally for
+        // verification, so the bytes are identical by construction.
+        let (signature_opt, fpr_opt) = if let Some(signer) = self.signer.as_ref() {
+            let preview = crate::production_record::ProductionRecord {
+                artifact_hash: artifact_hash_bytes,
+                scope_token: scope_token.to_string(),
+                declared_powl_hash: powl_hash,
+                ocel_canonical_hash: ocel_canonical_hash_bytes,
+                conformance_run_id: conf.run_id.clone(),
+                gate_config_hash: self.gate_config_hash,
+                production_law_version: "ontostar-1.0.0".into(),
+                defects_taxonomy_version: crate::defects::DEFECTS_TAXONOMY_VERSION
+                    .to_string(),
+                gates_passed: vec![
+                    "A1_WorkflowDeclared".into(),
+                    "A2_ScopeClosed".into(),
+                    "A3_OCELComplete".into(),
+                    "A4_POWLReplayPass".into(),
+                    "A5_ThresholdPass".into(),
+                    "A6_RequiredStagesPresent".into(),
+                    "A7_NoBypassRevocation".into(),
+                    "A8_ReceiptValid".into(),
+                    "A9_ProvenanceChain".into(),
+                    "A10_ExternalAttestation".into(),
+                    "A11_TemporalValidity".into(),
+                    "A12_DependencyClosure".into(),
+                    "A13_ReplayProof".into(),
+                ],
+                gates_refused: Vec::new(),
+                prior_receipt,
+                signature: None,
+                signing_key_fpr: None,
+            };
+            let msg = preview.canonical_bytes_for_signing();
+            let sig = signer.sign(&msg);
+            (Some(sig.to_bytes()), Some(signer.fingerprint()))
+        } else {
+            (None, None)
+        };
+        let trust_ref = self.trusted_keys.as_deref();
+
         let inputs = CellReadyInputs {
             scope_token,
             declared_powl: &powl_ref,
@@ -415,10 +524,14 @@ impl OntoStarAdmissionGate {
             prior_receipt,
             session_id,
             provenance_evidence: &provenance_evidence,
-            external_attestation: &artifact_hash_hex,
+            external_attestation: "",
             granted_at_chain: &granted_at_chain,
             admitted_receipts: &admitted_receipts,
             replay_canonical_hash: &ocel_trace_hash_hex,
+            signature: signature_opt,
+            signing_key_fpr: fpr_opt,
+            trusted_keys: trust_ref,
+            allow_legacy_unsigned: self.verify_legacy_receipts,
         };
 
         // Look up workflow_name once so both Ok and Err branches can record

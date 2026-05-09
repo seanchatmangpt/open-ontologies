@@ -7,7 +7,57 @@ Versions are organized per OntoStar phase on the `ontostar-integration` branch.
 Pre-OntoStar history (the original `open-ontologies` MCP server, releases
 0.1.x) is summarized at the bottom.
 
-## [Unreleased] — Phase 10 — Cell8 13-gate attestation
+## [Unreleased] — Real Ed25519 attestation (Round-2 cascade Plan 1)
+
+### Changed (BREAKING)
+
+- Replaced the Phase-10 A10 tautology (`external_attestation == artifact_hash`,
+  a vacuous self-check) with real Ed25519 verification using
+  `ed25519_dalek::VerifyingKey::verify_strict` over
+  `ProductionRecord::canonical_bytes_for_signing` (signature/fpr fields
+  excluded from the signed bytes — receipt-replay defence).
+- New module `src/attestation.rs` exposes `Signer::from_env()`,
+  `TrustedKeys::from_env()`, and an 8-byte BLAKE3-prefix key fingerprint
+  for rotation. PEM PKCS#8 keys at `OPEN_ONTOLOGIES_SIGNING_KEY_PATH` and
+  `OPEN_ONTOLOGIES_TRUSTED_KEYS_DIR/*.pub.pem`.
+- `ProductionRecord` gains `signature: Option<[u8; 64]>` and
+  `signing_key_fpr: Option<[u8; 8]>` (additive, serde-default —
+  pre-Round-2 receipts deserialize unchanged).
+- `OntoStarAdmissionGate` gains `signer`, `trusted_keys`,
+  `require_attestation`, `verify_legacy_receipts` knobs (builders:
+  `with_signer`, `with_trusted_keys`, `require_attestation`,
+  `verify_legacy_receipts`).
+- A10 conjunct in `cell_ready` rewritten with three branches:
+  - `signature: None` + `allow_legacy_unsigned: true` → emits
+    `legacy_unsigned_receipt` OCEL audit event and passes.
+  - `signature: None` + `allow_legacy_unsigned: false` →
+    `DefectClass::AttestationMissing`.
+  - `signature: Some(_)` → `verify_strict` →
+    `DefectClass::AttestationInvalid { reason }` on rejection.
+- New defect variant `DefectClass::AttestationInvalid { reason }` —
+  reasons: `"signature_invalid"`, `"unknown_signing_key:<fpr>"`,
+  `"missing_signing_key_fpr"`, `"no_trust_set"`, `"no_signer_configured"`.
+- Defects taxonomy bumped 4.0.0 → 4.1.0; discriminant hash repinned to
+  `a0d498dba7d299c8c105a3713186f6d7df79428896fd5133cb4575d3a18fd1f2`.
+- `Verdict::Tampered` gains `reason: String` (additive serde-default):
+  `"body_hash_mismatch"`, `"signature_invalid"`, `"unknown_signing_key"`.
+
+### Added
+
+- `tests/ed25519_attestation.rs` — five tests including the round-2
+  receipt-replay attack (sig from receipt A pasted onto receipt B with a
+  different `artifact_hash` → `AttestationInvalid { reason:
+  "signature_invalid" }`).
+
+### Truth-up
+
+- README receipt-chain wording: removed the unconditional
+  "Ed25519-signed" claim; documented the opt-in semantics keyed to
+  `OPEN_ONTOLOGIES_SIGNING_KEY_PATH` /
+  `OPEN_ONTOLOGIES_TRUSTED_KEYS_DIR` and the `verify_legacy_receipts`
+  default.
+
+## [Pre-release] — Phase 10 — Cell8 13-gate attestation
 
 Source and tests for the Cell8 A1–A13 conformance gates plus the EARL emitter
 are in tree (`src/cell8.rs`, `tests/cell8_thirteen_gates.rs` — 8 tests).

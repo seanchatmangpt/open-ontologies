@@ -26,11 +26,16 @@ need conformance replay. Emitted artifacts need cryptographic receipts. OntoStar
 gives each its own gate and refuses to let upstream admission excuse downstream
 failure.
 
-Every artifact carries its receipt of admission. The receipt is a BLAKE3-chained,
-Ed25519-signed record of (a) which gate granted it, (b) what the inputs hashed to,
-(c) which session and tenant it belongs to, and (d) what came before it in the
-chain. An external verifier can replay the chain offline; a missing or empty
-signature is a hard fail, not a warning. Fix-forward is the only way out.
+Every artifact carries its receipt of admission. The receipt is a BLAKE3-chained
+record of (a) which gate granted it, (b) what the inputs hashed to, (c) which
+session and tenant it belongs to, and (d) what came before it in the chain.
+When a signing key is configured (`OPEN_ONTOLOGIES_SIGNING_KEY_PATH`), each
+record is additionally Ed25519-signed; the Cell8 A10 conjunct then verifies the
+signature with `verify_strict` against a trust set loaded from
+`OPEN_ONTOLOGIES_TRUSTED_KEYS_DIR`. Without a signing key, receipts are emitted
+unsigned and admitted by A10 only when `[admission] verify_legacy_receipts =
+true`; otherwise A10 raises `DefectClass::AttestationMissing`. An external
+verifier can replay the chain offline. Fix-forward is the only way out.
 
 ## Architecture
 
@@ -90,7 +95,7 @@ chain. There is no `--force` flag.
 | Multi-tenant isolation + scope-token ACLs | `src/tenant.rs` | 7 (`tests/multi_tenant_isolation.rs`) |
 | Cell8 13-gate attestation (A1–A13) + EARL | `src/cell8.rs` | 8 (`tests/cell8_thirteen_gates.rs`) |
 | Recursive admission (CTQ → WorkOrder → Manufacturing) | `src/admission.rs` + `src/cell_ready.rs` | `tests/admission*.rs`, `tests/recursive_admission_e2e.rs` |
-| Receipt chain (BLAKE3 + Ed25519, atomic persist+emit) | `src/receipts.rs` | `tests/receipt_chain_adversarial.rs` |
+| Receipt chain (BLAKE3 + opt-in Ed25519, atomic persist+emit) | `src/receipts.rs`, `src/attestation.rs` | `tests/receipt_chain_adversarial.rs`, `tests/ed25519_attestation.rs` |
 | RDF / OWL / SPARQL / SHACL via Oxigraph | `src/graph.rs` `src/shacl.rs` | `tests/graph_test.rs`, `tests/shacl_test.rs` |
 | 50+ MCP tools (`onto_*`) over stdio / HTTP | `src/server.rs` + `src/cmds/` | `tests/onto_integration_test.rs` |
 
