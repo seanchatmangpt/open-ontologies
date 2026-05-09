@@ -133,17 +133,19 @@ fn wrong_order_denial() {
     }
 }
 
-/// (c) Happy path: declare LifecycleApply, run `plan_computed → enforce_run →
-/// apply_safe`, expect Ok(receipt) with fitness ≥ 0.95 and a row in `receipts`.
-// TODO(phase-6-followup): fixture defect surfaced by real replay — the
-// LifecycleApply POWL contains XOR/PO branch nodes (X (violations, enforce_run),
-// X (apply_safe, apply_migrate, apply_force), PO{monitor_*}, X (drift_detected,
-// rollback)). Emitting only plan_computed → enforce_run → apply_safe does NOT
-// satisfy the declared shape under PowlBridgeReplay (returns ReplayFailed). The
-// fixture needs to either (a) emit the full branch resolution trace, or (b) be
-// rewritten against a simpler workflow like DataExtensionFastPath. See plan §A
-// Andon: real replay is correct; fixture is incomplete.
-#[ignore = "phase-6-followup: real replay surfaced fixture defect; see plan §A Andon"]
+/// (c) Happy path: declare DataExtensionFastPath (a pure SEQ workflow), emit
+/// `load → extend → query`, expect Ok(receipt) with fitness ≥ 0.95 and a row
+/// in `receipts`.
+///
+/// Phase-7 note: this test was previously written against `LifecycleApply`,
+/// but that POWL contains XOR/PO branch nodes whose unused alternatives are
+/// flagged by the bridge's alphabet-difference classifier as `SkippedTask`
+/// — so even a lawful one-branch-per-XOR trace fails replay. The bridge's
+/// over-aggressive classifier is a separate concern (tracked elsewhere); for
+/// the happy-path admission contract, a SEQ-only workflow exercises the
+/// same gate semantics without that ambiguity. `DataExtensionFastPath`'s
+/// alphabet equals its required_stages, so a perfect trace yields a
+/// `verdict='conform'` row in `conformance_runs` and `replay_pass` is true.
 #[test]
 fn happy_path_admission_persists_receipt() {
     let db = fresh_db();
@@ -151,17 +153,17 @@ fn happy_path_admission_persists_receipt() {
     let session = "test-session-happy";
     let scope = WorkflowScope::new(&db, session);
     let token = scope
-        .open(Some("LifecycleApply"), None, None)
+        .open(Some("DataExtensionFastPath"), None, None)
         .expect("open scope");
     scope.close(&token).expect("close scope");
 
-    for stage in &["plan_computed", "enforce_run", "apply_safe"] {
+    for stage in &["load", "extend", "query"] {
         emit_stage(&store, session, &token, stage);
     }
     let observed = store.observed_event_types_for_session(session).unwrap();
 
-    let gate = build_gate("LifecycleApply");
-    let powl = by_name("LifecycleApply").unwrap().powl_string;
+    let gate = build_gate("DataExtensionFastPath");
+    let powl = by_name("DataExtensionFastPath").unwrap().powl_string;
     let artifact = ArtifactRef {
         kind: "test",
         bytes: b"happy-path-bytes",
@@ -191,7 +193,12 @@ fn happy_path_admission_persists_receipt() {
         .unwrap();
     assert_eq!(n, 1, "receipt row must be persisted");
     // PowlBridgeReplay produces real fitness ≥ 0.95 on perfect trace.
-    assert!(receipt.record.gates_passed.contains(&"ThresholdPass".to_string()));
+    // Phase-10 renamed gate labels to `A<n>_<Name>` form.
+    assert!(receipt
+        .record
+        .gates_passed
+        .iter()
+        .any(|g| g == "ThresholdPass" || g == "A5_ThresholdPass"));
 }
 
 /// (d) Replay enforcement: corrupt the ocel_canonical_hash by deleting the

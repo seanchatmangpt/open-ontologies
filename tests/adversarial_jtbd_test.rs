@@ -127,11 +127,6 @@ fn test_format_param_turtle_on_csv_must_fail() {
 }
 
 #[test]
-#[ignore = "phase-6-followup: behavior mismatch, not argv. `data push` panics with \
-            'Cannot start a runtime from within a runtime' (src/cmds/data.rs:205) and the \
-            panic message lands on its own stderr stream — observed stderr is empty, so the \
-            theater-detection assertion fires. Fix is on the verb (use the existing tokio \
-            handle instead of nested block_on), not on the test argv."]
 fn test_push_graph_name_param_forwarded_or_refused() {
     // JTBD: I want to push an ontology to a named graph in a SPARQL endpoint.
     // Counter-factual: --graph_name either gets forwarded to the UPDATE query OR
@@ -339,13 +334,10 @@ fn test_version_without_name_uses_default() {
 // A fake in step 1 is disproven by step 2's assertion.
 // ============================================================================
 
+// Phase-7 fix: `cmds::helpers::setup` now opens a file-backed Oxigraph at
+// `<data_dir>/oxigraph`, so successive subprocess invocations sharing
+// `--data_dir` operate on the same persistent triple set.
 #[test]
-#[ignore = "phase-6-followup: behavior mismatch, not argv. Across separate subprocess \
-            invocations sharing the same --data_dir, `ontology load` does not persist \
-            triples that `ontology sparql` can later read — Step 2 sees an empty result set \
-            ({\"results\":[],\"variables\":[\"name\"]}). Each verb appears to run against \
-            its own in-memory Oxigraph instance rather than the on-disk store rooted at \
-            --data_dir. Fix is in the verb implementations, not the test argv."]
 fn test_serial_counterfactual_ontology_load_query_clear_rollback() {
     // Serial JTBD: "I want to load an ontology, query it, snapshot it, clear it, and restore it."
     // Counter-factual chain: each step depends on the prior being real.
@@ -502,12 +494,9 @@ fn test_serial_counterfactual_ontology_load_query_clear_rollback() {
     // not theater.
 }
 
+// Phase-7 fix: same as above — file-backed Oxigraph at <data_dir>/oxigraph
+// makes ingest's triples visible to a subsequent `ontology sparql` subprocess.
 #[test]
-#[ignore = "phase-6-followup: behavior mismatch, not argv. `data ingest` exits 0 but the \
-            subsequent `ontology sparql` invocation against the same --data_dir returns an \
-            empty result set, so CSV→RDF triples are not crossing the subprocess boundary. \
-            Same root cause as the load/sparql serial chain: verbs do not share an on-disk \
-            triple store rooted at --data_dir. Fix is in the verbs, not the test argv."]
 fn test_serial_counterfactual_ingest_csv_to_queryable_rdf() {
     // JTBD: I want CSV data to become queryable RDF triples.
     // Counter-factual: if ingest is real, a SPARQL query for a CSV value must succeed.

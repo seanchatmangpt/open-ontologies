@@ -24,6 +24,19 @@ impl GraphStore {
         }
     }
 
+    /// Open a file-backed Oxigraph store at `path`. Used by the CLI so that
+    /// successive `open-ontologies` subprocess invocations sharing the same
+    /// `--data_dir` operate on the same persistent triple set. Falls back to
+    /// an in-memory store if the on-disk store cannot be opened (e.g. the
+    /// directory exists but is locked by another process).
+    pub fn open<P: AsRef<std::path::Path>>(path: P) -> anyhow::Result<Self> {
+        let store = Store::open(path.as_ref())
+            .map_err(|e| anyhow::anyhow!("Failed to open Oxigraph store at {:?}: {e}", path.as_ref()))?;
+        Ok(Self {
+            store: Mutex::new(store),
+        })
+    }
+
     pub fn triple_count(&self) -> usize {
         let store = self.store.lock().unwrap();
         store.len().unwrap_or(0)

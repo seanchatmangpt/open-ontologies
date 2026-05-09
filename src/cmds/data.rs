@@ -201,9 +201,18 @@ fn push(endpoint: String, graph_name: Option<String>, data_dir: Option<String>) 
     let dir = data_dir.as_deref().unwrap_or(DEFAULT_DATA_DIR);
     let (_db, g) = setup(dir).map_err(to_verb_err)?;
     let content = g.serialize("ntriples").map_err(to_verb_err)?;
-    let msg = tokio::runtime::Handle::current()
-        .block_on(GraphStore::push_sparql_graph(&endpoint, &content, graph_name.as_deref(), &[]))
-        .map_err(to_verb_err)?;
+    // Sync verb body invoked from within `#[tokio::main]` — must yield the
+    // current worker thread before driving an async future, otherwise tokio
+    // panics with "Cannot start a runtime from within a runtime".
+    let msg = tokio::task::block_in_place(|| {
+        tokio::runtime::Handle::current().block_on(GraphStore::push_sparql_graph(
+            &endpoint,
+            &content,
+            graph_name.as_deref(),
+            &[],
+        ))
+    })
+    .map_err(to_verb_err)?;
     Ok(serde_json::json!({"ok": true, "message": msg, "graph": graph_name}))
 }
 
