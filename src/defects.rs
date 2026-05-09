@@ -58,13 +58,20 @@ use serde::{Deserialize, Serialize};
 /// audit event before lifting the fields into a `CandidateCtq`. The
 /// tag set is unchanged (no new variants, no renames) — the
 /// discriminant hash carries forward unchanged. Forward-compatible.
-pub const DEFECTS_TAXONOMY_VERSION: &str = "ontostar-defects-4.2.0";
+///
+/// Bumped from `4.2.0` → `4.3.0` (Round 4 WE) after addition of
+/// [`DefectClass::BootstrapClosed`] for the `onto_exemplar_seed`
+/// bootstrap-window precondition. Forward-compatible — only one
+/// variant added, no renames or removals. Discriminant hash changes
+/// (a new tag joins `all_tags()`), so [`DEFECTS_TAXONOMY_DISCRIMINANT_HASH`]
+/// is updated in lockstep.
+pub const DEFECTS_TAXONOMY_VERSION: &str = "ontostar-defects-4.3.0";
 
 /// BLAKE3 hex of `tag1\0tag2\0...\0` for [`DefectClass::all_tags()`].
 /// CI-pinned. Adding/renaming/removing a variant changes this, forcing a
 /// taxonomy version bump.
 pub const DEFECTS_TAXONOMY_DISCRIMINANT_HASH: &str =
-    "a0d498dba7d299c8c105a3713186f6d7df79428896fd5133cb4575d3a18fd1f2";
+    "6984749a1ef04b4669aa22fa977506d4c0d8b1baf5898e9e7e8d9cf84e92b3d9";
 
 /// Typed denial classes. Every `Denied` outcome in admission/cell-ready
 /// machinery short-circuits on the first failing variant.
@@ -181,6 +188,11 @@ pub enum DefectClass {
     /// loaded). The legacy `AttestationMissing` is reserved for the
     /// signature-absent path.
     AttestationInvalid { reason: String },
+    /// R4 WE — §14: a bootstrap-only handler (e.g. `onto_exemplar_seed`)
+    /// was invoked after the bootstrap window closed (i.e. at least one
+    /// non-`seed-v0` receipt has been admitted, and the
+    /// `OPEN_ONTOLOGIES_BOOTSTRAP_MODE=1` env override is not set).
+    BootstrapClosed,
 }
 
 impl DefectClass {
@@ -217,6 +229,7 @@ impl DefectClass {
             DefectClass::DependencyClosureBroken { .. } => "dependency_closure_broken",
             DefectClass::ReplayDivergence { .. } => "replay_divergence",
             DefectClass::AttestationInvalid { .. } => "attestation_invalid",
+            DefectClass::BootstrapClosed => "bootstrap_closed",
         }
     }
 
@@ -255,6 +268,7 @@ impl DefectClass {
             "dependency_closure_broken",
             "replay_divergence",
             "attestation_invalid",
+            "bootstrap_closed",
         ]
     }
 }

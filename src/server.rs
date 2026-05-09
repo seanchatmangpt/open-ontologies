@@ -353,6 +353,25 @@ impl OpenOntologiesServer {
                     "reason": "bypass_admission=true requires a non-empty bypass_reason",
                 }).to_string());
             }
+            // R4 WE — §14: bypass self-attribution. The audit emission MUST
+            // precede `revoked_sessions` so that an external observer who
+            // only sees the OCEL stream knows the bypass happened with a
+            // typed `op=Bypass` audit event before the session was killed.
+            // The pre-existing `admission_bypass` event below is retained
+            // for backward compatibility with auditors keyed on the old
+            // event_type.
+            let mut bypass_artifact: Vec<u8> =
+                Vec::with_capacity(op.as_str().len() + reason.len() + 1);
+            bypass_artifact.extend_from_slice(op.as_str().as_bytes());
+            bypass_artifact.push(0);
+            bypass_artifact.extend_from_slice(reason.as_bytes());
+            self.evaluate_admission_audit(
+                crate::admission::AdmissionOp::Bypass,
+                explicit_scope,
+                "admission-bypass",
+                &bypass_artifact,
+            );
+
             let now = chrono::Utc::now().to_rfc3339();
             let event_id = format!(
                 "{}:admission_bypass:{}",
@@ -528,6 +547,59 @@ impl OpenOntologiesServer {
         );
         self.lineage()
             .record(&self.session_id, "A", "admission_audit", op.as_str());
+    }
+
+    /// R4 WE — §14 mutation gate: shared helper for `onto_plan_workflow`'s
+    /// two engine paths (groq_powl and mustar). Runs full admission against
+    /// `AdmissionOp::WorkflowPlanned` BEFORE inserting the planned scope row
+    /// into `workflow_scopes`. Both paths must funnel through here so the
+    /// `no_bypass_audit` depth-2 helper scan can prove the gate is reached
+    /// from every path.
+    ///
+    /// Artifact bytes: `scope_token + "\0" + domain + "\0" + powl`.
+    /// On admission denial, returns `Err(denial_json)` and writes nothing.
+    /// On gate-passed: emits the canonical INSERT and returns `Ok(())`.
+    /// On INSERT failure: returns `Err(error_json)`.
+    fn persist_planned_scope(
+        &self,
+        scope_token: &str,
+        domain: &str,
+        powl: &str,
+        bypass_admission: Option<bool>,
+        bypass_reason: Option<&str>,
+    ) -> Result<(), String> {
+        let mut artifact_bytes: Vec<u8> = Vec::with_capacity(
+            scope_token.len() + domain.len() + powl.len() + 2,
+        );
+        artifact_bytes.extend_from_slice(scope_token.as_bytes());
+        artifact_bytes.push(0);
+        artifact_bytes.extend_from_slice(domain.as_bytes());
+        artifact_bytes.push(0);
+        artifact_bytes.extend_from_slice(powl.as_bytes());
+
+        if let Err(denial) = self.evaluate_admission(
+            crate::admission::AdmissionOp::WorkflowPlanned,
+            Some(scope_token),
+            "workflow-planned",
+            &artifact_bytes,
+            bypass_admission,
+            bypass_reason,
+        ) {
+            return Err(denial);
+        }
+
+        let conn = self.db.conn();
+        if let Err(e) = conn.execute(
+            "INSERT INTO workflow_scopes (scope_token, workflow_name, domain, powl_string)
+             VALUES (?1, ?2, ?3, ?4)",
+            rusqlite::params![scope_token, "planned_workflow", domain, powl],
+        ) {
+            return Err(format!(
+                r#"{{"ok":false,"error":"failed to declare scope: {}"}}"#,
+                e.to_string().replace('"', "'")
+            ));
+        }
+        Ok(())
     }
 
     /// OntoStar Stream 1: emit a uniform `<tool>` OCEL event for handlers that
@@ -2157,7 +2229,7 @@ impl OpenOntologiesServer {
     }
 
     #[tool(name = "onto_align", description = "Detect alignment candidates (owl:equivalentClass, skos:exactMatch, rdfs:subClassOf) between two ontologies using label similarity, property overlap, parent overlap, instance overlap, restriction patterns, and graph neighborhood. Auto-applies high-confidence matches above threshold. Auto-apply path is gated by OntoStar admission; dry_run path is read-only and skips admission.")]
-    async fn onto_align(&self, Parameters(input): Parameters<OntoAlignInput>) -> String {
+    pub async fn onto_align(&self, Parameters(input): Parameters<OntoAlignInput>) -> String {
         let engine = crate::align::AlignmentEngine::new(self.db.clone(), self.graph.clone());
 
         // Auto-apply path mutates the graph (writes equivalentClass /
@@ -2225,22 +2297,30 @@ impl OpenOntologiesServer {
                     })
                     .unwrap_or((0, 0));
 
-                let event_id = format!("{}:align:{}", self.session_id, chrono::Utc::now().timestamp_millis());
-                let _ = self.ocel_store().emit_event(
-                    &event_id,
-                    "align_run",
-                    &ts,
-                    &self.session_id,
-                    &[
-                        ("threshold", &min_conf.to_string()),
-                        ("candidate_count", &candidate_count.to_string()),
-                        ("auto_applied_count", &auto_applied.to_string()),
-                    ],
-                    &[(&obj_id_src, "source_ontology"), (&obj_id_tgt, "target_ontology")],
-                    None,
-                );
+                // R4 WE — §14 OCEL purity: dry_run must NOT emit an
+                // `align_run` event or a lineage `AL/align` record. The
+                // alignment engine ran a read-only candidate scan; emitting
+                // an OCEL event would pollute the trail with a record that
+                // claims `auto_applied_count` mutated the graph when it did
+                // not. Both side effects move inside the apply branch.
+                if !dry_run_flag {
+                    let event_id = format!("{}:align:{}", self.session_id, chrono::Utc::now().timestamp_millis());
+                    let _ = self.ocel_store().emit_event(
+                        &event_id,
+                        "align_run",
+                        &ts,
+                        &self.session_id,
+                        &[
+                            ("threshold", &min_conf.to_string()),
+                            ("candidate_count", &candidate_count.to_string()),
+                            ("auto_applied_count", &auto_applied.to_string()),
+                        ],
+                        &[(&obj_id_src, "source_ontology"), (&obj_id_tgt, "target_ontology")],
+                        None,
+                    );
 
-                self.lineage().record(&self.session_id, "AL", "align", &format!("threshold={}", min_conf));
+                    self.lineage().record(&self.session_id, "AL", "align", &format!("threshold={}", min_conf));
+                }
                 if let Some(r) = &receipt {
                     let mut parsed: serde_json::Value =
                         serde_json::from_str(&result).unwrap_or_else(|_| serde_json::json!({}));
@@ -2840,14 +2920,38 @@ impl OpenOntologiesServer {
 
     // ── OntoStar Stream 1 — workflow scope ──────────────────────────────────
 
-    #[tool(
-        name = "onto_declare_workflow",
-        description = "OntoStar: declare a workflow scope. Either pass a built-in `name` (OntologyAuthoring, DataExtension, DataExtensionFastPath, LifecycleApply, Alignment, Codegen, GovernedRelease) or an inline `powl` string. Returns a `scope_token` (ULID) used to tag subsequent OCEL events. Pair with `onto_close_workflow`."
-    )]
+    #[tool(name = "onto_declare_workflow", description = "OntoStar: declare a workflow scope. Either pass a built-in `name` (OntologyAuthoring, DataExtension, DataExtensionFastPath, LifecycleApply, Alignment, Codegen, GovernedRelease) or an inline `powl` string. Returns a `scope_token` (ULID) used to tag subsequent OCEL events. Pair with `onto_close_workflow`. R4 WE: full admission via AdmissionOp::WorkflowDeclared.")]
     fn onto_declare_workflow(
         &self,
         Parameters(input): Parameters<OntoDeclareWorkflowInput>,
     ) -> String {
+        // R4 WE — §14: full admission BEFORE the scope row is materialized.
+        // The artifact bytes are a deterministic concatenation of the
+        // (optional) workflow name, the POWL string, and the caller's
+        // tenant_id, so two sessions in the same tenant declaring the same
+        // workflow produce identical artifact hashes.
+        let name_str = input.name.clone().unwrap_or_default();
+        let powl_str = input.powl.clone().unwrap_or_default();
+        let tenant_str = self.tenant.current().current().to_string();
+        let mut artifact_bytes: Vec<u8> = Vec::with_capacity(
+            name_str.len() + powl_str.len() + tenant_str.len() + 2,
+        );
+        artifact_bytes.extend_from_slice(name_str.as_bytes());
+        artifact_bytes.push(0);
+        artifact_bytes.extend_from_slice(powl_str.as_bytes());
+        artifact_bytes.push(0);
+        artifact_bytes.extend_from_slice(tenant_str.as_bytes());
+        if let Err(denial) = self.evaluate_admission(
+            crate::admission::AdmissionOp::WorkflowDeclared,
+            input.scope_token.as_deref(),
+            "workflow-declared",
+            &artifact_bytes,
+            input.bypass_admission,
+            input.bypass_reason.as_deref(),
+        ) {
+            return denial;
+        }
+
         let scope = crate::workflows::WorkflowScope::new(&self.db, &self.session_id);
         match scope.open(
             input.name.as_deref(),
@@ -2873,14 +2977,25 @@ impl OpenOntologiesServer {
         }
     }
 
-    #[tool(
-        name = "onto_close_workflow",
-        description = "OntoStar: close a previously-declared workflow scope. Writes `closed_at` and flips status to `closed`. Returns `{closed: true, scope_token}` on success; returns a typed `ScopeUnclosed` defect if the token is unknown or already closed."
-    )]
+    #[tool(name = "onto_close_workflow", description = "OntoStar: close a previously-declared workflow scope. Writes `closed_at` and flips status to `closed`. Returns `{closed: true, scope_token}` on success; returns a typed `ScopeUnclosed` defect if the token is unknown or already closed. R4 WE: full admission via AdmissionOp::WorkflowClosed.")]
     fn onto_close_workflow(
         &self,
         Parameters(input): Parameters<OntoCloseWorkflowInput>,
     ) -> String {
+        // R4 WE — §14: full admission BEFORE the scope is closed.
+        // Artifact bytes are the raw `scope_token` (so the artifact hash is
+        // a deterministic function of which scope is being closed).
+        if let Err(denial) = self.evaluate_admission(
+            crate::admission::AdmissionOp::WorkflowClosed,
+            Some(&input.scope_token),
+            "workflow-closed",
+            input.scope_token.as_bytes(),
+            input.bypass_admission,
+            input.bypass_reason.as_deref(),
+        ) {
+            return denial;
+        }
+
         let scope = crate::workflows::WorkflowScope::new(&self.db, &self.session_id);
         match scope.close(&input.scope_token) {
             Ok(()) => serde_json::json!({
@@ -3319,18 +3434,17 @@ impl OpenOntologiesServer {
                     .unwrap_or(0),
                 uuid_short(&powl)
             );
-            {
-                let conn = self.db.conn();
-                if let Err(e) = conn.execute(
-                    "INSERT INTO workflow_scopes (scope_token, workflow_name, domain, powl_string)
-                     VALUES (?1, ?2, ?3, ?4)",
-                    rusqlite::params![scope_token, "planned_workflow", input.domain, powl],
-                ) {
-                    return format!(
-                        r#"{{"ok":false,"error":"failed to declare scope: {}"}}"#,
-                        e.to_string().replace('"', "'")
-                    );
-                }
+            // R4 WE — §14: full admission BEFORE the synthetic scope INSERT.
+            // Centralised in `persist_planned_scope` so both engine paths
+            // funnel through the same gated code.
+            if let Err(denial) = self.persist_planned_scope(
+                &scope_token,
+                &input.domain,
+                &powl,
+                input.bypass_admission,
+                input.bypass_reason.as_deref(),
+            ) {
+                return denial;
             }
 
             let details = format!(
@@ -3449,18 +3563,15 @@ impl OpenOntologiesServer {
             uuid_short(&powl_string)
         );
 
-        {
-            let conn = self.db.conn();
-            if let Err(e) = conn.execute(
-                "INSERT INTO workflow_scopes (scope_token, workflow_name, domain, powl_string)
-                 VALUES (?1, ?2, ?3, ?4)",
-                rusqlite::params![scope_token, "planned_workflow", input.domain, powl_string],
-            ) {
-                return format!(
-                    r#"{{"error":"failed to declare scope: {}"}}"#,
-                    e.to_string().replace('"', "'")
-                );
-            }
+        // R4 WE — §14: full admission BEFORE the synthetic scope INSERT.
+        if let Err(denial) = self.persist_planned_scope(
+            &scope_token,
+            &input.domain,
+            &powl_string,
+            input.bypass_admission,
+            input.bypass_reason.as_deref(),
+        ) {
+            return denial;
         }
 
         // OCEL event: build_order_generated.
@@ -3495,8 +3606,21 @@ impl OpenOntologiesServer {
         .to_string()
     }
 
-    #[tool(name = "onto_exemplar_seed", description = "Stream 5: Admin handler. Read a seed OCEL JSON file (default: ~/chatmangpt/ostar/artifacts/ocel/mu_star/ONTOLOGY.oceljson), extract `build_order_generated` events, and insert them into mined_exemplars with synthesized receipts marked production_law_version='seed-v0'. Strict admission can later filter via WHERE production_law_version != 'seed-v0'.")]
+    #[tool(name = "onto_exemplar_seed", description = "Stream 5: Admin handler. Read a seed OCEL JSON file (default: ~/chatmangpt/ostar/artifacts/ocel/mu_star/ONTOLOGY.oceljson), extract `build_order_generated` events, and insert them into mined_exemplars with synthesized receipts marked production_law_version='seed-v0'. Strict admission can later filter via WHERE production_law_version != 'seed-v0'. Bootstrap-only: refuses with BootstrapClosed once any non-seed receipt has been admitted.")]
     async fn onto_exemplar_seed(&self, Parameters(input): Parameters<OntoExemplarSeedInput>) -> String {
+        // R4 WE — §14: bootstrap-only precondition. Once a real production
+        // receipt exists, the seed handler refuses with BootstrapClosed —
+        // an admin handler that mutates the store after production traffic
+        // has begun is a fail-open hole. The env override
+        // `OPEN_ONTOLOGIES_BOOTSTRAP_MODE=1` keeps integration tests
+        // unblocked.
+        if !crate::bootstrap::BootstrapState::is_bootstrap(&self.db) {
+            return serde_json::json!({
+                "ok": false,
+                "defect": { "kind": "BootstrapClosed" },
+                "reason": "onto_exemplar_seed runs only during bootstrap; production receipts present (set OPEN_ONTOLOGIES_BOOTSTRAP_MODE=1 to override during integration tests)",
+            }).to_string();
+        }
         let raw_path = input
             .path
             .clone()
@@ -3512,6 +3636,15 @@ impl OpenOntologiesServer {
                 )
             }
         };
+        // R4 WE — §14: audit-only emission BEFORE the seed mutation.
+        // ExemplarSeeded is bootstrap-tier; the gate cannot deny but the
+        // OCEL trail must self-attribute.
+        self.evaluate_admission_audit(
+            crate::admission::AdmissionOp::ExemplarSeeded,
+            None,
+            "exemplar-seed",
+            &bytes,
+        );
         let default_domain = input.domain.clone().unwrap_or_else(|| "ONTOLOGY".to_string());
         let store = crate::ocel_store::OcelStore::new(self.db.clone());
         let inserted = match store.seed_from_ocel_bytes(&bytes, &default_domain) {

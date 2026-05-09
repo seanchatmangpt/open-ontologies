@@ -378,12 +378,20 @@ pub struct OntoDeclareWorkflowInput {
     /// Reuse an existing scope token (idempotent re-open). If omitted, a new
     /// ULID is minted.
     pub scope_token: Option<String>,
+    /// Bypass admission gate. Requires `bypass_reason`. Revokes the session.
+    pub bypass_admission: Option<bool>,
+    /// Required when `bypass_admission` is true.
+    pub bypass_reason: Option<String>,
 }
 
 #[derive(Deserialize, JsonSchema)]
 pub struct OntoCloseWorkflowInput {
     /// The scope token returned by `onto_declare_workflow`.
     pub scope_token: String,
+    /// Bypass admission gate. Requires `bypass_reason`. Revokes the session.
+    pub bypass_admission: Option<bool>,
+    /// Required when `bypass_admission` is true.
+    pub bypass_reason: Option<String>,
 }
 
 // ─── OntoStar Stream 2 — conformance check ──────────────────────────────────
@@ -697,6 +705,10 @@ pub struct OntoPlanWorkflowInput {
     /// or "groq_powl" (real Groq via pm4py.algo.dspy.powl through
     /// `scripts/powl_from_text.py`). Unknown values are treated as "mustar".
     pub engine: Option<String>,
+    /// Bypass admission gate. Requires `bypass_reason`. Revokes the session.
+    pub bypass_admission: Option<bool>,
+    /// Required when `bypass_admission` is true.
+    pub bypass_reason: Option<String>,
 }
 
 #[derive(Deserialize, JsonSchema)]

@@ -1,6 +1,7 @@
 pub mod admission;
 pub mod attestation;
 pub mod batch;
+pub mod bootstrap;
 pub mod cache;
 pub mod cell8;
 pub mod cell_ready;

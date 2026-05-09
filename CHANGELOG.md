@@ -7,7 +7,84 @@ Versions are organized per OntoStar phase on the `ontostar-integration` branch.
 Pre-OntoStar history (the original `open-ontologies` MCP server, releases
 0.1.x) is summarized at the bottom.
 
-## [Unreleased] — Round 4 WC: §7 + §13 LLMAuthority closure
+## [Unreleased] — Round 4 WE: §14 mutation gate purity + ratchet hardening
+
+### Changed
+
+- `src/server.rs`: 4 falsely-allowlisted mutating handlers reclassified.
+  - `onto_declare_workflow` now routes through `evaluate_admission(WorkflowDeclared, …)`
+    BEFORE `WorkflowScope::open(...)`. Artifact bytes:
+    `name + "\0" + powl + "\0" + tenant_id`.
+  - `onto_close_workflow` now routes through `evaluate_admission(WorkflowClosed, …)`
+    BEFORE `WorkflowScope::close(...)`. Artifact bytes: raw `scope_token`.
+  - `onto_plan_workflow` (both `groq_powl` and `mustar` engine paths) now
+    funnels through a new private helper `persist_planned_scope` which
+    runs `evaluate_admission(WorkflowPlanned, …)` BEFORE the synthetic
+    `INSERT INTO workflow_scopes` row.
+  - `onto_exemplar_seed` now requires `BootstrapState::is_bootstrap(&db)`
+    to return `true`; otherwise it fails fast with
+    `DefectClass::BootstrapClosed`. On the bootstrap-passing path, an
+    `evaluate_admission_audit(ExemplarSeeded, …)` event is emitted before
+    the `OcelStore::seed_from_ocel_bytes` mutation.
+- `src/server.rs::evaluate_admission` bypass branch: now self-attributes
+  via `evaluate_admission_audit(AdmissionOp::Bypass, …)` BEFORE writing
+  `revoked_sessions`. The pre-existing `admission_bypass` event is retained
+  for backward compat with auditors keyed on the old `event_type`.
+- `src/server.rs::onto_align`: dry_run no longer leaks an `align_run` OCEL
+  event. The `emit_event("align_run", ...)` and `lineage().record("AL", …)`
+  calls now live inside the `if !dry_run_flag` apply branch.
+- `src/admission.rs`: 5 new `AdmissionOp` variants (`WorkflowDeclared`,
+  `WorkflowClosed`, `WorkflowPlanned`, `ExemplarSeeded`, `Bypass`).
+  `as_str()` and `is_full_admission()` updated; `ExemplarSeeded` and
+  `Bypass` are audit-only.
+- `tests/no_bypass_audit.rs`: hardened with three new sub-checks:
+  (a) direct DB write detection (`body_writes_db`) catching `.execute(`,
+  `.execute_batch(`, `.prepare(`, `INSERT INTO`, `UPDATE `, `DELETE FROM`;
+  (b) depth-2 transitive helper scan (`handler_reaches_db_write_bypassing_gate`)
+  walking `self.<helper>(` calls; (c) allowlist justification regex
+  (`validate_allowlist_justification`) requiring `READ-ONLY: ` prefix and
+  rejecting weasel words. The allowlist is now `HashSet<(name, justification)>`
+  with proper justifications, and the four reclassified handlers were
+  removed.
+- Defects taxonomy: `4.2.0` → `4.3.0` (forward-compatible).
+  `DefectClass::BootstrapClosed` added. New discriminant hash:
+  `6984749a1ef04b4669aa22fa977506d4c0d8b1baf5898e9e7e8d9cf84e92b3d9`
+  (was `a0d498dba7d299c8c105a3713186f6d7df79428896fd5133cb4575d3a18fd1f2`).
+
+### Added
+
+- `src/bootstrap.rs` — new module with `BootstrapState::is_bootstrap(&db)`.
+  Returns `true` iff `OPEN_ONTOLOGIES_BOOTSTRAP_MODE=1` env var is set OR
+  the `receipts` table has zero rows with
+  `production_law_version != 'seed-v0'`.
+- `tests/round4_no_bypass_red_team.rs` — 6 saboteur tests proving each
+  hardened sub-check is load-bearing (depth-1 helper bypass, gated helper
+  passes, conditionally-gated path stripped, weak `graph` justification
+  rejected, missing `READ-ONLY:` prefix rejected, direct DB write in
+  body caught).
+- `tests/round4_admission_op_bypass.rs` — 2 tests proving the bypass
+  branch emits an `admission_audit{op=bypass}` OCEL row BEFORE
+  `revoked_sessions` is written.
+- `tests/round4_align_dry_run.rs` — 2 tests proving `dry_run=true` emits
+  zero `align_run` OCEL rows and `dry_run=false` emits at most one.
+- `tests/no_bypass_audit.rs::read_only_allowlist_justifications_pass_regex`
+  — pins every allowlist justification against the §14 regex.
+- `OpenOntologiesServer::onto_align` is now `pub` so integration tests
+  can drive it directly (it was already public via `#[tool]`; this just
+  closes the Rust-visibility gap).
+- `OntoDeclareWorkflowInput`, `OntoCloseWorkflowInput`, `OntoPlanWorkflowInput`
+  gain `bypass_admission: Option<bool>` and `bypass_reason: Option<String>`
+  fields, mirroring the rest of the mutating-handler input contract.
+
+### Counterfactual proof (§19)
+
+Without the depth-2 helper scan, a future PR adding a `self.evil_insert()`
+helper inside an allowlisted handler — where `evil_insert` runs
+`conn.execute("INSERT INTO …")` — would slip past `no_bypass_audit`.
+`r4_red_team_depth1_helper_writes_db_caught` proves the walker catches
+this exact pattern. Test count empirically rose from 496 → 507.
+
+## [Earlier Unreleased] — Round 4 WC: §7 + §13 LLMAuthority closure
 
 ### Changed
 

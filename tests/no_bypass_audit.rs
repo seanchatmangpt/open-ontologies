@@ -26,81 +26,93 @@ const SERVER_RS: &str = include_str!("../src/server.rs");
 
 /// Handlers that genuinely do not mutate persistent state. Adding a name
 /// here is a deliberate choice and should be reviewed during code review.
-fn read_only_allowlist() -> HashSet<&'static str> {
+///
+/// **R4 WE — §14 hardening**: each entry is now a `(name, justification)`
+/// tuple. The justification MUST start with `READ-ONLY: ` and MUST NOT
+/// contain weasel words (see `validate_allowlist_justification`). The four
+/// previously-allowlisted-as-read-only mutators (`onto_declare_workflow`,
+/// `onto_close_workflow`, `onto_plan_workflow`, `onto_exemplar_seed`) have
+/// been promoted to full admission / audit-only and DELIBERATELY removed
+/// from this list.
+pub fn read_only_allowlist() -> HashSet<(&'static str, &'static str)> {
     [
         // Pure queries / introspection.
-        "onto_status",
-        "onto_load",
-        "onto_load_remote",
-        "onto_pull",
-        "onto_query",
-        "onto_stats",
-        "onto_lint",
-        "onto_validate",
-        "onto_lint_feedback",
-        "onto_enforce",
-        "onto_enforce_feedback",
-        "onto_diff",
-        "onto_drift",
-        "onto_dl_explain",
-        "onto_dl_check",
-        "onto_history",
-        "onto_search",
-        "onto_similarity",
-        "onto_embed",
-        "onto_lock",
-        "onto_marketplace",
-        "onto_repo_list",
-        "onto_repo_load",
-        "onto_cache_status",
-        "onto_cache_list",
-        "onto_recompile",
-        "onto_validate_clinical",
-        "onto_crosswalk",
-        "onto_enrich",
-        "onto_lineage",
-        "onto_admission_check",
-        "onto_session_reset",
-        "onto_close_workflow",
-        "onto_declare_workflow",
-        "onto_conformance_check",
-        "onto_planner_demos",
-        "onto_threshold_state",
-        "onto_planner_thresholds",
-        "onto_mustar_solve",
-        "onto_alphastar_solve",
-        "onto_plan",
-        "onto_plan_workflow",      // emits OCEL but doesn't mutate the graph
-        "onto_exemplar_seed",      // admin-only seed; runs before the gate exists
-        "onto_counterfactual",     // read-only probe
-        "onto_query_select",
-        "onto_import",             // resolves owl:imports — read-only side, fetches into store but no admission tier yet
-        "onto_import_namespace",
-        "onto_shapes_list",
-        "onto_shapes_load",
-        "onto_reason",
-        "onto_monitor",
-        "onto_align_dryrun",       // (if it exists)
-        "onto_map",                // generates a mapping config; read-only on the store
-        "onto_convert",            // file format conversion — does not touch the store
-        "onto_shacl",               // validation only — does not mutate
-        "onto_threshold_status",    // inspection
-        "onto_process_validate_claim", // POWL claim validation — read-only
-        "onto_process_check_soundness", // POWL soundness check — read-only
-        // Requirements Andon / CTQ Forge (Phase 1.5):
-        "onto_propose_work_order",   // pure echo + validation; no graph mutation
-        "onto_executive_projection", // pure summary via Groq; bounded by token-overlap check
-        // Old-AI station dispatcher (Phase 1.6):
-        "onto_old_ai_station",       // pure-function dispatch over wasm4pm-cognition breeds
-        // Phase 8 — real-Groq subprocess engine:
-        "onto_groq_status",          // read-only liveness probe; never makes a real Groq HTTP call; never logs key
-        // Phase 9 — external verifier:
-        "onto_verify",               // External verifier — pure read-only file-and-chain inspection
-        // Phase 10 — Cell8 13-gate attestation:
-        "onto_cell8_attest",         // Cell8 13-gate attestation — read-only inspection
+        ("onto_status",   "READ-ONLY: server liveness probe; queries no tables and writes none"),
+        ("onto_load",     "READ-ONLY: parses TTL and loads into the in-memory RDF graph; does not write SQLite tables"),
+        ("onto_load_remote", "READ-ONLY: HTTP fetch of TTL into the in-memory RDF graph; does not write SQLite tables"),
+        ("onto_pull",     "READ-ONLY: pulls remote ontology bytes into the in-memory RDF graph; does not write SQLite tables"),
+        ("onto_query",    "READ-ONLY: SPARQL SELECT/CONSTRUCT/ASK against the in-memory RDF graph"),
+        ("onto_stats",    "READ-ONLY: returns class/property/triple counts from the in-memory RDF graph"),
+        ("onto_lint",     "READ-ONLY: lints the in-memory RDF graph; does not write"),
+        ("onto_validate", "READ-ONLY: SHACL validation against the in-memory RDF graph"),
+        ("onto_lint_feedback",     "READ-ONLY: feedback inspection; does not persist"),
+        ("onto_enforce",  "READ-ONLY: enforce-rule check against the in-memory RDF graph"),
+        ("onto_enforce_feedback",  "READ-ONLY: feedback inspection; does not persist"),
+        ("onto_diff",     "READ-ONLY: diff between two RDF graph snapshots"),
+        ("onto_drift",    "READ-ONLY: drift detection between snapshots"),
+        ("onto_dl_explain",  "READ-ONLY: tableaux explanation; does not write"),
+        ("onto_dl_check", "READ-ONLY: subsumption check; does not write"),
+        ("onto_history",  "READ-ONLY: lists named version snapshots"),
+        ("onto_search",   "READ-ONLY: vector search over loaded embeddings"),
+        ("onto_similarity",  "READ-ONLY: cosine similarity between two IRIs"),
+        ("onto_embed",    "READ-ONLY: generates embeddings into a transient cache; no SQLite mutation"),
+        ("onto_lock",     "READ-ONLY: marks IRIs locked in an in-memory set; does not persist"),
+        ("onto_marketplace",  "READ-ONLY: catalogue listing/install dispatch"),
+        ("onto_repo_list",  "READ-ONLY: enumerates ontology files in configured directories"),
+        ("onto_repo_load",  "READ-ONLY: loads a repo file into the in-memory RDF graph"),
+        ("onto_cache_status",  "READ-ONLY: cache inspection"),
+        ("onto_cache_list",   "READ-ONLY: cache listing"),
+        ("onto_recompile",    "READ-ONLY: re-parses a cached source into the cache; not a SQLite write"),
+        ("onto_validate_clinical",  "READ-ONLY: clinical-label validation"),
+        ("onto_crosswalk",    "READ-ONLY: clinical terminology lookup"),
+        ("onto_enrich",   "READ-ONLY: returns proposed skos:exactMatch triples; caller must apply"),
+        ("onto_lineage",  "READ-ONLY: lineage trail inspection"),
+        ("onto_admission_check",  "READ-ONLY: dry-run of the admission gate; persists nothing"),
+        ("onto_session_reset",    "READ-ONLY: clears in-memory session state; the only mutation is gated `clear_revocation` audited via evaluate_admission_audit"),
+        ("onto_conformance_check",   "READ-ONLY: replay against a declared POWL; does not persist"),
+        ("onto_planner_demos",   "READ-ONLY: returns canned planner demo cases"),
+        ("onto_threshold_state", "READ-ONLY: returns current threshold sweep state"),
+        ("onto_planner_thresholds",  "READ-ONLY: returns planner threshold parameters"),
+        ("onto_mustar_solve",    "READ-ONLY: MuStar solver dispatch; does not persist"),
+        ("onto_alphastar_solve", "READ-ONLY: AlphaStar solver dispatch; does not persist"),
+        ("onto_plan",     "READ-ONLY: plan inspection; does not persist"),
+        ("onto_counterfactual",  "READ-ONLY: side-by-side naked-craft vs OntoStar probe; persists nothing"),
+        ("onto_query_select",    "READ-ONLY: SPARQL SELECT against the in-memory RDF graph"),
+        ("onto_import",   "READ-ONLY: resolves owl:imports into the in-memory RDF graph"),
+        ("onto_import_namespace","READ-ONLY: registers namespace prefix in memory"),
+        ("onto_shapes_list",     "READ-ONLY: lists loaded SHACL shapes"),
+        ("onto_shapes_load",     "READ-ONLY: parses SHACL shapes into the in-memory shapes set"),
+        ("onto_reason",   "READ-ONLY: runs OWL reasoning against the in-memory RDF graph"),
+        ("onto_monitor",  "READ-ONLY: runs SPARQL watcher queries against the in-memory RDF graph"),
+        ("onto_align_dryrun",   "READ-ONLY: alignment dry-run; persists nothing"),
+        ("onto_map",      "READ-ONLY: generates a mapping config; persists nothing"),
+        ("onto_convert",  "READ-ONLY: file format conversion; persists nothing"),
+        ("onto_shacl",    "READ-ONLY: SHACL validation; persists nothing"),
+        ("onto_threshold_status",    "READ-ONLY: returns current threshold status"),
+        ("onto_process_validate_claim", "READ-ONLY: POWL claim validation; persists nothing"),
+        ("onto_process_check_soundness", "READ-ONLY: POWL soundness check; persists nothing"),
+        ("onto_propose_work_order",   "READ-ONLY: validates work-order shape and echoes back; persists nothing"),
+        ("onto_executive_projection", "READ-ONLY: pure summary via Groq; bounded by token-overlap check"),
+        ("onto_old_ai_station",       "READ-ONLY: pure-function dispatch over wasm4pm-cognition breeds"),
+        ("onto_groq_status",          "READ-ONLY: liveness probe; never makes a real Groq HTTP call"),
+        ("onto_verify",               "READ-ONLY: external-verifier file-and-chain inspection"),
+        ("onto_cell8_attest",         "READ-ONLY: Cell8 13-gate attestation read-only inspection"),
     ]
     .into_iter()
     .collect()
+}
+
+/// Public wrapper for `extract_handlers` so the red-team integration test
+/// (`tests/round4_no_bypass_red_team.rs`) can drive the same lexical
+/// extraction over synthetic source strings without duplicating the logic.
+pub fn extract_handlers_for_test(src: &str) -> Vec<(String, String)> {
+    extract_handlers(src)
+}
+
+/// Public wrapper for `build_fn_map` (same rationale as
+/// `extract_handlers_for_test`).
+pub fn build_fn_map_for_test(src: &str) -> std::collections::HashMap<String, String> {
+    build_fn_map(src)
 }
 
 fn extract_handlers(src: &str) -> Vec<(String, String)> {
@@ -549,6 +561,125 @@ pub fn handler_gated_via_helper(body: &str, fn_map: &std::collections::HashMap<S
     false
 }
 
+// ── R4 WE — §14 hardened sub-checks ─────────────────────────────────────
+
+/// Direct-DB-write detection. Returns `true` if `body` (assumed to already
+/// be `strip_string_literals`-normalised) contains any of the canonical
+/// SQLite mutation patterns. Used to catch handlers that bypass the
+/// `evaluate_admission*` gate by going straight to `conn.execute(...)`.
+pub fn body_writes_db(body: &str) -> bool {
+    // Method-call patterns on a connection-like value.
+    let stripped = strip_string_literals(body);
+    if stripped.contains(".execute(")
+        || stripped.contains(".execute_batch(")
+        || stripped.contains(".prepare(")
+    {
+        return true;
+    }
+    // SQL statement substrings — these MUST appear in code only as string
+    // literals; if they survive `strip_string_literals` they're inside an
+    // identifier or macro path, which is itself a hostile shape.
+    // Safer: scan the ORIGINAL body but require an `execute*` / `prepare*`
+    // method call near the SQL keyword. The first branch already catches
+    // that; this branch catches `query_row`-style writes and SQL strings
+    // that signal an INSERT/UPDATE/DELETE intent regardless of method.
+    let raw = body;
+    if raw.contains("INSERT INTO") || raw.contains("UPDATE ") || raw.contains("DELETE FROM") {
+        return true;
+    }
+    false
+}
+
+/// Depth-2 transitive helper scan. Walks every `self.<helper>(...)` call
+/// in `body`; if the helper's own body matches `body_writes_db` AND
+/// neither the handler nor the helper crosses an `evaluate_admission*`
+/// call, returns `true` — a direct DB write was reached without ever
+/// passing through the gate.
+///
+/// The "bypassing_gate" semantics: if the handler itself contains a real
+/// `evaluate_admission(` or `evaluate_admission_audit(` call, the depth-2
+/// scan is skipped — the handler is gated, downstream helpers may write
+/// freely. Only ungated handlers trigger the walk.
+pub fn handler_reaches_db_write_bypassing_gate(
+    body: &str,
+    fn_map: &std::collections::HashMap<String, String>,
+) -> bool {
+    // If the handler is itself gated (or audited), no further check.
+    if body_calls_admission_real(body, "evaluate_admission(")
+        || body_calls_admission_real(body, "evaluate_admission_audit(")
+    {
+        return false;
+    }
+    // Direct DB write in the handler body itself — caught here before any
+    // helper walking.
+    if body_writes_db(body) {
+        return true;
+    }
+    // Walk depth-2: look at each `self.<helper>(` call.
+    let bytes = body.as_bytes();
+    let mut i = 0usize;
+    while i + 5 < bytes.len() {
+        if &bytes[i..i + 5] == b"self." {
+            let mut j = i + 5;
+            while j < bytes.len()
+                && (bytes[j].is_ascii_alphanumeric() || bytes[j] == b'_')
+            {
+                j += 1;
+            }
+            if j < bytes.len() && bytes[j] == b'(' && j > i + 5 {
+                let name = &body[i + 5..j];
+                if let Some(helper_body) = fn_map.get(name) {
+                    // If THIS helper is gated/audited, skip — admission
+                    // crosses the gate inside the helper.
+                    let helper_gated = body_calls_admission_real(
+                        helper_body,
+                        "evaluate_admission(",
+                    ) || body_calls_admission_real(
+                        helper_body,
+                        "evaluate_admission_audit(",
+                    );
+                    if !helper_gated && body_writes_db(helper_body) {
+                        return true;
+                    }
+                }
+            }
+            i = j;
+        } else {
+            i += 1;
+        }
+    }
+    false
+}
+
+/// Validate a single allowlist entry's justification string. Returns
+/// `Err(reason)` if the justification fails any rule.
+///
+/// Rules:
+///   - Must start with the literal prefix `"READ-ONLY: "`.
+///   - "graph" appearing without "RDF graph" is rejected (it might mean
+///     the SQLite store; the author must disambiguate).
+///   - "before the gate" appearing without `OPEN_ONTOLOGIES_BOOTSTRAP_MODE`
+///     is rejected (it's a fail-open weasel; if the handler runs before
+///     the gate, the bootstrap window must be the named justification).
+pub fn validate_allowlist_justification(j: &str) -> Result<(), String> {
+    if !j.starts_with("READ-ONLY: ") {
+        return Err(format!("missing 'READ-ONLY: ' prefix: {:?}", j));
+    }
+    if j.contains("graph") && !j.contains("RDF graph") {
+        return Err(format!(
+            "weasel word 'graph' without 'RDF graph' (does it mean the SQLite store?): {:?}",
+            j
+        ));
+    }
+    if j.contains("before the gate") && !j.contains("OPEN_ONTOLOGIES_BOOTSTRAP_MODE") {
+        return Err(format!(
+            "'before the gate' without OPEN_ONTOLOGIES_BOOTSTRAP_MODE — name the bootstrap window explicitly: {:?}",
+            j
+        ));
+    }
+    Ok(())
+}
+
 /// Build a map `fn name → body` for private/free fns matching the regex
 /// `fn ([a-z_]+)\(&self`. Returns owned Strings so callers can index by
 /// name without lifetime gymnastics.
@@ -596,6 +727,9 @@ pub fn build_fn_map(src: &str) -> std::collections::HashMap<String, String> {
 #[test]
 fn every_mcp_handler_is_gated_audited_or_explicitly_readonly() {
     let allowlist = read_only_allowlist();
+    // Project to a name-only set for the gating check.
+    let allowed_names: HashSet<&'static str> =
+        allowlist.iter().map(|(n, _)| *n).collect();
     let handlers = extract_handlers(SERVER_RS);
     assert!(
         handlers.len() >= 40,
@@ -623,7 +757,23 @@ fn every_mcp_handler_is_gated_audited_or_explicitly_readonly() {
         // Sub-check 4: helper transitive scan (depth-1).
         let helper_gated = !gated && !audited && handler_gated_via_helper(&live, &fn_map);
 
-        let allowed = allowlist.contains(name.as_str());
+        let allowed = allowed_names.contains(name.as_str());
+
+        // R4 WE — §14: hardened direct-DB-write detection on allowlisted
+        // handlers. If a handler is on the allowlist but its body — or any
+        // depth-1 helper it transitively reaches — contains a direct DB
+        // write bypassing the gate, that's a fail-open hole disguised as
+        // a read-only handler. Fail loudly.
+        if allowed
+            && handler_reaches_db_write_bypassing_gate(&live, &fn_map)
+        {
+            violations.push(format!(
+                "{} — allowlisted as READ-ONLY but reaches a direct DB write bypassing the gate",
+                name
+            ));
+            continue;
+        }
+
         if !gated && !audited && !helper_gated && !allowed {
             violations.push(name.clone());
         }
@@ -634,6 +784,25 @@ fn every_mcp_handler_is_gated_audited_or_explicitly_readonly() {
         "MCP handlers neither gated nor audited nor allowlisted (must wire admission \
          OR add to read_only_allowlist with justification): {:#?}",
         violations
+    );
+}
+
+/// R4 WE — §14: every entry in the read-only allowlist must carry a
+/// `READ-ONLY: ` prefixed justification that survives the
+/// `validate_allowlist_justification` regex rules. Catches lazy
+/// allowlist additions that paper over fail-open holes with weasel words.
+#[test]
+fn read_only_allowlist_justifications_pass_regex() {
+    let mut bad: Vec<String> = Vec::new();
+    for (name, justification) in read_only_allowlist() {
+        if let Err(reason) = validate_allowlist_justification(justification) {
+            bad.push(format!("{}: {}", name, reason));
+        }
+    }
+    assert!(
+        bad.is_empty(),
+        "Allowlist justifications failed the §14 regex:\n{:#?}",
+        bad
     );
 }
 
@@ -660,6 +829,9 @@ fn full_admission_handlers_present() {
         "onto_admit_work_order",
         // Solution Manufacturing full-admission handler (Phase 4):
         "onto_manufacture_solution",
+        // R4 WE — §14: workflow scope ops promoted to full admission.
+        "onto_declare_workflow",
+        "onto_close_workflow",
     ] {
         let body = by_name
             .get(*required)
@@ -690,6 +862,8 @@ fn audit_only_handlers_present() {
         "onto_workflow_discover",
         "onto_workflow_feedback",
         "onto_threshold_sweep",
+        // R4 WE — §14: bootstrap-only seed handler.
+        "onto_exemplar_seed",
     ] {
         let body = by_name
             .get(*required)

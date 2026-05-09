@@ -56,6 +56,33 @@ pub enum AdmissionOp {
     // Emits a loud OCEL `tenant_switch` event so a downstream auditor can
     // detect any rotation of effective tenant identity within a session.
     TenantSwitch,
+    // R4 WE — §14 mutation gate purity: 5 new variants for handlers that
+    // were falsely allowlisted as read-only or whose mutations had no
+    // self-attribution.
+    /// Full admission. Wraps `WorkflowScope::open(...)` from
+    /// `onto_declare_workflow`. The artifact bytes are
+    /// `name + "\0" + powl + "\0" + tenant_id`.
+    /// TODO(R3 W3): add `op_class()` arm "governance" once the method lands.
+    WorkflowDeclared,
+    /// Full admission. Wraps `WorkflowScope::close(...)` from
+    /// `onto_close_workflow`. The artifact bytes are the raw
+    /// `scope_token` bytes.
+    /// TODO(R3 W3): add `op_class()` arm "governance" once the method lands.
+    WorkflowClosed,
+    /// Full admission. Wraps the planner's INSERT into `workflow_scopes`
+    /// from `onto_plan_workflow` (both groq_powl and mustar paths).
+    /// TODO(R3 W3): add `op_class()` arm "data" once the method lands.
+    WorkflowPlanned,
+    /// Audit-only. Wraps `OcelStore::seed_from_ocel_bytes` invoked from
+    /// `onto_exemplar_seed`. Bootstrap-only — gated by
+    /// [`crate::bootstrap::BootstrapState::is_bootstrap`].
+    /// TODO(R3 W3): add `op_class()` arm "bootstrap" once the method lands.
+    ExemplarSeeded,
+    /// Audit-only. Self-attribution for the `bypass_admission` branch
+    /// before `revoked_sessions` is written. Pairs with the existing
+    /// `admission_bypass` event for backward compat.
+    /// TODO(R3 W3): add `op_class()` arm "governance" once the method lands.
+    Bypass,
 }
 
 impl AdmissionOp {
@@ -80,6 +107,11 @@ impl AdmissionOp {
             AdmissionOp::ThresholdSweep => "threshold_sweep",
             AdmissionOp::SolutionManufactured => "solution_manufactured",
             AdmissionOp::TenantSwitch => "tenant_switch",
+            AdmissionOp::WorkflowDeclared => "workflow_declared",
+            AdmissionOp::WorkflowClosed => "workflow_closed",
+            AdmissionOp::WorkflowPlanned => "workflow_planned",
+            AdmissionOp::ExemplarSeeded => "exemplar_seeded",
+            AdmissionOp::Bypass => "bypass",
         }
     }
 
@@ -97,6 +129,8 @@ impl AdmissionOp {
                 | AdmissionOp::Discovery
                 | AdmissionOp::ThresholdSweep
                 | AdmissionOp::TenantSwitch
+                | AdmissionOp::ExemplarSeeded
+                | AdmissionOp::Bypass
         )
     }
 }
