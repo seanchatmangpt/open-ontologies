@@ -110,7 +110,10 @@ fn run_stdio_server(cfg: Config, db: StateDb, graph: Arc<GraphStore>, governance
     for d in &ontology_dirs {
         if !d.exists() { eprintln!("warning: ontology_dirs entry does not exist: {}", d.display()); }
     }
-    let server = OpenOntologiesServer::new_with_repo_options(db, graph, governance_webhook, cfg.embeddings, cache_config, tool_filter, ontology_dirs);
+    let llm_engine = open_ontologies::config::resolve_llm_engine(&cfg.llm);
+    eprintln!("info: default LLM engine = {}", llm_engine);
+    let server = OpenOntologiesServer::new_with_repo_options(db, graph, governance_webhook, cfg.embeddings, cache_config, tool_filter, ontology_dirs)
+        .with_default_llm_engine(llm_engine);
     let _evictor = open_ontologies::registry::spawn_evictor(server.registry());
     tokio::runtime::Handle::current().block_on(async {
         let service = server.serve(rmcp::transport::stdio()).await
@@ -167,18 +170,28 @@ fn build_http_axum_router(cfg: &Config, shared_graph: Arc<GraphStore>, shared_db
     let tf = tool_filter.clone();
     let dirs = open_ontologies::config::resolve_ontology_dirs(&cfg.general.ontology_dirs);
     let sg = shared_graph.clone();
+    let llm_engine = open_ontologies::config::resolve_llm_engine(&cfg.llm);
+    let llm_engine_for_factory = llm_engine.clone();
+    eprintln!("info: default LLM engine = {}", llm_engine);
 
     let service: StreamableHttpService<_, LocalSessionManager> = StreamableHttpService::new(
         move || {
             let db = StateDb::open(&db_path).map_err(std::io::Error::other)?;
-            Ok(OpenOntologiesServer::new_with_repo_options(db, sg.clone(), gw.clone(), embed.clone(), cc.clone(), tf.clone(), dirs.clone()))
+            Ok(OpenOntologiesServer::new_with_repo_options(db, sg.clone(), gw.clone(), embed.clone(), cc.clone(), tf.clone(), dirs.clone())
+                .with_default_llm_engine(llm_engine_for_factory.clone()))
         },
         Default::default(),
         http_config,
     );
 
-    let api = build_api_router(shared_graph, shared_db);
+    let llm_cfg_for_health = cfg.llm.clone();
+    let api = build_api_router(shared_graph, shared_db, llm_cfg_for_health);
     let mut router = axum::Router::new().nest("/api", api).nest_service("/mcp", service);
+
+    // X-Ontostar-LLM-Engine extraction layer. Validates the value
+    // against `config::VALID_LLM_ENGINES` and parks it in the
+    // `LLM_ENGINE_OVERRIDE` task-local for downstream tool handlers.
+    router = router.layer(axum::middleware::from_fn(llm_engine_extract_layer));
 
     if let Some(ref t) = resolved_token {
         let expected = format!("Bearer {}", t);
@@ -195,15 +208,49 @@ fn build_http_axum_router(cfg: &Config, shared_graph: Arc<GraphStore>, shared_db
     (router, host, port, ct)
 }
 
-fn build_api_router(shared_graph: Arc<GraphStore>, shared_db: StateDb) -> axum::Router {
+/// Read the `X-Ontostar-LLM-Engine` header (if any), validate it
+/// against [`open_ontologies::config::VALID_LLM_ENGINES`], and run the
+/// downstream handler with [`open_ontologies::server::LLM_ENGINE_OVERRIDE`]
+/// set. Unknown / blank values are silently dropped (the server default
+/// then applies) — the goal is graceful degradation, not authentication.
+async fn llm_engine_extract_layer(
+    req: axum::extract::Request,
+    next: axum::middleware::Next,
+) -> axum::response::Response {
+    let header_val = req
+        .headers()
+        .get("x-ontostar-llm-engine")
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .filter(|s| open_ontologies::config::VALID_LLM_ENGINES
+            .iter()
+            .any(|e| *e == s.as_str()));
+    open_ontologies::server::LLM_ENGINE_OVERRIDE
+        .scope(header_val, next.run(req))
+        .await
+}
+
+fn build_api_router(shared_graph: Arc<GraphStore>, shared_db: StateDb, llm_cfg: open_ontologies::config::LlmConfig) -> axum::Router {
     let sg_stats = shared_graph.clone();
     let sg_query = shared_graph.clone();
     let sg_update = shared_graph.clone();
     let sg_load = shared_graph.clone();
     let sg_save = shared_graph.clone();
     let sg_turtle = shared_graph.clone();
+    let llm_cfg_health = llm_cfg.clone();
 
     axum::Router::new()
+        // ── Plan 4: GET /health/llm ───────────────────────────────────────
+        // Spawns scripts/groq_status.py once and returns the JSON line it
+        // writes to stdout, alongside the resolved engine. NEVER logs or
+        // returns the API key. Returns the same shape as `onto_groq_status`
+        // plus an `engine` field; a `key_present=false` body means the
+        // resolver auto-detected `inproc` (no remote probe possible).
+        .route("/health/llm", axum::routing::get(move || {
+            let cfg = llm_cfg_health.clone();
+            async move { axum::Json(health_llm_probe(&cfg).await) }
+        }))
         .route("/stats", axum::routing::get(move || { let g = sg_stats.clone(); async move { axum::Json(serde_json::from_str::<serde_json::Value>(&g.get_stats().unwrap_or_else(|e| format!(r#"{{"error":"{}"}}"#, e))).unwrap_or_default()) } }))
         .route("/query", axum::routing::post(move |body: axum::Json<serde_json::Value>| { let g = sg_query.clone(); async move { let q = body.0["query"].as_str().unwrap_or("").to_string(); axum::Json(serde_json::from_str::<serde_json::Value>(&g.sparql_select(&q).unwrap_or_else(|e| format!(r#"{{"error":"{}"}}"#, e))).unwrap_or_default()) } }))
         .route("/update", axum::routing::post(move |body: axum::Json<serde_json::Value>| { let g = sg_update.clone(); async move { let q = body.0["query"].as_str().unwrap_or("").to_string(); axum::Json(serde_json::from_str::<serde_json::Value>(&match g.sparql_update(&q) { Ok(n) => format!(r#"{{"ok":true,"affected":{}}}"#, n), Err(e) => format!(r#"{{"error":"{}"}}"#, e) }).unwrap_or_default()) } }))
@@ -223,15 +270,110 @@ fn build_api_router(shared_graph: Arc<GraphStore>, shared_db: StateDb) -> axum::
         }))
 }
 
+/// `GET /health/llm` handler body. Returns:
+/// `{ ok, engine, model_reachable, key_present, model, error? }`.
+/// Spawns `scripts/groq_status.py` once when the resolved engine is
+/// `groq_pm4py`; otherwise short-circuits with a static answer that
+/// only reports whether a key is configured. Never logs the key.
+async fn health_llm_probe(cfg: &open_ontologies::config::LlmConfig) -> serde_json::Value {
+    let engine = open_ontologies::config::resolve_llm_engine(cfg);
+    let key_present = open_ontologies::config::resolve_llm_api_key(cfg).is_some();
+    if engine != "groq_pm4py" {
+        return serde_json::json!({
+            "ok": true,
+            "engine": engine,
+            "model_reachable": false,
+            "key_present": key_present,
+            "model": "",
+        });
+    }
+    let python = open_ontologies::config::resolve_llm_python(cfg);
+    let script = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("scripts/groq_status.py");
+    let out = match tokio::task::spawn_blocking(move || {
+        std::process::Command::new(&python).arg(&script).output()
+    })
+    .await
+    {
+        Ok(Ok(o)) => o,
+        Ok(Err(e)) => {
+            return serde_json::json!({
+                "ok": false,
+                "engine": engine,
+                "model_reachable": false,
+                "key_present": key_present,
+                "model": "",
+                "error": format!("failed to spawn groq_status.py: {e}"),
+            });
+        }
+        Err(e) => {
+            return serde_json::json!({
+                "ok": false,
+                "engine": engine,
+                "model_reachable": false,
+                "key_present": key_present,
+                "model": "",
+                "error": format!("join error: {e}"),
+            });
+        }
+    };
+    let stdout = String::from_utf8_lossy(&out.stdout).into_owned();
+    let stderr = String::from_utf8_lossy(&out.stderr).into_owned();
+    let json_line = stdout
+        .lines()
+        .rev()
+        .find(|l| l.trim_start().starts_with('{'))
+        .map(|s| s.trim().to_string());
+    let mut resp = match json_line.and_then(|l| serde_json::from_str::<serde_json::Value>(&l).ok()) {
+        Some(v) => v,
+        None => serde_json::json!({
+            "ok": false,
+            "model_reachable": false,
+            "key_present": key_present,
+            "model": "",
+            "error": format!("groq_status.py produced no JSON: stderr={}",
+                stderr.replace('"', "'").replace('\n', " ")),
+        }),
+    };
+    if let Some(obj) = resp.as_object_mut() {
+        obj.insert("engine".to_string(), serde_json::Value::String(engine));
+    }
+    resp
+}
+
 // ── verbs ─────────────────────────────────────────────────────────────────
+
+/// Apply --llm-engine / --llm-python overrides into the process
+/// environment so [`open_ontologies::config::resolve_llm_engine`] picks
+/// them up uniformly with config + auto-detect. Must be called before
+/// `Config::load` so resolution is consistent.
+fn apply_llm_cli_overrides(llm_engine: Option<&str>, llm_python: Option<&str>) -> NounVerbResult<()> {
+    if let Some(e) = llm_engine.map(|s| s.trim()).filter(|s| !s.is_empty()) {
+        if !open_ontologies::config::VALID_LLM_ENGINES.iter().any(|v| *v == e) {
+            return Err(clap_noun_verb::NounVerbError::execution_error(format!(
+                "invalid --llm-engine={:?}; valid values: {:?}",
+                e,
+                open_ontologies::config::VALID_LLM_ENGINES
+            )));
+        }
+        // SAFETY: process is single-threaded at CLI bootstrap time.
+        unsafe { std::env::set_var("OPEN_ONTOLOGIES_LLM_ENGINE", e); }
+    }
+    if let Some(p) = llm_python.map(|s| s.trim()).filter(|s| !s.is_empty()) {
+        // SAFETY: process is single-threaded at CLI bootstrap time.
+        unsafe { std::env::set_var("OPEN_ONTOLOGIES_LLM_PYTHON", p); }
+    }
+    Ok(())
+}
 
 /// Start the MCP server (stdio transport)
 #[verb]
-fn serve(config: Option<String>, governance_webhook: Option<String>, watch: Option<bool>, watch_interval: Option<u64>, tools_allow: Option<String>, tools_deny: Option<String>, idle_ttl_secs: Option<u64>, auto_refresh: Option<bool>) -> NounVerbResult<ServeOutput> {
+fn serve(config: Option<String>, governance_webhook: Option<String>, watch: Option<bool>, watch_interval: Option<u64>, tools_allow: Option<String>, tools_deny: Option<String>, idle_ttl_secs: Option<u64>, auto_refresh: Option<bool>, llm_engine: Option<String>, llm_python: Option<String>) -> NounVerbResult<ServeOutput> {
     // Load .env into the process environment before resolving config so the
     // Groq translator can pick up GROQ_API_KEY without leaking it to a
     // shell. Best-effort: missing .env is not an error.
     dotenvy::dotenv().ok();
+    apply_llm_cli_overrides(llm_engine.as_deref(), llm_python.as_deref())?;
     let cfg = load_cfg(config.as_deref().unwrap_or(DEFAULT_CONFIG_PATH))
         .map_err(|e| clap_noun_verb::NounVerbError::execution_error(e.to_string()))?;
     init_tracing_cfg(&cfg.logging);
@@ -249,8 +391,9 @@ fn serve(config: Option<String>, governance_webhook: Option<String>, watch: Opti
 
 /// Start the MCP server (Streamable HTTP transport)
 #[verb]
-fn serve_http(config: Option<String>, host: Option<String>, port: Option<u16>, token: Option<String>, governance_webhook: Option<String>, watch: Option<bool>, watch_interval: Option<u64>, tools_allow: Option<String>, tools_deny: Option<String>, idle_ttl_secs: Option<u64>, auto_refresh: Option<bool>) -> NounVerbResult<ServeOutput> {
+fn serve_http(config: Option<String>, host: Option<String>, port: Option<u16>, token: Option<String>, governance_webhook: Option<String>, watch: Option<bool>, watch_interval: Option<u64>, tools_allow: Option<String>, tools_deny: Option<String>, idle_ttl_secs: Option<u64>, auto_refresh: Option<bool>, llm_engine: Option<String>, llm_python: Option<String>) -> NounVerbResult<ServeOutput> {
     dotenvy::dotenv().ok();
+    apply_llm_cli_overrides(llm_engine.as_deref(), llm_python.as_deref())?;
     let cfg = load_cfg(config.as_deref().unwrap_or(DEFAULT_CONFIG_PATH))
         .map_err(|e| clap_noun_verb::NounVerbError::execution_error(e.to_string()))?;
     init_tracing_cfg(&cfg.logging);

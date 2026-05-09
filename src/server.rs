@@ -16,6 +16,28 @@ use crate::graph::GraphStore;
 use crate::inputs::*;
 use crate::state::StateDb;
 
+// ─── HTTP-scoped LLM engine override (task-local) ───────────────────────────
+//
+// The HTTP middleware in `src/cmds/server.rs` reads the
+// `X-Ontostar-LLM-Engine` header (validated against
+// `config::VALID_LLM_ENGINES`) and parks the value here for the duration
+// of one request. Tool handlers consult it via
+// [`current_llm_engine_override`] so per-call `engine` arg > header >
+// server default precedence holds without threading state through every
+// `Parameters<…>` handler.
+tokio::task_local! {
+    pub static LLM_ENGINE_OVERRIDE: Option<String>;
+}
+
+/// Read the current request's `X-Ontostar-LLM-Engine` override, if any.
+/// Returns `None` when no task-local is in scope (e.g. stdio MCP transport).
+pub fn current_llm_engine_override() -> Option<String> {
+    LLM_ENGINE_OVERRIDE
+        .try_with(|opt| opt.clone())
+        .ok()
+        .flatten()
+}
+
 // ─── OpenOntologiesServer ───────────────────────────────────────────────────
 
 /// MCP server that exposes all Open Ontologies tools to Claude via stdin/stdout.
@@ -39,6 +61,12 @@ pub struct OpenOntologiesServer {
     vecstore: Arc<std::sync::Mutex<crate::vecstore::VecStore>>,
     #[cfg(feature = "embeddings")]
     text_embedder: Option<Arc<crate::embed::TextEmbedderProvider>>,
+    /// Default LLM engine resolved at server construction.
+    /// See [`crate::config::resolve_llm_engine`]. The three Groq-facing
+    /// tool handlers consult this when the caller did not supply an
+    /// explicit `engine` argument and no `X-Ontostar-LLM-Engine` header
+    /// override is in scope.
+    default_llm_engine: String,
 }
 
 impl OpenOntologiesServer {
@@ -174,6 +202,15 @@ impl OpenOntologiesServer {
             (Arc::new(std::sync::Mutex::new(vs)), embedder)
         };
 
+        // Resolve the default LLM engine once at construction time.
+        // This honours the env var > config > auto-detect precedence
+        // (Plan 4). Constructors that do not pass an explicit
+        // `LlmConfig` rely on env-var/auto-detect only — that's fine
+        // for tests and for the in-process MCP entry, since the env
+        // resolver still consults `GROQ_API_KEY`.
+        let default_llm_engine =
+            crate::config::resolve_llm_engine(&crate::config::LlmConfig::default());
+
         Self {
             tool_router,
             prompt_router: Self::prompt_router(),
@@ -188,7 +225,39 @@ impl OpenOntologiesServer {
             vecstore,
             #[cfg(feature = "embeddings")]
             text_embedder,
+            default_llm_engine,
         }
+    }
+
+    /// Override the resolved default LLM engine. Used by the HTTP /
+    /// stdio bootstrap so the runtime engine reflects the full
+    /// `[llm]` config block (the constructor only sees env vars).
+    pub fn with_default_llm_engine(mut self, engine: String) -> Self {
+        self.default_llm_engine = engine;
+        self
+    }
+
+    /// Read the resolved default LLM engine — `"inproc"` or
+    /// `"groq_pm4py"`. Tool handlers use [`Self::resolve_engine`] to
+    /// also consider per-call and HTTP-header overrides.
+    pub fn default_llm_engine(&self) -> &str {
+        &self.default_llm_engine
+    }
+
+    /// Pick the effective LLM engine for one tool call. Precedence:
+    /// per-call `engine` argument > HTTP header override > server default.
+    pub fn resolve_engine(
+        &self,
+        per_call: Option<&str>,
+        header: Option<&str>,
+    ) -> String {
+        if let Some(v) = per_call.map(str::trim).filter(|v| !v.is_empty()) {
+            return v.to_string();
+        }
+        if let Some(v) = header.map(str::trim).filter(|v| !v.is_empty()) {
+            return v.to_string();
+        }
+        self.default_llm_engine.clone()
     }
 
     /// Return the list of all registered tool definitions.
@@ -2894,6 +2963,8 @@ impl OpenOntologiesServer {
                     gates_passed: GATE_NAMES.iter().map(|s| s.to_string()).collect(),
                     gates_refused: Vec::new(),
                     prior_receipt,
+                    signature: None,
+                    signing_key_fpr: None,
                 };
                 let receipt = crate::receipts::build(record);
                 let outcomes: Vec<(&str, GateOutcome)> = GATE_NAMES
@@ -2937,6 +3008,8 @@ impl OpenOntologiesServer {
                     gates_passed: Vec::new(),
                     gates_refused: vec![DefectClass::AttestationMissing],
                     prior_receipt: None,
+                    signature: None,
+                    signing_key_fpr: None,
                 };
                 let receipt = crate::receipts::build(placeholder_record);
                 let outcomes: Vec<(&str, GateOutcome)> = GATE_NAMES
@@ -3575,7 +3648,9 @@ impl OpenOntologiesServer {
         // ── Alternative engine: real Groq via pm4py-style DSPy subprocess ──
         // Mirrors the `groq_powl` branch in onto_plan_workflow. Output JSON
         // matches scripts/ctq_from_voice.py's contract.
-        if input.engine.as_deref() == Some("groq_pm4py") {
+        let header_engine = current_llm_engine_override();
+        let engine = self.resolve_engine(input.engine.as_deref(), header_engine.as_deref());
+        if engine == "groq_pm4py" {
             let script = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
                 .join("scripts/ctq_from_voice.py");
             let python = input
@@ -4272,7 +4347,9 @@ impl OpenOntologiesServer {
         }
 
         // ── Alternative engine: real-Groq subprocess ─────────────────────
-        if input.engine.as_deref() == Some("groq_pm4py") {
+        let header_engine = current_llm_engine_override();
+        let engine = self.resolve_engine(input.engine.as_deref(), header_engine.as_deref());
+        if engine == "groq_pm4py" {
             let script = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
                 .join("scripts/executive_projection.py");
             let python = input.python.clone().unwrap_or_else(|| "python3".to_string());
@@ -4486,6 +4563,27 @@ impl OpenOntologiesServer {
     #[tool(name = "onto_groq_status", description = "Read-only liveness probe for the real-Groq subprocess engine. Spawns scripts/groq_status.py which (1) imports dspy, (2) checks GROQ_API_KEY is non-empty, (3) constructs a dspy.LM SDK handle. NEVER makes a real Groq HTTP request and NEVER logs the API key. Returns {ok, model_reachable, key_present, model, error}.")]
     pub async fn onto_groq_status(&self, Parameters(input): Parameters<OntoGroqStatusInput>) -> String {
         let started = std::time::Instant::now();
+        // Engine resolution: per-call (n/a here) > header > server default.
+        // The probe is a `groq_pm4py`-only operation; when the resolved
+        // engine is `inproc` there is no subprocess to probe so we return
+        // a structured non-error response (key_present is still reported
+        // so callers can decide whether to switch the engine).
+        let header_engine = current_llm_engine_override();
+        let engine = self.resolve_engine(None, header_engine.as_deref());
+        if engine != "groq_pm4py" {
+            self.emit_tool_ocel("onto_groq_status", started, true, &[]);
+            let key_present =
+                crate::config::resolve_llm_api_key(&crate::config::LlmConfig::default()).is_some();
+            return serde_json::json!({
+                "ok": true,
+                "engine": engine,
+                "model_reachable": false,
+                "key_present": key_present,
+                "model": "",
+                "error": "engine != groq_pm4py — subprocess probe skipped",
+            })
+            .to_string();
+        }
         let script = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("scripts/groq_status.py");
         let python = input.python.clone().unwrap_or_else(|| "python3".to_string());

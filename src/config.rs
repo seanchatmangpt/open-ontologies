@@ -231,6 +231,23 @@ pub struct LlmConfig {
     pub model: Option<String>,
     /// HTTP request timeout in seconds. Default: 30.
     pub request_timeout_secs: Option<u64>,
+    /// Default engine selecting how `onto_translate_candidate`,
+    /// `onto_executive_projection`, and `onto_groq_status` run when the
+    /// caller does not supply an explicit `engine` parameter or
+    /// `X-Ontostar-LLM-Engine` HTTP header. Recognised values:
+    ///   - `"inproc"` — in-process `GroqTranslator` HTTP path.
+    ///   - `"groq_pm4py"` — shell out to `scripts/*.py` (real-Groq via dspy).
+    /// Override with `OPEN_ONTOLOGIES_LLM_ENGINE`. Default: auto-detected
+    /// (`groq_pm4py` when an API key is available, else `inproc`).
+    pub engine: Option<String>,
+    /// Path to the python interpreter used by the `groq_pm4py` engine.
+    /// Override with `OPEN_ONTOLOGIES_LLM_PYTHON` or per-call via the
+    /// `python` tool argument. Default: `"python3"`.
+    pub python_interpreter: Option<String>,
+    /// Hard timeout (seconds) for the `groq_pm4py` subprocess. Future-
+    /// hook — current call sites use the underlying script's own timeout
+    /// behaviour. Default: 30.
+    pub subprocess_timeout_secs: Option<u64>,
 }
 
 /// Resolve the LLM provider name. Precedence:
@@ -284,6 +301,66 @@ pub fn resolve_llm_model(cfg: &LlmConfig) -> String {
         .filter(|v| !v.trim().is_empty())
         .or_else(|| cfg.model.clone().filter(|v| !v.trim().is_empty()))
         .unwrap_or_else(|| "llama-3.3-70b-versatile".to_string())
+}
+
+/// Recognised `engine` values for the LLM boundary.
+///
+/// `"inproc"`        → in-process `GroqTranslator` (HTTP via reqwest).
+/// `"groq_pm4py"`    → shell out to `scripts/*.py` (dspy / pm4py path).
+pub const VALID_LLM_ENGINES: &[&str] = &["inproc", "groq_pm4py"];
+
+/// Resolve the default LLM engine for unparametrised tool calls.
+///
+/// Precedence:
+/// 1. `OPEN_ONTOLOGIES_LLM_ENGINE` env var (validated against
+///    [`VALID_LLM_ENGINES`]; unknown values are dropped).
+/// 2. `[llm] engine = "..."` in config (same validation).
+/// 3. Auto-detect: when an API key is resolvable via
+///    [`resolve_llm_api_key`], default to `"groq_pm4py"` — every
+///    real-Groq integration test in `tests/real_groq_*` proves the
+///    subprocess path. Otherwise fall back to `"inproc"` so the
+///    in-process translator still serves audit-only callers without
+///    requiring a python venv.
+pub fn resolve_llm_engine(cfg: &LlmConfig) -> String {
+    fn validated(v: String) -> Option<String> {
+        let trimmed = v.trim().to_string();
+        if VALID_LLM_ENGINES.iter().any(|e| *e == trimmed.as_str()) {
+            Some(trimmed)
+        } else {
+            None
+        }
+    }
+
+    if let Some(v) = std::env::var("OPEN_ONTOLOGIES_LLM_ENGINE")
+        .ok()
+        .filter(|v| !v.trim().is_empty())
+        .and_then(validated)
+    {
+        return v;
+    }
+    if let Some(v) = cfg
+        .engine
+        .clone()
+        .filter(|v| !v.trim().is_empty())
+        .and_then(validated)
+    {
+        return v;
+    }
+    if resolve_llm_api_key(cfg).is_some() {
+        "groq_pm4py".to_string()
+    } else {
+        "inproc".to_string()
+    }
+}
+
+/// Resolve the python interpreter for the `groq_pm4py` engine.
+/// Precedence: `OPEN_ONTOLOGIES_LLM_PYTHON` env > config > `"python3"`.
+pub fn resolve_llm_python(cfg: &LlmConfig) -> String {
+    std::env::var("OPEN_ONTOLOGIES_LLM_PYTHON")
+        .ok()
+        .filter(|v| !v.trim().is_empty())
+        .or_else(|| cfg.python_interpreter.clone().filter(|v| !v.trim().is_empty()))
+        .unwrap_or_else(|| "python3".to_string())
 }
 
 #[derive(Debug, Deserialize, Clone)]

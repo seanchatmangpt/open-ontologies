@@ -61,3 +61,59 @@ The output of this pipeline is a candidate, not a fact. To become a fact it must
 ## Chicago-TDD test approach
 
 Commit `b5cdca7` ("real Groq at every human interaction point") encodes the rule: every place a human supplies natural language gets a real-Groq test that **does not mock the LLM**. Mocked LLM tests prove the test harness; real-Groq tests prove the boundary. Run with `--test-threads=1` to respect Groq's rate limit.
+
+## Production engine selection
+
+The three Groq-facing handlers (`onto_translate_candidate`,
+`onto_executive_projection`, `onto_groq_status`) and the new
+`GET /api/health/llm` HTTP route all dispatch through one engine
+resolver — `config::resolve_llm_engine`. Two engines are wired:
+
+- `inproc` — in-process `GroqTranslator` over `reqwest`. No python venv
+  required. Suitable for environments that cannot ship the dspy / pm4py
+  toolchain (small containers, FaaS).
+- `groq_pm4py` — shells out to `scripts/ctq_from_voice.py`,
+  `scripts/executive_projection.py`, `scripts/groq_status.py`. Uses dspy
+  inside the chatmangpt/pm4py fork. Identical path proven by every
+  `tests/real_groq_*` integration test.
+
+### Precedence
+
+| Rank | Source | How to set |
+|------|--------|------------|
+| 1 (highest) | Per-call `engine` argument on the MCP tool input | `{"engine": "groq_pm4py"}` |
+| 2 | HTTP request header | `X-Ontostar-LLM-Engine: inproc` |
+| 3 | `OPEN_ONTOLOGIES_LLM_ENGINE` env var | `export OPEN_ONTOLOGIES_LLM_ENGINE=groq_pm4py` |
+| 4 | `[llm] engine = "..."` in config.toml | `engine = "inproc"` |
+| 5 (lowest) | Auto-detect | API key resolvable → `groq_pm4py`, else `inproc` |
+
+Invalid header / env values are silently dropped (the next-lower source
+takes over). Unknown values via `--llm-engine` CLI flag fail fast — the
+process refuses to start.
+
+### CLI overrides
+
+```bash
+open-ontologies server serve-http --llm-engine groq_pm4py
+open-ontologies server serve --llm-engine inproc --llm-python /opt/venv/bin/python
+```
+
+The flags set `OPEN_ONTOLOGIES_LLM_ENGINE` / `OPEN_ONTOLOGIES_LLM_PYTHON`
+in the process environment before `Config::load`, so resolution is
+uniform across stdio and HTTP transports.
+
+### Health route
+
+`GET /api/health/llm` returns
+`{ ok, engine, model_reachable, key_present, model, error? }`. When the
+resolved engine is `inproc` the route short-circuits without spawning a
+subprocess — `model_reachable` is `false` but `ok` stays `true` because
+the inproc engine has no remote probe to perform. `key_present` always
+reflects whether `resolve_llm_api_key` returned `Some(_)`.
+
+### Failure typing
+
+Subprocess-induced denials surface as `LlmAuthorityClaimed { reason,
+remediation }`. Recognised reasons: `"subprocess_unavailable"`,
+`"key_invalid"`, `"timeout"`. The tag string is unchanged
+(`"llm_authority_claimed"`); auditors that match on tags keep working.
