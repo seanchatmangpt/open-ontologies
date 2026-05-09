@@ -69,3 +69,9 @@ pub mod manufacturing;
 // breed), runs each breed against a shared scenario, fuses outputs
 // via Hearsay-II consensus.
 pub mod swarm;
+
+// External verifier — pure read-only API exposing the receipt-binding
+// protocol and chain walker. Public so external auditors can call it
+// from a binary or library without reimplementing the strip-and-rehash
+// rules. Backed by `src/cmds/governance.rs::verify`.
+pub mod verify;
