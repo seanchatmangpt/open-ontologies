@@ -24,28 +24,30 @@ use serde::{Deserialize, Serialize};
 /// Current defect taxonomy semver. Stored on every Receipt and emitted as
 /// an attribute on every `admission_granted` / `admission_denied` /
 /// `admission_audit` OCEL event.
-pub const DEFECTS_TAXONOMY_VERSION: &str = "ontostar-defects-2.1.0";
+///
+/// Bumped from `2.1.0` → `3.0.0` in Phase 6 after deletion of 10
+/// zero-emission speculative variants (`LawZero`, `MissingGatewayChoice`,
+/// `UnreachableTask`, `ShaclSkipped`, `ProjectionAsAuthority`, `StubGate`,
+/// `UnreplayableClaim`, `FalsePass`, `SecretLeak`,
+/// `GeneratedArtifactDirectEdit`).
+pub const DEFECTS_TAXONOMY_VERSION: &str = "ontostar-defects-3.0.0";
 
 /// BLAKE3 hex of `tag1\0tag2\0...\0` for [`DefectClass::all_tags()`].
 /// CI-pinned. Adding/renaming/removing a variant changes this, forcing a
 /// taxonomy version bump.
 pub const DEFECTS_TAXONOMY_DISCRIMINANT_HASH: &str =
-    "e87b042c865d2dbf35300fa4388c152a10692b0a998746048e4d2b479ceb42b4";
+    "294f106b4fe68aca7c67b4631aae8eb9347e6b86c85cb2483b94cbf776f55ad7";
 
 /// Typed denial classes. Every `Denied` outcome in admission/cell-ready
 /// machinery short-circuits on the first failing variant.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind")]
 pub enum DefectClass {
-    /// Locked IRI / contract breach.
-    LawZero,
     /// Required stage missing in OCEL.
     CapabilityZero,
     SkippedTask { stage: String },
     ExtraTask { stage: String },
     WrongOrder { expected: String, got: String },
-    MissingGatewayChoice { branches: Vec<String> },
-    UnreachableTask { stage: String },
     /// Session under `bypass_admission` revocation.
     BypassRevoked,
     ReceiptMissing,
@@ -56,18 +58,9 @@ pub enum DefectClass {
         observed: f64,
         required: f64,
     },
-    ShaclSkipped,
     /// No successful replay against declared POWL.
     ReplayFailed,
-    /// JSON consumed as canonical instead of Rust byte record.
-    ProjectionAsAuthority,
-    /// A gate present but not actually checking.
-    StubGate,
     DeadParameter { param: String },
-    GeneratedArtifactDirectEdit { path: String },
-    UnreplayableClaim,
-    /// Claimed success without evidence.
-    FalsePass,
     // --- Requirements-Andon / CTQ-Forge taxonomy v2.0.0 ---
     /// A `RequirementProposed` op was attempted with no source-voice signal.
     RequirementWithoutSource,
@@ -84,9 +77,6 @@ pub enum DefectClass {
     /// Export contains a restricted raw-data field (e.g. customer email,
     /// real account name).
     RawDataLeak { field: String },
-    /// Secret material (e.g. `GROQ_API_KEY` value) detected in an evidence
-    /// surface (OCEL attribute, receipt, projection, log).
-    SecretLeak { surface: String },
     // --- Solution Manufacturing taxonomy v2.1.0 ---
     /// A target generator (iac/rust/erlang/atomvm) emitted no bytes —
     /// the manufacturing pipeline cannot ship an empty artifact.
@@ -117,32 +107,22 @@ impl DefectClass {
     /// Stable short tag suitable for OCEL `defect` attribute strings.
     pub fn tag(&self) -> &'static str {
         match self {
-            DefectClass::LawZero => "law_zero",
             DefectClass::CapabilityZero => "capability_zero",
             DefectClass::SkippedTask { .. } => "skipped_task",
             DefectClass::ExtraTask { .. } => "extra_task",
             DefectClass::WrongOrder { .. } => "wrong_order",
-            DefectClass::MissingGatewayChoice { .. } => "missing_gateway_choice",
-            DefectClass::UnreachableTask { .. } => "unreachable_task",
             DefectClass::BypassRevoked => "bypass_revoked",
             DefectClass::ReceiptMissing => "receipt_missing",
             DefectClass::ScopeUnclosed => "scope_unclosed",
             DefectClass::OcelIncomplete => "ocel_incomplete",
             DefectClass::ThresholdFailed { .. } => "threshold_failed",
-            DefectClass::ShaclSkipped => "shacl_skipped",
             DefectClass::ReplayFailed => "replay_failed",
-            DefectClass::ProjectionAsAuthority => "projection_as_authority",
-            DefectClass::StubGate => "stub_gate",
             DefectClass::DeadParameter { .. } => "dead_parameter",
-            DefectClass::GeneratedArtifactDirectEdit { .. } => "generated_artifact_direct_edit",
-            DefectClass::UnreplayableClaim => "unreplayable_claim",
-            DefectClass::FalsePass => "false_pass",
             DefectClass::RequirementWithoutSource => "requirement_without_source",
             DefectClass::CtqIncomplete { .. } => "ctq_incomplete",
             DefectClass::WorkOrderMissingCounterfactual => "work_order_missing_counterfactual",
             DefectClass::LlmAuthorityClaimed => "llm_authority_claimed",
             DefectClass::RawDataLeak { .. } => "raw_data_leak",
-            DefectClass::SecretLeak { .. } => "secret_leak",
             DefectClass::GeneratorEmpty { .. } => "generator_empty",
             DefectClass::IacInvalid { .. } => "iac_invalid",
             DefectClass::RustInvalid { .. } => "rust_invalid",
@@ -158,32 +138,22 @@ impl DefectClass {
     /// add/rename/remove changes the hash and forces a taxonomy version bump.
     pub const fn all_tags() -> &'static [&'static str] {
         &[
-            "law_zero",
             "capability_zero",
             "skipped_task",
             "extra_task",
             "wrong_order",
-            "missing_gateway_choice",
-            "unreachable_task",
             "bypass_revoked",
             "receipt_missing",
             "scope_unclosed",
             "ocel_incomplete",
             "threshold_failed",
-            "shacl_skipped",
             "replay_failed",
-            "projection_as_authority",
-            "stub_gate",
             "dead_parameter",
-            "generated_artifact_direct_edit",
-            "unreplayable_claim",
-            "false_pass",
             "requirement_without_source",
             "ctq_incomplete",
             "work_order_missing_counterfactual",
             "llm_authority_claimed",
             "raw_data_leak",
-            "secret_leak",
             "generator_empty",
             "iac_invalid",
             "rust_invalid",
