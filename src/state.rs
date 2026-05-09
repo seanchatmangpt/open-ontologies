@@ -262,6 +262,29 @@ impl StateDb {
         let _ = conn.execute_batch(
             "ALTER TABLE receipts ADD COLUMN session_id TEXT NOT NULL DEFAULT '';"
         );
+        // Task C: per-session monotonic sequence column for deterministic chain
+        // ordering. The ALTER is wrapped in `let _` so it is idempotent on
+        // databases that already have the column (SQLite returns
+        // "duplicate column name"). The UPDATE backfill is run unconditionally
+        // but is safe — it only touches rows where sequence = 0 (the default).
+        let _ = conn.execute_batch(
+            "ALTER TABLE receipts ADD COLUMN sequence INTEGER NOT NULL DEFAULT 0;"
+        );
+        // Backfill BEFORE creating the unique index so legacy rows (all
+        // defaulted to sequence=0) get distinct values per session first.
+        let _ = conn.execute_batch(
+            "UPDATE receipts SET sequence = (
+               SELECT COUNT(*) FROM receipts r2
+                WHERE r2.session_id = receipts.session_id
+                  AND r2.granted_at < receipts.granted_at
+             ) + 1 WHERE sequence = 0;"
+        );
+        let _ = conn.execute_batch(
+            "CREATE UNIQUE INDEX IF NOT EXISTS receipts_session_sequence_uniq
+                 ON receipts(session_id, sequence);
+             CREATE INDEX IF NOT EXISTS receipts_session_seq_desc
+                 ON receipts(session_id, sequence DESC);"
+        );
         // OntoStar Stream 1: workflow scope, OCEL scope tagging, revoked sessions.
         // Run as separate batches so additive ALTER on an existing DB does not
         // poison sibling CREATEs.

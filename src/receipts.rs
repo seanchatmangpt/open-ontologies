@@ -42,16 +42,25 @@ pub fn build(record: ProductionRecord) -> Receipt {
 /// created by Stream 1's migration; until that lands we fall back to the
 /// stub migration in `STREAM3_STUB_MIGRATION`.
 pub fn persist(receipt: &Receipt, db: &StateDb, session_id: &str) -> Result<()> {
-    let conn = db.conn();
+    let mut conn = db.conn();
     let granted_at = chrono::Utc::now().to_rfc3339();
     let prior = receipt.record.prior_receipt.as_ref().map(hex32_pub);
-    conn.execute(
-        "INSERT OR REPLACE INTO receipts (
+    // Task C: per-session monotonic sequence under a transaction so concurrent
+    // admissions on the same session_id cannot race the (session_id, sequence)
+    // unique index. Plain INSERT — duplicate receipt_hash is now a hard error.
+    let tx = conn.transaction()?;
+    let next_sequence: i64 = tx.query_row(
+        "SELECT COALESCE(MAX(sequence), 0) + 1 FROM receipts WHERE session_id = ?1",
+        rusqlite::params![session_id],
+        |r| r.get(0),
+    )?;
+    tx.execute(
+        "INSERT INTO receipts (
             receipt_hash, scope_token, session_id,
             artifact_hash, declared_powl_hash, ocel_canonical_hash,
             gate_config_hash, prior_receipt_hash,
-            production_law_version, granted_at
-         ) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10)",
+            production_law_version, granted_at, sequence
+         ) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11)",
         rusqlite::params![
             hex32_pub(&receipt.bytes),
             receipt.record.scope_token,
@@ -63,8 +72,10 @@ pub fn persist(receipt: &Receipt, db: &StateDb, session_id: &str) -> Result<()> 
             prior,
             receipt.record.production_law_version,
             granted_at,
+            next_sequence,
         ],
     )?;
+    tx.commit()?;
     Ok(())
 }
 
@@ -73,7 +84,7 @@ pub fn latest_for_session(db: &StateDb, session_id: &str) -> Option<[u8; 32]> {
     let conn = db.conn();
     let mut stmt = conn
         .prepare(
-            "SELECT receipt_hash FROM receipts WHERE session_id = ?1 ORDER BY granted_at DESC LIMIT 1",
+            "SELECT receipt_hash FROM receipts WHERE session_id = ?1 ORDER BY sequence DESC LIMIT 1",
         )
         .ok()?;
     let mut rows = stmt.query(rusqlite::params![session_id]).ok()?;
