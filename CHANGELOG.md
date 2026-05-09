@@ -9,6 +9,75 @@ Pre-OntoStar history (the original `open-ontologies` MCP server, releases
 
 ## [Unreleased]
 
+### Round 5 WB-2 — §15 OCEL anchor closure
+
+3 emit swallows replaced with primary+fallback+log pattern. New OCEL
+event types `admission_denied_ocel_failed`,
+`workflow_declared_emit_failed`, `conformance_recorded`. Conformance
+runs writes are now OCEL-witnessed atomically.
+
+- `src/admission.rs::emit_with_fallback` (NEW, private): encapsulates
+  primary emit → on-failure fallback emit → on-double-failure
+  `tracing::error!` for sites 1 and 2. The fallback `event_type` is
+  supplied explicitly (not derived) so historical names like
+  `admission_denied_ocel_failed` are preserved. Fallback events carry
+  the original attrs plus `intended_event_type` and `primary_emit_error`
+  so an OCEL projector can reconstruct the lost primary witness.
+- `src/admission.rs::emit_denied_for_scope` (Site 1): replaces
+  `let _ = store.emit_event(..., "admission_denied", ...)` with an
+  `emit_with_fallback` call. Phantom denials no longer possible — the
+  caller's `Err(...)` is now mirrored by an OCEL anchor (primary
+  `admission_denied` or fallback `admission_denied_ocel_failed`).
+- `src/admission.rs::evaluate` workflow_declared anchor (Site 2): same
+  fallback pattern. Plan B identifies this as a load-bearing
+  replay-portability anchor — downstream `replay_from_ocel_alone`
+  cannot reconstruct the declared model without it. New event type
+  `workflow_declared_emit_failed` carries the same `powl_hash` and
+  `powl_string` attrs so the model is recoverable from a degraded
+  trail.
+- `src/admission.rs::persist_conformance_run` (Site 3): refactored to
+  wrap the `INSERT OR REPLACE INTO conformance_runs` and a NEW
+  `conformance_recorded` OCEL emit in a single
+  `rusqlite::Transaction`. The two commit together or roll back
+  together — closing the orphan-evidence window where a verifier
+  joining `receipts` ↔ `ocel_events` ↔ `conformance_runs` could not
+  prove the conformance row was used at admission. Best-effort
+  post-conditions (workflow_class stamping, Loop 5 regression hook)
+  run AFTER commit, unchanged. Atomic-block failure logged under
+  `tracing::error!` target `ontostar.admission.conformance_witness_lost`.
+- `src/ocel_store.rs::EMIT_FAILURE_INJECTION_HOOK` (NEW,
+  `#[cfg(debug_assertions)]`-gated thread_local): test-only injection
+  point fired at the entry of `emit_event_rows`. When a closure is
+  installed and returns `Some(error)` for a target `event_type`, the
+  emit fails as if SQLite refused. Lets counterfactual tests prove
+  the fallback pattern actually records a degraded anchor, and lets
+  the conformance-rollback test prove the transaction is a real
+  atomic boundary. Mirrors WB-1's `A13_BETWEEN_SNAPSHOT_HOOK`
+  pattern. `#[doc(hidden)]`.
+- `tests/ocel_emit_swallow_closure.rs` (NEW): five counterfactual
+  proofs.
+  `denial_witness_survives_primary_emit_failure` sabotages the
+  `admission_denied` emit and asserts the fallback lands.
+  `denial_witness_normal_path_no_fallback` is the baseline (no
+  fallback when the primary succeeds).
+  `workflow_declared_witness_survives_primary_emit_failure`
+  sabotages the workflow_declared anchor and asserts the fallback
+  carries the same powl_hash/powl_string attrs.
+  `conformance_runs_writes_atomic_with_ocel_witness` is the
+  positive-path joiner-readiness proof.
+  `conformance_runs_rollback_on_ocel_witness_failure` is the
+  load-bearing atomicity proof — sabotage the conformance OCEL emit
+  and assert the conformance_runs row is NOT visible.
+- `README.md`: test count 526 → 531.
+
+External verifiers SHOULD treat `admission_denied_ocel_failed` and
+`workflow_declared_emit_failed` as equivalent-to their primary event
+type plus a `degraded_trail = true` flag (carried in the
+`intended_event_type` attribute). The conformance row now carries an
+OCEL witness pinned by `(scope_token, run_id)` — joining
+`conformance_runs.run_id` to `ocel_events` via
+`event_type='conformance_recorded'` is the canonical lookup.
+
 ### Round 5 WB-1 — §15 A13 ReplayProof tautology closure
 
 A13 ReplayProof gate now uses an independent OCEL re-snapshot; previously

@@ -530,10 +530,22 @@ impl OntoStarAdmissionGate {
         // external observer with only the OCEL stream can then reconstruct
         // the declared model without reading `declared_workflows`. Idempotent
         // via deterministic event_id keyed on powl_hash.
+        //
+        // R5 WB-2 — §15 OCEL anchor closure. Plan B identifies this as a
+        // load-bearing replay-portability anchor — NOT informational. A
+        // downstream `replay_from_ocel_alone` cannot reconstruct the
+        // declared model without it. Previously `let _ = store.emit_event(...)`
+        // swallowed failure silently and admission proceeded to write a
+        // receipt whose model could not be reconstructed from OCEL alone.
+        // Now: primary emit; on failure, `workflow_declared_emit_failed`
+        // fallback carrying the same powl_hash + powl_string attrs so an
+        // auditor can still rebuild the model from a degraded trail.
         let anchor_event_id = format!("workflow_declared:{}:{}", scope_token, &powl_hash_hex[..16]);
-        let _ = store.emit_event(
+        emit_with_fallback(
+            store,
             &anchor_event_id,
             "workflow_declared",
+            "workflow_declared_emit_failed",
             &chrono::Utc::now().to_rfc3339(),
             session_id,
             &[
@@ -544,6 +556,7 @@ impl OntoStarAdmissionGate {
             ],
             &[],
             Some(scope_token),
+            "ontostar.admission.workflow_declared_emit_lost",
         );
 
         // Build canonical OCEL projection of scope. Until Stream 1's
@@ -869,9 +882,18 @@ impl OntoStarAdmissionGate {
             session_id,
             chrono::Utc::now().timestamp_millis()
         );
-        let _ = store.emit_event(
+        // R5 WB-2 — §15 OCEL anchor closure. Previously this was
+        // `let _ = store.emit_event(...)` — a phantom-denial swallow
+        // (the caller saw `Err(...)` but OCEL had no witness, so a
+        // downstream auditor mining only OCEL could not see the deny).
+        // Now: primary emit; on failure, secondary `admission_denied_ocel_failed`
+        // emit; on double-failure, tracing::error so OTEL still surfaces
+        // the loss.
+        emit_with_fallback(
+            store,
             &event_id,
             "admission_denied",
+            "admission_denied_ocel_failed",
             &chrono::Utc::now().to_rfc3339(),
             session_id,
             &[
@@ -882,7 +904,131 @@ impl OntoStarAdmissionGate {
             ],
             &[],
             scope_token,
+            "ontostar.admission.denied_emit_lost",
         );
+    }
+}
+
+/// R5 WB-2 — §15 OCEL anchor closure: primary+fallback+log emit pattern.
+///
+/// Encapsulates the two-step recovery used by sites that previously did
+/// `let _ = store.emit_event(...)` — a phantom-success swallow that lost
+/// the OCEL witness whenever SQLite refused (disk full, schema migration
+/// in flight, FK violation). Now:
+///
+/// 1. Try the primary emit. On success, return.
+/// 2. On `Err`, attempt a SECONDARY emit with `event_type =
+///    <primary>_emit_failed` (or, for `admission_denied`, the historic
+///    name `admission_denied_ocel_failed`) so the OCEL trail still has
+///    a degraded-but-real anchor an external auditor can mine.
+/// 3. If BOTH emits fail (DB is offline / corrupt), log a structured
+///    `tracing::error!` so an OTEL collector still records the loss,
+///    using the supplied `tracing_target` for namespace clarity.
+///
+/// External verifiers SHOULD treat `<event_type>_emit_failed` as
+/// equivalent-to `<event_type>` plus a `degraded_trail = true` flag.
+///
+/// Sites:
+/// - `admission_denied` (every denial path) — fallback type
+///   `admission_denied_ocel_failed`. Phantom denials no longer possible.
+/// - `workflow_declared` (replay-portability anchor) — fallback type
+///   `workflow_declared_emit_failed`. Load-bearing per Plan B: downstream
+///   replay-from-OCEL-alone needs this anchor or the declared model is
+///   unrecoverable.
+///
+/// `fallback_event_type` is supplied explicitly (not derived) so the
+/// `admission_denied_ocel_failed` historical name is preserved instead
+/// of being broken to `admission_denied_emit_failed` by a naive
+/// `format!("{}_emit_failed", primary)`.
+#[allow(clippy::too_many_arguments)]
+fn emit_with_fallback(
+    store: &OcelStore,
+    primary_event_id: &str,
+    primary_event_type: &str,
+    fallback_event_type: &str,
+    time_iso: &str,
+    session_id: &str,
+    attrs: &[(&str, &str)],
+    objects: &[(&str, &str)],
+    scope_token: Option<&str>,
+    tracing_target: &'static str,
+) {
+    let primary = store.emit_event(
+        primary_event_id,
+        primary_event_type,
+        time_iso,
+        session_id,
+        attrs,
+        objects,
+        scope_token,
+    );
+    if let Err(primary_err) = primary {
+        // Build a fresh event_id derived from the primary so an external
+        // joiner can correlate the degraded anchor back to the missing
+        // primary witness.
+        let fallback_event_id = format!("{primary_event_id}:emit_failed");
+        let primary_err_str = primary_err.to_string();
+        // Carry the primary's attrs forward AND tag the failure cause so
+        // a verifier reading only the OCEL stream sees what type was
+        // intended and why the primary did not land.
+        let mut fallback_attrs: Vec<(&str, &str)> = attrs.to_vec();
+        fallback_attrs.push(("intended_event_type", primary_event_type));
+        fallback_attrs.push(("primary_emit_error", &primary_err_str));
+        let secondary = store.emit_event(
+            &fallback_event_id,
+            fallback_event_type,
+            time_iso,
+            session_id,
+            &fallback_attrs,
+            objects,
+            scope_token,
+        );
+        if let Err(secondary_err) = secondary {
+            // Both emits failed. The OCEL trail has lost this anchor —
+            // record via `tracing::error!` so OTEL still surfaces it.
+            // External operators MUST treat this as a §15 anchor-loss
+            // andon: receipts/conformance rows may exist without their
+            // OCEL counterpart for the duration of the outage.
+            //
+            // `tracing::error!`'s `target:` slot must be a string literal
+            // (the macro bakes a `DefaultCallsite` static). We dispatch
+            // on the supplied namespace so each call site retains its
+            // own static callsite.
+            let secondary_err_str = secondary_err.to_string();
+            match tracing_target {
+                "ontostar.admission.denied_emit_lost" => tracing::error!(
+                    target: "ontostar.admission.denied_emit_lost",
+                    primary_event_id = primary_event_id,
+                    primary_event_type = primary_event_type,
+                    fallback_event_type = fallback_event_type,
+                    primary_error = %primary_err_str,
+                    secondary_error = %secondary_err_str,
+                    "OCEL emit lost — both primary and fallback failed; \
+                     receipts/conformance rows may exist without an OCEL anchor",
+                ),
+                "ontostar.admission.workflow_declared_emit_lost" => tracing::error!(
+                    target: "ontostar.admission.workflow_declared_emit_lost",
+                    primary_event_id = primary_event_id,
+                    primary_event_type = primary_event_type,
+                    fallback_event_type = fallback_event_type,
+                    primary_error = %primary_err_str,
+                    secondary_error = %secondary_err_str,
+                    "OCEL emit lost — both primary and fallback failed; \
+                     receipts/conformance rows may exist without an OCEL anchor",
+                ),
+                _ => tracing::error!(
+                    target: "ontostar.admission.emit_lost",
+                    namespace = tracing_target,
+                    primary_event_id = primary_event_id,
+                    primary_event_type = primary_event_type,
+                    fallback_event_type = fallback_event_type,
+                    primary_error = %primary_err_str,
+                    secondary_error = %secondary_err_str,
+                    "OCEL emit lost — both primary and fallback failed; \
+                     receipts/conformance rows may exist without an OCEL anchor",
+                ),
+            }
+        }
     }
 }
 
@@ -933,34 +1079,121 @@ fn re_snapshot_ocel_for_replay_proof(
     hex32_pub(&bytes)
 }
 
+/// R5 WB-2 — §15 OCEL anchor closure: atomic conformance INSERT + OCEL witness.
+///
+/// Previously this function did `let _ = conn.execute("INSERT OR REPLACE
+/// INTO conformance_runs ...")` and emitted no OCEL witness. A downstream
+/// verifier joining `receipts` ↔ `ocel_events` ↔ `conformance_runs` could
+/// not prove the conformance row was used at admission — the row was
+/// orphan-evidence.
+///
+/// Now: a single `rusqlite::Transaction` wraps:
+///   1. INSERT OR REPLACE into `conformance_runs`
+///   2. NEW OCEL event `conformance_recorded` with attrs (run_id, verdict,
+///      fitness, precision, scope_token, trace_canonical_hash) emitted via
+///      `OcelStore::emit_event_in_tenant_in_tx` on the SAME tx.
+///
+/// The two commit together or roll back together. If the OCEL emit fails,
+/// the conformance row is NOT durable — closing the orphan-evidence
+/// window. The INSERT/UPDATE for `workflow_class` and the Loop 5
+/// regression hook run AFTER the commit (they are best-effort
+/// post-conditions, not part of the atomic anchor).
+///
+/// We log via `tracing::error!` on the namespace
+/// `ontostar.admission.conformance_witness_lost` if the atomic block
+/// fails, so OTEL still surfaces the loss; the caller's admission flow
+/// continues — `cell_ready`'s `replay_pass` conjunct will refuse with
+/// `ReplayFailed` because no row exists for it to read.
 fn persist_conformance_run(
     store: &OcelStore,
     scope_token: &str,
     conf: &ConformanceResult,
     trace_hash_hex: &str,
 ) {
-    let conn = store.db().conn();
-    let _ = conn.execute_batch(crate::receipts::STREAM3_STUB_MIGRATION);
-    let _ = conn.execute(
-        "INSERT OR REPLACE INTO conformance_runs (
-            run_id, scope_token, fitness, precision, generalization, simplicity,
-            verdict, defects_json, trace_canonical_hash, ran_at
-         ) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10)",
-        rusqlite::params![
-            conf.run_id,
-            scope_token,
-            conf.fitness,
-            conf.precision,
-            Option::<f64>::None,
-            Option::<f64>::None,
-            conf.verdict,
-            "[]",
-            trace_hash_hex,
-            chrono::Utc::now().to_rfc3339(),
-        ],
+    // Run the stub migration on its own (it is a no-op SQL string but keep
+    // the historical call so external diff readers see no behaviour change
+    // outside the new tx).
+    {
+        let conn = store.db().conn();
+        let _ = conn.execute_batch(crate::receipts::STREAM3_STUB_MIGRATION);
+    }
+
+    // Build the OCEL witness payload up front. Strings live for the tx
+    // duration so `&str` slices into them are valid through commit.
+    let event_id = format!(
+        "conformance_recorded:{}:{}",
+        scope_token, conf.run_id,
     );
-    // Best-effort: stamp workflow_class from declared_workflows so Loop 5
-    // (regression detection) can group rolling means by class.
+    let now = chrono::Utc::now().to_rfc3339();
+    let fitness_s = format!("{}", conf.fitness);
+    let precision_s = format!("{}", conf.precision);
+
+    let atomic: Result<(), anyhow::Error> = (|| {
+        let mut conn = store.db().conn();
+        let tx = conn.transaction()?;
+        tx.execute(
+            "INSERT OR REPLACE INTO conformance_runs (
+                run_id, scope_token, fitness, precision, generalization, simplicity,
+                verdict, defects_json, trace_canonical_hash, ran_at
+             ) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10)",
+            rusqlite::params![
+                conf.run_id,
+                scope_token,
+                conf.fitness,
+                conf.precision,
+                Option::<f64>::None,
+                Option::<f64>::None,
+                conf.verdict,
+                "[]",
+                trace_hash_hex,
+                now,
+            ],
+        )?;
+        OcelStore::emit_event_in_tenant_in_tx(
+            &tx,
+            &event_id,
+            "conformance_recorded",
+            &now,
+            // session_id is not threaded through `persist_conformance_run`;
+            // tag the witness with a synthetic session anchored to the
+            // run_id so an OCEL projector can recover the linkage via
+            // `attrs.run_id` without leaking real session ids into the
+            // join.
+            "conformance",
+            &[
+                ("run_id", &conf.run_id),
+                ("verdict", &conf.verdict),
+                ("fitness", &fitness_s),
+                ("precision", &precision_s),
+                ("scope_token", scope_token),
+                ("trace_canonical_hash", trace_hash_hex),
+                ("production_law_version", "ontostar-1.0.0"),
+                ("defects_taxonomy_version", crate::defects::DEFECTS_TAXONOMY_VERSION),
+            ],
+            &[],
+            Some(scope_token),
+            "default",
+        )?;
+        tx.commit()?;
+        Ok(())
+    })();
+
+    if let Err(e) = atomic {
+        tracing::error!(
+            target: "ontostar.admission.conformance_witness_lost",
+            scope_token = scope_token,
+            run_id = %conf.run_id,
+            error = %e,
+            "conformance_runs INSERT + OCEL witness rolled back together; \
+             cell_ready replay_pass will refuse with ReplayFailed for this run",
+        );
+        return;
+    }
+
+    // Best-effort post-conditions (NOT part of the atomic anchor). Stamp
+    // workflow_class from declared_workflows so Loop 5 (regression
+    // detection) can group rolling means by class.
+    let conn = store.db().conn();
     let workflow_class: Option<String> = conn
         .query_row(
             "SELECT name FROM declared_workflows WHERE scope_token = ?1",

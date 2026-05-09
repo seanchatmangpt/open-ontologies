@@ -8,6 +8,36 @@ pub struct OcelStore {
     db: StateDb,
 }
 
+// R5 WB-2 — §15 OCEL anchor closure.
+//
+// Test-only hook fired at the entry of `emit_event_rows` (i.e., BEFORE any
+// SQL is executed). When the closure is installed and returns `Some(err)` for
+// the supplied `event_type`, the emit fails as if SQLite refused — letting
+// counterfactual tests prove that the admission gate's primary+fallback
+// pattern actually records a degraded-trail anchor when the primary emit
+// fails, instead of silently swallowing the failure.
+//
+// Mirrors `admission::A13_BETWEEN_SNAPSHOT_HOOK` (R5 WB-1):
+// - `#[cfg(debug_assertions)]` so release builds strip the entire
+//   thread_local plus the `with(...)` call inside `emit_event_rows`.
+// - `#[doc(hidden)]` keeps the symbol out of public docs even though it is
+//   `pub` (required for integration-test visibility).
+// - Single-threaded by virtue of `thread_local!`; tests that want
+//   cross-thread races must wrap their own synchronisation primitives
+//   inside the closure they install.
+#[cfg(debug_assertions)]
+#[doc(hidden)]
+pub type EmitFailureInjectionFn =
+    Box<dyn Fn(&str) -> Option<anyhow::Error> + Send + 'static>;
+
+#[cfg(debug_assertions)]
+thread_local! {
+    #[doc(hidden)]
+    pub static EMIT_FAILURE_INJECTION_HOOK:
+        std::cell::RefCell<Option<EmitFailureInjectionFn>>
+        = const { std::cell::RefCell::new(None) };
+}
+
 /// Insert OCEL event + attrs + relationships through a `Connection` (which
 /// transparently accepts a `&Transaction` via deref). Shared by the legacy
 /// `emit_event_in_tenant` (acquires its own conn) and the Phase 7 Task C.fix
@@ -24,6 +54,16 @@ fn emit_event_rows(
     scope_token: Option<&str>,
     tenant_id: &str,
 ) -> Result<()> {
+    // R5 WB-2 — emit-failure injection for counterfactual tests.
+    #[cfg(debug_assertions)]
+    {
+        let injected: Option<anyhow::Error> = EMIT_FAILURE_INJECTION_HOOK.with(|h| {
+            h.borrow().as_ref().and_then(|hook| hook(event_type))
+        });
+        if let Some(e) = injected {
+            return Err(e);
+        }
+    }
     conn.execute(
         "INSERT INTO ocel_events (event_id, event_type, time, session_id, scope_token, tenant_id)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
