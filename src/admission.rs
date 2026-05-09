@@ -340,6 +340,59 @@ impl OntoStarAdmissionGate {
         )
     }
 
+    /// Phase 11 — tenant-aware audit emit. Audit-only ops (Clear, Feedback,
+    /// LlmTranslate, Discovery, ThresholdSweep, Version, TenantSwitch) cannot
+    /// deny, but their `admission_audit` OCEL event must still carry the
+    /// caller's tenant_id so an external auditor can scope the trail per
+    /// tenant. This method emits the audit event tagged with `caller_tenant`
+    /// and never returns an error. Mirrors [`evaluate_in_tenant`] in spirit
+    /// but without the gate machinery.
+    pub fn evaluate_audit_in_tenant(
+        &self,
+        op: AdmissionOp,
+        artifact: &ArtifactRef<'_>,
+        store: &OcelStore,
+        session_id: &str,
+        scope_token: Option<&str>,
+        caller_tenant: &str,
+    ) {
+        debug_assert!(
+            !op.is_full_admission(),
+            "evaluate_audit_in_tenant only accepts audit-only ops; got {:?}",
+            op
+        );
+        let artifact_hash = blake3::hash(artifact.bytes);
+        let ts = chrono::Utc::now().to_rfc3339();
+        let event_id = format!(
+            "{}:admission_audit:{}:{}",
+            session_id,
+            caller_tenant,
+            chrono::Utc::now()
+                .timestamp_nanos_opt()
+                .unwrap_or_else(|| chrono::Utc::now().timestamp_millis() * 1_000_000),
+        );
+        let _ = store.emit_event_in_tenant(
+            &event_id,
+            "admission_audit",
+            &ts,
+            session_id,
+            &[
+                ("op", op.as_str()),
+                ("artifact_kind", artifact.kind),
+                ("artifact_hash", &artifact_hash.to_hex().to_string()),
+                ("production_law_version", "ontostar-1.0.0"),
+                (
+                    "defects_taxonomy_version",
+                    crate::defects::DEFECTS_TAXONOMY_VERSION,
+                ),
+                ("caller_tenant", caller_tenant),
+            ],
+            &[],
+            scope_token,
+            caller_tenant,
+        );
+    }
+
     /// Run admission. On Ok: persist the receipt and emit `admission_granted`.
     /// On Err: emit `admission_denied` with a typed `defect` attribute.
     pub fn evaluate<R: PowlReplay>(

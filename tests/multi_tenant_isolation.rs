@@ -4,11 +4,10 @@
 //! access and that tenant-tagged rows in `receipts`, `declared_workflows`,
 //! and `ocel_events` never bleed across tenant namespaces.
 //!
-//! The tests directly exercise [`OntoStarAdmissionGate::evaluate_in_tenant`]
-//! and [`receipts::latest_for_session_in_tenant`], which together implement
-//! the tenant ACL surface. All other surfaces (the MCP `evaluate_admission`
-//! helper) build on these primitives, so an isolation guarantee here lifts
-//! to every gated MCP handler.
+//! This file exercises the gate primitives directly; production wiring is
+//! verified end-to-end in `multi_tenant_boundary_wired.rs` via
+//! `OpenOntologiesServer::evaluate_admission` and the `tenant_extract_layer`
+//! axum middleware.
 
 use open_ontologies::admission::{
     AdmissionOp, ArtifactRef, OntoStarAdmissionGate, PowlBridgeReplay,

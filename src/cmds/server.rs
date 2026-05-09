@@ -177,8 +177,19 @@ fn build_http_axum_router(cfg: &Config, shared_graph: Arc<GraphStore>, shared_db
     let service: StreamableHttpService<_, LocalSessionManager> = StreamableHttpService::new(
         move || {
             let db = StateDb::open(&db_path).map_err(std::io::Error::other)?;
+            // Phase 11: per-request tenant rebind. The factory closure runs
+            // once per HTTP request; reading the tenant from the
+            // `TENANT_OVERRIDE` task-local (set by `tenant_extract_layer`)
+            // means this server instance is bound to the tenant declared
+            // in the `X-Ontostar-Tenant` header for the lifetime of the
+            // call. Concurrent requests cannot leak across each other
+            // because each gets its own task-local scope and its own
+            // freshly-cloned `OpenOntologiesServer`.
+            let tenant = open_ontologies::server::current_tenant_override()
+                .unwrap_or_else(|| "default".to_string());
             Ok(OpenOntologiesServer::new_with_repo_options(db, sg.clone(), gw.clone(), embed.clone(), cc.clone(), tf.clone(), dirs.clone())
-                .with_default_llm_engine(llm_engine_for_factory.clone()))
+                .with_default_llm_engine(llm_engine_for_factory.clone())
+                .with_tenant(&tenant))
         },
         Default::default(),
         http_config,
@@ -187,6 +198,12 @@ fn build_http_axum_router(cfg: &Config, shared_graph: Arc<GraphStore>, shared_db
     let llm_cfg_for_health = cfg.llm.clone();
     let api = build_api_router(shared_graph, shared_db, llm_cfg_for_health);
     let mut router = axum::Router::new().nest("/api", api).nest_service("/mcp", service);
+
+    // X-Ontostar-Tenant extraction layer (Phase 11). Validates the value
+    // against `^[a-z][a-z0-9_-]{0,63}$` and parks it in the
+    // `TENANT_OVERRIDE` task-local for the per-request server factory.
+    // Must precede `llm_engine_extract_layer` so layers compose correctly.
+    router = router.layer(axum::middleware::from_fn(tenant_extract_layer));
 
     // X-Ontostar-LLM-Engine extraction layer. Validates the value
     // against `config::VALID_LLM_ENGINES` and parks it in the
@@ -206,6 +223,43 @@ fn build_http_axum_router(cfg: &Config, shared_graph: Arc<GraphStore>, shared_db
     }
     router = router.layer(tower_http::cors::CorsLayer::permissive());
     (router, host, port, ct)
+}
+
+/// Validate a tenant_id against `^[a-z][a-z0-9_-]{0,63}$`. Implemented
+/// without `regex` to avoid pulling a new top-level dep.
+pub(crate) fn is_valid_tenant_id(s: &str) -> bool {
+    let bytes = s.as_bytes();
+    if bytes.is_empty() || bytes.len() > 64 {
+        return false;
+    }
+    if !bytes[0].is_ascii_lowercase() {
+        return false;
+    }
+    bytes
+        .iter()
+        .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || *b == b'_' || *b == b'-')
+}
+
+/// Read the `X-Ontostar-Tenant` header (if any), validate it against
+/// `^[a-z][a-z0-9_-]{0,63}$`, and run the downstream handler with
+/// [`open_ontologies::server::TENANT_OVERRIDE`] set. An invalid /
+/// missing header falls back to `"default"` (the server's compile-time
+/// default tenant) — single-tenant deployments work unchanged.
+pub(crate) async fn tenant_extract_layer(
+    req: axum::extract::Request,
+    next: axum::middleware::Next,
+) -> axum::response::Response {
+    let header_val = req
+        .headers()
+        .get("x-ontostar-tenant")
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .filter(|s| is_valid_tenant_id(s));
+    let tenant = header_val.unwrap_or_else(|| "default".to_string());
+    open_ontologies::server::TENANT_OVERRIDE
+        .scope(Some(tenant), next.run(req))
+        .await
 }
 
 /// Read the `X-Ontostar-LLM-Engine` header (if any), validate it

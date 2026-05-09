@@ -27,12 +27,27 @@ use crate::state::StateDb;
 // `Parameters<…>` handler.
 tokio::task_local! {
     pub static LLM_ENGINE_OVERRIDE: Option<String>;
+    /// Phase 11 — per-request tenant override. Set by the HTTP
+    /// `tenant_extract_layer` middleware from the `X-Ontostar-Tenant`
+    /// header. Read by the `StreamableHttpService` factory closure to
+    /// rebind the freshly-constructed `OpenOntologiesServer` to the
+    /// caller's tenant for the lifetime of the request.
+    pub static TENANT_OVERRIDE: Option<String>;
 }
 
 /// Read the current request's `X-Ontostar-LLM-Engine` override, if any.
 /// Returns `None` when no task-local is in scope (e.g. stdio MCP transport).
 pub fn current_llm_engine_override() -> Option<String> {
     LLM_ENGINE_OVERRIDE
+        .try_with(|opt| opt.clone())
+        .ok()
+        .flatten()
+}
+
+/// Read the current request's `X-Ontostar-Tenant` override, if any.
+/// Returns `None` when no task-local is in scope (stdio transport).
+pub fn current_tenant_override() -> Option<String> {
+    TENANT_OVERRIDE
         .try_with(|opt| opt.clone())
         .ok()
         .flatten()
@@ -67,6 +82,14 @@ pub struct OpenOntologiesServer {
     /// explicit `engine` argument and no `X-Ontostar-LLM-Engine` header
     /// override is in scope.
     default_llm_engine: String,
+    /// Phase 11 — caller-side tenant context. Read from
+    /// `OPEN_ONTOLOGIES_TENANT_ID` at construction (default: `"default"`)
+    /// and rebound per-request by the HTTP `tenant_extract_layer`
+    /// middleware via [`Self::with_tenant`]. Every `evaluate_admission`
+    /// call funnels `tenant.current()` into the gate's
+    /// `evaluate_in_tenant` method, so ALL 27 #[tool] mutations are
+    /// tenant-ACL-checked.
+    tenant: crate::tenant::TenantHandle,
 }
 
 impl OpenOntologiesServer {
@@ -226,7 +249,25 @@ impl OpenOntologiesServer {
             #[cfg(feature = "embeddings")]
             text_embedder,
             default_llm_engine,
+            tenant: crate::tenant::TenantHandle::from_env(),
         }
+    }
+
+    /// Phase 11 — fluent setter that rebinds the server's tenant context.
+    /// The `TenantHandle` is intentionally NOT cloned with new state; it
+    /// is replaced wholesale so per-request rebinding (via the HTTP
+    /// `tenant_extract_layer` middleware on a cheaply-cloned `Self`)
+    /// cannot leak across concurrent requests.
+    pub fn with_tenant(mut self, tenant_id: &str) -> Self {
+        let trimmed = tenant_id.trim();
+        let normalized = if trimmed.is_empty() { "default" } else { trimmed };
+        self.tenant = crate::tenant::TenantHandle::new(normalized);
+        self
+    }
+
+    /// Snapshot the current tenant_id (for tests and per-request audit).
+    pub fn tenant_snapshot(&self) -> String {
+        self.tenant.current().tenant_id
     }
 
     /// Override the resolved default LLM engine. Used by the HTTP /
@@ -399,7 +440,22 @@ impl OpenOntologiesServer {
         // internally; this is a cheap second call against the parsed POWL).
         let conf = replay.replay(&scope_row.scope_token, &scope_row.powl_string);
 
-        match gate.evaluate(
+        // ─── PHASE 11 ENFORCEMENT POINT ────────────────────────────────────
+        // All 27 #[tool] handlers that mutate funnel through this helper.
+        // Routing this call through `evaluate_in_tenant` (instead of the
+        // tenant-blind `evaluate`) means cross-tenant scope access is
+        // rejected at the gate before any artifact is hashed, persisted,
+        // or written to disk — with a typed `DefectClass::TenantBoundary`
+        // defect so callers and external auditors can distinguish it from
+        // generic admission failures.
+        //
+        // **DO NOT add a new mutating #[tool] that bypasses this helper.**
+        // A handler that calls `gate.evaluate` directly, or skips admission
+        // entirely, is a Phase-11 regression that the
+        // `multi_tenant_boundary_wired` test suite is designed to catch.
+        // ───────────────────────────────────────────────────────────────────
+        let caller_tenant = self.tenant.current();
+        match gate.evaluate_in_tenant(
             &scope_row.scope_token,
             op,
             &artifact,
@@ -408,6 +464,7 @@ impl OpenOntologiesServer {
             &self.session_id,
             &scope_row.powl_string,
             &observed_stages,
+            caller_tenant.current(),
         ) {
             Ok(receipt) => {
                 self.lineage()
@@ -443,35 +500,30 @@ impl OpenOntologiesServer {
         artifact_kind: &str,
         artifact_bytes: &[u8],
     ) {
-        debug_assert!(
-            !op.is_full_admission(),
-            "evaluate_admission_audit only accepts audit-only ops; got {:?}",
-            op
+        // ─── PHASE 11 AUDIT ENFORCEMENT POINT ──────────────────────────────
+        // Audit-only ops cannot deny, but the OCEL audit event MUST carry
+        // the caller's tenant_id so a downstream auditor can scope the
+        // trail per tenant. Every audit-only #[tool] funnels through here.
+        // ───────────────────────────────────────────────────────────────────
+        let required: Vec<String> = Vec::new();
+        let gate = crate::admission::OntoStarAdmissionGate::new(
+            0.95,
+            0.85,
+            required,
+            "ontostar-1.0.0",
         );
-        let artifact_hash = blake3::hash(artifact_bytes);
-        let ts = chrono::Utc::now().to_rfc3339();
-        let event_id = format!(
-            "{}:admission_audit:{}",
-            self.session_id,
-            chrono::Utc::now().timestamp_millis()
-        );
-        let _ = self.ocel_store().emit_event(
-            &event_id,
-            "admission_audit",
-            &ts,
+        let artifact = crate::admission::ArtifactRef {
+            kind: artifact_kind,
+            bytes: artifact_bytes,
+        };
+        let caller_tenant = self.tenant.current();
+        gate.evaluate_audit_in_tenant(
+            op,
+            &artifact,
+            self.ocel_store(),
             &self.session_id,
-            &[
-                ("op", op.as_str()),
-                ("artifact_kind", artifact_kind),
-                ("artifact_hash", &artifact_hash.to_hex().to_string()),
-                ("production_law_version", "ontostar-1.0.0"),
-                (
-                    "defects_taxonomy_version",
-                    crate::defects::DEFECTS_TAXONOMY_VERSION,
-                ),
-            ],
-            &[],
             explicit_scope,
+            caller_tenant.current(),
         );
         self.lineage()
             .record(&self.session_id, "A", "admission_audit", op.as_str());
@@ -570,7 +622,7 @@ impl OpenOntologiesServer {
     }
 
     #[tool(name = "onto_load", description = "Load an RDF file or inline Turtle content into the in-memory ontology store. When given a file path, the parsed graph is also written to a fast N-Triples compile cache (in `[cache] dir`) so subsequent loads from the same source skip parsing. Optional `name`, `auto_refresh`, and `force_recompile` flags control caching/refresh behavior.")]
-    async fn onto_load(&self, Parameters(input): Parameters<OntoLoadInput>) -> String {
+    pub async fn onto_load(&self, Parameters(input): Parameters<OntoLoadInput>) -> String {
         let started = std::time::Instant::now();
         let out = if let Some(turtle) = input.turtle {
             // Inline turtle bypasses the registry/cache (no source file).
@@ -746,7 +798,7 @@ impl OpenOntologiesServer {
     }
 
     #[tool(name = "onto_save", description = "Save the current ontology store to a file. Gated by OntoStar admission. The written file carries an OntoStar receipt header for turtle/n3/trig formats; the JSON response always includes receipt_hash.")]
-    async fn onto_save(&self, Parameters(input): Parameters<OntoSaveInput>) -> String {
+    pub async fn onto_save(&self, Parameters(input): Parameters<OntoSaveInput>) -> String {
         let started = std::time::Instant::now();
         if let Err(e) = self.registry.ensure_loaded() {
             let out = format!(r#"{{"error":"Ontology not loaded: {}. Call onto_load first."}}"#, e.to_string().replace('"', "'"));

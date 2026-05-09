@@ -84,6 +84,12 @@ cargo build --release
 A receipt that fails to verify exits non-zero and prints the broken link in the
 chain. There is no `--force` flag.
 
+**Multi-tenancy.** Single-tenant by default. Multi-tenant isolation requires
+explicit tenant declaration: header `X-Ontostar-Tenant: <id>` for HTTP, or
+`OPEN_ONTOLOGIES_TENANT_ID=<id>` for stdio. Tenants must match
+`^[a-z][a-z0-9_-]{0,63}$`. Cross-tenant scope access is denied with
+`DefectClass::TenantBoundary`.
+
 ## What's in the box
 
 | Capability | Module | Tests |
