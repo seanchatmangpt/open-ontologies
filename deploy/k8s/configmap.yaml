@@ -1,0 +1,28 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ontostar-config
+  namespace: ontostar
+  labels:
+    app.kubernetes.io/name: ontostar
+data:
+  config.toml: |
+    [general]
+    data_dir = "/data"
+    ontology_dirs = ["/data/ontologies"]
+
+    [http]
+    host = "0.0.0.0"
+    port = 3050
+
+    [logging]
+    level = "info"
+
+    [cache]
+    auto_refresh = true
+
+    [embeddings]
+    provider = "openai"
+
+    [llm]
+    provider = "groq"

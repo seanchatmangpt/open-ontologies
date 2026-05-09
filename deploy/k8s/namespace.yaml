@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ontostar
+  labels:
+    app.kubernetes.io/name: ontostar
+    app.kubernetes.io/part-of: open-ontologies

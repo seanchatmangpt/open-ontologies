@@ -1,0 +1,67 @@
+image:
+  repository: ghcr.io/fabio-rovai/ontostar
+  tag: latest
+  pullPolicy: IfNotPresent
+
+replicaCount: 1
+
+service:
+  type: ClusterIP
+  port: 3050
+
+persistence:
+  enabled: true
+  size: 5Gi
+  accessMode: ReadWriteOnce
+  # storageClassName: ""
+
+resources:
+  requests:
+    cpu: 500m
+    memory: 1Gi
+  limits:
+    cpu: "2"
+    memory: 4Gi
+
+# Tenant identity surfaced to the binary as OPEN_ONTOLOGIES_TENANT_ID.
+tenant:
+  id: default
+
+# RUST_LOG value.
+logLevel: info
+
+# Inline config.toml. Rendered into a ConfigMap.
+config: |
+  [general]
+  data_dir = "/data"
+  ontology_dirs = ["/data/ontologies"]
+
+  [http]
+  host = "0.0.0.0"
+  port = 3050
+
+  [logging]
+  level = "info"
+
+  [cache]
+  auto_refresh = true
+
+  [embeddings]
+  provider = "openai"
+
+  [llm]
+  provider = "groq"
+
+# Existing Kubernetes Secret with at minimum GROQ_API_KEY.
+# Create it manually or via a SealedSecret / ExternalSecret.
+secret:
+  # If empty, the chart creates an empty placeholder Secret you must populate
+  # out-of-band. Override `existingSecret` to point at a pre-existing Secret.
+  existingSecret: ""
+  name: ontostar-secrets
+
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 10001
+  runAsGroup: 10001
+  fsGroup: 10001

@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ontostar-data
+  namespace: ontostar
+  labels:
+    app.kubernetes.io/name: ontostar
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+  # storageClassName: ""   # uncomment and set for a specific provisioner

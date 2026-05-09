@@ -1,0 +1,63 @@
+# Docker Compose for the ontostar (open-ontologies) MCP server.
+#
+# Usage:
+#   cp .env.example .env                       # at repo root
+#   # Edit .env and set GROQ_API_KEY=<your-key>
+#   docker compose -f docker/docker-compose.yml up --build
+#
+# The MCP HTTP transport will be available at http://localhost:3050/mcp
+#
+# Secrets handling:
+#   - The `.env` file at the repo root holds GROQ_API_KEY and any other
+#     credentials. It is excluded from the build context via .dockerignore
+#     and from git via .gitignore. NEVER commit it.
+#   - In production, prefer Kubernetes Secrets (see deploy/k8s/secret.example.yaml).
+
+version: "3.9"
+
+services:
+  ontostar:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      args:
+        FEATURES: ""        # set to "embeddings" to enable ONNX local embeddings
+    image: ontostar:latest
+    container_name: ontostar
+    restart: unless-stopped
+    ports:
+      - "3050:3050"
+    env_file:
+      - ../.env             # provides GROQ_API_KEY at minimum
+    environment:
+      RUST_LOG: "info"
+      OPEN_ONTOLOGIES_HTTP_HOST: "0.0.0.0"
+      OPEN_ONTOLOGIES_HTTP_PORT: "3050"
+      # OPEN_ONTOLOGIES_TENANT_ID: "default"   # uncomment for multi-tenant
+    volumes:
+      - ontostar-data:/data
+      - ./config.toml:/config/config.toml:ro
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z 127.0.0.1 3050 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  # Optional: pm4py sidecar for process-mining checks that need network access.
+  # Disabled by default. Enable with `--profile pm4py`.
+  pm4py:
+    profiles: ["pm4py"]
+    image: python:3.13-slim
+    container_name: ontostar-pm4py
+    restart: unless-stopped
+    working_dir: /work
+    command: ["sleep", "infinity"]
+    env_file:
+      - ../.env
+    volumes:
+      - ontostar-data:/data:ro
+
+volumes:
+  ontostar-data:
+    driver: local

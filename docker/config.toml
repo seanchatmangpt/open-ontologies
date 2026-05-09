@@ -1,0 +1,27 @@
+# Canonical config for containerized ontostar deployments.
+# Mounted into the container at /config/config.toml.
+
+[general]
+data_dir = "/data"
+ontology_dirs = ["/data/ontologies"]
+
+[http]
+host = "0.0.0.0"
+port = 3050
+
+[logging]
+# Set to "debug" or "trace" for verbose troubleshooting.
+level = "info"
+
+[cache]
+# Auto-refresh on file mtime changes; idle TTL keeps memory bounded.
+auto_refresh = true
+
+[embeddings]
+# "local" requires --features=embeddings at build time. "openai" works against
+# any OpenAI-compatible gateway (Groq, Azure OpenAI, Ollama, vLLM, LocalAI).
+provider = "openai"
+
+[llm]
+# Reads GROQ_API_KEY from the environment / mounted .env file.
+provider = "groq"
