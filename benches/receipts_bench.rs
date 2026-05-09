@@ -31,40 +31,36 @@ fn mk_record(i: u64, prior: Option<[u8; 32]>) -> ProductionRecord {
         gates_passed: vec!["g".into()],
         gates_refused: vec![],
         prior_receipt: prior,
+        signature: None,
+        signing_key_fpr: None,
     }
 }
 
 fn bench_persist_with_tenant_in_tx(c: &mut Criterion) {
     let mut group = c.benchmark_group("receipts");
     group.throughput(Throughput::Elements(1));
+    // Hoist the sqlite open out of the timed window. Each iter mints a
+    // unique session id so the INSERT is always sequence=1 in a fresh
+    // (session_id, tenant_id) chain — comparable iteration-to-iteration
+    // without paying tempdir + sqlite open cost (~4.5 ms) on every iter.
+    let db = fresh_db();
+    let counter = std::sync::atomic::AtomicU64::new(0);
     group.bench_function("persist_with_tenant_in_tx", |b| {
-        // Each iteration uses a fresh (db, session, sequence-1) state so the
-        // INSERT is comparable iteration-to-iteration. Sequence column is
-        // computed inside the tx and per-session, so reusing a single db
-        // would grow the chain and bias the measurement upward.
-        b.iter_batched(
-            || {
-                let db = fresh_db();
-                static N: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
-                let n = N.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-                let session = format!("persist-bench-{n}");
-                let r: Receipt = receipts::build(mk_record(0, None));
-                (db, session, r)
-            },
-            |(db, session, r)| {
-                let mut conn = db.conn();
-                let tx = conn.transaction().unwrap();
-                persist_with_tenant_in_tx(
-                    &tx,
-                    black_box(&r),
-                    black_box(&session),
-                    black_box("default"),
-                )
-                .unwrap();
-                tx.commit().unwrap();
-            },
-            criterion::BatchSize::SmallInput,
-        )
+        b.iter(|| {
+            let n = counter.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            let session = format!("persist-bench-{n}");
+            let r: Receipt = receipts::build(mk_record(n, None));
+            let mut conn = db.conn();
+            let tx = conn.transaction().unwrap();
+            persist_with_tenant_in_tx(
+                &tx,
+                black_box(&r),
+                black_box(&session),
+                black_box("default"),
+            )
+            .unwrap();
+            tx.commit().unwrap();
+        })
     });
     group.finish();
 }
