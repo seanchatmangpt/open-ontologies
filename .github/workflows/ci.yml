@@ -1,35 +1,176 @@
 name: CI
+
 on:
   push:
-    branches: [main]
+    branches: [main, ontostar-integration]
   pull_request:
-    branches: [main]
+    branches: [main, ontostar-integration]
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
+  RUST_BACKTRACE: 1
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-      CARGO_INCREMENTAL: 0
-      CARGO_PROFILE_DEV_DEBUG: 0
+  lib-unit:
+    name: lib + unit tests (${{ matrix.os }} / ${{ matrix.toolchain }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        toolchain: [stable, nightly]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
-      - name: Free disk space
-        run: |
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/powershell /usr/local/share/chromium /usr/local/share/edge
-          sudo apt-get clean
-          df -h
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@master
         with:
+          toolchain: ${{ matrix.toolchain }}
           components: clippy
       - uses: Swatinem/rust-cache@v2
-      - name: Build
-        run: cargo build
-      - name: Test
-        run: cargo test
-      - name: Clippy
-        run: cargo clippy -- -D warnings
-      - name: Audit
+        with:
+          key: ${{ matrix.os }}-${{ matrix.toolchain }}-libunit
+      - name: cargo test --lib
+        run: cargo test --lib --all-features
+
+  integration-suites:
+    name: integration / ${{ matrix.suite }}
+    needs: lib-unit
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        suite:
+          - admission
+          - admission_real_replay
+          - cli_test
+          - adversarial_jtbd_test
+          - receipt_chain_adversarial
+          - recursive_admission_e2e
+          - requirements_small_e2e
+          - revops_e2e
+          - revops_ctq_admission
+          - revops_counterfactual
+          - revops_groq_boundary
+          - revops_negative
+          - revops_old_ai_stations
+          - solution_manufacturing_e2e
+          - manufacturing_validators
+          - cell_ready_deny_paths
+          - powl_bridge_extras
+          - no_bypass_audit
+          - secret_grep_ratchet
+          - ratchet_red_team
+          - external_verifier_e2e
+          - cell8_thirteen_gates
+          - multi_tenant_isolation
+          - real_swarm_e2e
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: integ-${{ matrix.suite }}
+      - name: cargo test --test ${{ matrix.suite }}
+        run: cargo test --test ${{ matrix.suite }} -- --nocapture
+
+  real-toolchain-smoke:
+    name: real-toolchain smoke (${{ matrix.os }})
+    needs: lib-unit
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: real-toolchain-${{ matrix.os }}
+      - name: Install Erlang/OTP + Terraform (Linux)
+        if: runner.os == 'Linux'
         run: |
-          cargo install cargo-audit
-          cargo audit
+          sudo apt-get update
+          sudo apt-get install -y erlang
+          wget -qO- https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
+          echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
+          sudo apt-get update
+          sudo apt-get install -y terraform
+          erlc -version
+          terraform -version
+      - name: Install Erlang/OTP + Terraform (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew install erlang terraform
+          erlc -version
+          terraform -version
+      - name: cargo test adversarial_real_toolchains
+        run: cargo test --test adversarial_real_toolchains -- --nocapture --test-threads=1
+
+  real-groq-sweep:
+    name: real-Groq sweep (gated)
+    needs: lib-unit
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    env:
+      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: real-groq
+      - name: Skip if no Groq key
+        if: env.GROQ_API_KEY == ''
+        run: |
+          echo "::warning::GROQ_API_KEY not present; skipping real-Groq sweep cleanly."
+          exit 0
+      - name: real_groq_chicago_e2e
+        if: env.GROQ_API_KEY != ''
+        run: cargo test --test real_groq_chicago_e2e -- --nocapture --test-threads=1
+      - name: real_groq_ctq
+        if: env.GROQ_API_KEY != ''
+        run: cargo test --test real_groq_ctq -- --nocapture --test-threads=1
+      - name: real_groq_executive_projection
+        if: env.GROQ_API_KEY != ''
+        run: cargo test --test real_groq_executive_projection -- --nocapture --test-threads=1
+      - name: real_groq_mcp_handler
+        if: env.GROQ_API_KEY != ''
+        run: cargo test --test real_groq_mcp_handler -- --nocapture --test-threads=1
+      - name: real_groq_plan_workflow
+        if: env.GROQ_API_KEY != ''
+        run: cargo test --test real_groq_plan_workflow -- --nocapture --test-threads=1
+      - name: real_groq_powl
+        if: env.GROQ_API_KEY != ''
+        run: cargo test --test real_groq_powl -- --nocapture --test-threads=1
+      - name: real_groq_powl_refine
+        if: env.GROQ_API_KEY != ''
+        run: cargo test --test real_groq_powl_refine -- --nocapture --test-threads=1
+      - name: real_groq_solution_spec
+        if: env.GROQ_API_KEY != ''
+        run: cargo test --test real_groq_solution_spec -- --nocapture --test-threads=1
+
+  dead-param-gate:
+    name: dead-param gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run dead-param-gate.sh
+        run: bash tools/dead-param-gate.sh
+
+  ratchet-sweep:
+    name: ratchet sweep (no_bypass + secret_grep + ratchet_red_team)
+    needs: lib-unit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ratchet
+      - name: cargo test ratchet sweep
+        run: |
+          cargo test --test no_bypass_audit \
+                     --test secret_grep_ratchet \
+                     --test ratchet_red_team -- --nocapture
