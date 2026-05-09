@@ -613,6 +613,15 @@ pub struct OntoSessionResetInput {
 }
 
 #[derive(Deserialize, JsonSchema)]
+pub struct OntoCell8AttestInput {
+    /// Scope token whose latest receipt (or current admission dry-run state)
+    /// should be attested via the Cell8 13-gate EARL report. Read-only:
+    /// emits no OCEL events, performs no mutation, returns the EARL Turtle
+    /// plus pass/fail counts and any typed defect classes observed.
+    pub scope_token: String,
+}
+
+#[derive(Deserialize, JsonSchema)]
 pub struct OntoCodegenInput {
     /// Generator name / target language (e.g., "python-client" → python, "rust-structs" → rust, "typescript-types" → typescript, or accepted values: python, rust, typescript, go, elixir)
     pub generator: String,

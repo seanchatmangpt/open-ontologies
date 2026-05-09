@@ -158,11 +158,15 @@ pub fn cell_ready(
     if inp.provenance_evidence.is_empty()
         || !inp.provenance_evidence.iter().any(|p| p == inp.artifact_hash)
     {
-        return Err(DefectClass::ProvenanceMissing);
+        return Err(DefectClass::ProvenanceMissing {
+            artifact_hash: inp.artifact_hash.to_string(),
+        });
     }
 
     // 10. A10_external_attestation — at least one attestation digest
     //     verifies (must equal the artifact hash byte-for-byte).
+    //     Phase-10 stub: digest-equality stand-in for Ed25519. A real
+    //     impl would verify a signature against a public key here.
     if inp.external_attestation.is_empty()
         || inp.external_attestation != inp.artifact_hash
     {
@@ -171,11 +175,14 @@ pub fn cell_ready(
 
     // 11. A11_temporal_validity — granted_at chain monotonic.
     if inp.granted_at_chain.is_empty() {
-        return Err(DefectClass::TemporalSkew);
+        return Err(DefectClass::TemporalSkew { observed_skew_ms: 0 });
     }
     for w in inp.granted_at_chain.windows(2) {
         if w[0] > w[1] {
-            return Err(DefectClass::TemporalSkew);
+            // Compute the negative skew in ms for evidence; tolerate parse
+            // failures by reporting -1 (sentinel "unparseable but inverted").
+            let skew_ms = parse_skew_ms(&w[0], &w[1]).unwrap_or(-1);
+            return Err(DefectClass::TemporalSkew { observed_skew_ms: skew_ms });
         }
     }
 
@@ -183,13 +190,18 @@ pub fn cell_ready(
     if let Some(prior) = inp.prior_receipt.as_ref() {
         let prior_hex = hex32_local(prior);
         if !inp.admitted_receipts.iter().any(|r| r == &prior_hex) {
-            return Err(DefectClass::DependencyClosureBroken);
+            return Err(DefectClass::DependencyClosureBroken {
+                missing_hash: prior_hex,
+            });
         }
     }
 
     // 13. A13_replay_proof — POWL replay byte-identical to OCEL hash.
     if inp.replay_canonical_hash != inp.ocel_trace_hash {
-        return Err(DefectClass::ReplayDivergence);
+        return Err(DefectClass::ReplayDivergence {
+            expected: inp.ocel_trace_hash.to_string(),
+            observed: inp.replay_canonical_hash.to_string(),
+        });
     }
 
     let record = ProductionRecord {
@@ -250,6 +262,15 @@ fn parse_hex32(s: &str) -> Option<[u8; 32]> {
         out[i] = u8::from_str_radix(&s[i * 2..i * 2 + 2], 16).ok()?;
     }
     Some(out)
+}
+
+/// Best-effort RFC-3339 skew in milliseconds: returns `later − earlier`.
+/// When `earlier > later` (the failure case for monotonicity) the result
+/// is negative. Returns `None` when either side is unparseable.
+fn parse_skew_ms(earlier: &str, later: &str) -> Option<i64> {
+    let e = chrono::DateTime::parse_from_rfc3339(earlier).ok()?;
+    let l = chrono::DateTime::parse_from_rfc3339(later).ok()?;
+    Some(l.signed_duration_since(e).num_milliseconds())
 }
 
 fn hex32_local(b: &[u8; 32]) -> String {

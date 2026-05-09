@@ -1,6 +1,7 @@
 pub mod admission;
 pub mod batch;
 pub mod cache;
+pub mod cell8;
 pub mod cell_ready;
 pub mod defects;
 pub mod error;

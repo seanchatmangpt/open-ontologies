@@ -96,6 +96,8 @@ fn read_only_allowlist() -> HashSet<&'static str> {
         "onto_groq_status",          // read-only liveness probe; never makes a real Groq HTTP call; never logs key
         // Phase 9 — external verifier:
         "onto_verify",               // External verifier — pure read-only file-and-chain inspection
+        // Phase 10 — Cell8 13-gate attestation:
+        "onto_cell8_attest",         // Cell8 13-gate attestation — read-only inspection
     ]
     .into_iter()
     .collect()

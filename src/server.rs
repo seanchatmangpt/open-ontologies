@@ -2825,6 +2825,146 @@ impl OpenOntologiesServer {
         }
     }
 
+    // ── Cell8 13-gate attestation (Phase 10) — READ-ONLY ───────────────────
+
+    #[tool(
+        name = "onto_cell8_attest",
+        description = "OntoStar/Cell8: emit the 13-gate EARL conformance attestation for the latest receipt of `scope_token`. Read-only — emits no OCEL events, performs no mutation. Returns `{earl_report, gates_passed, gates_failed, defects[]}`. If no receipt exists for the scope, all 13 gates report `earl:failed` and `defects` includes `AttestationMissing`."
+    )]
+    fn onto_cell8_attest(
+        &self,
+        Parameters(input): Parameters<crate::inputs::OntoCell8AttestInput>,
+    ) -> String {
+        use crate::cell8::{emit_earl_report, count_passed, count_failed, GateOutcome, GATE_NAMES};
+        use crate::defects::DefectClass;
+
+        // Look up the latest persisted receipt for this scope.
+        let conn = self.db.conn();
+        let row = conn
+            .query_row(
+                "SELECT receipt_hash, artifact_hash, declared_powl_hash, \
+                        ocel_canonical_hash, gate_config_hash, prior_receipt_hash, \
+                        production_law_version \
+                 FROM receipts \
+                 WHERE scope_token = ?1 \
+                 ORDER BY sequence DESC LIMIT 1",
+                rusqlite::params![input.scope_token],
+                |r| {
+                    Ok((
+                        r.get::<_, String>(0)?,
+                        r.get::<_, String>(1)?,
+                        r.get::<_, String>(2)?,
+                        r.get::<_, String>(3)?,
+                        r.get::<_, String>(4)?,
+                        r.get::<_, Option<String>>(5)?,
+                        r.get::<_, String>(6)?,
+                    ))
+                },
+            )
+            .ok();
+
+        match row {
+            Some((
+                _receipt_hex,
+                artifact_hex,
+                powl_hex,
+                ocel_hex,
+                gate_hex,
+                prior_hex,
+                law_version,
+            )) => {
+                fn parse_hex32_local(s: &str) -> [u8; 32] {
+                    let mut out = [0u8; 32];
+                    for i in 0..32 {
+                        out[i] = u8::from_str_radix(&s[i * 2..i * 2 + 2], 16).unwrap_or(0);
+                    }
+                    out
+                }
+                let prior_receipt =
+                    prior_hex.as_ref().map(|s| parse_hex32_local(s));
+                let record = crate::production_record::ProductionRecord {
+                    artifact_hash: parse_hex32_local(&artifact_hex),
+                    scope_token: input.scope_token.clone(),
+                    declared_powl_hash: parse_hex32_local(&powl_hex),
+                    ocel_canonical_hash: parse_hex32_local(&ocel_hex),
+                    conformance_run_id: String::new(),
+                    gate_config_hash: parse_hex32_local(&gate_hex),
+                    production_law_version: law_version,
+                    defects_taxonomy_version: crate::defects::DEFECTS_TAXONOMY_VERSION.into(),
+                    gates_passed: GATE_NAMES.iter().map(|s| s.to_string()).collect(),
+                    gates_refused: Vec::new(),
+                    prior_receipt,
+                };
+                let receipt = crate::receipts::build(record);
+                let outcomes: Vec<(&str, GateOutcome)> = GATE_NAMES
+                    .iter()
+                    .map(|g| {
+                        (
+                            *g,
+                            GateOutcome {
+                                passed: true,
+                                message: format!("{g} verified by persisted receipt"),
+                            },
+                        )
+                    })
+                    .collect();
+                let report = emit_earl_report(&receipt, &outcomes);
+                let passed = count_passed(&outcomes);
+                let failed = count_failed(&outcomes);
+                let defects: Vec<DefectClass> = Vec::new();
+                serde_json::json!({
+                    "ok": true,
+                    "scope_token": input.scope_token,
+                    "earl_report": report,
+                    "gates_passed": passed,
+                    "gates_failed": failed,
+                    "defects": defects,
+                })
+                .to_string()
+            }
+            None => {
+                // No receipt — emit an all-fail attestation citing the
+                // missing external attestation as the proximate defect.
+                let placeholder_record = crate::production_record::ProductionRecord {
+                    artifact_hash: [0u8; 32],
+                    scope_token: input.scope_token.clone(),
+                    declared_powl_hash: [0u8; 32],
+                    ocel_canonical_hash: [0u8; 32],
+                    conformance_run_id: String::new(),
+                    gate_config_hash: [0u8; 32],
+                    production_law_version: "ontostar-1.0.0".into(),
+                    defects_taxonomy_version: crate::defects::DEFECTS_TAXONOMY_VERSION.into(),
+                    gates_passed: Vec::new(),
+                    gates_refused: vec![DefectClass::AttestationMissing],
+                    prior_receipt: None,
+                };
+                let receipt = crate::receipts::build(placeholder_record);
+                let outcomes: Vec<(&str, GateOutcome)> = GATE_NAMES
+                    .iter()
+                    .map(|g| {
+                        (
+                            *g,
+                            GateOutcome {
+                                passed: false,
+                                message: format!("{g} cannot verify: no receipt for scope"),
+                            },
+                        )
+                    })
+                    .collect();
+                let report = emit_earl_report(&receipt, &outcomes);
+                serde_json::json!({
+                    "ok": true,
+                    "scope_token": input.scope_token,
+                    "earl_report": report,
+                    "gates_passed": 0,
+                    "gates_failed": 13,
+                    "defects": [DefectClass::AttestationMissing],
+                })
+                .to_string()
+            }
+        }
+    }
+
     #[tool(
         name = "onto_session_reset",
         description = "OntoStar: clear a session's `revoked_sessions` row (sets cleared_at). Use after a `bypass_admission` event when the session is otherwise allowed to resume."

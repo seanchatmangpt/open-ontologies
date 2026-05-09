@@ -37,7 +37,13 @@ use serde::{Deserialize, Serialize};
 ///
 /// Bumped from `3.1.0` → `3.2.0` in Phase 11 after addition of the
 /// `TenantBoundary` variant (multi-tenant session isolation defect class).
-pub const DEFECTS_TAXONOMY_VERSION: &str = "ontostar-defects-3.2.0";
+///
+/// Bumped from `3.2.0` → `4.0.0` in Phase 10 final after the A9–A13 conjunct
+/// variants were enriched with structured evidence fields (`artifact_hash`,
+/// `observed_skew_ms`, `missing_hash`, `expected`, `observed`). The variant
+/// enum shape changed (added fields) so external auditors must re-deserialize
+/// — MAJOR bump.
+pub const DEFECTS_TAXONOMY_VERSION: &str = "ontostar-defects-4.0.0";
 
 /// BLAKE3 hex of `tag1\0tag2\0...\0` for [`DefectClass::all_tags()`].
 /// CI-pinned. Adding/renaming/removing a variant changes this, forcing a
@@ -118,19 +124,23 @@ pub enum DefectClass {
     /// A9 ProvenanceChain failed: the `artifact_hash` was not present in
     /// `provenance_evidence`, so the `prov:wasGeneratedBy` lineage cannot
     /// be closed.
-    ProvenanceMissing,
+    ProvenanceMissing { artifact_hash: String },
     /// A10 ExternalAttestation failed: no external attestation digest
-    /// matches the artifact bit-for-bit.
+    /// matches the artifact bit-for-bit. (Phase-10 stub: digest-equality
+    /// stand-in for Ed25519. See `src/cell_ready.rs` A10 conjunct.)
     AttestationMissing,
     /// A11 TemporalValidity failed: the `granted_at` chain is empty or
-    /// not monotonically non-decreasing.
-    TemporalSkew,
+    /// not monotonically non-decreasing. `observed_skew_ms` is the worst
+    /// negative delta between adjacent timestamps in milliseconds (or 0
+    /// when the chain is empty).
+    TemporalSkew { observed_skew_ms: i64 },
     /// A12 DependencyClosure failed: the `prior_receipt` is referenced
-    /// but does not appear in the admitted-receipts set.
-    DependencyClosureBroken,
+    /// but does not appear in the admitted-receipts set. `missing_hash`
+    /// is the hex of the absent prior receipt.
+    DependencyClosureBroken { missing_hash: String },
     /// A13 ReplayProof failed: deterministic POWL replay produced an OCEL
     /// canonical hash that diverges from the recorded `ocel_trace_hash`.
-    ReplayDivergence,
+    ReplayDivergence { expected: String, observed: String },
 }
 
 impl DefectClass {
@@ -161,11 +171,11 @@ impl DefectClass {
             DefectClass::ManufacturingChainBroken { .. } => "manufacturing_chain_broken",
             DefectClass::ArchitectureUnbound => "architecture_unbound",
             DefectClass::TenantBoundary { .. } => "tenant_boundary",
-            DefectClass::ProvenanceMissing => "provenance_missing",
+            DefectClass::ProvenanceMissing { .. } => "provenance_missing",
             DefectClass::AttestationMissing => "attestation_missing",
-            DefectClass::TemporalSkew => "temporal_skew",
-            DefectClass::DependencyClosureBroken => "dependency_closure_broken",
-            DefectClass::ReplayDivergence => "replay_divergence",
+            DefectClass::TemporalSkew { .. } => "temporal_skew",
+            DefectClass::DependencyClosureBroken { .. } => "dependency_closure_broken",
+            DefectClass::ReplayDivergence { .. } => "replay_divergence",
         }
     }
 

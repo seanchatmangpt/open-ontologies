@@ -91,12 +91,15 @@ fn admission_ok_persists_gates_fired_and_manufacturing_delta() {
         .iter()
         .filter_map(|v| v.as_str().map(|s| s.to_string()))
         .collect();
+    // Phase 10: gate names are now `A<n>_<Name>` per the 13-gate canonical
+    // ordering in `src/cell_ready.rs`. Tests must spot-check against the
+    // canonical names (was `WorkflowDeclared`, now `A1_WorkflowDeclared`).
     for required in &[
-        "WorkflowDeclared",
-        "ScopeClosed",
-        "OCELComplete",
-        "POWLReplayPass",
-        "RequiredStagesPresent",
+        "A1_WorkflowDeclared",
+        "A2_ScopeClosed",
+        "A3_OCELComplete",
+        "A4_POWLReplayPass",
+        "A6_RequiredStagesPresent",
     ] {
         assert!(
             names.iter().any(|n| n == required),
