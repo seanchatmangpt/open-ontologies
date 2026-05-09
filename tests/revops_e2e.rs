@@ -30,7 +30,7 @@
 mod revops_common;
 
 use open_ontologies::admission::{
-    AdmissionOp, ArtifactRef, NoopPowlReplay, OntoStarAdmissionGate, PowlBridgeReplay,
+    AdmissionOp, ArtifactRef, OntoStarAdmissionGate, PowlBridgeReplay,
     PowlReplay,
 };
 use open_ontologies::llm_translator::GroqTranslator;
@@ -123,12 +123,13 @@ async fn fortune5_revops_revenue_trust_trial() {
         "ontostar-1.0.0",
     );
     let powl = by_name(REQUIREMENTS_WORKFLOW).unwrap().powl_string;
+    let replay = PowlBridgeReplay::new(&store);
 
     // RequirementProposed
     let req_artifact = ArtifactRef { kind: "req", bytes: source_voice.as_bytes() };
     let req_receipt = gate
         .evaluate(&token, AdmissionOp::RequirementProposed, &req_artifact,
-            &store, &NoopPowlReplay, session, powl, &observed)
+            &store, &replay, session, powl, &observed)
         .expect("RequirementProposed admits");
 
     // CtqAdmitted
@@ -144,7 +145,7 @@ async fn fortune5_revops_revenue_trust_trial() {
     let ctq_artifact = ArtifactRef { kind: "ctq", bytes: ctq_canonical.as_bytes() };
     let ctq_receipt = gate
         .evaluate(&token, AdmissionOp::CtqAdmitted, &ctq_artifact,
-            &store, &NoopPowlReplay, session, powl, &observed)
+            &store, &replay, session, powl, &observed)
         .expect("CtqAdmitted admits");
 
     // WorkOrderAdmitted with counterfactual
@@ -159,7 +160,7 @@ async fn fortune5_revops_revenue_trust_trial() {
     let wo_artifact = ArtifactRef { kind: "wo", bytes: wo_canonical.as_bytes() };
     let wo_receipt = gate
         .evaluate(&token, AdmissionOp::WorkOrderAdmitted, &wo_artifact,
-            &store, &NoopPowlReplay, session, powl, &observed)
+            &store, &replay, session, powl, &observed)
         .expect("WorkOrderAdmitted admits");
 
     // ── 4. Receipt chain ────────────────────────────────────────────────
@@ -172,8 +173,7 @@ async fn fortune5_revops_revenue_trust_trial() {
     // ── 5. Real-replay smoke: with the full RequirementsManufacturing
     //       trace observed, the wasm4pm bridge replay computes a real
     //       fitness for the scope. ───────────────────────────────────────
-    let bridge = PowlBridgeReplay::new(&store);
-    let conf = bridge.replay(&token, powl);
+    let conf = replay.replay(&token, powl);
     assert!(
         conf.fitness > 0.0,
         "real replay must compute a non-zero fitness against the observed RequirementsManufacturing trace; got {}",

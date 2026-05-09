@@ -7,7 +7,7 @@
 mod revops_common;
 
 use open_ontologies::admission::{
-    AdmissionOp, ArtifactRef, NoopPowlReplay, OntoStarAdmissionGate,
+    AdmissionOp, ArtifactRef, OntoStarAdmissionGate, PowlBridgeReplay,
 };
 use open_ontologies::ocel_store::OcelStore;
 use open_ontologies::state::StateDb;
@@ -123,13 +123,14 @@ fn happy_path_counterfactual_shows_no_delta_but_admits() {
     );
     let powl = by_name(REQUIREMENTS_WORKFLOW).unwrap().powl_string;
     let artifact = ArtifactRef { kind: "happy", bytes: b"happy" };
+    let replay = PowlBridgeReplay::new(&store);
     let receipt = gate
         .evaluate(
             &token,
             AdmissionOp::WorkOrderAdmitted,
             &artifact,
             &store,
-            &NoopPowlReplay,
+            &replay,
             session,
             powl,
             &observed,

@@ -17,7 +17,7 @@
 //!      file — the entire stack is provably bound to one work order.
 
 use open_ontologies::admission::{
-    AdmissionOp, ArtifactRef, NoopPowlReplay, OntoStarAdmissionGate,
+    AdmissionOp, ArtifactRef, OntoStarAdmissionGate, PowlBridgeReplay,
 };
 use open_ontologies::defects::DefectClass;
 use open_ontologies::manufacturing::{
@@ -129,13 +129,14 @@ fn solution_manufacturing_e2e_admits_full_stack() {
         kind: "solution-bundle",
         bytes: canonical.as_bytes(),
     };
+    let replay = PowlBridgeReplay::new(&store);
     let receipt = gate
         .evaluate(
             &token,
             AdmissionOp::SolutionManufactured,
             &artifact,
             &store,
-            &NoopPowlReplay,
+            &replay,
             session,
             powl,
             &observed,

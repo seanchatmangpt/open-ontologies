@@ -12,7 +12,7 @@
 //! Phase 3 (Fortune-5 trial) is not started.
 
 use open_ontologies::admission::{
-    AdmissionOp, ArtifactRef, NoopPowlReplay, OntoStarAdmissionGate,
+    AdmissionOp, ArtifactRef, OntoStarAdmissionGate, PowlBridgeReplay,
 };
 use open_ontologies::defects::DefectClass;
 use open_ontologies::llm_translator::GroqTranslator;
@@ -143,12 +143,8 @@ async fn revops_complaint_to_admitted_work_order_secret_clean() {
 
     let gate = build_gate();
     let powl = by_name("RequirementsManufacturing").unwrap().powl_string;
-    // Use NoopPowlReplay for the small E2E — replay correctness is
-    // exercised separately by tests/admission_real_replay.rs and
-    // tests/replay_portability.rs. Here we want to isolate the workflow
-    // chain (receipts chain, defects deny correctly, canary never
-    // leaks) from replay-fitness arithmetic.
-    let replay = NoopPowlReplay;
+    // Real PowlBridgeReplay — full chain admission must pass real replay.
+    let replay = PowlBridgeReplay::new(&store);
 
     // ── 3. Pre-flight: emit the LLM translation (audit-only) and the
     //       full RequirementsManufacturing trace upfront. The receipt

@@ -14,7 +14,7 @@
 mod revops_common;
 
 use open_ontologies::admission::{
-    AdmissionOp, ArtifactRef, NoopPowlReplay, OntoStarAdmissionGate,
+    AdmissionOp, ArtifactRef, OntoStarAdmissionGate, PowlBridgeReplay,
 };
 use open_ontologies::defects::DefectClass;
 use open_ontologies::ocel_store::OcelStore;
@@ -71,7 +71,8 @@ fn admit_ctq(
     let artifact = ArtifactRef { kind: "ctq", bytes: canonical.as_bytes() };
     let powl = by_name(REQUIREMENTS_WORKFLOW).unwrap().powl_string;
     let gate = build_gate();
-    gate.evaluate(scope, AdmissionOp::CtqAdmitted, &artifact, store, &NoopPowlReplay,
+    let replay = PowlBridgeReplay::new(store);
+    gate.evaluate(scope, AdmissionOp::CtqAdmitted, &artifact, store, &replay,
         session, powl, &observed)
 }
 

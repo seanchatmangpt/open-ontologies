@@ -15,7 +15,7 @@
 //! receipt that authorized it.
 
 use open_ontologies::admission::{
-    AdmissionOp, ArtifactRef, NoopPowlReplay, OntoStarAdmissionGate,
+    AdmissionOp, ArtifactRef, OntoStarAdmissionGate, PowlBridgeReplay,
 };
 use open_ontologies::manufacturing::{self, ManufacturedFile, SolutionSpec};
 use open_ontologies::ocel_store::OcelStore;
@@ -77,22 +77,23 @@ fn full_recursive_admission_chain_from_requirement_to_manufactured_stack() {
         "ontostar-1.0.0",
     );
     let req_powl = by_name(REQ_WORKFLOW).unwrap().powl_string;
+    let replay = PowlBridgeReplay::new(&store);
 
     // 3 admissions in the Requirements layer (chain via prior_receipt).
     let req_artifact = ArtifactRef { kind: "req", bytes: b"voice" };
     let req_receipt = req_gate
         .evaluate(&req_scope, AdmissionOp::RequirementProposed, &req_artifact,
-            &store, &NoopPowlReplay, session, req_powl, &observed)
+            &store, &replay, session, req_powl, &observed)
         .expect("RequirementProposed admits");
     let ctq_artifact = ArtifactRef { kind: "ctq", bytes: b"ctq-canonical" };
     let ctq_receipt = req_gate
         .evaluate(&req_scope, AdmissionOp::CtqAdmitted, &ctq_artifact,
-            &store, &NoopPowlReplay, session, req_powl, &observed)
+            &store, &replay, session, req_powl, &observed)
         .expect("CtqAdmitted admits");
     let wo_artifact = ArtifactRef { kind: "wo", bytes: b"work-order-canonical" };
     let wo_receipt = req_gate
         .evaluate(&req_scope, AdmissionOp::WorkOrderAdmitted, &wo_artifact,
-            &store, &NoopPowlReplay, session, req_powl, &observed)
+            &store, &replay, session, req_powl, &observed)
         .expect("WorkOrderAdmitted admits");
 
     // Receipt chain inside Requirements layer.
@@ -158,9 +159,10 @@ fn full_recursive_admission_chain_from_requirement_to_manufactured_stack() {
         kind: "solution-bundle",
         bytes: canonical.as_bytes(),
     };
+    let smfg_replay = PowlBridgeReplay::new(&store);
     let smfg_receipt = smfg_gate
         .evaluate(&smfg_scope, AdmissionOp::SolutionManufactured, &smfg_artifact,
-            &store, &NoopPowlReplay, session, smfg_powl, &observed_smfg)
+            &store, &smfg_replay, session, smfg_powl, &observed_smfg)
         .expect("SolutionManufactured admits");
 
     // ── Recursive admission claim: receipt chain crosses layers ─────────
