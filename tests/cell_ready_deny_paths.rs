@@ -200,3 +200,102 @@ fn cell_ready_scope_unclosed_when_close_skipped() {
         other => panic!("expected ScopeUnclosed, got {other:?}"),
     }
 }
+
+// ─── Phase R4 WB additions: A3, A4, A5-precision deny paths ──────────────
+//
+// These three tests close the §19 counterfactual evidence drift gap on
+// the cell_ready conjuncts whose deny paths were previously only
+// indirectly exercised. Each has a Δ>0 PROOF comment explaining what
+// naked-craft would have shipped.
+
+#[test]
+fn cell_ready_ocel_incomplete_when_no_observed_stages() {
+    // Δ>0 PROOF: naked craft would build a "manufacturing run" with an
+    //            empty event log and ship it as success because the
+    //            outer admission gate only spot-checks artifact_hash.
+    //            The manufacturing line refuses with OcelIncomplete
+    //            because `cell_ready::ocel_complete()` requires at
+    //            least one observed event.
+    //            Pinned production line: src/cell_ready.rs:135-138
+    //            (the A3 OCELComplete branch returning OcelIncomplete).
+    let db = fresh_db();
+    let store = OcelStore::new(db.clone());
+    let session = "cr-ocel-incomplete";
+    let token = setup_scope(&db, session);
+    let mut bag = ok_bag(token, session);
+    // Empty observed_stages triggers A3 before A6 RequiredStagesPresent
+    // (which is checked later in the conjunct order). Required must
+    // also be empty so A6 cannot tower over the A3 branch in error
+    // message attribution.
+    bag.observed_stages.clear();
+    bag.required_stages.clear();
+
+    match cell_ready(inputs_from(&bag), &store) {
+        Err(DefectClass::OcelIncomplete) => {}
+        other => panic!("expected OcelIncomplete, got {other:?}"),
+    }
+}
+
+#[test]
+fn cell_ready_replay_failed_when_no_conforming_run() {
+    // Δ>0 PROOF: naked craft would persist a Receipt for a scope that
+    //            never had a conforming POWL replay, since the receipt
+    //            hash only covers the artifact and OCEL trace, not the
+    //            replay verdict. The manufacturing line refuses because
+    //            the A4 conjunct calls `OcelStore::has_conforming_replay`,
+    //            which checks `conformance_runs.verdict='conform'`. A
+    //            scope with NO conformance row falls through.
+    //            Pinned production line: src/cell_ready.rs:140-143
+    //            (the A4 POWLReplayPass branch returning ReplayFailed).
+    let db = fresh_db();
+    let store = OcelStore::new(db.clone());
+    let session = "cr-no-replay";
+    // Open + close the scope but skip the conformance_runs INSERT so
+    // `replay_pass` returns false.
+    let scope = WorkflowScope::new(&db, session);
+    let token = scope
+        .open(None, Some("PO=(nodes={a, b}, order={a-->b})"), None)
+        .expect("open scope");
+    scope.close(&token).expect("close scope");
+    let bag = ok_bag(token, session);
+
+    match cell_ready(inputs_from(&bag), &store) {
+        Err(DefectClass::ReplayFailed) => {}
+        other => panic!("expected ReplayFailed, got {other:?}"),
+    }
+}
+
+#[test]
+fn cell_ready_threshold_failed_on_low_precision() {
+    // Δ>0 PROOF: naked craft, having gauged fitness alone, would ship
+    //            a model that hit fitness 0.99 but precision 0.40 — a
+    //            classic process-mining over-fit (the model accepts
+    //            far too many traces). The manufacturing line refuses
+    //            because A5 ThresholdPass tests BOTH metrics and
+    //            short-circuits on the precision branch when fitness
+    //            already passed.
+    //            Pinned production line: src/cell_ready.rs:153-159
+    //            (the precision-branch ThresholdFailed return).
+    let db = fresh_db();
+    let store = OcelStore::new(db.clone());
+    let session = "cr-precision";
+    let token = setup_scope(&db, session);
+    let mut bag = ok_bag(token, session);
+    // Fitness passes; precision falls below required.
+    bag.fitness_observed = 0.99;
+    bag.fitness_required = 0.95;
+    bag.precision_observed = 0.40;
+    bag.precision_required = 0.85;
+
+    match cell_ready(inputs_from(&bag), &store) {
+        Err(DefectClass::ThresholdFailed { metric, observed, required }) => {
+            assert_eq!(
+                metric, "precision",
+                "must short-circuit on precision branch, got metric={metric}"
+            );
+            assert!((observed - 0.40).abs() < 1e-9);
+            assert!((required - 0.85).abs() < 1e-9);
+        }
+        other => panic!("expected ThresholdFailed{{precision}}, got {other:?}"),
+    }
+}
