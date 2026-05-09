@@ -110,3 +110,6 @@ jobs:
       - name: real_groq_solution_spec
         if: env.GROQ_API_KEY != ''
         run: cargo test --test real_groq_solution_spec -- --nocapture --test-threads=1
+      - name: revops_e2e_with_real_groq
+        if: env.GROQ_API_KEY != ''
+        run: cargo test --test revops_e2e_with_real_groq -- --ignored --nocapture --test-threads=1

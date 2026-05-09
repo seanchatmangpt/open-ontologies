@@ -4540,6 +4540,8 @@ impl OpenOntologiesServer {
         // Token-overlap check: every alphabetic word (length ≥ 4, lowercase)
         // in the candidate's flattened text MUST also appear (lowercased)
         // in the evidence. Otherwise the LLM invented a fact.
+        // Algorithm extracted to `crate::projection_check::invented_tokens`
+        // (R4 WA, §24 Chicago TDD) so it is testable without an HTTP mock.
         let summary = format!(
             "{} {} {} {} {} {}",
             candidate.ctq_text,
@@ -4549,17 +4551,7 @@ impl OpenOntologiesServer {
             candidate.control_plan_text,
             candidate.defect_class_hint,
         );
-        let evidence_lc = evidence.to_lowercase();
-        let mut invented: Vec<String> = Vec::new();
-        for tok in summary.split(|c: char| !c.is_alphanumeric()) {
-            let tok_lc = tok.to_lowercase();
-            if tok_lc.len() < 4 || !tok_lc.chars().all(|c| c.is_alphabetic()) {
-                continue;
-            }
-            if !evidence_lc.contains(&tok_lc) && !invented.contains(&tok_lc) {
-                invented.push(tok_lc);
-            }
-        }
+        let invented = crate::projection_check::invented_tokens(&summary, evidence);
         if !invented.is_empty() {
             self.emit_tool_ocel("onto_executive_projection", started, false, &[]);
             return serde_json::json!({

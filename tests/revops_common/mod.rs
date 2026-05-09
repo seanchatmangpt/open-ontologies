@@ -19,14 +19,41 @@
 
 #![allow(dead_code)]
 
+use open_ontologies::llm_translator::CandidateCtq;
 use open_ontologies::ocel_store::OcelStore;
-
-pub mod groq_mock;
-
-pub const CANARY_GROQ_KEY: &str = "groq-canary-revops-NEVERLEAKMEXYZ-9b21";
 
 pub const FORTUNE5_WORKFLOW: &str = "Fortune5RevOpsGovernedRelease";
 pub const REQUIREMENTS_WORKFLOW: &str = "RequirementsManufacturing";
+
+/// Deterministic fixture used by the in-process e2e test (R4 WA, §24
+/// Chicago TDD). Returns a `CandidateCtq` whose field values mirror what
+/// the deleted `groq_mock::default_candidate_json()` previously produced
+/// for the Final-DoD trial, EXCEPT `provisional` is `true` (because the
+/// translator's authority-demotion is verified separately by the gated
+/// real-Groq test in `revops_e2e_with_real_groq.rs`).
+///
+/// The point of this fixture is to drive the deterministic admission gate
+/// + receipt chain + replay invariants WITHOUT crossing the Groq HTTP
+/// boundary. Verifying that the translator forces `provisional=true` is a
+/// separate concern, owned by the real-Groq path.
+pub fn fixture_candidate_ctq() -> CandidateCtq {
+    CandidateCtq {
+        source_voice_echo:
+            "Sales committed; Finance not booked".to_string(),
+        defect_class_hint: "incomplete".to_string(),
+        ctq_text:
+            "Forecast must be supported by complete chain evidence".to_string(),
+        measure_text:
+            "Percentage forecasted revenue with chain support".to_string(),
+        verification_text:
+            "Run reconciliation report nightly".to_string(),
+        negative_case_text:
+            "Refuse trusted classification when contract chain missing".to_string(),
+        control_plan_text:
+            "Block forecast trust claim without contract executed".to_string(),
+        provisional: true,
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Scenario {

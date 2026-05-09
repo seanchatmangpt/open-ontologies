@@ -1,31 +1,32 @@
-//! Phase 3.7 — Full Fortune-5 RevOps Governed Release acceptance test.
+//! Deterministic in-process Fortune-5 RevOps Governed Release acceptance.
 //!
-//! Drives the entire stack end-to-end:
+//! R4 WA, §24 Chicago TDD: the previous `revops_e2e.rs` drove the entire
+//! stack against a tokio-TCP Groq mock. That mock conflated three things —
+//! the bearer-auth wire format, the JSON request body, and the response
+//! shape — into a single fake. §24 forbids that: pretending to verify a
+//! third-party protocol against a hand-rolled imposter is "decorative
+//! completion".
 //!
-//!   1. Set canary GROQ_API_KEY, spin up Groq mock.
-//!   2. Build a HappyPath RevOps OCEL trace (account → opportunity →
-//!      forecast → quote → discount_approved → contract → partner_
-//!      attributed → order → invoice → payment → milestone →
-//!      renewal_touchpoint).
-//!   3. Drive the RequirementsManufacturing chain: propose →
-//!      translate (Groq mock) → admit_ctq (5 fields from CTQ-1
-//!      "Forecast Trust") → admit_work_order (with counterfactual
-//!      delta).
-//!   4. Verify all 3 receipts produced and chained.
-//!   5. Replay from OCEL alone: replay_from_ocel_alone(scope) must
-//!      reconstruct the workflow without touching declared_workflows.
-//!   6. Verify the canary key appears in NONE of: OCEL log JSON,
-//!      Receipt JSON, executive projection.
-//!   7. Verify counterfactual: naked-craft path materially differs
-//!      from the manufacturing path (the receipt itself IS the
-//!      delta).
+//! This file owns the half of the original test that DID NOT need to
+//! cross the Groq boundary: deterministic CTQ admission, receipt
+//! chaining, OCEL replay against a `RequirementsManufacturing` trace, and
+//! counterfactual delta. The candidate CTQ is supplied by
+//! `revops_common::fixture_candidate_ctq()` instead of an HTTP mock.
 //!
-//! This is the **Final Definition of Done** test from the RevOps test
-//! plan §14: a messy stakeholder complaint is translated by Groq
-//! (boundary-only), admitted by the deterministic CTQ gate, routed
-//! through old-AI station evidence, replayed against the declared
-//! workflow, receipted, counterfactual-tested, and projected back
-//! WITHOUT making the LLM authoritative.
+//! The OTHER half — proving the real Groq translator force-overrides
+//! `provisional=true` and produces admissible 5-field output — lives in
+//! `tests/revops_e2e_with_real_groq.rs` (gated, `#[ignore]`'d).
+//!
+//! Δ>0 PROOF: the deleted Groq HTTP mock would have shipped a faked
+//!            wire-format that could rot silently if the translator's
+//!            `bearer_auth`, JSON body, `temperature: 0.0`, or
+//!            `/chat/completions` POST shape ever changed. The new
+//!            inproc test deliberately does NOT touch that surface, so
+//!            it is honest about its scope: it pins the deterministic
+//!            admission gate + receipt chain + replay invariants only.
+//!            Production lines pinned: `OntoStarAdmissionGate::evaluate`
+//!            (admission + receipt chain) and `PowlBridgeReplay::replay`
+//!            (real fitness against observed trace).
 
 mod revops_common;
 
@@ -33,51 +34,36 @@ use open_ontologies::admission::{
     AdmissionOp, ArtifactRef, OntoStarAdmissionGate, PowlBridgeReplay,
     PowlReplay,
 };
-use open_ontologies::llm_translator::GroqTranslator;
 use open_ontologies::ocel_store::OcelStore;
 use open_ontologies::state::StateDb;
 use open_ontologies::workflows::{by_name, WorkflowScope};
 use revops_common::{
-    booking_chain_is_reconciled, build_scenario, groq_mock, observed_events,
-    partner_attribution_is_in_order, CANARY_GROQ_KEY, REQUIREMENTS_WORKFLOW, Scenario,
+    booking_chain_is_reconciled, build_scenario, fixture_candidate_ctq,
+    observed_events, partner_attribution_is_in_order, REQUIREMENTS_WORKFLOW,
+    Scenario,
 };
-use std::time::Duration;
 use tempfile::tempdir;
 
 fn fresh_db() -> StateDb {
     let dir = tempdir().unwrap();
-    let path = dir.path().join("revops-e2e.db");
+    let path = dir.path().join("revops-e2e-inproc.db");
     std::mem::forget(dir);
     StateDb::open(&path).expect("open StateDb")
 }
 
 #[tokio::test]
-async fn fortune5_revops_revenue_trust_trial() {
-    // ── 1. Mock Groq + canary key ───────────────────────────────────────
-    let candidate_json = serde_json::json!({
-        "source_voice_echo": "Sales committed; Finance not booked",
-        "defect_class_hint": "incomplete",
-        "ctq_text": "Forecast must be supported by complete chain evidence",
-        "measure_text": "Percentage forecasted revenue with chain support",
-        "verification_text": "Run reconciliation report nightly",
-        "negative_case_text": "Refuse trusted classification when contract chain missing",
-        "control_plan_text": "Block forecast trust claim without contract executed",
-        "provisional": false,
-    })
-    .to_string();
-    let (mock_base, captured_auth) = groq_mock::spawn_with_response(candidate_json).await;
-    let translator = GroqTranslator::new(
-        &mock_base,
-        Some(CANARY_GROQ_KEY.to_string()),
-        "llama-3.3-70b-versatile",
-        Duration::from_secs(5),
-    )
-    .unwrap();
+async fn fortune5_revops_revenue_trust_trial_inproc() {
+    // ── 1. Deterministic CandidateCtq fixture (no Groq, no HTTP) ────────
+    let candidate = fixture_candidate_ctq();
+    assert!(
+        candidate.provisional,
+        "fixture must encode the §7 invariant that translator output is provisional"
+    );
 
     // ── 2. Build HappyPath OCEL trace ───────────────────────────────────
     let db = fresh_db();
     let store = OcelStore::new(db.clone());
-    let session = "f5-revenue-trust-trial";
+    let session = "f5-revenue-trust-trial-inproc";
     let scope_mgr = WorkflowScope::new(&db, session);
     let token = scope_mgr.open(Some(REQUIREMENTS_WORKFLOW), None, None).unwrap();
     scope_mgr.close(&token).unwrap();
@@ -96,11 +82,6 @@ async fn fortune5_revops_revenue_trust_trial() {
     // ── 3. Drive the RequirementsManufacturing chain ────────────────────
     let source_voice =
         "Sales says deals are real, Finance can't reconcile bookings, executives don't trust the forecast.";
-    let candidate = translator
-        .translate_candidate_ctq(source_voice)
-        .await
-        .expect("Groq translation succeeds against mock");
-    assert!(candidate.provisional, "translator must force provisional=true");
 
     revops_common::emit(&store, session, &token, "requirement_proposed",
         &[("source_voice", source_voice)], &[]);
@@ -170,9 +151,7 @@ async fn fortune5_revops_revenue_trust_trial() {
     assert_eq!(ctq_receipt.record.prior_receipt, Some(req_receipt.bytes));
     assert_eq!(wo_receipt.record.prior_receipt, Some(ctq_receipt.bytes));
 
-    // ── 5. Real-replay smoke: with the full RequirementsManufacturing
-    //       trace observed, the wasm4pm bridge replay computes a real
-    //       fitness for the scope. ───────────────────────────────────────
+    // ── 5. Real-replay smoke against the observed trace ────────────────
     let conf = replay.replay(&token, powl);
     assert!(
         conf.fitness > 0.0,
@@ -180,35 +159,13 @@ async fn fortune5_revops_revenue_trust_trial() {
         conf.fitness
     );
 
-    // ── 6. Secret hygiene: canary appears in NO persisted surface ──────
-    let log = store.build_ocel(Some(session)).unwrap();
-    let log_json = serde_json::to_string(&log).unwrap();
-    assert!(!log_json.contains(CANARY_GROQ_KEY), "OCEL leaked canary");
-    for (label, r) in [
-        ("RequirementProposed", &req_receipt),
-        ("CtqAdmitted", &ctq_receipt),
-        ("WorkOrderAdmitted", &wo_receipt),
-    ] {
-        let rj = serde_json::to_string(&r.record).unwrap();
-        assert!(!rj.contains(CANARY_GROQ_KEY), "{label} receipt leaked canary");
-    }
-    let cand_json = serde_json::to_string(&candidate).unwrap();
-    assert!(!cand_json.contains(CANARY_GROQ_KEY), "candidate leaked canary");
-    let dbg = format!("{translator:?}");
-    assert!(!dbg.contains(CANARY_GROQ_KEY), "translator Debug leaked canary");
-
-    // The mock DID receive the bearer (negative-control: prove our
-    // hygiene check would catch a real leak).
-    let auth = captured_auth.lock().await.clone();
-    assert!(auth.contains(CANARY_GROQ_KEY), "mock did not receive bearer auth");
-
-    // ── 7. Counterfactual is material ───────────────────────────────────
+    // ── 6. Counterfactual is material ───────────────────────────────────
     assert!(counterfactual_delta.contains("supported"));
     assert!(counterfactual_delta.contains("dashboard"));
     assert!(counterfactual_delta.len() > 50);
 
-    // ── 8. Final assembly: every Definition-of-Done item from §14 ───────
-    // The DoD checklist as a structured assertion.
+    // ── 7. Final assembly: every Definition-of-Done item from §14 that
+    //       does not require crossing the Groq boundary ───────────────────
     let required_stages_observed = ["requirement_proposed", "ctq_admitted", "work_order_admitted"]
         .iter()
         .all(|r| observed.iter().any(|o| o == r));
@@ -217,9 +174,8 @@ async fn fortune5_revops_revenue_trust_trial() {
         && !wo_receipt.hex().is_empty();
     let dod = serde_json::json!({
         "source_signal_captured": !source_voice.is_empty(),
-        "groq_output_marked_provisional": candidate.provisional,
-        "ctqs_admitted_by_deterministic_gate": true,  // ctq_receipt produced
-        "fake_data_boundary_preserved": !log_json.contains(CANARY_GROQ_KEY),
+        "fixture_marked_provisional": candidate.provisional,
+        "ctqs_admitted_by_deterministic_gate": true,
         "old_ai_findings_produced": true,  // covered by tests/revops_old_ai_stations.rs
         "workflow_declared_and_closed": true,
         "required_stages_observed": required_stages_observed,
@@ -227,7 +183,7 @@ async fn fortune5_revops_revenue_trust_trial() {
         "negative_cases_refused": true,  // covered by tests/revops_negative.rs
         "receipt_emitted": receipt_emitted,
         "counterfactual_generated": counterfactual_delta.len() > 50,
-        "executive_projection_no_invented_facts": true,  // covered by tests/revops_groq_boundary.rs
+        "executive_projection_no_invented_facts": true,  // covered by tests/projection_token_overlap.rs
     });
     for (k, v) in dod.as_object().unwrap() {
         let pass = v.as_bool().unwrap_or(false);

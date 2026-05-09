@@ -25,6 +25,10 @@ pub mod monitor;
 pub mod ocel_store;
 pub mod plan;
 pub mod powl_bridge;
+// Pure-function executive-projection token-overlap check (R4 WA).
+// Extracted from `server.rs::onto_executive_projection` so the algorithm
+// is testable without crossing the Groq HTTP boundary.
+pub mod projection_check;
 pub mod webhook;
 pub mod mapping;
 pub mod marketplace;
