@@ -36,6 +36,11 @@ pub mod marketplace;
 pub mod ontology;
 pub mod reason;
 pub mod registry;
+// Round 4 WD — §29 Cell8 retirement closure.
+// RetentionWorker prunes per-table aged rows; receipt_archive moves
+// older receipts to monthly Parquet shards with a sidecar SQLite index.
+pub mod retention;
+pub mod receipt_archive;
 pub mod repo;
 pub mod runtime;
 pub mod server;

@@ -397,6 +397,59 @@ impl StateDb {
             let _ = conn.execute_batch(stmt);
         }
 
+        // ─── Round 4 WD — §29 Cell8 retirement closure ────────────────────
+        // Trust-set rotation history + receipt validity-window column.
+        // Additive/idempotent — safe on existing databases.
+
+        // 1) `key_valid_at` on receipts. Empty default → legacy receipts
+        //    pass A10 without window check (with a tracing::warn from the
+        //    verifier). Plan D Option 1.
+        let _ = conn.execute_batch(
+            "ALTER TABLE receipts ADD COLUMN key_valid_at TEXT NOT NULL DEFAULT '';"
+        );
+
+        // 2) `trusted_keys_history` — every key the gate ever accepted.
+        //    `removed_at` NULL means the key is still active. The
+        //    `status` column is informational ('active' | 'retired').
+        conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS trusted_keys_history (
+                fingerprint TEXT PRIMARY KEY,
+                pem         TEXT NOT NULL,
+                added_at    TEXT NOT NULL,
+                removed_at  TEXT,
+                status      TEXT NOT NULL DEFAULT 'active'
+             );
+             CREATE INDEX IF NOT EXISTS idx_trusted_keys_history_status
+                 ON trusted_keys_history(status);
+             CREATE INDEX IF NOT EXISTS idx_trusted_keys_history_added_at
+                 ON trusted_keys_history(added_at);"
+        )?;
+
+        // 3) Retention pruning indexes. Each (tenant_id, time/created) DESC
+        //    pair lets the RetentionWorker run `DELETE … WHERE time < cutoff`
+        //    without a full-table scan. Wrap individually so an existing
+        //    column-name conflict on a sibling table can't poison the rest.
+        for stmt in [
+            "CREATE INDEX IF NOT EXISTS idx_ocel_events_tenant_time \
+                 ON ocel_events(tenant_id, time DESC);",
+            "CREATE INDEX IF NOT EXISTS idx_lineage_events_tenant_ts \
+                 ON lineage_events(tenant_id, timestamp DESC);",
+            "CREATE INDEX IF NOT EXISTS idx_conformance_runs_ran_at \
+                 ON conformance_runs(ran_at DESC);",
+            "CREATE INDEX IF NOT EXISTS idx_revoked_sessions_revoked_at \
+                 ON revoked_sessions(revoked_at DESC);",
+            "CREATE INDEX IF NOT EXISTS idx_receipts_granted_at \
+                 ON receipts(granted_at DESC);",
+            "CREATE INDEX IF NOT EXISTS idx_mined_exemplars_mined_at \
+                 ON mined_exemplars(mined_at DESC);",
+            "CREATE INDEX IF NOT EXISTS idx_align_feedback_ts \
+                 ON align_feedback(timestamp DESC);",
+            "CREATE INDEX IF NOT EXISTS idx_tool_feedback_ts \
+                 ON tool_feedback(timestamp DESC);",
+        ] {
+            let _ = conn.execute_batch(stmt);
+        }
+
         Ok(Self {
             conn: Arc::new(Mutex::new(conn)),
         })

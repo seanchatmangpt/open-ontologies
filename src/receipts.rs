@@ -83,13 +83,34 @@ pub fn persist_with_tenant_in_tx(
         rusqlite::params![session_id],
         |r| r.get(0),
     )?;
+
+    // Round 4 WD — populate `key_valid_at` from the signing fingerprint's
+    // `trusted_keys_history.added_at`. When the receipt is unsigned, or
+    // when no history row exists for the fingerprint (legacy databases),
+    // we leave it as the empty-string default. The Cell8 A10 verifier
+    // reads this column at chain-walk time and rejects receipts whose
+    // `granted_at` falls outside `[added_at, removed_at)`.
+    let key_valid_at: String = match receipt.record.signing_key_fpr.as_ref() {
+        Some(fpr) => {
+            let fpr_hex = crate::attestation::fingerprint_hex(fpr);
+            tx.query_row(
+                "SELECT added_at FROM trusted_keys_history WHERE fingerprint = ?1",
+                rusqlite::params![fpr_hex],
+                |r| r.get::<_, String>(0),
+            )
+            .unwrap_or_default()
+        }
+        None => String::new(),
+    };
+
     tx.execute(
         "INSERT INTO receipts (
             receipt_hash, scope_token, session_id,
             artifact_hash, declared_powl_hash, ocel_canonical_hash,
             gate_config_hash, prior_receipt_hash,
-            production_law_version, granted_at, sequence, tenant_id
-         ) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12)",
+            production_law_version, granted_at, sequence, tenant_id,
+            key_valid_at
+         ) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13)",
         rusqlite::params![
             hex32_pub(&receipt.bytes),
             receipt.record.scope_token,
@@ -103,6 +124,7 @@ pub fn persist_with_tenant_in_tx(
             granted_at,
             next_sequence,
             tenant_id,
+            key_valid_at,
         ],
     )?;
     Ok(())

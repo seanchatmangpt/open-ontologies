@@ -187,6 +187,7 @@ fn run_cell_ready(
         signing_key_fpr: fpr,
         trusted_keys: trust,
         allow_legacy_unsigned: allow_legacy,
+        trusted_keys_db: None,
     };
     cell_ready(inputs, store)
 }

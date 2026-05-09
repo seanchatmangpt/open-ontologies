@@ -112,9 +112,15 @@ fn run_stdio_server(cfg: Config, db: StateDb, graph: Arc<GraphStore>, governance
     }
     let llm_engine = open_ontologies::config::resolve_llm_engine(&cfg.llm);
     eprintln!("info: default LLM engine = {}", llm_engine);
-    let server = OpenOntologiesServer::new_with_repo_options(db, graph, governance_webhook, cfg.embeddings, cache_config, tool_filter, ontology_dirs)
+    let server = OpenOntologiesServer::new_with_repo_options(db.clone(), graph, governance_webhook, cfg.embeddings, cache_config, tool_filter, ontology_dirs)
         .with_default_llm_engine(llm_engine);
     let _evictor = open_ontologies::registry::spawn_evictor(server.registry());
+    // Round 4 WD — §29 Cell8 retirement closure. Spawn the retention
+    // worker alongside the cache evictor so every persistent table has
+    // a defined retirement path. The worker logs (does not panic) on
+    // failure; dropping the handle does not abort.
+    let _retention =
+        open_ontologies::retention::RetentionWorker::spawn(db, cfg.retention.clone());
     tokio::runtime::Handle::current().block_on(async {
         let service = server.serve(rmcp::transport::stdio()).await
             .map_err(|e| anyhow::anyhow!(e))?;

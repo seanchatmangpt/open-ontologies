@@ -21,6 +21,11 @@ pub struct Config {
     pub logging: LoggingConfig,
     pub codegen: CodegenConfig,
     pub llm: LlmConfig,
+    /// `[retention]` — Round 4 WD §29 Cell8 retirement closure. Per-table
+    /// retention windows (in days) for the [`crate::retention::RetentionWorker`]
+    /// background job. Defaults are chosen so that single-tenant deployments
+    /// with no explicit `[retention]` section still cap unbounded growth.
+    pub retention: RetentionConfig,
 }
 
 
@@ -526,6 +531,47 @@ pub struct FeedbackConfig {
 }
 impl Default for FeedbackConfig {
     fn default() -> Self { Self { suppress_threshold: 3, downgrade_threshold: 2 } }
+}
+
+/// `[retention]` — Round 4 WD §29 Cell8 retirement closure. Per-table
+/// retention windows in days. The [`crate::retention::RetentionWorker`]
+/// runs on a `poll_interval_secs` cadence and prunes rows older than
+/// each respective window.
+///
+/// `archive_path` (when set) names the on-disk directory where the
+/// receipt cold-storage Parquet shards + sidecar index are written.
+/// Receipts older than `hot_receipt_days` are archived there before
+/// being removed from the hot `receipts` table.
+#[derive(Debug, Deserialize, Clone)]
+#[serde(default)]
+pub struct RetentionConfig {
+    pub poll_interval_secs: u64,
+    pub ocel_days: u64,
+    pub lineage_days: u64,
+    pub conformance_days: u64,
+    pub revocation_grace_days: u64,
+    pub receipt_files_days: u64,
+    pub exemplar_days: u64,
+    pub feedback_days: u64,
+    pub archive_path: Option<std::path::PathBuf>,
+    pub hot_receipt_days: u64,
+}
+
+impl Default for RetentionConfig {
+    fn default() -> Self {
+        Self {
+            poll_interval_secs: 86_400, // once per day
+            ocel_days: 90,
+            lineage_days: 180,
+            conformance_days: 30,
+            revocation_grace_days: 30,
+            receipt_files_days: 365,
+            exemplar_days: 365,
+            feedback_days: 365,
+            archive_path: None,
+            hot_receipt_days: 365,
+        }
+    }
 }
 
 /// `[imports]` — `owl:imports` resolution policy.

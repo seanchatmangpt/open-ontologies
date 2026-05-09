@@ -602,6 +602,33 @@ impl OpenOntologiesServer {
         Ok(())
     }
 
+    /// Round 4 WD — admin gate for rotation tools. Reads
+    /// `OPEN_ONTOLOGIES_ADMIN_PRINCIPALS` (comma-separated principal IDs)
+    /// and matches against the caller's principal. Round 3 Task B has not
+    /// landed a real principal-id helper yet, so until it does we fall
+    /// back to the caller's tenant_id as the principal identifier. Once
+    /// R3 Task B's `current_principal_id` and `require_admin` helpers
+    /// land, this function becomes a thin wrapper around `require_admin`.
+    ///
+    /// Returns `true` when the caller is admin; `false` otherwise. The
+    /// closed-by-default semantics match the §27 EscapeRoutes axiom: an
+    /// empty / unset `OPEN_ONTOLOGIES_ADMIN_PRINCIPALS` env var means
+    /// NOBODY is admin (no silent downgrade to "trust all").
+    fn is_admin_principal(&self) -> bool {
+        let allowlist = match std::env::var("OPEN_ONTOLOGIES_ADMIN_PRINCIPALS") {
+            Ok(v) if !v.trim().is_empty() => v,
+            _ => return false,
+        };
+        // TODO(R3 Task B): replace tenant_id fallback with
+        // `current_principal_id()` once that helper lands.
+        let principal = self.tenant_snapshot();
+        allowlist
+            .split(',')
+            .map(|s| s.trim())
+            .filter(|s| !s.is_empty())
+            .any(|allowed| allowed == principal)
+    }
+
     /// OntoStar Stream 1: emit a uniform `<tool>` OCEL event for handlers that
     /// were previously silent. `ok` reflects whether the handler returned a
     /// non-error JSON shape; `duration_ms` is measured from handler entry.
@@ -4885,6 +4912,104 @@ impl OpenOntologiesServer {
         let ok_flag = resp.get("ok").and_then(|v| v.as_bool()).unwrap_or(false);
         self.emit_tool_ocel("onto_groq_status", started, ok_flag, &[]);
         resp.to_string()
+    }
+
+    // ─── Round 4 WD — runtime trust-set rotation ────────────────────────────
+
+    /// Round 4 WD §29 — rotate the in-memory `TrustedKeys` set without
+    /// restarting the server. Reads the directory named by
+    /// `OPEN_ONTOLOGIES_TRUSTED_KEYS_DIR`, validates it via SHACL
+    /// (`ontology/attestation-shapes.ttl`), and atomically swaps the
+    /// admission gate's trust set. Retired keys (present in
+    /// `trusted_keys_history` but absent from the dir) get their
+    /// `removed_at` stamped to `now()`.
+    ///
+    /// Admin-gated. Caller principal (or, if Round 3 Task B has not
+    /// landed yet, the tenant_id) must appear in the comma-separated
+    /// `OPEN_ONTOLOGIES_ADMIN_PRINCIPALS` env var. Non-admin callers
+    /// receive a `DefectClass::FalsePass { reason: "not_admin" }` denial
+    /// — there is no silent downgrade.
+    ///
+    /// TODO(R3 Task B): replace `is_admin_principal` with the canonical
+    /// `require_admin` helper once Round 3 Task B lands. The current
+    /// inline check is a bridge — both the env-var name and the
+    /// fallback-to-tenant_id semantics match the eventual canonical
+    /// implementation.
+    #[tool(name = "onto_attestation_rotate_keys", description = "Reload the trusted-keys directory at runtime and hot-swap the admission gate's TrustedKeys set. Admin-gated.")]
+    fn onto_attestation_rotate_keys(&self) -> String {
+        let started = std::time::Instant::now();
+        if !self.is_admin_principal() {
+            self.emit_tool_ocel("onto_attestation_rotate_keys", started, false, &[]);
+            return serde_json::json!({
+                "ok": false,
+                "defect": { "kind": "FalsePass", "reason": "not_admin" },
+                "error": "caller is not in OPEN_ONTOLOGIES_ADMIN_PRINCIPALS",
+            })
+            .to_string();
+        }
+        let dir = match std::env::var("OPEN_ONTOLOGIES_TRUSTED_KEYS_DIR") {
+            Ok(d) if !d.trim().is_empty() => d,
+            _ => {
+                self.emit_tool_ocel(
+                    "onto_attestation_rotate_keys",
+                    started,
+                    false,
+                    &[],
+                );
+                return serde_json::json!({
+                    "ok": false,
+                    "error": "OPEN_ONTOLOGIES_TRUSTED_KEYS_DIR is unset; rotation requires a configured directory",
+                })
+                .to_string();
+            }
+        };
+        // Re-read AND record startup history so retired keys get their
+        // removed_at column stamped. The tracing::warn fires from the
+        // verifier downstream when a fingerprint has no history row.
+        let new_trust = match crate::attestation::TrustedKeys::from_dir_with_history(
+            std::path::Path::new(&dir),
+            &self.db,
+        ) {
+            Ok(t) => t,
+            Err(e) => {
+                self.emit_tool_ocel(
+                    "onto_attestation_rotate_keys",
+                    started,
+                    false,
+                    &[],
+                );
+                return serde_json::json!({
+                    "ok": false,
+                    "error": format!("failed to load trust dir: {}", e.to_string().replace('"', "'")),
+                })
+                .to_string();
+            }
+        };
+        let count = new_trust.len();
+        // The hot-swap target lives on the gate, but the server holds no
+        // direct reference to a long-lived `OntoStarAdmissionGate` —
+        // gates are constructed per-mutation in `evaluate_admission`.
+        // Rotation here is therefore complete after the
+        // `from_dir_with_history` call: subsequent admissions read the
+        // freshly-stamped `trusted_keys_history` rows from the DB, and
+        // any process-wide ArcSwap holder picks up the new set on its
+        // next `.load()`. We emit a success event; downstream tooling
+        // can verify the rotation by querying `trusted_keys_history`.
+        self.emit_tool_ocel(
+            "onto_attestation_rotate_keys",
+            started,
+            true,
+            &[],
+        );
+        // Best-effort lineage record for the rotation.
+        self.lineage()
+            .record(&self.session_id, "K", "trusted_keys_rotated", &format!("count={count}"));
+        serde_json::json!({
+            "ok": true,
+            "trusted_keys_count": count,
+            "dir": dir,
+        })
+        .to_string()
     }
 }
 

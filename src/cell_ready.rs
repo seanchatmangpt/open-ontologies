@@ -27,6 +27,7 @@ use crate::defects::DefectClass;
 use crate::ocel_store::OcelStore;
 use crate::production_record::ProductionRecord;
 use crate::receipts::{self, Receipt};
+use crate::state::StateDb;
 
 /// Stream-2-stub stand-in for `wasm4pm`'s POWL arena handle. Stream 2
 /// replaces this with a re-export from `powl_bridge.rs`.
@@ -110,6 +111,15 @@ pub struct CellReadyInputs<'a> {
     /// conjunct. When `false`, `signature: None` raises
     /// [`DefectClass::AttestationMissing`].
     pub allow_legacy_unsigned: bool,
+
+    /// Round 4 WD — `StateDb` handle used to resolve the signing
+    /// fingerprint's `trusted_keys_history` row. When `Some`, A10
+    /// rejects receipts whose `granted_at` falls outside the
+    /// `[added_at, removed_at)` window with
+    /// `AttestationInvalid { reason: "key_not_trusted_at_signature_time" }`.
+    /// When `None`, the window check is skipped — used by tests and the
+    /// legacy unsigned-receipt path.
+    pub trusted_keys_db: Option<&'a StateDb>,
 }
 
 /// Compute the `CellReady` predicate. Returns a freshly built (but not yet
@@ -239,6 +249,50 @@ pub fn cell_ready(
                     });
                 }
             };
+
+            // Round 4 WD — validity-window enforcement. Look up the
+            // fingerprint's history row; reject when the receipt's
+            // signature time falls outside the [added_at, removed_at)
+            // window. Without this check, a key rotated OUT today still
+            // verifies receipts that were signed yesterday-with-malice.
+            //
+            // Backward compat (Plan D Option 1): if no history row
+            // exists for this fingerprint we skip the window check with
+            // a `tracing::warn!`. Legacy databases that pre-date the
+            // `trusted_keys_history` table would otherwise refuse every
+            // signed receipt. New deployments should populate history
+            // via `TrustedKeys::from_dir_with_history` at startup.
+            if let Some(db) = inp.trusted_keys_db {
+                if let Some(history) =
+                    attestation::TrustedKeys::lookup_history(db, fpr)
+                {
+                    let signed_at = inp
+                        .granted_at_chain
+                        .last()
+                        .map(String::as_str)
+                        .unwrap_or("");
+                    if !signed_at.is_empty() {
+                        if signed_at < history.added_at.as_str() {
+                            return Err(DefectClass::AttestationInvalid {
+                                reason: "key_not_trusted_at_signature_time".into(),
+                            });
+                        }
+                        if let Some(removed_at) = history.removed_at.as_ref() {
+                            if signed_at >= removed_at.as_str() {
+                                return Err(DefectClass::AttestationInvalid {
+                                    reason: "key_not_trusted_at_signature_time".into(),
+                                });
+                            }
+                        }
+                    }
+                } else {
+                    tracing::warn!(
+                        "cell_ready A10: no trusted_keys_history row for {} \
+                         (legacy receipt path; window check skipped)",
+                        attestation::fingerprint_hex(fpr),
+                    );
+                }
+            }
             // Build the would-be record (without sig/fpr) so we can
             // recompute canonical_bytes_for_signing — the exact bytes
             // the admission gate signed.

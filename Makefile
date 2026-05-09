@@ -1,4 +1,4 @@
-.PHONY: build test lint audit check adversarial check-dead-params check-test-count bench bench-pizza bench-ontoaxiom bench-mushroom bench-vision bench-reasoner bench-oaei docker docker-run init serve serve-http clean
+.PHONY: build test lint audit check adversarial check-dead-params check-test-count bench bench-pizza bench-ontoaxiom bench-mushroom bench-vision bench-reasoner bench-oaei docker docker-run init serve serve-http clean clean-worktrees clean-worktrees-soft gc-build
 
 # ─── Development ─────────────────────────────────────────────────────────────
 
@@ -17,7 +17,7 @@ check-dead-params:
 check-test-count:
 	bash tools/check-test-count.sh
 
-adversarial: check-dead-params check-test-count
+adversarial: check-dead-params check-test-count clean-worktrees-soft
 	cargo clippy -- -D clippy::todo -D clippy::unimplemented
 	cargo test --test adversarial_jtbd_test -- --test-threads=1
 	@echo "✓ All adversarial JTBD gates passed"
@@ -79,3 +79,32 @@ serve-http:
 
 clean:
 	cargo clean
+
+# ─── Round 4 WD — §29 worktree GC ─────────────────────────────────────────
+#
+# Stale git worktrees (created during long-running adversarial cascades)
+# accumulate under `.git/worktrees/` and waste disk + confuse `git worktree
+# list`. `clean-worktrees` is the strict variant: it prunes worktree
+# administrative files AND removes any worktree directories Git no longer
+# recognizes. `clean-worktrees-soft` is the warn-only variant wired into
+# `make adversarial` — it counts stale worktrees and prints a warning,
+# but never fails the build (so a CI run on a contributor's branch with
+# legitimate parallel worktrees does not regress).
+
+clean-worktrees:
+	@echo "→ pruning stale git worktrees…"
+	@git worktree prune --verbose || true
+	@echo "→ git worktree list:"
+	@git worktree list
+
+clean-worktrees-soft:
+	@stale=$$(git worktree list --porcelain 2>/dev/null | grep -c '^worktree ' || echo 0); \
+	if [ "$$stale" -gt 1 ]; then \
+		echo "warn: $$stale git worktrees present (run 'make clean-worktrees' to prune)"; \
+	fi
+
+gc-build:
+	@echo "→ removing target/debug/incremental and target/debug/build (preserving release artifacts)"
+	rm -rf target/debug/incremental target/debug/build
+	@echo "→ git gc --auto"
+	git gc --auto || true

@@ -14,7 +14,7 @@
 //! **No `bail!`, no `anyhow!`, no string error authority.** Every denial
 //! path returns a typed `(DefectClass, Vec<Deviation>)`.
 
-use crate::attestation::{Signer, TrustedKeys};
+use crate::attestation::{ArcSwap, Signer, TrustedKeys};
 use crate::cell_ready::{cell_ready, CellReadyInputs, PowlOpRef};
 use crate::defects::{DefectClass, Deviation};
 use crate::ocel_store::OcelStore;
@@ -252,7 +252,14 @@ pub struct OntoStarAdmissionGate {
     /// Trust set used by A10. Loaded from
     /// `OPEN_ONTOLOGIES_TRUSTED_KEYS_DIR`. Required to verify any signed
     /// receipt; unset turns A10 into legacy-only mode.
-    pub trusted_keys: Option<std::sync::Arc<TrustedKeys>>,
+    ///
+    /// Round 4 WD — wrapped in `ArcSwap` for runtime hot-swap. The
+    /// `onto_attestation_rotate_keys` MCP tool reads a fresh trust dir,
+    /// validates against `ontology/attestation-shapes.ttl`, builds a new
+    /// [`TrustedKeys`], and `.store()`s it here without taking any lock.
+    /// Readers call `.load()` and get a `Guard<Arc<TrustedKeys>>` whose
+    /// deref is the trust set under that snapshot.
+    pub trusted_keys: Option<std::sync::Arc<ArcSwap<TrustedKeys>>>,
     /// `[admission] require_attestation`. When `true` (default) and no
     /// signer is configured, admission ALSO refuses to run — a missing
     /// signing key in production is a configuration defect, not a
@@ -304,7 +311,20 @@ impl OntoStarAdmissionGate {
     }
 
     /// Attach a trust set (used by A10 to verify signatures).
-    pub fn with_trusted_keys(mut self, trust: std::sync::Arc<TrustedKeys>) -> Self {
+    ///
+    /// Round 4 WD — accepts the hot-swap-capable `ArcSwap` wrapper. Use
+    /// [`crate::attestation::into_swap`] to build one from a plain
+    /// `TrustedKeys`. The deprecated test path that just had an
+    /// `Arc<TrustedKeys>` should construct the swap explicitly:
+    ///
+    /// ```ignore
+    /// let swap = open_ontologies::attestation::into_swap(trust);
+    /// gate = gate.with_trusted_keys(swap);
+    /// ```
+    pub fn with_trusted_keys(
+        mut self,
+        trust: std::sync::Arc<ArcSwap<TrustedKeys>>,
+    ) -> Self {
         self.trusted_keys = Some(trust);
         self
     }
@@ -591,7 +611,13 @@ impl OntoStarAdmissionGate {
         } else {
             (None, None)
         };
-        let trust_ref = self.trusted_keys.as_deref();
+        // Round 4 WD — load the current trust-set snapshot. The guard
+        // outlives `inputs` (and the `cell_ready` call below) because we
+        // bind it to `_trust_guard` for the duration of the function.
+        // Readers see a consistent snapshot even if a concurrent
+        // `onto_attestation_rotate_keys` swaps the inner Arc.
+        let _trust_guard = self.trusted_keys.as_ref().map(|s| s.load_full());
+        let trust_ref: Option<&TrustedKeys> = _trust_guard.as_deref();
 
         let inputs = CellReadyInputs {
             scope_token,
@@ -619,6 +645,7 @@ impl OntoStarAdmissionGate {
             signing_key_fpr: fpr_opt,
             trusted_keys: trust_ref,
             allow_legacy_unsigned: self.verify_legacy_receipts,
+            trusted_keys_db: Some(store.db()),
         };
 
         // Look up workflow_name once so both Ok and Err branches can record

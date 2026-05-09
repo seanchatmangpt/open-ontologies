@@ -53,9 +53,18 @@ pub enum Verdict {
     /// Artifact body hashes match the embedded/sidecar `artifact_hash`,
     /// and (if a DB was supplied) the receipt chain walks cleanly to an
     /// origin receipt.
+    ///
+    /// Round 4 WD — `source` distinguishes hot-table hits from
+    /// archive (`"archive"`) hits. Empty / missing `source` means the
+    /// receipt was found in the hot `receipts` table or no DB was
+    /// supplied (legacy callers). Cold-storage hits set `source` to
+    /// `"archive"` so external auditors can tell when a receipt is
+    /// being read from a Parquet shard rather than the live DB.
     Admitted {
         receipt_hash: String,
         scope_token: String,
+        #[serde(default, skip_serializing_if = "String::is_empty")]
+        source: String,
     },
     /// Body bytes do not match the named hash. Either the file body was
     /// modified post-manufacturing, or the header itself was edited.
@@ -412,6 +421,7 @@ fn verify_sidecar_against_siblings(
 }
 
 fn finalize(receipt_hash: String, scope_token: String, db: Option<&StateDb>) -> Verdict {
+    let mut source = String::new();
     if let Some(db) = db {
         // Accept zero-padded synthetic hashes from the test fixtures
         // (e.g. "0".repeat(64)) as Admitted-but-not-chain-walked when
@@ -421,24 +431,60 @@ fn finalize(receipt_hash: String, scope_token: String, db: Option<&StateDb>) -> 
         if receipt_hash.len() == 64
             && receipt_hash.chars().all(|c| c.is_ascii_hexdigit())
         {
-            let conn = db.conn();
-            let exists: bool = conn
-                .query_row(
+            let exists: bool = {
+                let conn = db.conn();
+                conn.query_row(
                     "SELECT 1 FROM receipts WHERE receipt_hash = ?1",
                     rusqlite::params![receipt_hash],
                     |_| Ok(true),
                 )
-                .unwrap_or(false);
+                .unwrap_or(false)
+            };
             if !exists && !is_zero_hex(&receipt_hash) {
-                return Verdict::Orphaned {
-                    missing_event: format!("receipt {receipt_hash} not in db"),
-                };
+                // Round 4 WD — fall through to archive on hot-table miss.
+                // The archive directory is taken from the
+                // `OPEN_ONTOLOGIES_RECEIPT_ARCHIVE_DIR` env var; when
+                // unset, we emit the legacy `Orphaned` verdict (no
+                // archive configured = chain walker has no cold path).
+                if let Ok(dir) =
+                    std::env::var("OPEN_ONTOLOGIES_RECEIPT_ARCHIVE_DIR")
+                {
+                    if !dir.trim().is_empty() {
+                        let dir_path = std::path::PathBuf::from(dir);
+                        match crate::receipt_archive::lookup_archived(
+                            &dir_path,
+                            &receipt_hash,
+                        ) {
+                            Ok(Some(_archived)) => {
+                                source = "archive".to_string();
+                            }
+                            _ => {
+                                return Verdict::Orphaned {
+                                    missing_event: format!(
+                                        "receipt {receipt_hash} not in db or archive"
+                                    ),
+                                };
+                            }
+                        }
+                    } else {
+                        return Verdict::Orphaned {
+                            missing_event: format!(
+                                "receipt {receipt_hash} not in db"
+                            ),
+                        };
+                    }
+                } else {
+                    return Verdict::Orphaned {
+                        missing_event: format!("receipt {receipt_hash} not in db"),
+                    };
+                }
             }
         }
     }
     Verdict::Admitted {
         receipt_hash,
         scope_token,
+        source,
     }
 }
 

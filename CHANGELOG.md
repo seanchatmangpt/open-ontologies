@@ -7,6 +7,99 @@ Versions are organized per OntoStar phase on the `ontostar-integration` branch.
 Pre-OntoStar history (the original `open-ontologies` MCP server, releases
 0.1.x) is summarized at the bottom.
 
+## [Unreleased] — Round 4 WD: §29 Cell8 retirement closure
+
+### Added
+
+- `src/retention.rs` (NEW): `RetentionWorker` background task. Mirrors
+  `registry::spawn_evictor` semantics. Per-table pruners
+  (`prune_ocel`, `prune_lineage`, `prune_conformance`, `prune_revoked`,
+  `prune_receipt_files`, `prune_exemplars`, `prune_align_feedback`,
+  `prune_tool_feedback`, `prune_embeddings_orphans`, `prune_cache`)
+  each accept their respective `*_days` window from `RetentionConfig`.
+  Cascade order: `ocel_event_attrs` and `ocel_relationships` are
+  pruned BEFORE `ocel_events` (foreign-key parents last).
+- `src/receipt_archive.rs` (NEW): receipt cold-storage archival.
+  `archive_receipts(db, older_than_days, dir)` writes monthly Parquet
+  shards (`receipts-YYYY-MM.parquet`) and an `archive_index.db`
+  sidecar SQLite index for O(1) `receipt_hash → shard` lookup.
+  `lookup_archived(dir, hash)` resolves cold receipts.
+- `src/state.rs`: `key_valid_at` column on `receipts`;
+  `trusted_keys_history(fingerprint, pem, added_at, removed_at, status)`
+  table; per-tenant retention pruning indexes on `ocel_events`,
+  `lineage_events`, `conformance_runs`, `revoked_sessions`, `receipts`,
+  `mined_exemplars`, `align_feedback`, `tool_feedback`.
+- `src/attestation.rs`: `from_dir_with_history(dir, db)` upserts the
+  current trust set into `trusted_keys_history` and stamps `removed_at`
+  on retired fingerprints. `lookup_history(db, fpr)` returns the row.
+  `into_swap(trust)` builds the hot-swap container.
+  `pub use arc_swap::ArcSwap` (for the gate's `Arc<ArcSwap<TrustedKeys>>`).
+- `src/admission.rs`: `OntoStarAdmissionGate.trusted_keys` is now
+  `Arc<ArcSwap<TrustedKeys>>`. The `evaluate*` paths take a
+  `load_full()` snapshot guard before calling `cell_ready`, so
+  concurrent rotation cannot tear within one admission.
+- `src/cell_ready.rs::CellReadyInputs.trusted_keys_db: Option<&StateDb>`.
+  When `Some`, A10 looks up the signing fingerprint's
+  `trusted_keys_history` row and rejects with
+  `AttestationInvalid { reason: "key_not_trusted_at_signature_time" }`
+  when `granted_at < added_at` or `granted_at >= removed_at`. Legacy
+  fingerprints (no history row) are admitted with a `tracing::warn!`.
+- `src/receipts.rs::persist_with_tenant_in_tx`: looks up
+  `trusted_keys_history.added_at` by fingerprint and writes
+  `key_valid_at` on every receipt.
+- `src/server.rs`: new MCP tool `onto_attestation_rotate_keys`,
+  admin-gated via the `OPEN_ONTOLOGIES_ADMIN_PRINCIPALS` env var
+  (CSV-of-principals; closed-by-default — empty allowlist denies all).
+  New `is_admin_principal(&self) -> bool` helper. Reads the configured
+  trust dir, validates via SHACL, calls `from_dir_with_history`, and
+  records lineage event `K trusted_keys_rotated count=N`.
+  Non-admin callers receive `FalsePass { reason: "not_admin" }`.
+- `src/cmds/server.rs`: `RetentionWorker::spawn` invocation alongside
+  the existing `registry::spawn_evictor`.
+- `src/config.rs`: new `[retention]` section
+  (`poll_interval_secs=86400`, `ocel_days=90`, `lineage_days=180`,
+  `conformance_days=30`, `revocation_grace_days=30`,
+  `receipt_files_days=365`, `exemplar_days=365`, `feedback_days=365`,
+  `archive_path=None`, `hot_receipt_days=365`).
+- `src/verify.rs`: `Verdict::Admitted.source: String`. Falls through to
+  `OPEN_ONTOLOGIES_RECEIPT_ARCHIVE_DIR` on hot-table miss; cold hits
+  set `source: "archive"`. Hot hits keep the field empty (skipped in
+  serialization via `skip_serializing_if = "String::is_empty"`).
+- `ontology/attestation-shapes.ttl` (NEW): SHACL shape over
+  `attest:TrustedKey` requiring 16-hex-char fingerprint, non-empty
+  SubjectPublicKeyInfo PEM, xsd:dateTime `added_at`, and `status` in
+  {`active`, `retired`}.
+- `Makefile`: `clean-worktrees`, `clean-worktrees-soft` (warn-only;
+  wired into `make adversarial`), `gc-build` targets.
+- `Cargo.toml`: `arc-swap = "1"` dependency added (parquet was already
+  a non-default dep used elsewhere).
+- `tests/retention_worker.rs` (NEW, 8 tests): drives `tick()`
+  synchronously with 0-day retention; the cascade-order test seeds
+  100 events + child rows and asserts FK-safe deletion.
+- `tests/key_rotation.rs` (NEW, 4 tests):
+  `rotate_replaces_in_memory_set`, `signed_then_rotated_out_rejected`
+  (Δ>0 §19 counterfactual: without `key_valid_at`, the receipt would
+  verify forever), `additive_rotation_preserves_old_signatures`,
+  `non_admin_rejected`.
+- `tests/receipt_archival.rs` (NEW, 4 tests): archive→lookup round
+  trip, `lookup_returns_none_when_archive_empty`,
+  `archive_skips_recent_receipts`, `verify_falls_through_to_archive_on_hot_miss`
+  (asserts `source == "archive"`).
+
+### Changed
+
+- `tests/no_bypass_audit.rs::read_only_allowlist`: added
+  `("onto_attestation_rotate_keys", "READ-ONLY: admin-gated trust-set
+  reload; writes only to trusted_keys_history…")`.
+- README test count 507 → 523 (`tools/check-test-count.sh`-checked).
+
+### Δ>0 counterfactual proof (§19)
+
+Compromised Ed25519 key rotated out → `signed_then_rotated_out_rejected`
+fails with `AttestationInvalid { reason: "key_not_trusted_at_signature_time" }`.
+Without `key_valid_at` and the history-window check in `cell_ready`,
+the receipt would verify forever.
+
 ## [Unreleased] — Round 4 WE: §14 mutation gate purity + ratchet hardening
 
 ### Changed

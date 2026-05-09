@@ -39,6 +39,13 @@ use ed25519_dalek::pkcs8::{DecodePrivateKey, DecodePublicKey};
 use ed25519_dalek::{Signature, SigningKey, VerifyingKey};
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
+
+// Round 4 WD — runtime trust-set rotation. `arc-swap` provides a
+// lock-free hot-swap of `Arc<TrustedKeys>` so the A10 verifier can pick
+// up a rotated key set on the very next admission without a server
+// restart and without serializing readers behind a `RwLock`.
+pub use arc_swap::ArcSwap;
 
 /// 8-byte BLAKE3-prefix fingerprint of an Ed25519 verifying key. Stored
 /// on every signed [`crate::production_record::ProductionRecord`] so the
@@ -150,7 +157,20 @@ impl TrustedKeys {
 
     /// Load every `*.pub.pem` file from `dir`. Subdirectories are ignored.
     pub fn from_dir(dir: &Path) -> anyhow::Result<Self> {
+        let (out, _entries) = Self::from_dir_with_pems(dir)?;
+        Ok(out)
+    }
+
+    /// Round 4 WD — load every `*.pub.pem` file from `dir` AND return the
+    /// `(pem, fingerprint)` pairs alongside the trust set. Used by
+    /// [`Self::from_dir_with_history`] to upsert the
+    /// `trusted_keys_history` table on startup and to detect retired keys
+    /// during runtime rotation.
+    pub fn from_dir_with_pems(
+        dir: &Path,
+    ) -> anyhow::Result<(Self, Vec<(String, KeyFingerprint)>)> {
         let mut out = Self::new();
+        let mut pems: Vec<(String, KeyFingerprint)> = Vec::new();
         let entries = std::fs::read_dir(dir).map_err(|e| {
             anyhow::anyhow!("read trusted keys dir {}: {e}", dir.display())
         })?;
@@ -169,11 +189,112 @@ impl TrustedKeys {
             }
             let pem = std::fs::read_to_string(&path)
                 .map_err(|e| anyhow::anyhow!("read {}: {e}", path.display()))?;
-            out.insert_pem(&pem).map_err(|e| {
+            let fpr = out.insert_pem(&pem).map_err(|e| {
                 anyhow::anyhow!("parse trusted key {}: {e}", path.display())
             })?;
+            pems.push((pem, fpr));
         }
-        Ok(out)
+        Ok((out, pems))
+    }
+
+    /// Round 4 WD — load `dir` AND record startup history into the
+    /// `trusted_keys_history` table. New fingerprints get an
+    /// `added_at = now()` row; previously-active fingerprints that are
+    /// no longer present in `dir` get their `removed_at` stamped to
+    /// `now()` and their `status` flipped to `'retired'`.
+    ///
+    /// This is the single chokepoint for "the trust set changed at
+    /// startup" → "the receipts.key_valid_at column has a meaningful
+    /// lower bound to compare against during A10". Without this upsert,
+    /// `key_valid_at` would never be populated and A10 would silently
+    /// admit receipts whose key was retired before they were signed.
+    pub fn from_dir_with_history(
+        dir: &Path,
+        db: &crate::state::StateDb,
+    ) -> anyhow::Result<Self> {
+        let (trust, pems) = Self::from_dir_with_pems(dir)?;
+        let now = chrono::Utc::now().to_rfc3339();
+        let conn = db.conn();
+        // Insert any new keys; mark already-present-but-now-removed ones.
+        for (pem, fpr) in &pems {
+            let fpr_hex = fingerprint_hex(fpr);
+            // INSERT OR IGNORE so re-running on the same set does not
+            // bump added_at — the column should reflect the FIRST time
+            // we ever saw this key.
+            conn.execute(
+                "INSERT OR IGNORE INTO trusted_keys_history
+                    (fingerprint, pem, added_at, removed_at, status)
+                 VALUES (?1, ?2, ?3, NULL, 'active')",
+                rusqlite::params![fpr_hex, pem, now],
+            )?;
+            // If a key was previously retired but is back in the dir,
+            // re-activate it (clear removed_at, set status='active').
+            conn.execute(
+                "UPDATE trusted_keys_history
+                    SET removed_at = NULL, status = 'active'
+                  WHERE fingerprint = ?1 AND status = 'retired'",
+                rusqlite::params![fpr_hex],
+            )?;
+        }
+        // Mark any active row whose fingerprint is no longer in `dir`
+        // as retired.
+        let active_fprs: Vec<String> = pems
+            .iter()
+            .map(|(_, f)| fingerprint_hex(f))
+            .collect();
+        let placeholders = if active_fprs.is_empty() {
+            "''".to_string()
+        } else {
+            active_fprs
+                .iter()
+                .map(|_| "?".to_string())
+                .collect::<Vec<_>>()
+                .join(",")
+        };
+        let sql = format!(
+            "UPDATE trusted_keys_history
+                SET removed_at = ?1, status = 'retired'
+              WHERE status = 'active'
+                AND fingerprint NOT IN ({placeholders})"
+        );
+        let mut stmt = conn.prepare(&sql)?;
+        // Bind: first param is `now`, then the active fingerprints.
+        // We build an iterator that prepends `now` to the fingerprint
+        // list so the placeholders in `sql` resolve correctly.
+        stmt.execute(rusqlite::params_from_iter(
+            std::iter::once::<&dyn rusqlite::ToSql>(&now)
+                .chain(active_fprs.iter().map(|s| s as &dyn rusqlite::ToSql)),
+        ))?;
+        Ok(trust)
+    }
+
+    /// Look up the validity window for a fingerprint. Returns
+    /// `(added_at, removed_at, status)` when the fingerprint has ever
+    /// been recorded; `None` otherwise. Used by the Cell8 A10 verifier
+    /// to enforce `granted_at ∈ [added_at, removed_at)`.
+    pub fn lookup_history(
+        db: &crate::state::StateDb,
+        fpr: &KeyFingerprint,
+    ) -> Option<KeyHistoryRow> {
+        let fpr_hex = fingerprint_hex(fpr);
+        let conn = db.conn();
+        let mut stmt = conn
+            .prepare(
+                "SELECT added_at, removed_at, status
+                   FROM trusted_keys_history
+                  WHERE fingerprint = ?1",
+            )
+            .ok()?;
+        let mut rows = stmt.query(rusqlite::params![fpr_hex]).ok()?;
+        let row = rows.next().ok()??;
+        let added_at: String = row.get(0).ok()?;
+        let removed_at: Option<String> = row.get(1).ok()?;
+        let status: String = row.get(2).ok()?;
+        Some(KeyHistoryRow {
+            added_at,
+            removed_at,
+            status,
+        })
     }
 
     /// Add a verifying key from a PEM-encoded SubjectPublicKeyInfo string.
@@ -203,6 +324,28 @@ impl TrustedKeys {
     pub fn is_empty(&self) -> bool {
         self.keys.is_empty()
     }
+}
+
+/// One row of the `trusted_keys_history` table. `removed_at = None`
+/// means the key is still active.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct KeyHistoryRow {
+    pub added_at: String,
+    pub removed_at: Option<String>,
+    pub status: String,
+}
+
+/// Round 4 WD — runtime trust-set hot-swap. The admission gate holds
+/// `Arc<ArcSwap<TrustedKeys>>`; the rotation tool reads a fresh trust
+/// dir, builds a new [`TrustedKeys`], and calls `store(Arc::new(new))`
+/// without taking any lock. Readers continue to call
+/// `gate.trusted_keys.load()` and get a `Guard<Arc<TrustedKeys>>` that
+/// derefs to the trust set under that snapshot.
+///
+/// Convenience constructor: from a fresh trust set, build the swap
+/// container suitable for installing on the gate.
+pub fn into_swap(trust: TrustedKeys) -> Arc<ArcSwap<TrustedKeys>> {
+    Arc::new(ArcSwap::from_pointee(trust))
 }
 
 /// Verdict from verifying a signed message against a trust set.

@@ -54,6 +54,7 @@ ulid = "1"
 dotenvy = "0.15"
 ed25519-dalek = { version = "2", features = ["pkcs8", "pem", "rand_core"] }
 rand_core = "0.6"
+arc-swap = "1"
 
 [features]
 default = []
