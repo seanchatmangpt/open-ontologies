@@ -67,3 +67,20 @@ dbg_macro = "deny"
 
 [dev-dependencies]
 tempfile = "3"
+criterion = { version = "0.5", features = ["html_reports"] }
+
+[[bench]]
+name = "admission_bench"
+harness = false
+
+[[bench]]
+name = "manufacturing_bench"
+harness = false
+
+[[bench]]
+name = "swarm_bench"
+harness = false
+
+[[bench]]
+name = "receipts_bench"
+harness = false
