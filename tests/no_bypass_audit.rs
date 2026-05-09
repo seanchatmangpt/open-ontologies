@@ -125,24 +125,209 @@ fn extract_handlers(src: &str) -> Vec<(String, String)> {
     out
 }
 
-fn collect_balanced_block(src: &str, body_start: usize) -> String {
+/// Brace-balanced block walker that is aware of Rust char literals, string
+/// literals (regular + raw), and comments. Braces inside any of those do
+/// NOT shift the balance — a literal `'{'` or `"{"` in a function body
+/// will not cause body extraction to overrun or truncate.
+///
+/// Lexer states: Normal, LineComment, BlockComment(depth), String, RawString(hashes), Char.
+pub fn collect_balanced_block(src: &str, body_start: usize) -> String {
     let bytes = src.as_bytes();
     if body_start >= bytes.len() || bytes[body_start] != b'{' {
         return String::new();
     }
+    #[derive(Clone, Copy)]
+    enum St {
+        Normal,
+        LineComment,
+        BlockComment(u32),
+        Str,
+        RawStr(u32), // # count
+        Chr,
+    }
+    let mut state = St::Normal;
     let mut depth = 0i32;
+    let mut i = body_start;
+    let n = bytes.len();
     let mut end = body_start;
-    for (idx, b) in bytes[body_start..].iter().enumerate() {
-        match b {
-            b'{' => depth += 1,
-            b'}' => {
-                depth -= 1;
-                if depth == 0 {
-                    end = body_start + idx + 1;
-                    break;
+    while i < n {
+        let b = bytes[i];
+        match state {
+            St::Normal => {
+                // Comments
+                if b == b'/' && i + 1 < n && bytes[i + 1] == b'/' {
+                    state = St::LineComment;
+                    i += 2;
+                    continue;
                 }
+                if b == b'/' && i + 1 < n && bytes[i + 1] == b'*' {
+                    state = St::BlockComment(1);
+                    i += 2;
+                    continue;
+                }
+                // Raw string: r"..." / r#"..."# / r##"..."## ...
+                if b == b'r' && i + 1 < n && (bytes[i + 1] == b'"' || bytes[i + 1] == b'#') {
+                    let mut j = i + 1;
+                    let mut hashes = 0u32;
+                    while j < n && bytes[j] == b'#' {
+                        hashes += 1;
+                        j += 1;
+                    }
+                    if j < n && bytes[j] == b'"' {
+                        // ensure prev byte isn't ident-ish (so we don't
+                        // mis-fire on `for` etc.)
+                        let prev_ok = i == 0 || {
+                            let p = bytes[i - 1];
+                            !(p.is_ascii_alphanumeric() || p == b'_')
+                        };
+                        if prev_ok {
+                            state = St::RawStr(hashes);
+                            i = j + 1;
+                            continue;
+                        }
+                    }
+                }
+                // Regular string
+                if b == b'"' {
+                    state = St::Str;
+                    i += 1;
+                    continue;
+                }
+                // Char literal vs. lifetime. A char literal looks like
+                // `'\\?.'` — a single (possibly-escaped) char then `'`.
+                // A lifetime looks like `'ident` with NO closing `'`
+                // immediately after.
+                if b == b'\'' {
+                    // Try escape: '\X' or '\xNN' or '\u{...}'
+                    if i + 1 < n && bytes[i + 1] == b'\\' {
+                        // Find the closing ' within a small window.
+                        // For \u{...}, look for } then '.
+                        let mut k = i + 2;
+                        if k < n && bytes[k] == b'u' && k + 1 < n && bytes[k + 1] == b'{' {
+                            k += 2;
+                            while k < n && bytes[k] != b'}' {
+                                k += 1;
+                            }
+                            if k < n {
+                                k += 1; // past }
+                            }
+                        } else {
+                            // simple escape: skip one char
+                            // (handles \n, \t, \', \", \\, \0, \xNN — for
+                            // \xNN we may skip too few but the closing '
+                            // search below recovers)
+                            k += 1;
+                            // skip hex digits if any (for \xNN)
+                            while k < n && bytes[k].is_ascii_hexdigit() && bytes[k] != b'\'' {
+                                if k - (i + 2) > 4 {
+                                    break;
+                                }
+                                k += 1;
+                            }
+                        }
+                        if k < n && bytes[k] == b'\'' {
+                            state = St::Chr;
+                            i += 1; // entered char body
+                            // We'll let the Chr state walk to the closing '.
+                            continue;
+                        }
+                        // not a char literal, fall through and treat ' as normal
+                        i += 1;
+                        continue;
+                    }
+                    // Non-escaped: '<one char>'
+                    // Need to find a single UTF-8 char then `'`.
+                    let ch_len = {
+                        let s = std::str::from_utf8(&bytes[i + 1..]).ok();
+                        s.and_then(|s| s.chars().next().map(|c| c.len_utf8()))
+                            .unwrap_or(0)
+                    };
+                    if ch_len > 0 && i + 1 + ch_len < n && bytes[i + 1 + ch_len] == b'\'' {
+                        state = St::Chr;
+                        i += 1;
+                        continue;
+                    }
+                    // Lifetime: just consume the ' and the following ident.
+                    i += 1;
+                    while i < n && (bytes[i].is_ascii_alphanumeric() || bytes[i] == b'_') {
+                        i += 1;
+                    }
+                    continue;
+                }
+                // Brace counting
+                if b == b'{' {
+                    depth += 1;
+                } else if b == b'}' {
+                    depth -= 1;
+                    if depth == 0 {
+                        end = i + 1;
+                        break;
+                    }
+                }
+                i += 1;
             }
-            _ => {}
+            St::LineComment => {
+                if b == b'\n' {
+                    state = St::Normal;
+                }
+                i += 1;
+            }
+            St::BlockComment(d) => {
+                if b == b'/' && i + 1 < n && bytes[i + 1] == b'*' {
+                    state = St::BlockComment(d + 1);
+                    i += 2;
+                    continue;
+                }
+                if b == b'*' && i + 1 < n && bytes[i + 1] == b'/' {
+                    if d == 1 {
+                        state = St::Normal;
+                    } else {
+                        state = St::BlockComment(d - 1);
+                    }
+                    i += 2;
+                    continue;
+                }
+                i += 1;
+            }
+            St::Str => {
+                if b == b'\\' && i + 1 < n {
+                    i += 2;
+                    continue;
+                }
+                if b == b'"' {
+                    state = St::Normal;
+                }
+                i += 1;
+            }
+            St::RawStr(hashes) => {
+                if b == b'"' {
+                    // Must be followed by exactly `hashes` '#'s.
+                    let mut all = true;
+                    for h in 0..hashes {
+                        let k = i + 1 + h as usize;
+                        if k >= n || bytes[k] != b'#' {
+                            all = false;
+                            break;
+                        }
+                    }
+                    if all {
+                        state = St::Normal;
+                        i += 1 + hashes as usize;
+                        continue;
+                    }
+                }
+                i += 1;
+            }
+            St::Chr => {
+                if b == b'\\' && i + 1 < n {
+                    i += 2;
+                    continue;
+                }
+                if b == b'\'' {
+                    state = St::Normal;
+                }
+                i += 1;
+            }
         }
     }
     src[body_start..end].to_string()

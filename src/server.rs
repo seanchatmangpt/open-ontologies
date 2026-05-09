@@ -3470,7 +3470,7 @@ impl OpenOntologiesServer {
             let json_line = match stdout
                 .lines()
                 .rev()
-                .find(|l| l.trim_start().as_bytes().first().copied() == Some(123u8))
+                .find(|l| l.trim_start().starts_with('{'))
             {
                 Some(l) => l.trim().to_string(),
                 None => {
@@ -4161,7 +4161,7 @@ impl OpenOntologiesServer {
             let json_line = match stdout
                 .lines()
                 .rev()
-                .find(|l| l.trim_start().as_bytes().first().copied() == Some(123u8))
+                .find(|l| l.trim_start().starts_with('{'))
             {
                 Some(l) => l.trim().to_string(),
                 None => {
@@ -4367,7 +4367,7 @@ impl OpenOntologiesServer {
         let json_line = stdout
             .lines()
             .rev()
-            .find(|l| l.trim_start().as_bytes().first().copied() == Some(123u8))
+            .find(|l| l.trim_start().starts_with('{'))
             .map(|s| s.trim().to_string());
         let resp = match json_line.and_then(|l| serde_json::from_str::<serde_json::Value>(&l).ok()) {
             Some(v) => v,
