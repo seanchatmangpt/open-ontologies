@@ -352,7 +352,18 @@ impl OntoStarAdmissionGate {
         let gate_config_hash_hex = hex32_pub(&self.gate_config_hash);
 
         // Run conformance via wasm4pm bridge (or stub).
-        let conf = replay.replay(scope_token, powl_string);
+        let mut conf = replay.replay(scope_token, powl_string);
+        // Phase 7 Task C.fix: namespace `run_id` with the scope_token. The
+        // bridge derives `run_id` from the trace canonical hash alone, which
+        // is identical across two scopes that share the same `event_type`
+        // sequence. Without scope-prefixing, two concurrent admissions on
+        // distinct scopes collide on the `run_id` PRIMARY KEY of
+        // `conformance_runs` — `INSERT OR REPLACE` overwrites one scope's
+        // row with the other's `scope_token`, and the loser's
+        // `has_conforming_replay(scope_token)` lookup returns false →
+        // spurious `ReplayFailed` defect. Scope-prefixing makes the key
+        // disjoint so concurrent scopes both retain their own row.
+        conf.run_id = format!("{}:{}", scope_token, conf.run_id);
         // Persist conformance row so cell_ready's `replay_pass` conjunct can read it.
         persist_conformance_run(store, scope_token, &conf, &ocel_trace_hash_hex);
 
@@ -426,13 +437,53 @@ impl OntoStarAdmissionGate {
 
         match cell_ready(inputs, store) {
             Ok(receipt) => {
-                if let Err(_e) = receipts::persist_with_tenant(
-                    &receipt,
-                    store.db(),
-                    session_id,
-                    &scope_tenant,
-                ) {
-                    // Persistence failure is itself a typed defect.
+                // Phase 7 Task C.fix: persist receipt + emit `admission_granted`
+                // under a SINGLE SQLite transaction. If either step fails, the
+                // whole boundary rolls back: a receipt never lands in the DB
+                // without its OCEL witness, and an `admission_granted` event
+                // never lands without a backing receipt row. Closes the
+                // orphan window documented in tests/receipt_chain_adversarial.
+                let atomic_result: Result<(), anyhow::Error> = (|| {
+                    let mut conn = store.db().conn();
+                    let tx = conn.transaction()?;
+                    receipts::persist_with_tenant_in_tx(
+                        &tx,
+                        &receipt,
+                        session_id,
+                        &scope_tenant,
+                    )?;
+                    let event_id = format!(
+                        "{}:admission_granted:{}",
+                        session_id,
+                        chrono::Utc::now().timestamp_millis()
+                    );
+                    let powl_hash_hex = hex32_pub(&receipt.record.declared_powl_hash);
+                    let receipt_hex = receipt.hex();
+                    OcelStore::emit_event_in_tenant_in_tx(
+                        &tx,
+                        &event_id,
+                        "admission_granted",
+                        &chrono::Utc::now().to_rfc3339(),
+                        session_id,
+                        &[
+                            ("op", op.as_str()),
+                            ("receipt_hash", &receipt_hex),
+                            ("scope_token", &receipt.record.scope_token),
+                            ("production_law_version", &receipt.record.production_law_version),
+                            ("defects_taxonomy_version", &receipt.record.defects_taxonomy_version),
+                            ("powl_hash", &powl_hash_hex),
+                        ],
+                        &[],
+                        Some(&receipt.record.scope_token),
+                        &scope_tenant,
+                    )?;
+                    tx.commit()?;
+                    Ok(())
+                })();
+                if let Err(_e) = atomic_result {
+                    // Either persist or emit failed; transaction was dropped
+                    // (rolled back). Surface as ReceiptMissing — neither side
+                    // is durable, so the admission is not granted.
                     self.emit_denied(store, session_id, op, &DefectClass::ReceiptMissing);
                     if !workflow_name.is_empty() {
                         let _ = store.db().record_capability(
@@ -452,7 +503,6 @@ impl OntoStarAdmissionGate {
                     }
                     return Err((DefectClass::ReceiptMissing, vec![]));
                 }
-                self.emit_granted(store, session_id, op, &receipt);
                 if !workflow_name.is_empty() {
                     let _ = store.db().record_capability(
                         &workflow_name,
@@ -506,36 +556,10 @@ impl OntoStarAdmissionGate {
         }
     }
 
-    fn emit_granted(
-        &self,
-        store: &OcelStore,
-        session_id: &str,
-        op: AdmissionOp,
-        receipt: &Receipt,
-    ) {
-        let event_id = format!(
-            "{}:admission_granted:{}",
-            session_id,
-            chrono::Utc::now().timestamp_millis()
-        );
-        let powl_hash_hex = hex32_pub(&receipt.record.declared_powl_hash);
-        let _ = store.emit_event(
-            &event_id,
-            "admission_granted",
-            &chrono::Utc::now().to_rfc3339(),
-            session_id,
-            &[
-                ("op", op.as_str()),
-                ("receipt_hash", &receipt.hex()),
-                ("scope_token", &receipt.record.scope_token),
-                ("production_law_version", &receipt.record.production_law_version),
-                ("defects_taxonomy_version", &receipt.record.defects_taxonomy_version),
-                ("powl_hash", &powl_hash_hex),
-            ],
-            &[],
-            Some(&receipt.record.scope_token),
-        );
-    }
+    // Phase 7 Task C.fix: `emit_granted` was inlined into `evaluate` so the
+    // receipt persist + OCEL emit run under a single transaction. The
+    // standalone helper was removed because it was the seam through which
+    // partial-success orphans could appear (receipt durable, emit failed).
 
     fn emit_denied(
         &self,

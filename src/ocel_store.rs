@@ -8,6 +8,44 @@ pub struct OcelStore {
     db: StateDb,
 }
 
+/// Insert OCEL event + attrs + relationships through a `Connection` (which
+/// transparently accepts a `&Transaction` via deref). Shared by the legacy
+/// `emit_event_in_tenant` (acquires its own conn) and the Phase 7 Task C.fix
+/// `emit_event_in_tenant_in_tx` (caller supplies the transaction).
+#[allow(clippy::too_many_arguments)]
+fn emit_event_rows(
+    conn: &rusqlite::Connection,
+    event_id: &str,
+    event_type: &str,
+    time_iso: &str,
+    session_id: &str,
+    attrs: &[(&str, &str)],
+    objects: &[(&str, &str)],
+    scope_token: Option<&str>,
+    tenant_id: &str,
+) -> Result<()> {
+    conn.execute(
+        "INSERT INTO ocel_events (event_id, event_type, time, session_id, scope_token, tenant_id)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+        rusqlite::params![event_id, event_type, time_iso, session_id, scope_token, tenant_id],
+    )?;
+    for (name, value) in attrs {
+        conn.execute(
+            "INSERT INTO ocel_event_attrs (event_id, name, value, value_type)
+             VALUES (?1, ?2, ?3, 'string')",
+            rusqlite::params![event_id, name, value],
+        )?;
+    }
+    for (object_id, qualifier) in objects {
+        conn.execute(
+            "INSERT INTO ocel_relationships (event_id, object_id, qualifier)
+             VALUES (?1, ?2, ?3)",
+            rusqlite::params![event_id, object_id, qualifier],
+        )?;
+    }
+    Ok(())
+}
+
 /// Receipt-backed exemplar row returned by [`OcelStore::exemplars_for_domain`].
 /// Loop 4 surface — see `feedback::exemplars` (Loop 1) for how rows arrive.
 #[derive(Debug, Clone, serde::Serialize)]
@@ -333,30 +371,32 @@ impl OcelStore {
         tenant_id: &str,
     ) -> Result<()> {
         let conn = self.db.conn();
+        emit_event_rows(
+            &*conn, event_id, event_type, time_iso, session_id, attrs, objects, scope_token,
+            tenant_id,
+        )
+    }
 
-        conn.execute(
-            "INSERT INTO ocel_events (event_id, event_type, time, session_id, scope_token, tenant_id)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-            rusqlite::params![event_id, event_type, time_iso, session_id, scope_token, tenant_id],
-        )?;
-
-        for (name, value) in attrs {
-            conn.execute(
-                "INSERT INTO ocel_event_attrs (event_id, name, value, value_type)
-                 VALUES (?1, ?2, ?3, 'string')",
-                rusqlite::params![event_id, name, value],
-            )?;
-        }
-
-        for (object_id, qualifier) in objects {
-            conn.execute(
-                "INSERT INTO ocel_relationships (event_id, object_id, qualifier)
-                 VALUES (?1, ?2, ?3)",
-                rusqlite::params![event_id, object_id, qualifier],
-            )?;
-        }
-
-        Ok(())
+    /// Phase 7 Task C.fix: shared-transaction variant. Inserts the OCEL event
+    /// rows on a caller-supplied transaction WITHOUT committing. Used by the
+    /// admission gate to keep `receipts` INSERT and the `admission_granted`
+    /// emit atomic — failure of either rolls back both, so a receipt is never
+    /// durable without its OCEL witness.
+    #[allow(clippy::too_many_arguments)]
+    pub fn emit_event_in_tenant_in_tx(
+        tx: &rusqlite::Transaction<'_>,
+        event_id: &str,
+        event_type: &str,
+        time_iso: &str,
+        session_id: &str,
+        attrs: &[(&str, &str)],
+        objects: &[(&str, &str)],
+        scope_token: Option<&str>,
+        tenant_id: &str,
+    ) -> Result<()> {
+        emit_event_rows(
+            tx, event_id, event_type, time_iso, session_id, attrs, objects, scope_token, tenant_id,
+        )
     }
 
     /// Build a complete OCEL 2.0 struct from the stored OCEL data.

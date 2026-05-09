@@ -56,12 +56,28 @@ pub fn persist_with_tenant(
     tenant_id: &str,
 ) -> Result<()> {
     let mut conn = db.conn();
+    let tx = conn.transaction()?;
+    persist_with_tenant_in_tx(&tx, receipt, session_id, tenant_id)?;
+    tx.commit()?;
+    Ok(())
+}
+
+/// Phase 7 Task C.fix: shared-transaction variant. Performs the receipt INSERT
+/// on a caller-supplied transaction WITHOUT committing. Lets the admission
+/// gate wrap `persist` + OCEL `emit_event` in a single atomic boundary so a
+/// receipt is never durable without its corresponding `admission_granted`
+/// event (or vice-versa).
+pub fn persist_with_tenant_in_tx(
+    tx: &rusqlite::Transaction<'_>,
+    receipt: &Receipt,
+    session_id: &str,
+    tenant_id: &str,
+) -> Result<()> {
     let granted_at = chrono::Utc::now().to_rfc3339();
     let prior = receipt.record.prior_receipt.as_ref().map(hex32_pub);
-    // Task C: per-session monotonic sequence under a transaction so concurrent
-    // admissions on the same session_id cannot race the (session_id, sequence)
-    // unique index. Plain INSERT — duplicate receipt_hash is now a hard error.
-    let tx = conn.transaction()?;
+    // Task C: per-session monotonic sequence; concurrent admissions on the
+    // same session_id cannot race the (session_id, sequence) unique index
+    // because the surrounding transaction serializes the read+write.
     let next_sequence: i64 = tx.query_row(
         "SELECT COALESCE(MAX(sequence), 0) + 1 FROM receipts WHERE session_id = ?1",
         rusqlite::params![session_id],
@@ -89,7 +105,6 @@ pub fn persist_with_tenant(
             tenant_id,
         ],
     )?;
-    tx.commit()?;
     Ok(())
 }
 

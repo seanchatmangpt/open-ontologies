@@ -278,23 +278,34 @@ fn concurrent_sessions_do_not_cross_chain() {
 
 #[test]
 fn orphan_detection_refuses_to_chain() {
-    // Plant an orphan receipt directly in `receipts` with no corresponding
-    // `admission_granted` OCEL event. Then run a real admission. The next
-    // admission's `prior_receipt` will pick whatever `latest_for_session`
-    // returns — which today IS the orphan, because chain-consistency is not
-    // yet validated against OCEL events at admission time.
+    // Phase 7 Task C.fix: atomic persist+emit. The receipt INSERT and the
+    // `admission_granted` OCEL emit run inside ONE SQLite transaction, so:
     //
-    // TODO(phase-6-followup): runtime orphan detection not yet wired; this
-    // test asserts the weaker invariant that the orphan IS NOT chained to.
-    // Stronger Shape-1 (atomic persist+emit) requires emit_granted -> Result
-    // refactor.
+    //   * if the OCEL emit fails, the receipt INSERT is rolled back —
+    //     no orphan row can ever land in `receipts`;
+    //   * if the receipt INSERT fails, the OCEL emit is also rolled back —
+    //     no `admission_granted` event can ever vouch for a receipt that
+    //     does not exist.
+    //
+    // This test sabotages the OCEL emit step by dropping `ocel_event_attrs`
+    // mid-flight and asserts the stronger invariants:
+    //
+    //   (a) the would-be receipt is NOT in `receipts` (rollback held), and
+    //   (b) the next real admission's `prior_receipt` does NOT chain to a
+    //       hash created during the sabotaged attempt (because no such
+    //       hash exists in `receipts`).
+    //
+    // A planted "raw" orphan from a hostile actor (direct SQL bypass of the
+    // gate) is also asserted to never appear in an `admission_granted`
+    // OCEL event — the audit trail keeps that secondary witness.
     let db = fresh_db();
     let store = OcelStore::new(db.clone());
     let session = "orphan-session";
 
-    // Plant the orphan: receipt row exists, but no admission_granted OCEL
-    // event ever references it. Sequence = 1 → it would be the "latest"
-    // at the moment a real admission runs.
+    // Plant a hostile-actor orphan: someone wrote directly to `receipts`
+    // bypassing the gate. Our atomic boundary is what keeps the gate's own
+    // path honest — this row is just here to confirm the OCEL audit trail
+    // can still detect a non-gate insertion post-hoc.
     let orphan_hash = format!("{:064x}", 0xdeadbeefu64);
     insert_raw_receipt(
         &db,
@@ -304,7 +315,10 @@ fn orphan_detection_refuses_to_chain() {
         1,
     );
 
-    // Drive a real admission on the same session.
+    // Set up a real admission attempt, but sabotage OCEL emit by dropping
+    // the `ocel_event_attrs` table BEFORE evaluate(). The receipt INSERT
+    // will succeed; the attrs INSERT inside the same transaction will fail
+    // ("no such table"); the whole txn rolls back.
     let scope = WorkflowScope::new(&db, session);
     let token = scope
         .open(Some(RM_WORKFLOW), None, None)
@@ -317,30 +331,102 @@ fn orphan_detection_refuses_to_chain() {
 
     let gate = build_gate(RM_WORKFLOW);
     let powl = by_name(RM_WORKFLOW).unwrap().powl_string;
-    let artifact = ArtifactRef {
-        kind: "test",
-        bytes: b"orphan-followup",
+
+    // Snapshot receipts BEFORE sabotage so we can diff afterwards.
+    let receipts_before: i64 = {
+        let conn = db.conn();
+        conn.query_row(
+            "SELECT COUNT(*) FROM receipts WHERE session_id = ?1",
+            rusqlite::params![session],
+            |r| r.get(0),
+        )
+        .unwrap()
     };
+
+    // SABOTAGE: drop `ocel_event_attrs`. Now the in-tx attrs INSERT will
+    // fail and the surrounding transaction must roll back the receipt row.
+    {
+        let conn = db.conn();
+        conn.execute_batch("DROP TABLE ocel_event_attrs;").unwrap();
+    }
+
     let replay = PowlBridgeReplay::new(&store);
+    let sabotaged = gate.evaluate(
+        &token,
+        AdmissionOp::RequirementProposed,
+        &ArtifactRef {
+            kind: "test",
+            bytes: b"sabotaged-emit",
+        },
+        &store,
+        &replay,
+        session,
+        powl,
+        &observed,
+    );
+    assert!(
+        sabotaged.is_err(),
+        "sabotaged emit must surface as Err (transaction rolled back)"
+    );
+
+    // Restore the table so we can run a clean follow-up admission and prove
+    // (b): the chain on the next admission does NOT thread through any
+    // hash created during the sabotaged attempt.
+    {
+        let conn = db.conn();
+        conn.execute_batch(
+            "CREATE TABLE ocel_event_attrs (
+                event_id   TEXT NOT NULL,
+                name       TEXT NOT NULL,
+                value      TEXT NOT NULL,
+                value_type TEXT NOT NULL DEFAULT 'string',
+                PRIMARY KEY (event_id, name)
+            );",
+        )
+        .unwrap();
+    }
+
+    // (a) Receipt count must be unchanged — the sabotaged attempt rolled
+    // back, so no new row landed in `receipts`.
+    let receipts_after_sabotage: i64 = {
+        let conn = db.conn();
+        conn.query_row(
+            "SELECT COUNT(*) FROM receipts WHERE session_id = ?1",
+            rusqlite::params![session],
+            |r| r.get(0),
+        )
+        .unwrap()
+    };
+    assert_eq!(
+        receipts_after_sabotage, receipts_before,
+        "atomic boundary must roll back the receipt INSERT when emit fails \
+         (before={receipts_before}, after={receipts_after_sabotage})"
+    );
+
+    // Drive a clean follow-up admission. Its `prior_receipt` will be
+    // whatever `latest_for_session` returns — the planted orphan, since no
+    // other row exists. We then assert the secondary OCEL-audit invariant:
+    // the planted orphan was never broadcast as an `admission_granted`,
+    // and the legitimate follow-up's receipt hash is freshly emitted.
     let real_receipt = gate
         .evaluate(
             &token,
             AdmissionOp::RequirementProposed,
-            &artifact,
+            &ArtifactRef {
+                kind: "test",
+                bytes: b"clean-followup",
+            },
             &store,
             &replay,
             session,
             powl,
             &observed,
         )
-        .expect("real admission must grant");
+        .expect("clean follow-up admission must grant");
 
-    // The real admission's prior_receipt: in current implementation it WILL
-    // be the orphan (this is the gap the TODO documents). Assert the
-    // weaker invariant: the orphan hash was never broadcast on OCEL as an
-    // `admission_granted`, so the audit trail can detect the discrepancy
-    // post-hoc even though the SQL chain pointed at it.
     let conn = db.conn();
+
+    // The planted orphan was never broadcast as an `admission_granted`.
     let granted_events_referencing_orphan: i64 = conn
         .query_row(
             "SELECT COUNT(*) FROM ocel_event_attrs a
@@ -355,11 +441,13 @@ fn orphan_detection_refuses_to_chain() {
         .unwrap_or(0);
     assert_eq!(
         granted_events_referencing_orphan, 0,
-        "orphan receipt must never appear in any admission_granted OCEL event"
+        "planted orphan (raw SQL bypass) must never appear in any \
+         admission_granted OCEL event — the OCEL audit trail is the \
+         post-hoc witness for non-gate insertions"
     );
 
-    // And the real receipt was emitted to OCEL — receipts and events are
-    // both present for the legitimate admission.
+    // The real receipt IS emitted to OCEL — atomic boundary held on the
+    // success path too.
     let real_hex = real_receipt.hex();
     let real_emitted: i64 = conn
         .query_row(
@@ -375,6 +463,44 @@ fn orphan_detection_refuses_to_chain() {
         .unwrap_or(0);
     assert_eq!(
         real_emitted, 1,
-        "real admission must have emitted exactly one admission_granted event"
+        "clean admission must have emitted exactly one admission_granted event"
+    );
+
+    // (b)-strengthened: every gate-produced receipt has an OCEL witness.
+    // The planted orphan is the only unwitnessed row by construction; any
+    // other unwitnessed row would mean the atomic boundary leaked a
+    // partial-success state during the sabotaged attempt.
+    let mut stmt = conn
+        .prepare("SELECT receipt_hash FROM receipts WHERE session_id = ?1")
+        .unwrap();
+    let all_hashes: Vec<String> = stmt
+        .query_map(rusqlite::params![session], |r| r.get::<_, String>(0))
+        .unwrap()
+        .map(|r| r.unwrap())
+        .collect();
+    let mut unwitnessed: Vec<String> = Vec::new();
+    for h in &all_hashes {
+        let n: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM ocel_event_attrs a
+                  JOIN ocel_events e ON e.event_id = a.event_id
+                 WHERE e.event_type = 'admission_granted'
+                   AND e.session_id = ?1
+                   AND a.name = 'receipt_hash'
+                   AND a.value = ?2",
+                rusqlite::params![session, h],
+                |r| r.get(0),
+            )
+            .unwrap_or(0);
+        if n == 0 {
+            unwitnessed.push(h.clone());
+        }
+    }
+    assert_eq!(
+        unwitnessed,
+        vec![orphan_hash.clone()],
+        "the only unwitnessed receipt in the session must be the planted \
+         orphan; any other unwitnessed row would mean the atomic boundary \
+         leaked a partial-success state"
     );
 }
