@@ -53,6 +53,19 @@ impl<'a> WorkflowScope<'a> {
         powl: Option<&str>,
         scope_token: Option<&str>,
     ) -> Result<String, ScopeError> {
+        self.open_in_tenant(name, powl, scope_token, "default")
+    }
+
+    /// Phase 11 — tenant-aware variant of [`open`]. Tags the new
+    /// `declared_workflows` row with `tenant_id` so cross-tenant access
+    /// can be denied at admission time.
+    pub fn open_in_tenant(
+        &self,
+        name: Option<&str>,
+        powl: Option<&str>,
+        scope_token: Option<&str>,
+        tenant_id: &str,
+    ) -> Result<String, ScopeError> {
         // Resolve name + powl_string.
         let (resolved_name, powl_string, alphabet) = match (name, powl) {
             (Some(n), Some(p)) => (n.to_string(), p.to_string(), Vec::<String>::new()),
@@ -87,8 +100,8 @@ impl<'a> WorkflowScope<'a> {
         conn.execute(
             "INSERT OR REPLACE INTO declared_workflows
                 (scope_token, session_id, name, powl_string, powl_hash, alphabet_json,
-                 declared_at, closed_at, status)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, NULL, 'open')",
+                 declared_at, closed_at, status, tenant_id)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, NULL, 'open', ?8)",
             rusqlite::params![
                 &token,
                 self.session_id,
@@ -97,6 +110,7 @@ impl<'a> WorkflowScope<'a> {
                 &powl_hash,
                 &alphabet_json,
                 &now,
+                tenant_id,
             ],
         )?;
         Ok(token)
@@ -166,6 +180,22 @@ impl<'a> WorkflowScope<'a> {
                 powl_hash: r.get(4)?,
                 status: r.get(5)?,
             }))
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Phase 11 — fetch the `tenant_id` of a declared scope. Returns
+    /// `"default"` for legacy rows that predate the column. Returns `None`
+    /// if no row exists.
+    pub fn tenant_for(&self, scope_token: &str) -> Result<Option<String>, ScopeError> {
+        let conn = self.db.conn();
+        let mut stmt = conn.prepare(
+            "SELECT tenant_id FROM declared_workflows WHERE scope_token = ?1",
+        )?;
+        let mut rows = stmt.query(rusqlite::params![scope_token])?;
+        if let Some(r) = rows.next()? {
+            Ok(Some(r.get::<_, String>(0)?))
         } else {
             Ok(None)
         }

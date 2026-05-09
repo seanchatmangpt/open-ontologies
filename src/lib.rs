@@ -34,6 +34,8 @@ pub mod runtime;
 pub mod server;
 pub mod shacl;
 pub mod state;
+// Phase 11 — multi-tenant session isolation.
+pub mod tenant;
 pub mod schema;
 pub mod socket;
 pub mod sqlsource;

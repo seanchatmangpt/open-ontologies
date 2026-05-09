@@ -89,12 +89,26 @@ fn ok_bag(scope_token: String, session: &str) -> Bag {
     }
 }
 
+fn happy_provenance(bag: &Bag) -> Vec<String> {
+    vec![bag.artifact_hash.clone()]
+}
+
+fn happy_granted_at() -> Vec<String> {
+    vec!["2026-05-08T00:00:00Z".to_string()]
+}
+
 fn inputs_from(bag: &Bag) -> CellReadyInputs<'_> {
     // Construct PowlOpRef with a leaked reference (test scope, fine).
     let powl_ref = Box::leak(Box::new(PowlOpRef {
         powl_string: &bag.powl_string,
         powl_hash: bag.powl_hash,
     }));
+    // Phase-10 13-conjunct evidence — leak so we can hand out borrowed slices.
+    let provenance: &'static [String] = Box::leak(happy_provenance(bag).into_boxed_slice());
+    let granted: &'static [String] = Box::leak(happy_granted_at().into_boxed_slice());
+    let admitted: &'static [String] = Box::leak(Vec::<String>::new().into_boxed_slice());
+    let attestation: &'static str = Box::leak(bag.artifact_hash.clone().into_boxed_str());
+    let replay_hash: &'static str = Box::leak(bag.ocel_trace_hash.clone().into_boxed_str());
     CellReadyInputs {
         scope_token: &bag.scope_token,
         declared_powl: powl_ref,
@@ -112,6 +126,11 @@ fn inputs_from(bag: &Bag) -> CellReadyInputs<'_> {
         production_law_version: &bag.production_law_version,
         prior_receipt: None,
         session_id: &bag.session_id,
+        provenance_evidence: provenance,
+        external_attestation: attestation,
+        granted_at_chain: granted,
+        admitted_receipts: admitted,
+        replay_canonical_hash: replay_hash,
     }
 }
 

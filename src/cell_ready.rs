@@ -2,24 +2,25 @@
 //! manufacturing success.
 //!
 //! ```text
-//! CellReady = WorkflowDeclared
-//!           ∧ ScopeClosed
-//!           ∧ OCELComplete
-//!           ∧ POWLReplayPass
-//!           ∧ ThresholdPass
-//!           ∧ RequiredStagesPresent
-//!           ∧ NoBypassRevocation
-//!           ∧ ReceiptValid
+//! CellReady = WorkflowDeclared          (A1: Seed)
+//!           ∧ ScopeClosed                (A2: Breed)
+//!           ∧ OCELComplete               (A3: Validate)
+//!           ∧ POWLReplayPass             (A4: Reason)
+//!           ∧ ThresholdPass              (A5: Prove)
+//!           ∧ RequiredStagesPresent      (A6: Seal)
+//!           ∧ NoBypassRevocation         (A7: Emit)
+//!           ∧ ReceiptValid               (A8: Journal)
+//!           ∧ ProvenanceChain            (A9: Causal)
+//!           ∧ ExternalAttestation        (A10: Temporal)
+//!           ∧ TemporalValidity           (A11: Governance)
+//!           ∧ DependencyClosure          (A12: Rollback)
+//!           ∧ ReplayProof                (A13: Attest)
 //! ```
 //!
-//! Short-circuits to the first failing [`DefectClass`]. **No `bail!`,
-//! no `anyhow!`, no string error authority** — every denial is a typed
-//! defect class.
-//!
-//! NOTE on Stream 2 coupling: the plan signature uses `&'a PowlOpRef`
-//! (a `wasm4pm` arena handle). Until Stream 2 lands its `powl_bridge.rs`,
-//! we accept an opaque marker so this module compiles standalone. The
-//! shape of the function and the conjunct order are exactly per the plan.
+//! Phase 10: expanded from 8 conjuncts to the full 13-gate Cell8
+//! conformance suite. Each conjunct still short-circuits to the first
+//! failing typed [`DefectClass`]. **No `bail!`, no `anyhow!`, no string
+//! error authority** — every denial is a typed defect class.
 
 use crate::defects::DefectClass;
 use crate::ocel_store::OcelStore;
@@ -62,6 +63,30 @@ pub struct CellReadyInputs<'a> {
 
     /// Session id that owns the receipts row when persisted.
     pub session_id: &'a str,
+
+    // ── Phase 10: A9–A13 inputs ───────────────────────────────────────────
+    /// A9 (provenance chain): every artifact hash referenced here must
+    /// have a recorded `prov:wasGeneratedBy` event entry. Empty list
+    /// means "no provenance evidence" → A9 fails.
+    pub provenance_evidence: &'a [String],
+
+    /// A10 (external attestation): hex-encoded BLAKE3 attestation digest
+    /// that must equal `artifact_hash` to verify (poor-man's Ed25519
+    /// stand-in until ed25519-dalek lands). Empty string → A10 fails.
+    pub external_attestation: &'a str,
+
+    /// A11 (temporal validity): RFC-3339 granted_at timestamps in
+    /// observed order. Must be monotonic non-decreasing. Empty → fail.
+    pub granted_at_chain: &'a [String],
+
+    /// A12 (dependency closure): every prior receipt hex referenced
+    /// here must itself be admitted (present in `admitted_receipts`).
+    pub admitted_receipts: &'a [String],
+
+    /// A13 (replay proof): expected canonical OCEL hash from a
+    /// deterministic POWL replay. Must equal `ocel_trace_hash` byte-
+    /// for-byte. Empty string → fail.
+    pub replay_canonical_hash: &'a str,
 }
 
 /// Compute the `CellReady` predicate. Returns a freshly built (but not yet
@@ -69,7 +94,7 @@ pub struct CellReadyInputs<'a> {
 /// [`DefectClass`] on failure.
 ///
 /// Persistence of the receipt is the caller's responsibility (admission
-/// gate); this function only certifies that all eight conjuncts hold.
+/// gate); this function only certifies that all thirteen conjuncts hold.
 pub fn cell_ready(
     inp: CellReadyInputs<'_>,
     store: &OcelStore,
@@ -84,16 +109,12 @@ pub fn cell_ready(
         return Err(DefectClass::ScopeUnclosed);
     }
 
-    // 3. OCELComplete — at least one event observed for the scope. The
-    //    canonical "every required stage fired" check lives in
-    //    `RequiredStagesPresent` (#6) so we don't short-circuit on the
-    //    same condition twice; `OcelIncomplete` here means "no evidence
-    //    to evaluate."
+    // 3. OCELComplete — at least one event observed for the scope.
     if !ocel_complete(inp.observed_stages) {
         return Err(DefectClass::OcelIncomplete);
     }
 
-    // 4. POWLReplayPass — conformance_runs row with verdict='conform' for scope.
+    // 4. POWLReplayPass — conformance_runs row with verdict='conform'.
     if !replay_pass(store, inp.scope_token) {
         return Err(DefectClass::ReplayFailed);
     }
@@ -114,7 +135,7 @@ pub fn cell_ready(
         });
     }
 
-    // 6. RequiredStagesPresent — every stage in required_stages present in OCEL.
+    // 6. RequiredStagesPresent — every stage in required_stages present.
     for stage in inp.required_stages {
         if !inp.observed_stages.iter().any(|s| s == stage) {
             return Err(DefectClass::CapabilityZero);
@@ -126,13 +147,50 @@ pub fn cell_ready(
         return Err(DefectClass::BypassRevoked);
     }
 
-    // 8. ReceiptValid — canonical hashes recompute. Build a candidate
-    //    record and prove its hash is well-formed BLAKE3 input.
+    // 8. ReceiptValid — canonical hashes recompute.
     let artifact_hash = parse_hex32(inp.artifact_hash).ok_or(DefectClass::ReceiptMissing)?;
     let ocel_canonical_hash =
         parse_hex32(inp.ocel_trace_hash).ok_or(DefectClass::ReceiptMissing)?;
     let gate_config_hash =
         parse_hex32(inp.gate_config_hash).ok_or(DefectClass::ReceiptMissing)?;
+
+    // 9. A9_provenance_chain — every artifact hash has prov:wasGeneratedBy.
+    if inp.provenance_evidence.is_empty()
+        || !inp.provenance_evidence.iter().any(|p| p == inp.artifact_hash)
+    {
+        return Err(DefectClass::ProvenanceMissing);
+    }
+
+    // 10. A10_external_attestation — at least one attestation digest
+    //     verifies (must equal the artifact hash byte-for-byte).
+    if inp.external_attestation.is_empty()
+        || inp.external_attestation != inp.artifact_hash
+    {
+        return Err(DefectClass::AttestationMissing);
+    }
+
+    // 11. A11_temporal_validity — granted_at chain monotonic.
+    if inp.granted_at_chain.is_empty() {
+        return Err(DefectClass::TemporalSkew);
+    }
+    for w in inp.granted_at_chain.windows(2) {
+        if w[0] > w[1] {
+            return Err(DefectClass::TemporalSkew);
+        }
+    }
+
+    // 12. A12_dependency_closure — every prior_receipt is admitted.
+    if let Some(prior) = inp.prior_receipt.as_ref() {
+        let prior_hex = hex32_local(prior);
+        if !inp.admitted_receipts.iter().any(|r| r == &prior_hex) {
+            return Err(DefectClass::DependencyClosureBroken);
+        }
+    }
+
+    // 13. A13_replay_proof — POWL replay byte-identical to OCEL hash.
+    if inp.replay_canonical_hash != inp.ocel_trace_hash {
+        return Err(DefectClass::ReplayDivergence);
+    }
 
     let record = ProductionRecord {
         artifact_hash,
@@ -144,14 +202,19 @@ pub fn cell_ready(
         production_law_version: inp.production_law_version.to_string(),
         defects_taxonomy_version: crate::defects::DEFECTS_TAXONOMY_VERSION.to_string(),
         gates_passed: vec![
-            "WorkflowDeclared".into(),
-            "ScopeClosed".into(),
-            "OCELComplete".into(),
-            "POWLReplayPass".into(),
-            "ThresholdPass".into(),
-            "RequiredStagesPresent".into(),
-            "NoBypassRevocation".into(),
-            "ReceiptValid".into(),
+            "A1_WorkflowDeclared".into(),
+            "A2_ScopeClosed".into(),
+            "A3_OCELComplete".into(),
+            "A4_POWLReplayPass".into(),
+            "A5_ThresholdPass".into(),
+            "A6_RequiredStagesPresent".into(),
+            "A7_NoBypassRevocation".into(),
+            "A8_ReceiptValid".into(),
+            "A9_ProvenanceChain".into(),
+            "A10_ExternalAttestation".into(),
+            "A11_TemporalValidity".into(),
+            "A12_DependencyClosure".into(),
+            "A13_ReplayProof".into(),
         ],
         gates_refused: Vec::new(),
         prior_receipt: inp.prior_receipt,
@@ -163,9 +226,6 @@ pub fn cell_ready(
 // ─── conjunct helpers ──────────────────────────────────────────────────────
 
 fn workflow_declared(store: &OcelStore, scope_token: &str) -> bool {
-    // Stream-3-stub: a scope is "declared" iff a row exists in
-    // declared_workflows for it. The table is created lazily by
-    // `receipts::STREAM3_STUB_MIGRATION` so this works pre-Stream-1.
     store.has_declared_workflow(scope_token).unwrap_or(false)
 }
 
@@ -190,4 +250,12 @@ fn parse_hex32(s: &str) -> Option<[u8; 32]> {
         out[i] = u8::from_str_radix(&s[i * 2..i * 2 + 2], 16).ok()?;
     }
     Some(out)
+}
+
+fn hex32_local(b: &[u8; 32]) -> String {
+    let mut s = String::with_capacity(64);
+    for byte in b {
+        s.push_str(&format!("{:02x}", byte));
+    }
+    s
 }

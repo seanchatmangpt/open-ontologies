@@ -338,6 +338,10 @@ impl StateDb {
         // workflow_scopes view: Stream 5 handlers reference this name; alias to
         // declared_workflows so we keep one canonical table. The `domain`
         // column is extracted from alphabet_json's optional `domain` field.
+        // Drop and recreate the view so it picks up the tenant_id column when
+        // upgrading from a pre-Phase-11 database. CREATE VIEW IF NOT EXISTS
+        // would otherwise leave the legacy schema in place.
+        let _ = conn.execute_batch("DROP VIEW IF EXISTS workflow_scopes;");
         conn.execute_batch(
             "CREATE VIEW IF NOT EXISTS workflow_scopes AS
                 SELECT
@@ -349,7 +353,8 @@ impl StateDb {
                     fitness,
                     defects_json,
                     deviations_json,
-                    gates_fired_json
+                    gates_fired_json,
+                    tenant_id
                 FROM declared_workflows;
 
              CREATE TABLE IF NOT EXISTS workflow_capability (
@@ -364,6 +369,33 @@ impl StateDb {
                  defects_taxonomy_version  TEXT NOT NULL
              );"
         )?;
+
+        // ─── Phase 11: multi-tenant ALTERs (after all CREATEs) ─────────
+        // Idempotent additive migrations. Each row defaults to tenant_id =
+        // 'default', which preserves single-tenant deployments. New rows
+        // inserted by a tenant-aware code path carry a real tenant_id.
+        // The `sessions` table called out in the deliverable maps to
+        // `revoked_sessions` (the closest session-scoped table that exists).
+        for stmt in [
+            "ALTER TABLE receipts ADD COLUMN tenant_id TEXT NOT NULL DEFAULT 'default';",
+            "ALTER TABLE declared_workflows ADD COLUMN tenant_id TEXT NOT NULL DEFAULT 'default';",
+            "ALTER TABLE ocel_events ADD COLUMN tenant_id TEXT NOT NULL DEFAULT 'default';",
+            "ALTER TABLE lineage_events ADD COLUMN tenant_id TEXT NOT NULL DEFAULT 'default';",
+            "ALTER TABLE workflow_capability ADD COLUMN tenant_id TEXT NOT NULL DEFAULT 'default';",
+            "ALTER TABLE revoked_sessions ADD COLUMN tenant_id TEXT NOT NULL DEFAULT 'default';",
+        ] {
+            let _ = conn.execute_batch(stmt);
+        }
+        for stmt in [
+            "CREATE INDEX IF NOT EXISTS idx_receipts_tenant ON receipts(tenant_id);",
+            "CREATE INDEX IF NOT EXISTS idx_declared_workflows_tenant ON declared_workflows(tenant_id);",
+            "CREATE INDEX IF NOT EXISTS idx_ocel_events_tenant ON ocel_events(tenant_id);",
+            "CREATE INDEX IF NOT EXISTS idx_lineage_events_tenant ON lineage_events(tenant_id);",
+            "CREATE INDEX IF NOT EXISTS idx_workflow_capability_tenant ON workflow_capability(tenant_id);",
+            "CREATE INDEX IF NOT EXISTS idx_revoked_sessions_tenant ON revoked_sessions(tenant_id);",
+        ] {
+            let _ = conn.execute_batch(stmt);
+        }
 
         Ok(Self {
             conn: Arc::new(Mutex::new(conn)),

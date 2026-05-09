@@ -302,12 +302,42 @@ impl OcelStore {
         objects: &[(&str, &str)],
         scope_token: Option<&str>,
     ) -> Result<()> {
+        // Phase 11: backwards-compat — tag events emitted via the legacy
+        // entrypoint with `tenant_id = "default"`. Tenant-aware callers must
+        // use [`emit_event_in_tenant`].
+        self.emit_event_in_tenant(
+            event_id,
+            event_type,
+            time_iso,
+            session_id,
+            attrs,
+            objects,
+            scope_token,
+            "default",
+        )
+    }
+
+    /// Tenant-aware variant of [`emit_event`]. Tags the resulting `ocel_events`
+    /// row with the supplied `tenant_id` so per-tenant projections can be
+    /// computed without joining back to `declared_workflows`.
+    #[allow(clippy::too_many_arguments)]
+    pub fn emit_event_in_tenant(
+        &self,
+        event_id: &str,
+        event_type: &str,
+        time_iso: &str,
+        session_id: &str,
+        attrs: &[(&str, &str)],
+        objects: &[(&str, &str)],
+        scope_token: Option<&str>,
+        tenant_id: &str,
+    ) -> Result<()> {
         let conn = self.db.conn();
 
         conn.execute(
-            "INSERT INTO ocel_events (event_id, event_type, time, session_id, scope_token)
-             VALUES (?1, ?2, ?3, ?4, ?5)",
-            rusqlite::params![event_id, event_type, time_iso, session_id, scope_token],
+            "INSERT INTO ocel_events (event_id, event_type, time, session_id, scope_token, tenant_id)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            rusqlite::params![event_id, event_type, time_iso, session_id, scope_token, tenant_id],
         )?;
 
         for (name, value) in attrs {

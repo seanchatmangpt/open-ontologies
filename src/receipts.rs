@@ -41,7 +41,20 @@ pub fn build(record: ProductionRecord) -> Receipt {
 /// Persist a receipt to the `receipts` SQL table. The receipts table is
 /// created by Stream 1's migration; until that lands we fall back to the
 /// stub migration in `STREAM3_STUB_MIGRATION`.
+///
+/// Phase 11: defaults `tenant_id = "default"` for backwards compat. Use
+/// [`persist_with_tenant`] to associate the receipt with a non-default tenant.
 pub fn persist(receipt: &Receipt, db: &StateDb, session_id: &str) -> Result<()> {
+    persist_with_tenant(receipt, db, session_id, "default")
+}
+
+/// Tenant-aware variant of [`persist`].
+pub fn persist_with_tenant(
+    receipt: &Receipt,
+    db: &StateDb,
+    session_id: &str,
+    tenant_id: &str,
+) -> Result<()> {
     let mut conn = db.conn();
     let granted_at = chrono::Utc::now().to_rfc3339();
     let prior = receipt.record.prior_receipt.as_ref().map(hex32_pub);
@@ -59,8 +72,8 @@ pub fn persist(receipt: &Receipt, db: &StateDb, session_id: &str) -> Result<()> 
             receipt_hash, scope_token, session_id,
             artifact_hash, declared_powl_hash, ocel_canonical_hash,
             gate_config_hash, prior_receipt_hash,
-            production_law_version, granted_at, sequence
-         ) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11)",
+            production_law_version, granted_at, sequence, tenant_id
+         ) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12)",
         rusqlite::params![
             hex32_pub(&receipt.bytes),
             receipt.record.scope_token,
@@ -73,6 +86,7 @@ pub fn persist(receipt: &Receipt, db: &StateDb, session_id: &str) -> Result<()> 
             receipt.record.production_law_version,
             granted_at,
             next_sequence,
+            tenant_id,
         ],
     )?;
     tx.commit()?;
@@ -80,14 +94,30 @@ pub fn persist(receipt: &Receipt, db: &StateDb, session_id: &str) -> Result<()> 
 }
 
 /// Look up the most recent receipt for a session; used to chain `prior_receipt`.
+///
+/// Phase 11: backwards-compat shim — defaults to `tenant_id = "default"`.
+/// Tenant-aware callers must use [`latest_for_session_in_tenant`].
 pub fn latest_for_session(db: &StateDb, session_id: &str) -> Option<[u8; 32]> {
+    latest_for_session_in_tenant(db, session_id, "default")
+}
+
+/// Tenant-scoped variant of [`latest_for_session`]. Cross-tenant rows are
+/// invisible to the chain — a receipt persisted under `tenant_id = "alpha"`
+/// will NEVER be returned to a caller asking under `tenant_id = "beta"`.
+pub fn latest_for_session_in_tenant(
+    db: &StateDb,
+    session_id: &str,
+    tenant_id: &str,
+) -> Option<[u8; 32]> {
     let conn = db.conn();
     let mut stmt = conn
         .prepare(
-            "SELECT receipt_hash FROM receipts WHERE session_id = ?1 ORDER BY sequence DESC LIMIT 1",
+            "SELECT receipt_hash FROM receipts \
+             WHERE session_id = ?1 AND tenant_id = ?2 \
+             ORDER BY sequence DESC LIMIT 1",
         )
         .ok()?;
-    let mut rows = stmt.query(rusqlite::params![session_id]).ok()?;
+    let mut rows = stmt.query(rusqlite::params![session_id, tenant_id]).ok()?;
     let row = rows.next().ok()??;
     let hex: String = row.get(0).ok()?;
     hex_to_32(&hex)

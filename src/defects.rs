@@ -30,13 +30,20 @@ use serde::{Deserialize, Serialize};
 /// `UnreachableTask`, `ShaclSkipped`, `ProjectionAsAuthority`, `StubGate`,
 /// `UnreplayableClaim`, `FalsePass`, `SecretLeak`,
 /// `GeneratedArtifactDirectEdit`).
-pub const DEFECTS_TAXONOMY_VERSION: &str = "ontostar-defects-3.0.0";
+///
+/// Bumped from `3.0.0` → `3.1.0` in Phase 10 after addition of five Phase-10
+/// A9–A13 conjunct variants (`ProvenanceMissing`, `AttestationMissing`,
+/// `TemporalSkew`, `DependencyClosureBroken`, `ReplayDivergence`).
+///
+/// Bumped from `3.1.0` → `3.2.0` in Phase 11 after addition of the
+/// `TenantBoundary` variant (multi-tenant session isolation defect class).
+pub const DEFECTS_TAXONOMY_VERSION: &str = "ontostar-defects-3.2.0";
 
 /// BLAKE3 hex of `tag1\0tag2\0...\0` for [`DefectClass::all_tags()`].
 /// CI-pinned. Adding/renaming/removing a variant changes this, forcing a
 /// taxonomy version bump.
 pub const DEFECTS_TAXONOMY_DISCRIMINANT_HASH: &str =
-    "294f106b4fe68aca7c67b4631aae8eb9347e6b86c85cb2483b94cbf776f55ad7";
+    "f59ef81f3ccc906947035fe014fad09bedb1e38da0aa8238cca8ddf32d21780c";
 
 /// Typed denial classes. Every `Denied` outcome in admission/cell-ready
 /// machinery short-circuits on the first failing variant.
@@ -101,6 +108,29 @@ pub enum DefectClass {
     /// Without an upstream WorkOrderAdmitted receipt, no architecture
     /// may be manufactured.
     ArchitectureUnbound,
+    // --- Multi-tenant taxonomy v3.1.0 (Phase 11) ---
+    /// A request crossed a tenant boundary: a caller in tenant `from`
+    /// attempted to read or mutate resources owned by tenant `to`. The
+    /// admission gate refuses cross-tenant access regardless of any other
+    /// authority the caller may hold within their own tenant.
+    TenantBoundary { from: String, to: String },
+    // --- Cell8 Phase-10 13-conjunct expansion (Phase 7 / cell_ready.rs) ---
+    /// A9 ProvenanceChain failed: the `artifact_hash` was not present in
+    /// `provenance_evidence`, so the `prov:wasGeneratedBy` lineage cannot
+    /// be closed.
+    ProvenanceMissing,
+    /// A10 ExternalAttestation failed: no external attestation digest
+    /// matches the artifact bit-for-bit.
+    AttestationMissing,
+    /// A11 TemporalValidity failed: the `granted_at` chain is empty or
+    /// not monotonically non-decreasing.
+    TemporalSkew,
+    /// A12 DependencyClosure failed: the `prior_receipt` is referenced
+    /// but does not appear in the admitted-receipts set.
+    DependencyClosureBroken,
+    /// A13 ReplayProof failed: deterministic POWL replay produced an OCEL
+    /// canonical hash that diverges from the recorded `ocel_trace_hash`.
+    ReplayDivergence,
 }
 
 impl DefectClass {
@@ -130,6 +160,12 @@ impl DefectClass {
             DefectClass::AtomVmInvalid { .. } => "atomvm_invalid",
             DefectClass::ManufacturingChainBroken { .. } => "manufacturing_chain_broken",
             DefectClass::ArchitectureUnbound => "architecture_unbound",
+            DefectClass::TenantBoundary { .. } => "tenant_boundary",
+            DefectClass::ProvenanceMissing => "provenance_missing",
+            DefectClass::AttestationMissing => "attestation_missing",
+            DefectClass::TemporalSkew => "temporal_skew",
+            DefectClass::DependencyClosureBroken => "dependency_closure_broken",
+            DefectClass::ReplayDivergence => "replay_divergence",
         }
     }
 
@@ -161,6 +197,12 @@ impl DefectClass {
             "atomvm_invalid",
             "manufacturing_chain_broken",
             "architecture_unbound",
+            "tenant_boundary",
+            "provenance_missing",
+            "attestation_missing",
+            "temporal_skew",
+            "dependency_closure_broken",
+            "replay_divergence",
         ]
     }
 }
