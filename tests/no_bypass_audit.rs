@@ -9,6 +9,16 @@
 //! invariant is "no new mutation handler ships without admission wiring."
 //! When new handlers land they must explicitly opt into one of three
 //! categories.
+//!
+//! Hardened (Task E):
+//!   1. Strip dead-code blocks (`if false { … }`, `cfg!(any())`, `#[cfg(any())]`)
+//!      before the greppable scan.
+//!   2. Reject `let _ = ...evaluate_admission` (Result must be matched).
+//!   3. Reject string-literal occurrences of `evaluate_admission(` (the
+//!      gating call must appear OUTSIDE string literals).
+//!   4. Helper transitive scan: a handler that delegates to a private fn
+//!      counts as gated if THAT fn calls `evaluate_admission`. Capped at
+//!      depth 1.
 
 use std::collections::HashSet;
 
@@ -55,7 +65,6 @@ fn read_only_allowlist() -> HashSet<&'static str> {
         "onto_declare_workflow",
         "onto_conformance_check",
         "onto_planner_demos",
-        "onto_workflow_feedback",
         "onto_threshold_state",
         "onto_planner_thresholds",
         "onto_mustar_solve",
@@ -76,8 +85,6 @@ fn read_only_allowlist() -> HashSet<&'static str> {
         "onto_convert",            // file format conversion — does not touch the store
         "onto_shacl",               // validation only — does not mutate
         "onto_threshold_status",    // inspection
-        "onto_threshold_sweep",     // recomputes thresholds in-place; admin op without a graph mutation surface
-        "onto_workflow_discover",   // Loop 3 mining; inserts a `discovered_workflows` suggestion row, doesn't mutate the loaded graph
         "onto_process_validate_claim", // POWL claim validation — read-only
         "onto_process_check_soundness", // POWL soundness check — read-only
         // Requirements Andon / CTQ Forge (Phase 1.5):
@@ -137,6 +144,264 @@ fn collect_balanced_block(src: &str, body_start: usize) -> String {
     src[body_start..end].to_string()
 }
 
+// ── Hardened sub-checks (Task E) ──────────────────────────────────────────
+
+/// Strip syntactically dead-code blocks from a body so the greppable scan
+/// cannot be fooled by `if false { self.evaluate_admission(...) }`.
+///
+/// Strips:
+///   * `if false { ... }` (balanced braces)
+///   * `if cfg!(any()) { ... }` (balanced braces)
+///   * `#[cfg(any())] fn/block ...` — strips the immediately following
+///     balanced-brace block.
+pub fn strip_dead_code_blocks(body: &str) -> String {
+    let mut out = String::with_capacity(body.len());
+    let mut i = 0usize;
+    while i < body.len() {
+        let rest = &body[i..];
+        // Detect "if false {" or "if cfg!(any()) {" at this offset.
+        if let Some(skip_to) = match_dead_head(rest) {
+            let brace_abs = i + skip_to;
+            if brace_abs < body.len() && body.as_bytes()[brace_abs] == b'{' {
+                let block = collect_balanced_block(body, brace_abs);
+                i = brace_abs + block.len();
+                continue;
+            }
+        }
+        // Detect `#[cfg(any())]` then optional whitespace then `{`.
+        if rest.starts_with("#[cfg(any())]") {
+            let after = i + "#[cfg(any())]".len();
+            if let Some(rel) = body[after..].find('{') {
+                let brace_abs = after + rel;
+                let block = collect_balanced_block(body, brace_abs);
+                i = brace_abs + block.len();
+                continue;
+            }
+        }
+        // Advance one full char (so we never split a multi-byte boundary).
+        let ch = rest.chars().next().unwrap();
+        out.push(ch);
+        i += ch.len_utf8();
+    }
+    out
+}
+
+/// If `s` starts with a dead-code head pattern, return the offset (relative
+/// to s) of the `{` that opens the block to be stripped.
+fn match_dead_head(s: &str) -> Option<usize> {
+    // "if false" + ws + "{"
+    if let Some(rest) = s.strip_prefix("if false") {
+        let trimmed = rest.trim_start();
+        if trimmed.starts_with('{') {
+            return Some(s.len() - trimmed.len());
+        }
+    }
+    // "if cfg!(any())" + ws + "{"
+    if let Some(rest) = s.strip_prefix("if cfg!(any())") {
+        let trimmed = rest.trim_start();
+        if trimmed.starts_with('{') {
+            return Some(s.len() - trimmed.len());
+        }
+    }
+    None
+}
+
+/// Returns `true` if the body contains `let _ = ...evaluate_admission(...)`
+/// — i.e. the gating Result is being deliberately discarded. This is a
+/// failure: the Result must be matched and acted on.
+pub fn body_discards_admission(body: &str) -> bool {
+    // Match `let _ = ` followed (possibly via `self.` or namespace path) by
+    // `evaluate_admission`. Cheap: scan for the literal substring.
+    body.contains("let _ = self.evaluate_admission")
+        || body.contains("let _ = evaluate_admission")
+        || body.contains("let _ = Self::evaluate_admission")
+}
+
+/// Returns `true` if the body contains `evaluate_admission(` as a real
+/// call — that is, OUTSIDE any string literal. A bare string-literal
+/// occurrence (e.g. `"evaluate_admission("` in a doc/log message) does
+/// NOT count.
+pub fn body_calls_admission_real(body: &str, needle: &str) -> bool {
+    let stripped = strip_string_literals(body);
+    stripped.contains(needle)
+}
+
+/// Strip Rust string literals (`"..."`, `r"..."`, `r#"..."#`, `r##"..."##`,
+/// char literals `'.'`) from `s`, replacing them with a single space so
+/// offsets/length characteristics are preserved. Comments are not stripped
+/// (they don't matter for call detection — but `// "evaluate_admission("`
+/// in a comment WILL false-positive; this is acceptable since we only use
+/// this to test for REAL calls that would actually execute, and a comment
+/// containing a real-looking call but no actual code path is a marginal
+/// case the policy explicitly tolerates as deepening authority).
+pub fn strip_string_literals(s: &str) -> String {
+    let bytes = s.as_bytes();
+    let mut out = String::with_capacity(s.len());
+    let mut i = 0usize;
+    while i < bytes.len() {
+        // Raw string: r#"..."#  (any number of #)
+        if bytes[i] == b'r' && i + 1 < bytes.len() && (bytes[i + 1] == b'"' || bytes[i + 1] == b'#') {
+            let mut hash_count = 0usize;
+            let mut j = i + 1;
+            while j < bytes.len() && bytes[j] == b'#' {
+                hash_count += 1;
+                j += 1;
+            }
+            if j < bytes.len() && bytes[j] == b'"' {
+                // Find closing "###...
+                let mut k = j + 1;
+                while k < bytes.len() {
+                    if bytes[k] == b'"' {
+                        // Check for `hash_count` '#' after.
+                        let mut all = true;
+                        for h in 0..hash_count {
+                            if k + 1 + h >= bytes.len() || bytes[k + 1 + h] != b'#' {
+                                all = false;
+                                break;
+                            }
+                        }
+                        if all {
+                            k = k + 1 + hash_count;
+                            break;
+                        }
+                    }
+                    k += 1;
+                }
+                out.push(' ');
+                i = k;
+                continue;
+            }
+        }
+        // Regular string: "..."  (with backslash escapes)
+        if bytes[i] == b'"' {
+            let mut k = i + 1;
+            while k < bytes.len() {
+                if bytes[k] == b'\\' && k + 1 < bytes.len() {
+                    k += 2;
+                    continue;
+                }
+                if bytes[k] == b'"' {
+                    k += 1;
+                    break;
+                }
+                k += 1;
+            }
+            out.push(' ');
+            i = k;
+            continue;
+        }
+        // Char literal `'.'` or `'\n'` etc. — only if next char is not an
+        // ident-ish (lifetime annotations like 'a). Cheap detection:
+        // require closing `'` within 4 bytes.
+        if bytes[i] == b'\'' {
+            let mut k = i + 1;
+            // Try escape.
+            if k < bytes.len() && bytes[k] == b'\\' {
+                k += 2;
+                if k < bytes.len() && bytes[k] == b'\'' {
+                    out.push(' ');
+                    i = k + 1;
+                    continue;
+                }
+            } else if k + 1 < bytes.len() && bytes[k + 1] == b'\'' {
+                out.push(' ');
+                i = k + 2;
+                continue;
+            }
+            // Otherwise treat as lifetime; fall through.
+        }
+        // Advance by a full char to preserve UTF-8 boundaries.
+        let ch = s[i..].chars().next().unwrap();
+        out.push(ch);
+        i += ch.len_utf8();
+    }
+    out
+}
+
+/// Helper transitive scan, capped at depth 1.
+///
+/// Build a map of `fn <name>(&self ...)` → body for all private fns in
+/// `src/server.rs`. If a handler body invokes `self.<helper>(...)` and
+/// THAT helper's body calls `evaluate_admission` (real, not in-string),
+/// treat the handler as gated.
+pub fn handler_gated_via_helper(body: &str, fn_map: &std::collections::HashMap<String, String>) -> bool {
+    // Find `self.<ident>(` invocations.
+    let bytes = body.as_bytes();
+    let mut i = 0usize;
+    while i + 5 < bytes.len() {
+        if &bytes[i..i + 5] == b"self." {
+            // Read identifier.
+            let mut j = i + 5;
+            while j < bytes.len()
+                && (bytes[j].is_ascii_alphanumeric() || bytes[j] == b'_')
+            {
+                j += 1;
+            }
+            if j < bytes.len() && bytes[j] == b'(' && j > i + 5 {
+                let name = &body[i + 5..j];
+                if let Some(helper_body) = fn_map.get(name) {
+                    if body_calls_admission_real(helper_body, "evaluate_admission(")
+                        || body_calls_admission_real(
+                            helper_body,
+                            "evaluate_admission_audit(",
+                        )
+                    {
+                        return true;
+                    }
+                }
+            }
+            i = j;
+        } else {
+            i += 1;
+        }
+    }
+    false
+}
+
+/// Build a map `fn name → body` for private/free fns matching the regex
+/// `fn ([a-z_]+)\(&self`. Returns owned Strings so callers can index by
+/// name without lifetime gymnastics.
+pub fn build_fn_map(src: &str) -> std::collections::HashMap<String, String> {
+    let mut map = std::collections::HashMap::new();
+    let bytes = src.as_bytes();
+    let mut i = 0usize;
+    while i + 3 < bytes.len() {
+        // Look for "fn " preceded by non-ident byte (so we don't match e.g. "rfn ").
+        if &bytes[i..i + 3] == b"fn " {
+            let prev_ok = i == 0 || {
+                let p = bytes[i - 1];
+                !(p.is_ascii_alphanumeric() || p == b'_')
+            };
+            if prev_ok {
+                // Read identifier after "fn ".
+                let mut j = i + 3;
+                while j < bytes.len() && (bytes[j].is_ascii_lowercase() || bytes[j] == b'_') {
+                    j += 1;
+                }
+                if j > i + 3 && j < bytes.len() && bytes[j] == b'(' {
+                    let name = src[i + 3..j].to_string();
+                    // Confirm "&self" appears in the param list before ')'.
+                    if let Some(close) = src[j..].find(')') {
+                        let params = &src[j..j + close];
+                        if params.contains("&self") {
+                            // Walk to body '{'.
+                            if let Some(rel) = src[j + close..].find('{') {
+                                let body_start = j + close + rel;
+                                let body = collect_balanced_block(src, body_start);
+                                map.insert(name, body);
+                            }
+                        }
+                    }
+                }
+                i = j;
+                continue;
+            }
+        }
+        i += 1;
+    }
+    map
+}
+
 #[test]
 fn every_mcp_handler_is_gated_audited_or_explicitly_readonly() {
     let allowlist = read_only_allowlist();
@@ -147,12 +412,28 @@ fn every_mcp_handler_is_gated_audited_or_explicitly_readonly() {
         handlers.len()
     );
 
+    let fn_map = build_fn_map(SERVER_RS);
+
     let mut violations: Vec<String> = Vec::new();
     for (name, body) in &handlers {
-        let gated = body.contains("evaluate_admission(");
-        let audited = body.contains("evaluate_admission_audit(");
+        // Sub-check 1: strip dead-code blocks first.
+        let live = strip_dead_code_blocks(body);
+
+        // Sub-check 2: `let _ = ...evaluate_admission` is forbidden.
+        if body_discards_admission(&live) {
+            violations.push(format!("{} — discards admission Result via `let _ =`", name));
+            continue;
+        }
+
+        // Sub-check 3: only OUT-OF-STRING occurrences count.
+        let gated = body_calls_admission_real(&live, "evaluate_admission(");
+        let audited = body_calls_admission_real(&live, "evaluate_admission_audit(");
+
+        // Sub-check 4: helper transitive scan (depth-1).
+        let helper_gated = !gated && !audited && handler_gated_via_helper(&live, &fn_map);
+
         let allowed = allowlist.contains(name.as_str());
-        if !gated && !audited && !allowed {
+        if !gated && !audited && !helper_gated && !allowed {
             violations.push(name.clone());
         }
     }
@@ -214,6 +495,10 @@ fn audit_only_handlers_present() {
         "onto_version",
         // Requirements Andon audit-only handler (Phase 1.5):
         "onto_translate_candidate",
+        // Loop 2/3 audit-only handlers reclassified by Task E:
+        "onto_workflow_discover",
+        "onto_workflow_feedback",
+        "onto_threshold_sweep",
     ] {
         let body = by_name
             .get(*required)

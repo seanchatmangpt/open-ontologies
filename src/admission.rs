@@ -43,6 +43,11 @@ pub enum AdmissionOp {
     WorkOrderAdmitted,   // bind admitted CTQ + counterfactual
     // Audit-only LLM boundary translation (Groq).
     LlmTranslate,
+    // Audit-only Loop 3 workflow discovery (inserts discovered_workflows row).
+    Discovery,
+    // Audit-only Loop 2 threshold-calibration sweep
+    // (inserts ocel_events + workflow_thresholds rows).
+    ThresholdSweep,
     // Full admission for multi-target solution manufacturing
     // (IaC + Rust + Erlang + AtomVM emitted as a coherent stack).
     SolutionManufactured,
@@ -66,6 +71,8 @@ impl AdmissionOp {
             AdmissionOp::CtqAdmitted => "ctq_admitted",
             AdmissionOp::WorkOrderAdmitted => "work_order_admitted",
             AdmissionOp::LlmTranslate => "llm_translate",
+            AdmissionOp::Discovery => "discovery",
+            AdmissionOp::ThresholdSweep => "threshold_sweep",
             AdmissionOp::SolutionManufactured => "solution_manufactured",
         }
     }
@@ -81,6 +88,8 @@ impl AdmissionOp {
                 | AdmissionOp::Feedback
                 | AdmissionOp::Version
                 | AdmissionOp::LlmTranslate
+                | AdmissionOp::Discovery
+                | AdmissionOp::ThresholdSweep
         )
     }
 }

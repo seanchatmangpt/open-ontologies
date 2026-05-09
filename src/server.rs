@@ -2178,6 +2178,12 @@ impl OpenOntologiesServer {
 
     #[tool(name = "onto_threshold_sweep", description = "Admin: force-run Loop 2 threshold-calibration sweep. Adjusts `workflow_thresholds.precision_threshold` based on aged-out `bypass_admission` events.")]
     async fn onto_threshold_sweep(&self) -> String {
+        self.evaluate_admission_audit(
+            crate::admission::AdmissionOp::ThresholdSweep,
+            None,
+            "threshold_sweep",
+            b"sweep",
+        );
         match crate::feedback::thresholds::sweep(self.ocel_store()) {
             Ok(result) => serde_json::json!({"ok": true, "result": result}).to_string(),
             Err(e) => format!(r#"{{"error":"{}"}}"#, e),
@@ -2186,6 +2192,12 @@ impl OpenOntologiesServer {
 
     #[tool(name = "onto_workflow_discover", description = "Loop 3 (workflow discovery). Pull OCEL traces for the domain and run wasm4pm discovery; if the discovered fitness exceeds declared by 0.05, insert a `discovered_workflows` row with status=pending.")]
     async fn onto_workflow_discover(&self, Parameters(input): Parameters<OntoWorkflowDiscoverInput>) -> String {
+        self.evaluate_admission_audit(
+            crate::admission::AdmissionOp::Discovery,
+            Some(&input.domain),
+            "workflow_discovery",
+            input.domain.as_bytes(),
+        );
         match crate::feedback::discovery::discover_for_domain(&input.domain, self.ocel_store()) {
             Ok(Some(dw)) => {
                 self.lineage().record(&self.session_id, "WD", "workflow_discover", &dw.id);
@@ -2198,6 +2210,12 @@ impl OpenOntologiesServer {
 
     #[tool(name = "onto_workflow_feedback", description = "Loop 3 surface. Accept or reject a discovered workflow candidate; flips `discovered_workflows.status`. Mirrors the JSON shape of `onto_align_feedback`.")]
     async fn onto_workflow_feedback(&self, Parameters(input): Parameters<OntoWorkflowFeedbackInput>) -> String {
+        self.evaluate_admission_audit(
+            crate::admission::AdmissionOp::Feedback,
+            Some(&input.id),
+            "workflow_feedback",
+            format!("{}:{}", input.id, input.accepted).as_bytes(),
+        );
         match crate::feedback::discovery::record_feedback(self.ocel_store(), &input.id, input.accepted) {
             Ok(status) => {
                 self.lineage().record(&self.session_id, "WF", "workflow_feedback", if input.accepted { "accepted" } else { "rejected" });

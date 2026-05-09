@@ -52,6 +52,268 @@ fn collect_rs_files(root: &Path, out: &mut Vec<std::path::PathBuf>) {
     }
 }
 
+/// Pre-scan a file's full text and collect identifier names that have
+/// been bound to `api_key` (or another forbidden ident) via `let X = ...`.
+/// Aliases captured: `let X = api_key`, `let X = &api_key`,
+/// `let X = api_key.clone()`, `let X = api_key.to_string()`.
+///
+/// Returns owned `String` aliases. Callers fold these into the FORBIDDEN
+/// set used by `contains_forbidden_ident_with`.
+pub fn collect_aliases(text: &str) -> std::collections::HashSet<String> {
+    let mut aliases = std::collections::HashSet::new();
+    const ROOTS: &[&str] = &[
+        "api_key",
+        "groq_key",
+        "GROQ_API_KEY",
+        "OPENAI_API_KEY",
+        "OPEN_ONTOLOGIES_LLM_API_KEY",
+    ];
+    for line in text.lines() {
+        let trimmed = line.trim_start();
+        let Some(rest) = trimmed.strip_prefix("let ") else {
+            continue;
+        };
+        // Read identifier (with optional `mut`).
+        let rest = rest.trim_start_matches("mut ").trim_start();
+        // Identifier ends at whitespace, ':', or '='.
+        let mut name_end = 0usize;
+        for (idx, c) in rest.char_indices() {
+            if c.is_ascii_alphanumeric() || c == '_' {
+                name_end = idx + c.len_utf8();
+            } else {
+                break;
+            }
+        }
+        if name_end == 0 {
+            continue;
+        }
+        let name = &rest[..name_end];
+        // Find '=' on this line.
+        let after_name = &rest[name_end..];
+        let Some(eq_idx) = after_name.find('=') else {
+            continue;
+        };
+        let rhs = after_name[eq_idx + 1..].trim_start();
+        // Strip a leading '&' for `let X = &api_key`.
+        let rhs = rhs.trim_start_matches('&').trim_start();
+        for root in ROOTS {
+            if rhs.starts_with(root) {
+                let after_root = &rhs[root.len()..];
+                // Acceptable suffixes: `;`, `.clone()`, `.to_string()`,
+                // `.to_owned()`, `.into()`, end-of-line, whitespace.
+                let after_root = after_root.trim_start();
+                if after_root.is_empty()
+                    || after_root.starts_with(';')
+                    || after_root.starts_with(".clone()")
+                    || after_root.starts_with(".to_string()")
+                    || after_root.starts_with(".to_owned()")
+                    || after_root.starts_with(".into()")
+                {
+                    aliases.insert(name.to_string());
+                    break;
+                }
+            }
+        }
+    }
+    aliases
+}
+
+/// Detect tracing structured-field captures: `?<ident>` / `%<ident>` on a
+/// logging-macro line where `<ident>` is forbidden.
+pub fn line_uses_tracing_field(line: &str, extra_forbidden: &[String]) -> bool {
+    if !is_logging_macro_line(line) {
+        return false;
+    }
+    // Find `?<ident>` or `%<ident>` patterns. Walk char-by-char outside
+    // string literals.
+    let mut inside_string = false;
+    let mut prev = '\0';
+    let bytes = line.as_bytes();
+    let mut i = 0usize;
+    while i < bytes.len() {
+        let ch = bytes[i] as char;
+        if ch == '"' && prev != '\\' {
+            inside_string = !inside_string;
+            prev = ch;
+            i += 1;
+            continue;
+        }
+        if !inside_string && (ch == '?' || ch == '%') {
+            // Read following ident.
+            let mut j = i + 1;
+            while j < bytes.len() && (bytes[j].is_ascii_alphanumeric() || bytes[j] == b'_') {
+                j += 1;
+            }
+            if j > i + 1 {
+                let ident = &line[i + 1..j];
+                if is_forbidden_ident(ident, extra_forbidden) {
+                    return true;
+                }
+            }
+            i = j;
+            prev = ch;
+            continue;
+        }
+        prev = ch;
+        i += 1;
+    }
+    false
+}
+
+/// Detect format-string brace interpolation of forbidden idents:
+/// `{api_key}`, `{api_key:?}`, `{alias:#?}` inside a logging-macro line's
+/// string literal.
+pub fn line_format_brace_uses_forbidden(line: &str, extra_forbidden: &[String]) -> bool {
+    if !is_logging_macro_line(line) {
+        return false;
+    }
+    // Walk string literals; for each, scan `{<ident>(:[^}]*)?}` patterns.
+    let mut inside_string = false;
+    let mut prev = '\0';
+    let mut buf = String::new();
+    for ch in line.chars() {
+        if ch == '"' && prev != '\\' {
+            if inside_string {
+                // Just closed a string literal; scan it.
+                if scan_braces_for_forbidden(&buf, extra_forbidden) {
+                    return true;
+                }
+                buf.clear();
+            }
+            inside_string = !inside_string;
+        } else if inside_string {
+            buf.push(ch);
+        }
+        prev = ch;
+    }
+    false
+}
+
+fn scan_braces_for_forbidden(s: &str, extra_forbidden: &[String]) -> bool {
+    let bytes = s.as_bytes();
+    let mut i = 0usize;
+    while i < bytes.len() {
+        if bytes[i] == b'{' {
+            // Skip `{{` (escape).
+            if i + 1 < bytes.len() && bytes[i + 1] == b'{' {
+                i += 2;
+                continue;
+            }
+            // Read ident.
+            let mut j = i + 1;
+            while j < bytes.len() && (bytes[j].is_ascii_alphanumeric() || bytes[j] == b'_') {
+                j += 1;
+            }
+            if j > i + 1 {
+                let ident = &s[i + 1..j];
+                // Followed by ':' or '}'.
+                if j < bytes.len() && (bytes[j] == b':' || bytes[j] == b'}')
+                    && is_forbidden_ident(ident, extra_forbidden)
+                {
+                    return true;
+                }
+            }
+            i = j;
+        } else {
+            i += 1;
+        }
+    }
+    false
+}
+
+fn is_logging_macro_line(line: &str) -> bool {
+    line.contains("info!(")
+        || line.contains("warn!(")
+        || line.contains("error!(")
+        || line.contains("debug!(")
+        || line.contains("trace!(")
+        || line.contains("println!(")
+        || line.contains("print!(")
+        || line.contains("eprintln!(")
+        || line.contains("eprint!(")
+        || line.contains("format!(")
+        || line.contains("panic!(")
+        || line.contains("write!(")
+        || line.contains("writeln!(")
+        || line.contains("dbg!(")
+        || line.contains("tracing::info!(")
+        || line.contains("tracing::warn!(")
+        || line.contains("tracing::error!(")
+        || line.contains("tracing::debug!(")
+        || line.contains("tracing::trace!(")
+}
+
+fn is_forbidden_ident(ident: &str, extra: &[String]) -> bool {
+    const FORBIDDEN_BASE: &[&str] = &[
+        "api_key",
+        "groq_key",
+        "GROQ_API_KEY",
+        "OPENAI_API_KEY",
+        "OPEN_ONTOLOGIES_LLM_API_KEY",
+    ];
+    FORBIDDEN_BASE.iter().any(|f| *f == ident) || extra.iter().any(|a| a == ident)
+}
+
+pub fn line_substitutes_key_with(line: &str, extra_forbidden: &[String]) -> bool {
+    let macro_call = is_logging_macro_line(line);
+    if !macro_call {
+        return false;
+    }
+    let mut inside_string = false;
+    let mut prev = '\0';
+    let mut buf = String::new();
+    for ch in line.chars() {
+        if ch == '"' && prev != '\\' {
+            if !inside_string && contains_forbidden_ident_with(&buf, extra_forbidden) {
+                return true;
+            }
+            buf.clear();
+            inside_string = !inside_string;
+        } else if !inside_string {
+            buf.push(ch);
+        }
+        prev = ch;
+    }
+    if !inside_string && contains_forbidden_ident_with(&buf, extra_forbidden) {
+        return true;
+    }
+    false
+}
+
+fn contains_forbidden_ident_with(s: &str, extra: &[String]) -> bool {
+    const FORBIDDEN_BASE: &[&str] = &[
+        "api_key",
+        "groq_key",
+        "GROQ_API_KEY",
+        "OPENAI_API_KEY",
+        "OPEN_ONTOLOGIES_LLM_API_KEY",
+    ];
+    let all: Vec<&str> = FORBIDDEN_BASE
+        .iter()
+        .copied()
+        .chain(extra.iter().map(|s| s.as_str()))
+        .collect();
+    for needle in &all {
+        if let Some(i) = s.find(needle) {
+            let before_ok = i == 0
+                || s.as_bytes()
+                    .get(i - 1)
+                    .map(|b| !(b.is_ascii_alphanumeric() || *b == b'_'))
+                    .unwrap_or(true);
+            let after_idx = i + needle.len();
+            let after_ok = after_idx >= s.len()
+                || s.as_bytes()
+                    .get(after_idx)
+                    .map(|b| !(b.is_ascii_alphanumeric() || *b == b'_'))
+                    .unwrap_or(true);
+            if before_ok && after_ok {
+                return true;
+            }
+        }
+    }
+    false
+}
+
 fn line_substitutes_key(line: &str) -> bool {
     // The line interpolates a key-like identifier into a formatting
     // macro if it contains BOTH:
@@ -172,8 +434,14 @@ fn no_log_or_format_site_interpolates_api_key() {
         let Ok(text) = std::fs::read_to_string(file) else {
             continue;
         };
+        // Per-file alias scan: identifiers bound to a forbidden root.
+        let aliases_set = collect_aliases(&text);
+        let aliases: Vec<String> = aliases_set.into_iter().collect();
         for (lineno, line) in text.lines().enumerate() {
-            if line_substitutes_key(line) && !line_is_allowlisted(file, line, &allow) {
+            let triggered = line_substitutes_key_with(line, &aliases)
+                || line_uses_tracing_field(line, &aliases)
+                || line_format_brace_uses_forbidden(line, &aliases);
+            if triggered && !line_is_allowlisted(file, line, &allow) {
                 violations.push(format!(
                     "{}:{}: {}",
                     file.strip_prefix(env!("CARGO_MANIFEST_DIR"))
