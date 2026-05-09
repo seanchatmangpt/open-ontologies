@@ -184,6 +184,75 @@ pub fn manufacture(spec: &SolutionSpec) -> Result<SolutionBundle, crate::defects
     Ok(bundle)
 }
 
+/// **Test-only** variant of [`manufacture`] that lets a test force one
+/// generator (`force_empty_target`) to emit zero files, exercising the
+/// `GeneratorEmpty { target }` deny path. Production code never calls
+/// this; admission paths call [`manufacture`] only.
+///
+/// Gated behind `#[doc(hidden)]` so it does not appear in public docs.
+/// Integration tests in `tests/` need this symbol visible at compile
+/// time, which requires non-`cfg(test)` visibility.
+#[doc(hidden)]
+pub fn manufacture_with_override(
+    spec: &SolutionSpec,
+    force_empty_target: &str,
+) -> Result<SolutionBundle, crate::defects::DefectClass> {
+    use crate::defects::DefectClass;
+    validate_spec(spec)?;
+    let mut files = Vec::new();
+
+    let iac_files = if force_empty_target == "iac" {
+        Vec::new()
+    } else {
+        iac::generate(spec)
+    };
+    if iac_files.is_empty() {
+        return Err(DefectClass::GeneratorEmpty { target: "iac".into() });
+    }
+    files.extend(iac_files);
+
+    let rust_files = if force_empty_target == "rust" {
+        Vec::new()
+    } else {
+        rust_target::generate(spec)
+    };
+    if rust_files.is_empty() {
+        return Err(DefectClass::GeneratorEmpty { target: "rust".into() });
+    }
+    files.extend(rust_files);
+
+    let erlang_files = if force_empty_target == "erlang" {
+        Vec::new()
+    } else {
+        erlang::generate(spec)
+    };
+    if erlang_files.is_empty() {
+        return Err(DefectClass::GeneratorEmpty {
+            target: "erlang".into(),
+        });
+    }
+    files.extend(erlang_files);
+
+    let atomvm_files = if force_empty_target == "atomvm" {
+        Vec::new()
+    } else {
+        atomvm::generate(spec)
+    };
+    if atomvm_files.is_empty() {
+        return Err(DefectClass::GeneratorEmpty {
+            target: "atomvm".into(),
+        });
+    }
+    files.extend(atomvm_files);
+
+    let bundle = SolutionBundle {
+        spec: spec.clone(),
+        files,
+    };
+    validators::validate_bundle(&bundle)?;
+    Ok(bundle)
+}
+
 /// Comment prefix appropriate for a generated file. Used by every
 /// generator's header builder so the receipt-header rule is uniform.
 pub(crate) fn comment_prefix_for(path: &str) -> &'static str {
