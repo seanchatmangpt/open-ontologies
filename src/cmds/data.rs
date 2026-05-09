@@ -241,6 +241,7 @@ fn do_import_schema_inner(connection: &str, base_iri: &str, data_dir: &str) -> N
     Ok(serde_json::json!({"ok": true, "driver": driver.as_str(), "tables": tables.len(), "triples": count, "base_iri": base_iri}))
 }
 
+#[cfg_attr(not(any(feature = "postgres", feature = "duckdb")), allow(unused_variables))]
 fn fetch_schema_tables(connection: &str, driver: &open_ontologies::sqlsource::SqlDriver) -> NounVerbResult<Vec<open_ontologies::schema::TableInfo>> {
     match driver {
         open_ontologies::sqlsource::SqlDriver::Postgres => {

@@ -59,6 +59,7 @@ pub fn current_tenant_override() -> Option<String> {
 #[derive(Clone)]
 pub struct OpenOntologiesServer {
     tool_router: ToolRouter<Self>,
+    #[allow(dead_code)] // consumed by #[prompt_handler] macro on ServerHandler impl
     prompt_router: PromptRouter<Self>,
     db: StateDb,
     graph: Arc<GraphStore>,

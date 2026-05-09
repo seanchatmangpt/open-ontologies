@@ -136,7 +136,7 @@ pub fn lineage_to_event_log(
     conn: &rusqlite::Connection,
     session_id_filter: Option<&str>,
 ) -> anyhow::Result<EventLog> {
-    let mut stmt = if let Some(sid) = session_id_filter {
+    let mut stmt = if session_id_filter.is_some() {
         conn.prepare(
             "SELECT session_id, timestamp, event_type, operation, details
              FROM lineage_events WHERE session_id = ?1 ORDER BY session_id ASC, seq ASC",
