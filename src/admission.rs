@@ -22,6 +22,40 @@ use crate::production_record::hex32_pub;
 use crate::receipts::{self, Receipt};
 use crate::state::StateDb;
 
+// R5 WB-1 — §15 A13 ReplayProof tautology closure.
+//
+// Test-only hook fired BETWEEN the line-519 OCEL hash and the independent
+// re-snapshot computed in `re_snapshot_ocel_for_replay_proof`. Tests inject
+// a synthetic OCEL mutation here to provoke a real ReplayDivergence rather
+// than relying on flaky timing-based race tests.
+//
+// Gated on `debug_assertions` so release builds (`cargo build --release`)
+// strip the entire thread_local plus the `with(...)` call inside
+// `re_snapshot_ocel_for_replay_proof`. Integration tests in `tests/` build
+// the lib WITHOUT `#[cfg(test)]` so we cannot use that gate; but
+// `debug_assertions` IS set for `cargo test`, `cargo build`, and
+// integration tests, and unset for `cargo build --release` — exactly the
+// envelope we need.
+//
+// `#[doc(hidden)]` keeps the symbol out of public docs even though it is
+// `pub` (required for integration-test visibility).
+//
+// Single-threaded by virtue of `thread_local!`; tests that want
+// cross-thread races must wrap their own synchronisation primitives
+// inside the closure they install.
+#[cfg(debug_assertions)]
+#[doc(hidden)]
+pub type A13BetweenSnapshotFn =
+    Box<dyn Fn(&OcelStore, &str, &str) + Send + 'static>;
+
+#[cfg(debug_assertions)]
+thread_local! {
+    #[doc(hidden)]
+    pub static A13_BETWEEN_SNAPSHOT_HOOK:
+        std::cell::RefCell<Option<A13BetweenSnapshotFn>>
+        = const { std::cell::RefCell::new(None) };
+}
+
 /// What kind of mutation is being requested at the gate.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum AdmissionOp {
@@ -558,10 +592,22 @@ impl OntoStarAdmissionGate {
         // provenance witness (the admission gate IS the generator); A10
         // self-attests with the same hash (placeholder until ed25519-dalek
         // lands); A11 stamps a single monotonic granted_at; A12 admits the
-        // prior receipt if any; A13 echoes the OCEL canonical hash as the
-        // deterministic replay output (POWL bridge is deterministic).
+        // prior receipt if any; A13 is now an INDEPENDENT re-snapshot (see
+        // `re_snapshot_ocel_for_replay_proof` below) — was previously a
+        // tautology that aliased `ocel_trace_hash_hex` for both A13 inputs.
+        // TODO(R6 §15.A9): caller-trust-burden — `provenance_evidence` is
+        // supplied by caller against own artifact_hash; needs independent
+        // verification against receipt chain.
         let provenance_evidence: Vec<String> = vec![artifact_hash_hex.clone()];
+        // TODO(R6 §15.A11): caller-trust-burden — `granted_at_chain` only
+        // contains a single timestamp at admission; windows(2) check
+        // trivially passes; needs receipt-chain reconstruction for
+        // monotonicity.
         let granted_at_chain: Vec<String> = vec![chrono::Utc::now().to_rfc3339()];
+        // TODO(R6 §15.A12): caller-trust-burden — `admitted_receipts` is
+        // `vec![hex(prior_receipt)]` constructed from the same value being
+        // checked; needs DB lookup against `receipts WHERE record_hash =
+        // prior_receipt`.
         let admitted_receipts: Vec<String> = match prior_receipt.as_ref() {
             Some(h) => vec![hex32_pub(h)],
             None => Vec::new(),
@@ -619,6 +665,18 @@ impl OntoStarAdmissionGate {
         let _trust_guard = self.trusted_keys.as_ref().map(|s| s.load_full());
         let trust_ref: Option<&TrustedKeys> = _trust_guard.as_deref();
 
+        // R5 WB-1 — §15 A13 ReplayProof tautology closure. Previously this
+        // struct literal aliased `&ocel_trace_hash_hex` into BOTH the
+        // `ocel_trace_hash` and `replay_canonical_hash` fields, so the A13
+        // equality check at `cell_ready.rs:378` was vacuously true by
+        // construction and the gate could never fail. We now compute an
+        // INDEPENDENT re-snapshot of the OCEL projection between the two
+        // hashes; under the `#[cfg(test)] A13_BETWEEN_SNAPSHOT_HOOK` a
+        // synthetic mutation fired between snapshots produces a real
+        // ReplayDivergence — proving the gate is load-bearing.
+        let replay_canonical_hash_hex =
+            re_snapshot_ocel_for_replay_proof(store, session_id, scope_token);
+
         let inputs = CellReadyInputs {
             scope_token,
             declared_powl: &powl_ref,
@@ -640,7 +698,7 @@ impl OntoStarAdmissionGate {
             external_attestation: "",
             granted_at_chain: &granted_at_chain,
             admitted_receipts: &admitted_receipts,
-            replay_canonical_hash: &ocel_trace_hash_hex,
+            replay_canonical_hash: &replay_canonical_hash_hex,
             signature: signature_opt,
             signing_key_fpr: fpr_opt,
             trusted_keys: trust_ref,
@@ -842,6 +900,37 @@ fn canonical_ocel_projection(store: &OcelStore, session_id: &str, scope_token: &
         }
     }
     out
+}
+
+/// R5 WB-1 — INDEPENDENT re-snapshot of the OCEL projection used as the
+/// A13 ReplayProof witness. Calls `canonical_ocel_projection` a SECOND
+/// time and re-hashes via BLAKE3, then converts via `hex32_pub`.
+///
+/// The line-519 hash is the FIRST snapshot; this is the SECOND. If the
+/// store mutates between the two (concurrent OCEL emit, hot-path
+/// re-entrancy, time-travel attack), the A13 equality check at
+/// `cell_ready.rs:378` will FAIL with `DefectClass::ReplayDivergence`.
+/// Previously both inputs aliased the same hex string and A13 was
+/// structurally incapable of failing — see `tests/cell_ready_a13_deny_path.rs`
+/// for the deterministic deny-path proof.
+///
+/// Under `#[cfg(test)]`, fires `A13_BETWEEN_SNAPSHOT_HOOK` so tests can
+/// inject synthetic mutations without flaky timing — release builds
+/// cannot reach the hook.
+fn re_snapshot_ocel_for_replay_proof(
+    store: &OcelStore,
+    session_id: &str,
+    scope_token: &str,
+) -> String {
+    #[cfg(debug_assertions)]
+    A13_BETWEEN_SNAPSHOT_HOOK.with(|h| {
+        if let Some(hook) = h.borrow().as_ref() {
+            hook(store, session_id, scope_token);
+        }
+    });
+    let projection = canonical_ocel_projection(store, session_id, scope_token);
+    let bytes = *blake3::hash(&projection).as_bytes();
+    hex32_pub(&bytes)
 }
 
 fn persist_conformance_run(

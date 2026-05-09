@@ -7,6 +7,54 @@ Versions are organized per OntoStar phase on the `ontostar-integration` branch.
 Pre-OntoStar history (the original `open-ontologies` MCP server, releases
 0.1.x) is summarized at the bottom.
 
+## [Unreleased]
+
+### Round 5 WB-1 — §15 A13 ReplayProof tautology closure
+
+A13 ReplayProof gate now uses an independent OCEL re-snapshot; previously
+both inputs were derived from the same line-519 hash. The gate can now
+actually fail under concurrent OCEL mutation. A9/A11/A12 marked as
+TODO(R6) — same disease, deferred fix template.
+
+- `src/admission.rs::re_snapshot_ocel_for_replay_proof` (NEW, private):
+  re-runs `canonical_ocel_projection` and re-hashes via `blake3::hash` +
+  `hex32_pub`. Wired into `OntoStarAdmissionGate::evaluate` immediately
+  before the `CellReadyInputs` struct literal so
+  `replay_canonical_hash` is now byte-independent of the line-519
+  `ocel_trace_hash_hex`. Closes the structural twin to the §15 A10
+  tautology that R2 fixed.
+- `src/admission.rs::A13_BETWEEN_SNAPSHOT_HOOK` (NEW,
+  `#[cfg(debug_assertions)]`-gated thread_local): test-only injection
+  point fired between the first and second OCEL snapshots. Release
+  builds (`cargo build --release` strips `debug_assertions`) cannot
+  reach the hook — production has zero overhead and zero test
+  surface. `#[doc(hidden)]` keeps the symbol out of public docs.
+- `tests/cell_ready_a13_deny_path.rs` (NEW): two-test integration
+  binary. `a13_replay_divergence_under_concurrent_mutation` drives a
+  full `OntoStarAdmissionGate::evaluate` on a `DataExtensionFastPath`
+  scope, installs the hook to emit a NEW OCEL event_type
+  (`a13_test_concurrent_mutation`) between snapshots, and asserts
+  `Err(DefectClass::ReplayDivergence { expected, observed })` with two
+  64-char DISTINCT BLAKE3 hashes. `a13_re_snapshot_quiescent_store_still_grants`
+  asserts that with no hook installed, the same flow grants — proving
+  the hook is the only thing producing divergence and the
+  re-snapshot is not a permanent denial.
+- `tests/saboteur_a13_replay_proof_load_bearing.rs` (NEW, `#[ignore]`):
+  documentation/saboteur test with extensive header comments
+  describing the saboteur matrix (with-fix vs without-fix) and step-by-step
+  manual verification: comment out the new local in
+  `re_snapshot_ocel_for_replay_proof`'s call site, restore the
+  pre-R5-WB-1 alias, re-run → test MUST FAIL, proving the fix is
+  load-bearing.
+- `src/admission.rs`: `provenance_evidence`, `granted_at_chain`,
+  `admitted_receipts` construction sites (lines ~563–568) now carry
+  `TODO(R6 §15.A9)`, `TODO(R6 §15.A11)`, `TODO(R6 §15.A12)` comments
+  — same caller-trust-burden disease A13 had, deferred to R6 with
+  explicit fix templates (independent verification against receipt
+  chain / receipt-chain reconstruction for monotonicity / DB lookup
+  against `receipts WHERE record_hash = prior_receipt`).
+- `README.md`: test totals 523 → 526 (2 active + 1 ignored).
+
 ## [Unreleased] — Round 4 WD: §29 Cell8 retirement closure
 
 ### Added
