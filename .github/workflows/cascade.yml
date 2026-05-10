@@ -1,0 +1,58 @@
+name: cascade
+# A1 V1 — Continuous Cascade. ZERO-LLM by invariant.
+# DO NOT ADD: GitHub Models, anthropics/claude-code-action, openai-action,
+# AI PR summarizers, auto-comment bots. V1 is deterministic. V3 (Round 9+)
+# may introduce sub-agents — guarded by a separate ADR, not this file.
+on:
+  push:
+    branches: [ontostar-integration]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '17 12 * * *'
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
+  RUST_BACKTRACE: 1
+
+jobs:
+  check:
+    name: cascade-check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with: { components: clippy }
+      - uses: Swatinem/rust-cache@v2
+        with: { key: cascade-check }
+      - run: make check
+
+  audit-substrate:
+    name: cascade-audit-substrate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with: { key: cascade-substrate }
+      - name: four ratchets (no-bypass, secret-grep, llm-authority-zero, test-removal-tag)
+        run: |
+          cargo test --test no_bypass_audit -- --test-threads=1
+          cargo test --test secret_grep_ratchet -- --test-threads=1
+          cargo test --test llm_authority_zero -- --test-threads=1
+          bash tools/check-test-removal-tag.sh
+
+  adversarial:
+    name: cascade-adversarial
+    needs: check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with: { components: clippy }
+      - uses: Swatinem/rust-cache@v2
+        with: { key: cascade-adversarial }
+      - uses: taiki-e/install-action@v2
+        with: { tool: cargo-expand }
+      - run: make adversarial

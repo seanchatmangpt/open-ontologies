@@ -26,6 +26,7 @@
 - [ ] `dead-param-gate` green
 - [ ] `ratchet-sweep` green
 - [ ] `real-groq-sweep` ran (or correctly skipped when secret absent)
+- [ ] No LLM/AI action introduced in CI (cascade is V1 deterministic)
 
 ## Notes for reviewers
 
