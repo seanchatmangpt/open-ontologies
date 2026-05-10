@@ -116,10 +116,121 @@ pub fn build_fn_map_for_test(src: &str) -> std::collections::HashMap<String, Str
     build_fn_map(src)
 }
 
+/// R6 WB — syn-based handler extractor.
+///
+/// Replaces the original string-find scanner that searched for the literal
+/// `#[tool(name = "` needle. The legacy needle was vulnerable to B1
+/// positional bypass: `#[tool(description = "x", name = "onto_evil")]` had
+/// `description` precede `name`, so the needle never matched and the
+/// handler was invisible to this audit.
+///
+/// The syn version uses `attr.parse_nested_meta(...)` to extract the `name`
+/// argument ORDER-INDEPENDENTLY. The body is reconstructed from the AST
+/// node via `quote::ToTokens` so callers can still do substring checks
+/// (e.g. `body.contains("evaluate_admission(")`).
+///
+/// Falls back to the legacy string scanner only if `syn::parse_file` fails
+/// (typically a partial/in-flight save with broken syntax) — in that case
+/// `cargo check` will already be failing upstream with rustc's diagnostics.
 fn extract_handlers(src: &str) -> Vec<(String, String)> {
-    // Find every `#[tool(name = "onto_*", …)]` and capture the handler's
-    // function body (until the matching closing brace). Crude but adequate
-    // for the static check.
+    if let Ok(file) = syn::parse_file(src) {
+        return extract_handlers_via_syn(&file);
+    }
+    // Fallback path — keeps the audit useful even if syn cannot parse
+    // (e.g. an unreleased nightly feature). Legacy logic is preserved
+    // verbatim below for that narrow window.
+    extract_handlers_via_string(src)
+}
+
+fn extract_handlers_via_syn(file: &syn::File) -> Vec<(String, String)> {
+    use syn::{ImplItem, Item};
+    let mut out = Vec::new();
+    for item in &file.items {
+        let Item::Impl(item_impl) = item else { continue };
+        let ty_text =
+            quote::ToTokens::to_token_stream(&*item_impl.self_ty).to_string();
+        if !ty_text.contains("OpenOntologiesServer") && !ty_text.contains("OntoStarServer") {
+            continue;
+        }
+        for impl_item in &item_impl.items {
+            let ImplItem::Fn(method) = impl_item else { continue };
+            for attr in &method.attrs {
+                if !attr.path().is_ident("tool") {
+                    continue;
+                }
+                // Order-independent name extraction — closes B1.
+                let mut name: Option<String> = None;
+                let _ = attr.parse_nested_meta(|m| {
+                    if m.path.is_ident("name") {
+                        let v = m.value()?;
+                        let lit: syn::LitStr = v.parse()?;
+                        name = Some(lit.value());
+                    } else if m.input.peek(syn::Token![=]) {
+                        let v = m.value()?;
+                        let _: syn::Expr = v.parse()?;
+                    }
+                    Ok(())
+                });
+                if let Some(name) = name {
+                    // The body string is consumed by callers via
+                    // `body.contains("evaluate_admission(")` and similar
+                    // substring checks. quote::ToTokens emits tokens
+                    // separated by single spaces (`evaluate_admission (`
+                    // not `evaluate_admission(`), which would break
+                    // those checks. Strip ALL whitespace inside the
+                    // body so the substring checks work both with
+                    // syn-formatted output and with hand-written code.
+                    let body_tokens =
+                        quote::ToTokens::to_token_stream(&method.block).to_string();
+                    let body_normalized = strip_space_before_paren(&body_tokens);
+                    out.push((name, body_normalized));
+                }
+                break;
+            }
+        }
+    }
+    out
+}
+
+/// Strip the spaces that quote::ToTokens emits between idents and `(`,
+/// `.`, `::`, `<`, `>`. The substring checks in this audit are written
+/// against original-source spelling (`self.evaluate_admission(`) and
+/// must continue to work after the syn migration emits spaced tokens
+/// (`self . evaluate_admission (`).
+fn strip_space_before_paren(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    let mut prev_pushed: Option<char> = None;
+    for ch in s.chars() {
+        match ch {
+            // Drop a space that immediately precedes `(`, `.`, `::`,
+            // `<`, `>`, `,`, `;`. Preserves semantic structure while
+            // making `evaluate_admission ( foo )` look like
+            // `evaluate_admission(foo)`.
+            '(' | '.' | ',' | ';' | ')' | '<' | '>' | ':' | '!' => {
+                if matches!(prev_pushed, Some(' ')) {
+                    out.pop();
+                }
+                out.push(ch);
+                prev_pushed = Some(ch);
+            }
+            ' ' => {
+                // Drop a space immediately after `(`, `.`, `::`, etc.
+                if matches!(prev_pushed, Some('(' | '.' | ':' | '<' | '>' | '!')) {
+                    continue;
+                }
+                out.push(ch);
+                prev_pushed = Some(ch);
+            }
+            _ => {
+                out.push(ch);
+                prev_pushed = Some(ch);
+            }
+        }
+    }
+    out
+}
+
+fn extract_handlers_via_string(src: &str) -> Vec<(String, String)> {
     let mut out = Vec::new();
     let mut i = 0usize;
     let needle = "#[tool(name = \"";
@@ -127,8 +238,6 @@ fn extract_handlers(src: &str) -> Vec<(String, String)> {
         let p = i + start + needle.len();
         let name_end = src[p..].find('"').map(|d| p + d).unwrap_or(p);
         let name = src[p..name_end].to_string();
-        // Find the function body start: `async fn …(` after the attribute,
-        // then walk to its closing brace.
         let fn_open = src[name_end..].find("fn ").map(|d| name_end + d);
         let body_start = fn_open
             .and_then(|f| src[f..].find('{').map(|d| f + d))

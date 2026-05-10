@@ -72,6 +72,18 @@ dbg_macro = "deny"
 tempfile = "3"
 criterion = { version = "0.5", features = ["html_reports"] }
 tower = { version = "0.5", features = ["util"] }
+# R6 WB — §22 syn AST migration. Used by:
+#   * tests/round5_ast_red_team.rs        — order-independent #[tool] extraction
+#   * tests/round5_ast_red_team_sabotage.rs — B1/B2/B3/B4 sabotage tests
+#   * tests/derive_allowlist_audit.rs     — derives on authority types audit
+#   * tools/dead_param_gate (Rust binary) — post-expansion let _ = $p; scan
+# `syn` 2.x is already in the closure (transitively pulled by serde_derive,
+# clap_derive, and rmcp's tool_router macro). Adding it as a dev-dep makes
+# the audit substrate AST-aware (closes the §17 fake-gauge that R5 WA
+# explicitly deferred to R6 WB).
+syn = { version = "2", features = ["full", "visit", "extra-traits"] }
+quote = "1"
+walkdir = "2"
 
 [[bench]]
 name = "admission_bench"
