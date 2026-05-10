@@ -56,6 +56,34 @@ thread_local! {
         = const { std::cell::RefCell::new(None) };
 }
 
+// R6 WA-1 — §15 A9 ProvenanceChain tautology closure.
+//
+// Test-only hook fired BETWEEN the line-617 `artifact_generated` OCEL
+// emission and the helper's independent SELECT in
+// `re_read_provenance_evidence`. Tests inject a synthetic mutation here
+// (typically: DELETE the witness row) to force A9's gate to deny with
+// `ProvenanceMissing` rather than tautologically pass on a self-supplied
+// `vec![artifact_hash]`.
+//
+// Gated on `debug_assertions` so release builds (`cargo build --release`)
+// strip the entire thread_local plus the `with(...)` call inside
+// `re_read_provenance_evidence`. Mirrors `A13_BETWEEN_SNAPSHOT_HOOK`'s
+// envelope: integration tests build the lib WITHOUT `#[cfg(test)]` but
+// `debug_assertions` IS set for `cargo test` and unset for
+// `cargo build --release`.
+#[cfg(debug_assertions)]
+#[doc(hidden)]
+pub type A9ProvenanceRereadFn =
+    Box<dyn Fn(&OcelStore, &str, &str) + Send + 'static>;
+
+#[cfg(debug_assertions)]
+thread_local! {
+    #[doc(hidden)]
+    pub static A9_PROVENANCE_REREAD_HOOK:
+        std::cell::RefCell<Option<A9ProvenanceRereadFn>>
+        = const { std::cell::RefCell::new(None) };
+}
+
 /// What kind of mutation is being requested at the gate.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum AdmissionOp {
@@ -610,11 +638,54 @@ impl OntoStarAdmissionGate {
 
         // Build canonical OCEL projection of scope. Until Stream 1's
         // scope_token column lands on ocel_events, project by session.
+        // Compute the artifact hash early so the §15 A9 witness anchor
+        // can be emitted BEFORE the first OCEL projection. Emitting
+        // after the first projection but before the second
+        // `re_snapshot_ocel_for_replay_proof` snapshot would inject a
+        // new `artifact_generated` event_type the first projection
+        // didn't see, producing a false-positive A13 ReplayDivergence.
+        // Emitting before BOTH projections keeps both byte-identical
+        // under quiescent stores while still giving the A9 helper a
+        // witness row to read.
+        let artifact_hash_bytes = artifact.hash();
+        let artifact_hash_hex = hex32_pub(&artifact_hash_bytes);
+
+        // R6 WA-1 — §15 A9 ProvenanceChain witness anchor. Emit an
+        // `artifact_generated` OCEL event keyed on the artifact's own hash
+        // so that A9's gate-side check (`provenance_evidence.contains(
+        // artifact_hash)` in `cell_ready.rs:200-206`) can read its
+        // evidence from an INDEPENDENT source (the OCEL store)
+        // instead of a `vec![artifact_hash_hex.clone()]` gauge, which
+        // was `[X].contains(X)` by construction. Non-atomic with the
+        // receipt by design — this row is a gauge anchor, not a proof
+        // object; if admission later denies, the row remains as
+        // evidence the artifact was offered. Use `emit_with_fallback`
+        // so a primary-emit failure still leaves a trail (helper falls
+        // closed if no row is found, gate denies with
+        // `ProvenanceMissing`).
+        let artifact_event_id =
+            format!("artifact_generated:{}:{}", scope_token, &artifact_hash_hex[..16]);
+        emit_with_fallback(
+            store,
+            &artifact_event_id,
+            "artifact_generated",
+            "artifact_generated_emit_failed",
+            &chrono::Utc::now().to_rfc3339(),
+            session_id,
+            &[
+                ("artifact_hash", &artifact_hash_hex),
+                ("scope_token", scope_token),
+                ("session_id", session_id),
+                ("production_law_version", "ontostar-1.0.0"),
+            ],
+            &[],
+            Some(scope_token),
+            "ontostar.admission.artifact_generated_emit_lost",
+        );
+
         let ocel_canonical = canonical_ocel_projection(store, session_id, scope_token);
         let ocel_canonical_hash_bytes = *blake3::hash(&ocel_canonical).as_bytes();
         let ocel_trace_hash_hex = hex32_pub(&ocel_canonical_hash_bytes);
-        let artifact_hash_bytes = artifact.hash();
-        let artifact_hash_hex = hex32_pub(&artifact_hash_bytes);
         let gate_config_hash_hex = hex32_pub(&self.gate_config_hash);
 
         // Run conformance via wasm4pm bridge (or stub).
@@ -657,10 +728,20 @@ impl OntoStarAdmissionGate {
         // prior receipt if any; A13 is now an INDEPENDENT re-snapshot (see
         // `re_snapshot_ocel_for_replay_proof` below) — was previously a
         // tautology that aliased `ocel_trace_hash_hex` for both A13 inputs.
-        // TODO(R6 §15.A9): caller-trust-burden — `provenance_evidence` is
-        // supplied by caller against own artifact_hash; needs independent
-        // verification against receipt chain.
-        let provenance_evidence: Vec<String> = vec![artifact_hash_hex.clone()];
+        // R6 WA-1 — §15 A9 ProvenanceChain tautology closure. Previously
+        // `provenance_evidence: Vec<String> = vec![artifact_hash_hex.clone()]`
+        // was the SOLE input to the gate's `provenance_evidence.iter().any(
+        // |p| p == inp.artifact_hash)` check at `cell_ready.rs:200-206` —
+        // `[X].contains(X)` by construction, A9 was a tautology.
+        //
+        // Cure: re-read evidence INDEPENDENTLY from `ocel_events` (rows
+        // emitted at the new `artifact_generated` anchor above) so the
+        // gauge and the gate read separate sources. A sabotage that
+        // deletes the witness row mid-flight (via
+        // `A9_PROVENANCE_REREAD_HOOK`) forces the helper to return an
+        // empty Vec → gate denies with `ProvenanceMissing`.
+        let provenance_evidence =
+            re_read_provenance_evidence(store, session_id, &artifact_hash_hex);
         // TODO(R6 §15.A11): caller-trust-burden — `granted_at_chain` only
         // contains a single timestamp at admission; windows(2) check
         // trivially passes; needs receipt-chain reconstruction for
@@ -1126,6 +1207,82 @@ fn re_snapshot_ocel_for_replay_proof(
     let projection = canonical_ocel_projection(store, session_id, scope_token);
     let bytes = *blake3::hash(&projection).as_bytes();
     hex32_pub(&bytes)
+}
+
+/// R6 WA-1 — INDEPENDENT re-read of A9 ProvenanceChain witnesses.
+///
+/// The admission gate emits an `artifact_generated` OCEL event keyed on
+/// the artifact_hash before the conformance run. This helper re-reads
+/// the witness rows by joining `ocel_events` ↔ `ocel_event_attrs` and
+/// projecting `attrs.value` where `attr.name = 'artifact_hash'` AND the
+/// session matches AND the artifact_hash matches. The returned Vec is
+/// the ONLY input to the A9 gate at `cell_ready.rs:200-206`.
+///
+/// Previously, `admission.rs` constructed `vec![artifact_hash_hex.clone()]`
+/// at line 663 and passed THAT same value as `provenance_evidence` —
+/// the gate's `iter().any(|p| p == artifact_hash)` was vacuously true
+/// by construction. A9 was a tautology. This helper closes
+/// `[X].contains(X)`: the gauge (caller-supplied artifact_hash) and the
+/// gate's witness (DB query result) now read independent sources.
+///
+/// Fail-closed semantics: if the OCEL emit upstream failed silently OR
+/// the witness row was concurrently deleted (sabotage hook), this
+/// returns an empty Vec. The gate then denies with
+/// `DefectClass::ProvenanceMissing { artifact_hash }` — the exact
+/// proof object R6 WA-1's deny-path test asserts.
+///
+/// Under `#[cfg(debug_assertions)]`, fires
+/// `A9_PROVENANCE_REREAD_HOOK` BEFORE the SELECT so tests can inject
+/// synthetic mutations (DELETE row, INSERT bogus row) without flaky
+/// timing — release builds cannot reach the hook.
+fn re_read_provenance_evidence(
+    store: &OcelStore,
+    session_id: &str,
+    artifact_hash_hex: &str,
+) -> Vec<String> {
+    #[cfg(debug_assertions)]
+    A9_PROVENANCE_REREAD_HOOK.with(|h| {
+        if let Some(hook) = h.borrow().as_ref() {
+            hook(store, session_id, artifact_hash_hex);
+        }
+    });
+    let conn = store.db().conn();
+    let mut stmt = match conn.prepare(
+        "SELECT a.value FROM ocel_event_attrs a
+         INNER JOIN ocel_events e ON e.event_id = a.event_id
+         WHERE e.event_type = 'artifact_generated'
+           AND e.session_id = ?1
+           AND a.name = 'artifact_hash'
+           AND a.value = ?2",
+    ) {
+        Ok(s) => s,
+        Err(_) => {
+            tracing::debug!(
+                target: "ontostar.admission.witness_reread",
+                gate = "A9",
+                session_id = session_id,
+                witness_count = 0_usize,
+                "prepare failed; falling closed with empty witness set",
+            );
+            return Vec::new();
+        }
+    };
+    let rows = stmt
+        .query_map(rusqlite::params![session_id, artifact_hash_hex], |r| {
+            r.get::<_, String>(0)
+        });
+    let evidence: Vec<String> = match rows {
+        Ok(it) => it.filter_map(|r| r.ok()).collect(),
+        Err(_) => Vec::new(),
+    };
+    tracing::debug!(
+        target: "ontostar.admission.witness_reread",
+        gate = "A9",
+        session_id = session_id,
+        witness_count = evidence.len(),
+        "A9 provenance evidence re-read from ocel_events",
+    );
+    evidence
 }
 
 /// R5 WB-2 — §15 OCEL anchor closure: atomic conformance INSERT + OCEL witness.

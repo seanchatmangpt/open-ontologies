@@ -73,7 +73,17 @@ use serde::{Deserialize, Serialize};
 /// (`bypass_revoked`), so [`DEFECTS_TAXONOMY_DISCRIMINANT_HASH`]
 /// remains stable; the version bump is forward-compatible (the new
 /// field defaults to an empty string for legacy emitters).
-pub const DEFECTS_TAXONOMY_VERSION: &str = "ontostar-defects-4.4.0";
+///
+/// Bumped from `4.4.0` → `4.5.0` (Round 6 WA-1) after the §15 A9
+/// ProvenanceChain tautology closure replaced
+/// `vec![artifact_hash_hex.clone()]` (caller-supplied gauge) with an
+/// independent re-read of `ocel_events` rows of type
+/// `artifact_generated`. No variant additions, removals, or renames —
+/// `[`DefectClass::ProvenanceMissing`]` already had the correct
+/// `artifact_hash` shape and `all_tags()` ordering is unchanged.
+/// [`DEFECTS_TAXONOMY_DISCRIMINANT_HASH`] therefore remains pinned;
+/// the version bump is forward-compatible.
+pub const DEFECTS_TAXONOMY_VERSION: &str = "ontostar-defects-4.5.0";
 
 /// BLAKE3 hex of `tag1\0tag2\0...\0` for [`DefectClass::all_tags()`].
 /// CI-pinned. Adding/renaming/removing a variant changes this, forcing a
