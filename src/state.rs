@@ -515,6 +515,7 @@ impl StateDb {
     /// Update the per-scope outcome columns on a `declared_workflows` row.
     /// Called from admission with the verdict, fitness/precision, and the
     /// JSON-serialized gates/defects/manufacturing-delta payloads.
+    #[allow(clippy::too_many_arguments)] // Each arg maps 1-to-1 to a `declared_workflows` column written atomically; a struct would just shadow the schema.
     pub fn record_workflow_outcome(
         &self,
         scope_token: &str,

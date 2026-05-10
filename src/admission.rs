@@ -545,6 +545,7 @@ impl OntoStarAdmissionGate {
 
     /// Run admission. On Ok: persist the receipt and emit `admission_granted`.
     /// On Err: emit `admission_denied` with a typed `defect` attribute.
+    #[allow(clippy::too_many_arguments)] // Each arg is a load-bearing admission input; bundling into a struct would only add an indirection.
     pub fn evaluate<R: PowlReplay>(
         &self,
         scope_token: &str,

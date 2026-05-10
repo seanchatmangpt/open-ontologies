@@ -370,6 +370,7 @@ impl OcelStore {
     /// [`crate::workflows::WorkflowScope`] so OntoStar admission can replay
     /// scoped traces. Pass `None` when the call site has no declared scope —
     /// Stream 3 fills these in for gated handlers.
+    #[allow(clippy::too_many_arguments)] // Public OCEL emission surface; each arg matches a column in the OCEL schema and bundling them would only relocate the cost.
     pub fn emit_event(
         &self,
         event_id: &str,

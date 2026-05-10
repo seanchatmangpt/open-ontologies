@@ -648,6 +648,7 @@ fn apply_llm_cli_overrides(llm_engine: Option<&str>, llm_python: Option<&str>) -
 }
 
 /// Start the MCP server (stdio transport)
+#[allow(clippy::too_many_arguments)] // Every parameter is a CLI flag exposed by clap_noun_verb; struct-wrapping would lose the auto-derived argument metadata.
 #[verb]
 fn serve(config: Option<String>, governance_webhook: Option<String>, watch: Option<bool>, watch_interval: Option<u64>, tools_allow: Option<String>, tools_deny: Option<String>, idle_ttl_secs: Option<u64>, auto_refresh: Option<bool>, llm_engine: Option<String>, llm_python: Option<String>) -> NounVerbResult<ServeOutput> {
     // Load .env into the process environment before resolving config so the
@@ -671,6 +672,7 @@ fn serve(config: Option<String>, governance_webhook: Option<String>, watch: Opti
 }
 
 /// Start the MCP server (Streamable HTTP transport)
+#[allow(clippy::too_many_arguments)] // Every parameter is a CLI flag exposed by clap_noun_verb; struct-wrapping would lose the auto-derived argument metadata.
 #[verb]
 fn serve_http(config: Option<String>, host: Option<String>, port: Option<u16>, token: Option<String>, governance_webhook: Option<String>, watch: Option<bool>, watch_interval: Option<u64>, tools_allow: Option<String>, tools_deny: Option<String>, idle_ttl_secs: Option<u64>, auto_refresh: Option<bool>, llm_engine: Option<String>, llm_python: Option<String>) -> NounVerbResult<ServeOutput> {
     dotenvy::dotenv().ok();
