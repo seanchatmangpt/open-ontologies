@@ -153,14 +153,13 @@ fn run_stdio_server(cfg: Config, db: StateDb, graph: Arc<GraphStore>, governance
 }
 
 fn auto_restore_last_ontology(db: &StateDb, graph: Arc<GraphStore>) -> NounVerbResult<()> {
-    if let Ok(Some(path)) = db.get_last_active_path() {
-        if std::path::Path::new(&path).exists() {
+    if let Ok(Some(path)) = db.get_last_active_path()
+        && std::path::Path::new(&path).exists() {
             match graph.load_file(&path) {
                 Ok(n) => eprintln!("info: restored last active ontology from {path} ({n} triples)"),
                 Err(e) => eprintln!("warn: could not restore last active ontology: {e}"),
             }
         }
-    }
     Ok(())
 }
 
@@ -384,8 +383,8 @@ pub(crate) async fn tenant_extract_layer_with_allowlist(
         .and_then(|v| v.to_str().ok())
         .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty());
-    if !allowlist.is_empty() {
-        if let Some(ref hv) = header_raw {
+    if !allowlist.is_empty()
+        && let Some(ref hv) = header_raw {
             // Caller explicitly set the header — strictly validate.
             if !is_valid_tenant_id(hv) || !allowlist.iter().any(|t| t == hv) {
                 let body = serde_json::json!({
@@ -405,7 +404,6 @@ pub(crate) async fn tenant_extract_layer_with_allowlist(
                     .unwrap();
             }
         }
-    }
     let tenant = header_raw
         .filter(|s| is_valid_tenant_id(s))
         .unwrap_or_else(|| "default".to_string());
@@ -504,9 +502,7 @@ async fn llm_engine_extract_layer(
         .and_then(|v| v.to_str().ok())
         .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty())
-        .filter(|s| open_ontologies::config::VALID_LLM_ENGINES
-            .iter()
-            .any(|e| *e == s.as_str()));
+        .filter(|s| open_ontologies::config::VALID_LLM_ENGINES.contains(&s.as_str()));
     open_ontologies::server::LLM_ENGINE_OVERRIDE
         .scope(header_val, next.run(req))
         .await
@@ -630,7 +626,7 @@ async fn health_llm_probe(cfg: &open_ontologies::config::LlmConfig) -> serde_jso
 /// `Config::load` so resolution is consistent.
 fn apply_llm_cli_overrides(llm_engine: Option<&str>, llm_python: Option<&str>) -> NounVerbResult<()> {
     if let Some(e) = llm_engine.map(|s| s.trim()).filter(|s| !s.is_empty()) {
-        if !open_ontologies::config::VALID_LLM_ENGINES.iter().any(|v| *v == e) {
+        if !open_ontologies::config::VALID_LLM_ENGINES.contains(&e) {
             return Err(clap_noun_verb::NounVerbError::execution_error(format!(
                 "invalid --llm-engine={:?}; valid values: {:?}",
                 e,

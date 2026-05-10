@@ -248,6 +248,7 @@ pub struct LlmConfig {
     /// `X-Ontostar-LLM-Engine` HTTP header. Recognised values:
     ///   - `"inproc"` — in-process `GroqTranslator` HTTP path.
     ///   - `"groq_pm4py"` — shell out to `scripts/*.py` (real-Groq via dspy).
+    ///
     /// Override with `OPEN_ONTOLOGIES_LLM_ENGINE`. Default: auto-detected
     /// (`groq_pm4py` when an API key is available, else `inproc`).
     pub engine: Option<String>,
@@ -335,7 +336,7 @@ pub const VALID_LLM_ENGINES: &[&str] = &["inproc", "groq_pm4py"];
 pub fn resolve_llm_engine(cfg: &LlmConfig) -> String {
     fn validated(v: String) -> Option<String> {
         let trimmed = v.trim().to_string();
-        if VALID_LLM_ENGINES.iter().any(|e| *e == trimmed.as_str()) {
+        if VALID_LLM_ENGINES.contains(&trimmed.as_str()) {
             Some(trimmed)
         } else {
             None

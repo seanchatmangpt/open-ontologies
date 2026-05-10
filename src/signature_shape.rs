@@ -315,8 +315,8 @@ impl SignatureShape {
                 });
                 continue;
             }
-            if let Some(m) = f.max_len {
-                if trimmed.chars().count() > m {
+            if let Some(m) = f.max_len
+                && trimmed.chars().count() > m {
                     failures.push(ValidationFailure::TooLong {
                         field: f.name.clone(),
                         observed: trimmed.chars().count(),
@@ -324,7 +324,6 @@ impl SignatureShape {
                     });
                     continue;
                 }
-            }
             if let Some(av) = &f.allowed_values {
                 let lc = trimmed.to_lowercase();
                 if !av.iter().any(|a| a.to_lowercase() == lc) {
@@ -381,11 +380,10 @@ fn extract_first_json_object(s: &str) -> Option<String> {
             depth += 1;
         } else if b == b'}' {
             depth -= 1;
-            if depth == 0 {
-                if let Some(st) = start {
+            if depth == 0
+                && let Some(st) = start {
                     return Some(s[st..=i].to_string());
                 }
-            }
         }
     }
     None

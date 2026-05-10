@@ -100,12 +100,11 @@ fn do_import_owl(max_depth: usize, data_dir: &str) -> NounVerbResult<ImportOwlOu
         for url in batch {
             if imported.contains(&url) { continue; }
             let result = tokio::runtime::Handle::current().block_on(GraphStore::fetch_url(&url));
-            if let Ok(content) = result {
-                if let Ok(count) = graph.load_turtle(&content, None) {
+            if let Ok(content) = result
+                && let Ok(count) = graph.load_turtle(&content, None) {
                     eprintln!("Imported {} ({} triples)", url, count);
                     imported.push(url);
                 }
-            }
         }
         depth += 1;
     }
@@ -114,17 +113,15 @@ fn do_import_owl(max_depth: usize, data_dir: &str) -> NounVerbResult<ImportOwlOu
 
 fn collect_imports(graph: &open_ontologies::graph::GraphStore, q: &str) -> Vec<String> {
     let mut result = Vec::new();
-    if let Ok(json) = graph.sparql_select(q) {
-        if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&json) {
-            if let Some(rows) = parsed["results"].as_array() {
+    if let Ok(json) = graph.sparql_select(q)
+        && let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&json)
+            && let Some(rows) = parsed["results"].as_array() {
                 for row in rows {
                     if let Some(uri) = row["import"].as_str() {
                         result.push(uri.trim_matches(|c| c == '<' || c == '>').to_string());
                     }
                 }
             }
-        }
-    }
     result
 }
 
@@ -158,13 +155,13 @@ fn do_extend(data_path: &str, format: Option<&str>, mapping: Option<&str>, shape
     let cfg = resolve_mapping(mapping, &rows, base)?;
     let ntriples = cfg.rows_to_ntriples(&rows);
     let triples_loaded = graph.load_ntriples(&ntriples).map_err(to_verb_err)?;
-    let shacl_result = shapes.map(|sp| {
+    let shacl_result = shapes.and_then(|sp| {
         std::fs::read_to_string(sp).ok()
             .and_then(|sc| ShaclValidator::validate(&graph, &sc).ok())
             .and_then(|r| serde_json::from_str::<serde_json::Value>(&r).ok())
-    }).flatten();
-    let reason_result = profile.map(|p| Reasoner::run(&graph, p, true).ok()
-        .and_then(|r| serde_json::from_str::<serde_json::Value>(&r).ok())).flatten();
+    });
+    let reason_result = profile.and_then(|p| Reasoner::run(&graph, p, true).ok()
+        .and_then(|r| serde_json::from_str::<serde_json::Value>(&r).ok()));
     Ok(serde_json::json!({"ok": true, "triples_loaded": triples_loaded, "rows": rows.len(), "shacl": shacl_result, "reason": reason_result}))
 }
 

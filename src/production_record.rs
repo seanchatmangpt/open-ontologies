@@ -64,7 +64,7 @@ impl ProductionRecord {
             "gates_passed": self.gates_passed,
             "gates_refused": self.gates_refused,
             "ocel_canonical_hash": hex32(&self.ocel_canonical_hash),
-            "prior_receipt": self.prior_receipt.as_ref().map(|h| hex32(h)),
+            "prior_receipt": self.prior_receipt.as_ref().map(hex32),
             "production_law_version": self.production_law_version,
             "scope_token": self.scope_token,
             "signature": self.signature.as_ref().map(hex_n::<64>),
@@ -91,7 +91,7 @@ impl ProductionRecord {
             "gates_passed": self.gates_passed,
             "gates_refused": self.gates_refused,
             "ocel_canonical_hash": hex32(&self.ocel_canonical_hash),
-            "prior_receipt": self.prior_receipt.as_ref().map(|h| hex32(h)),
+            "prior_receipt": self.prior_receipt.as_ref().map(hex32),
             "production_law_version": self.production_law_version,
             "scope_token": self.scope_token,
         });

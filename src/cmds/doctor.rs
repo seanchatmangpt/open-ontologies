@@ -229,11 +229,10 @@ pub struct EnvOutput {
 // ── domain helpers ────────────────────────────────────────────────────────
 
 fn expand_tilde(path: &str) -> String {
-    if path.starts_with('~') {
-        if let Ok(home) = std::env::var("HOME") {
+    if path.starts_with('~')
+        && let Ok(home) = std::env::var("HOME") {
             return home + &path[1..];
         }
-    }
     path.to_string()
 }
 
@@ -316,7 +315,8 @@ fn run_checks_for_target(target: &str) -> Vec<DoctorCheck> {
         "store" => check_store_domain().into_checks(),
         "ggen" => check_ggen_domain().into_checks(),
         "mcp" => check_mcp_domain().into_checks(),
-        "all" | _ => {
+        // Default ("all" or any unrecognized target) runs every domain.
+        _ => {
             let mut v = check_config_domain().into_checks();
             v.extend(check_data_domain().into_checks());
             v.extend(check_ggen_domain().into_checks());

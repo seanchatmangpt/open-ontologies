@@ -12,7 +12,7 @@ use super::helpers::{DEFAULT_DATA_DIR, setup, to_verb_err};
 fn align(source: String, target: Option<String>, min_confidence: Option<f64>, dry_run: Option<bool>, data_dir: Option<String>) -> NounVerbResult<serde_json::Value> {
     let (db, graph) = setup(data_dir.as_deref().unwrap_or(DEFAULT_DATA_DIR)).map_err(to_verb_err)?;
     let source_ttl = std::fs::read_to_string(&source).map_err(to_verb_err)?;
-    let target_ttl = target.as_ref().map(|t| std::fs::read_to_string(t)).transpose().map_err(to_verb_err)?;
+    let target_ttl = target.as_ref().map(std::fs::read_to_string).transpose().map_err(to_verb_err)?;
     let engine = open_ontologies::align::AlignmentEngine::new(db, graph);
     let result = engine.align(&source_ttl, target_ttl.as_deref(), min_confidence.unwrap_or(0.85), dry_run.unwrap_or(false))
         .unwrap_or_else(|e| format!(r#"{{"error":"{}"}}"#, e));

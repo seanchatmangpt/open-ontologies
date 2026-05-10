@@ -158,17 +158,16 @@ pub fn lineage_to_event_log(
 
     for row_result in rows {
         let (sid, event): (String, Event) = row_result?;
-        traces.entry(sid).or_insert_with(Vec::new).push(event);
+        traces.entry(sid).or_default().push(event);
     }
 
     let traces_vec: Vec<Trace> = traces
         .into_iter()
         .map(|(case_id, events)| {
-            let mut trace_attrs = Attributes::new();
-            trace_attrs.push(Attribute::new(
+            let trace_attrs = vec![Attribute::new(
                 "case:concept:name".to_string(),
                 AttributeValue::String(case_id),
-            ));
+            )];
             Trace { events, attributes: trace_attrs }
         })
         .collect();
@@ -199,14 +198,13 @@ fn map_lineage_row(row: &rusqlite::Row) -> rusqlite::Result<(String, Event)> {
         AttributeValue::String(timestamp_str),
     ));
 
-    if let Some(d) = details {
-        if !d.is_empty() {
+    if let Some(d) = details
+        && !d.is_empty() {
             attributes.push(Attribute::new(
                 "details".to_string(),
                 AttributeValue::String(d),
             ));
         }
-    }
 
     let event = Event { attributes };
     Ok((session_id, event))

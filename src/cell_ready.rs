@@ -286,13 +286,12 @@ pub fn cell_ready(
                                 reason: "key_not_trusted_at_signature_time".into(),
                             });
                         }
-                        if let Some(removed_at) = history.removed_at.as_ref() {
-                            if signed_at >= removed_at.as_str() {
+                        if let Some(removed_at) = history.removed_at.as_ref()
+                            && signed_at >= removed_at.as_str() {
                                 return Err(DefectClass::AttestationInvalid {
                                     reason: "key_not_trusted_at_signature_time".into(),
                                 });
                             }
-                        }
                     }
                 } else {
                     tracing::warn!(

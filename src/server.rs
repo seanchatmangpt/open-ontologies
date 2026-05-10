@@ -673,16 +673,14 @@ impl OpenOntologiesServer {
         artifact_bytes.push(0);
         artifact_bytes.extend_from_slice(powl.as_bytes());
 
-        if let Err(denial) = self.evaluate_admission(
+        self.evaluate_admission(
             crate::admission::AdmissionOp::WorkflowPlanned,
             Some(scope_token),
             "workflow-planned",
             &artifact_bytes,
             bypass_admission,
             bypass_reason,
-        ) {
-            return Err(denial);
-        }
+        )?;
 
         let conn = self.db.conn();
         if let Err(e) = conn.execute(
@@ -1589,15 +1587,14 @@ impl OpenOntologiesServer {
                     "rows_processed": rows.len(),
                     "mapping_fields": mapping.mappings.len(),
                 });
-                if let Some(r) = &receipt {
-                    if let Some(obj) = out.as_object_mut() {
+                if let Some(r) = &receipt
+                    && let Some(obj) = out.as_object_mut() {
                         obj.insert("receipt_hash".into(), r.hex().into());
                         obj.insert(
                             "production_law_version".into(),
                             r.record.production_law_version.clone().into(),
                         );
                     }
-                }
                 out.to_string()
             }
             Err(e) => format!(r#"{{"error":"Failed to load triples: {}"}}"#, e),
@@ -1739,11 +1736,11 @@ impl OpenOntologiesServer {
                 // Extract plan metrics from JSON
                 let (risk_score, added_count, removed_count) = serde_json::from_str::<serde_json::Value>(&result)
                     .ok()
-                    .and_then(|j| {
+                    .map(|j| {
                         let risk = j.get("risk_score").and_then(|v| v.as_f64()).unwrap_or(0.0);
                         let added = j.get("added_classes").and_then(|v| v.as_array().map(|a| a.len())).unwrap_or(0);
                         let removed = j.get("removed_classes").and_then(|v| v.as_array().map(|a| a.len())).unwrap_or(0);
-                        Some((risk, added, removed))
+                        (risk, added, removed)
                     })
                     .unwrap_or((0.0, 0, 0));
 
@@ -1826,14 +1823,13 @@ impl OpenOntologiesServer {
                         receipt.record.defects_taxonomy_version.clone().into(),
                     );
                 }
-                if monitor_result.status != "ok" {
-                    if let Some(obj) = parsed.as_object_mut() {
+                if monitor_result.status != "ok"
+                    && let Some(obj) = parsed.as_object_mut() {
                         obj.insert(
                             "monitor".into(),
                             serde_json::to_value(&monitor_result).unwrap_or_default(),
                         );
                     }
-                }
                 parsed.to_string()
             }
             Err(e) => format!(r#"{{"error":"{}"}}"#, e),
@@ -1868,11 +1864,11 @@ impl OpenOntologiesServer {
                 // Extract drift metrics
                 let (added, removed, renames) = serde_json::from_str::<serde_json::Value>(&result)
                     .ok()
-                    .and_then(|j| {
+                    .map(|j| {
                         let a = j.get("added_terms").and_then(|v| v.as_array().map(|arr| arr.len())).unwrap_or(0);
                         let r = j.get("removed_terms").and_then(|v| v.as_array().map(|arr| arr.len())).unwrap_or(0);
                         let rn = j.get("rename_candidates").and_then(|v| v.as_array().map(|arr| arr.len())).unwrap_or(0);
-                        Some((a, r, rn))
+                        (a, r, rn)
                     })
                     .unwrap_or((0, 0, 0));
 
@@ -2262,15 +2258,14 @@ impl OpenOntologiesServer {
                     "triples": count,
                     "base_iri": base_iri,
                 });
-                if let Some(r) = &receipt {
-                    if let Some(obj) = out.as_object_mut() {
+                if let Some(r) = &receipt
+                    && let Some(obj) = out.as_object_mut() {
                         obj.insert("receipt_hash".into(), r.hex().into());
                         obj.insert(
                             "production_law_version".into(),
                             r.record.production_law_version.clone().into(),
                         );
                     }
-                }
                 out.to_string()
             }
             Err(e) => format!(r#"{{"error":"Failed to load: {}"}}"#, e),
@@ -2418,10 +2413,10 @@ impl OpenOntologiesServer {
                 // Extract alignment metrics
                 let (candidate_count, auto_applied) = serde_json::from_str::<serde_json::Value>(&result)
                     .ok()
-                    .and_then(|j| {
+                    .map(|j| {
                         let cc = j.get("candidates").and_then(|v| v.as_array().map(|a| a.len())).unwrap_or(0);
                         let aa = j.get("auto_applied").and_then(|v| v.as_array().map(|a| a.len())).unwrap_or(0);
-                        Some((cc, aa))
+                        (cc, aa)
                     })
                     .unwrap_or((0, 0));
 
@@ -2588,7 +2583,7 @@ impl OpenOntologiesServer {
 
     async fn onto_embed_inner(&self, input: OntoEmbedInput) -> String {
         #[cfg(not(feature = "embeddings"))]
-        { let _ = input; return r#"{"error":"Compiled without embeddings feature. Rebuild with --features embeddings"}"#.to_string(); }
+        { let _ = input; r#"{"error":"Compiled without embeddings feature. Rebuild with --features embeddings"}"#.to_string()}
         #[cfg(feature = "embeddings")]
         {
         let embedder = match &self.text_embedder {
@@ -3799,13 +3794,17 @@ impl OpenOntologiesServer {
         // (via the workflow_scopes view). Includes gates_denied_json and
         // manufacturing_delta_json so the response carries the persisted
         // delta — not a placeholder.
-        let row: Option<(
+        // Tuple shape: (scope_token, name, domain, admitted, fitness,
+        //  defects_json, deviations_json, gates_fired_json, gates_denied_json,
+        //  manufacturing_delta_json)
+        type CounterfactualRow = (
             String, String, String,
             Option<i64>, Option<f64>,
             Option<String>, Option<String>,
             Option<String>, Option<String>,
             Option<String>,
-        )> = conn
+        );
+        let row: Option<CounterfactualRow> = conn
             .query_row(
                 "SELECT dw.scope_token, dw.name, COALESCE(json_extract(dw.alphabet_json,'$.domain'),''),
                         dw.admitted, dw.fitness,
@@ -5551,11 +5550,10 @@ fn stamp_codegen_output(output_dir: &str, receipt: &crate::receipts::Receipt) ->
             if let Ok(ft) = entry.file_type() {
                 if ft.is_dir() {
                     stack.push(path);
-                } else if ft.is_file() {
-                    if let Ok(true) = crate::receipts::inject_comment_header(&path, receipt) {
+                } else if ft.is_file()
+                    && let Ok(true) = crate::receipts::inject_comment_header(&path, receipt) {
                         stamped += 1;
                     }
-                }
             }
         }
     }

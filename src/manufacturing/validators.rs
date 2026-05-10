@@ -111,8 +111,8 @@ fn validate_iac(bundle: &SolutionBundle) -> Result<(), DefectClass> {
             // Refuse Terraform JSON containing an `_ontostar_receipt`
             // key — that is the bug the adversarial audit caught and
             // it would fail `terraform validate`.
-            if let Some(obj) = parsed.as_object() {
-                if obj.contains_key("_ontostar_receipt") {
+            if let Some(obj) = parsed.as_object()
+                && obj.contains_key("_ontostar_receipt") {
                     return Err(DefectClass::IacInvalid {
                         reason: format!(
                             "{} contains _ontostar_receipt key — Terraform top-level schema is closed; receipts must live in the sidecar",
@@ -120,7 +120,6 @@ fn validate_iac(bundle: &SolutionBundle) -> Result<(), DefectClass> {
                         ),
                     });
                 }
-            }
         }
         if f.path == "iac/.ontostar-receipt.json" {
             have_sidecar = true;
@@ -301,9 +300,7 @@ pub fn strip_header(contents: &str, prefix: &str) -> String {
     for line in contents.split_inclusive('\n') {
         let trimmed = line.trim_end_matches('\n').trim_end_matches('\r');
         let is_header = trimmed.starts_with(&header_marker)
-            && trimmed
-                .splitn(2, ": ")
-                .nth(1)
+            && trimmed.split_once(": ").map(|x| x.1)
                 .map(|v| !v.is_empty())
                 .unwrap_or(false);
         if is_header {

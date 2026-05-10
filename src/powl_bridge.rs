@@ -270,7 +270,7 @@ pub fn classify_replay(
     };
 
     let trace_canonical_hash = canonical_hash_of_trace(observed_trace);
-    let run_id = format!("run-{}", trace_canonical_hash[..16].to_string());
+    let run_id = format!("run-{}", &trace_canonical_hash[..16]);
 
     ConformanceResult {
         fitness: replay.fitness,

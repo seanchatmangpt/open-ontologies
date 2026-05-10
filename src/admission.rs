@@ -529,7 +529,7 @@ impl OntoStarAdmissionGate {
             &[
                 ("op", op.as_str()),
                 ("artifact_kind", artifact.kind),
-                ("artifact_hash", &artifact_hash.to_hex().to_string()),
+                ("artifact_hash", artifact_hash.to_hex().as_ref()),
                 ("production_law_version", "ontostar-1.0.0"),
                 (
                     "defects_taxonomy_version",

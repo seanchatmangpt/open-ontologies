@@ -413,7 +413,7 @@ impl OcelStore {
     ) -> Result<()> {
         let conn = self.db.conn();
         emit_event_rows(
-            &*conn, event_id, event_type, time_iso, session_id, attrs, objects, scope_token,
+            &conn, event_id, event_type, time_iso, session_id, attrs, objects, scope_token,
             tenant_id,
         )
     }

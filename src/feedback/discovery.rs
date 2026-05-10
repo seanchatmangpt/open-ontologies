@@ -14,6 +14,7 @@
 //!   1. `discover_dfg` → directly-follows graph from the OCEL traces
 //!   2. `discover_alpha` → Petri net (replayable model)
 //!   3. `check_conformance_alignment` → fitness against the same log
+//!
 //! This keeps every PM call inside wasm4pm; the choice_graph entry point can
 //! be substituted later when Stream 2's PowlBridge exposes a wrapper that
 //! converts choice_graph output to a model the conformance checker accepts.
