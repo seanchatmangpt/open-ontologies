@@ -298,10 +298,27 @@ pub struct LlmConfig {
     /// schema churn. Default: `true`.
     #[serde(default = "default_true_bool")]
     pub emit_token_attrs: bool,
+    /// R7 WD-4 — when `true`, the `llm_invoked_full` OCEL event also
+    /// stores the redacted, 32 KiB-truncated prompt and completion
+    /// text. The BLAKE3 prompt/completion hashes are ALWAYS stored
+    /// regardless of this flag. Default: `false` (production-safe;
+    /// enable in test/staging to capture LLM IO for debugging).
+    /// Override with `OPEN_ONTOLOGIES_LLM_PERSIST_FULL_IO=1`.
+    pub persist_full_io: Option<bool>,
 }
 
 fn default_grace_period_pct() -> f64 { 0.10 }
 fn default_true_bool() -> bool { true }
+
+/// R7 WD-4 — resolve `[llm] persist_full_io`. Precedence:
+/// `OPEN_ONTOLOGIES_LLM_PERSIST_FULL_IO` env > config > `false`.
+pub fn resolve_llm_persist_full_io(cfg: &LlmConfig) -> bool {
+    if let Ok(v) = std::env::var("OPEN_ONTOLOGIES_LLM_PERSIST_FULL_IO") {
+        let trimmed = v.trim();
+        return matches!(trimmed, "1" | "true" | "TRUE" | "True" | "yes" | "on");
+    }
+    cfg.persist_full_io.unwrap_or(false)
+}
 
 impl Default for LlmConfig {
     fn default() -> Self {
@@ -318,6 +335,7 @@ impl Default for LlmConfig {
             grace_period_pct: default_grace_period_pct(),
             budget_enforce: false,
             emit_token_attrs: default_true_bool(),
+            persist_full_io: None,
         }
     }
 }

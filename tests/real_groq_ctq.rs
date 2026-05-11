@@ -12,6 +12,7 @@
 //! triggers a SKIP via eprintln rather than a hard failure, so CI without
 //! the local setup does not redden.
 
+use open_ontologies::llm_input::{LlmInput, LlmInputKind};
 use std::process::Command;
 
 const VENV_PYTHON: &str = "/Users/sac/chatmangpt/ostar/.venv/bin/python";
@@ -221,7 +222,7 @@ async fn real_groq_translator_forces_provisional_true_on_messy_voice() {
 
     let candidate = match translator
         .translate_candidate_ctq(
-            "Sales keeps saying the quarter is fine, but Finance keeps finding bookings that do not tie out.",
+            &LlmInput::sanitize("Sales keeps saying the quarter is fine, but Finance keeps finding bookings that do not tie out.", LlmInputKind::SourceVoice).unwrap(),
         )
         .await
     {
@@ -287,7 +288,8 @@ async fn real_groq_translator_surfaces_contradiction_shape() {
 
     let voice = "Sales says the opportunity is committed. Finance says it is not booked. \
                  Legal says contract is executed. RevRec says milestone evidence is missing.";
-    let candidate = match translator.translate_candidate_ctq(voice).await {
+    let voice_input = LlmInput::sanitize(voice, LlmInputKind::SourceVoice).unwrap();
+    let candidate = match translator.translate_candidate_ctq(&voice_input).await {
         Ok(c) => c,
         Err(e) => {
             // Same R4 WC translator-robustness skip as the sibling test.
