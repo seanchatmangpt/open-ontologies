@@ -25,6 +25,7 @@ mod revops_common;
 use open_ontologies::admission::{
     AdmissionOp, ArtifactRef, OntoStarAdmissionGate, PowlBridgeReplay,
 };
+use open_ontologies::llm_input::{LlmInput, LlmInputKind};
 use open_ontologies::llm_translator::GroqTranslator;
 use open_ontologies::ocel_store::OcelStore;
 use open_ontologies::state::StateDb;
@@ -103,7 +104,8 @@ async fn fortune5_revops_revenue_trust_trial_with_real_groq() {
     // ── 3. Drive the RequirementsManufacturing chain via REAL Groq ─────
     let source_voice =
         "Sales says deals are real, Finance can't reconcile bookings, executives don't trust the forecast.";
-    let candidate = match translator.translate_candidate_ctq(source_voice).await {
+    let source_voice_input = LlmInput::sanitize(source_voice, LlmInputKind::SourceVoice).unwrap();
+    let candidate = match translator.translate_candidate_ctq(&source_voice_input).await {
         Ok(c) => c,
         Err(e) => {
             // §27 honest scope: real-Groq deserialization can fail when

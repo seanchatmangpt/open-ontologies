@@ -64,6 +64,12 @@ pub mod embed_remote;
 #[cfg(feature = "embeddings")]
 pub mod structembed;
 
+// R7 WD-1 — `LlmInput` newtype. Every byte that crosses into an LLM
+// prompt or completion-parser must be sanitized through
+// `LlmInput::sanitize` first. Public surfaces accept `&LlmInput`, never
+// `&str`. Closes the prompt-injection bypass at the type system layer.
+pub mod llm_input;
+
 // LLM Boundary Translator (Groq). Always available — reqwest+tokio are
 // not feature-gated. The translator is a *proposer*, not an authority.
 pub mod llm_translator;

@@ -20,6 +20,7 @@
 //! check) — otherwise the test would pass even if the translator never
 //! held the key, defeating the purpose.
 
+use open_ontologies::llm_input::{LlmInput, LlmInputKind};
 use open_ontologies::llm_translator::{CandidateCtq, GroqTranslator};
 use std::sync::Arc;
 use std::time::Duration;
@@ -121,7 +122,7 @@ async fn canary_key_never_appears_in_any_translator_evidence_surface() {
 
     // 2. Drive a translation. The mock returns a fixed candidate.
     let candidate: CandidateCtq = translator
-        .translate_candidate_ctq("Sales says committed; Finance says unbooked")
+        .translate_candidate_ctq(&LlmInput::sanitize("Sales says committed; Finance says unbooked", LlmInputKind::SourceVoice).unwrap())
         .await
         .expect("translation should succeed against the mock");
 
@@ -231,7 +232,7 @@ async fn error_path_does_not_echo_bearer_token() {
     )
     .unwrap();
     let err = translator
-        .translate_candidate_ctq("voice")
+        .translate_candidate_ctq(&LlmInput::sanitize("voice", LlmInputKind::SourceVoice).unwrap())
         .await
         .unwrap_err();
     let err_str = format!("{err:?}");

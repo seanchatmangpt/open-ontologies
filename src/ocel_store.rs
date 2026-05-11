@@ -686,3 +686,162 @@ impl OcelStore {
         Ok(inserted)
     }
 }
+
+// ─── R7 WD-4 — `llm_invoked_full` OCEL persistence ─────────────────────
+//
+// The `llm_invoked_full` event captures the BLAKE3 digest of the prompt
+// and completion (always — deterministic, content-addressable) and,
+// only when `persist_full_io = true`, the redacted truncated text. The
+// helper is a free function (not a method) so the call site can fire
+// even when the OcelStore is borrowed from inside the translator's
+// async path.
+//
+// Persisted-text rules:
+// - Hard cap at 32 KiB; payloads beyond the cap are truncated and
+//   suffixed with the marker `[truncated]` so an auditor can spot the
+//   transformation.
+// - Bearer-pattern redaction (shared with the translator) is applied
+//   to both the prompt and the completion before persistence.
+//
+// Retention: this event_type is persisted in `ocel_events` like every
+// other event, so [`crate::retention::RetentionWorker::prune_ocel`]
+// already evicts it on the same TTL as receipts (R4 WD).
+
+const LLM_FULL_TEXT_CAP: usize = 32 * 1024;
+const LLM_TRUNCATION_MARKER: &str = "[truncated]";
+
+/// Truncate `s` to at most [`LLM_FULL_TEXT_CAP`] bytes and suffix the
+/// truncation marker if the cap fired. UTF-8-safe: cuts at the last
+/// char boundary inside the cap.
+fn truncate_for_ocel(s: &str) -> String {
+    if s.len() <= LLM_FULL_TEXT_CAP {
+        return s.to_string();
+    }
+    let mut end = LLM_FULL_TEXT_CAP;
+    while end > 0 && !s.is_char_boundary(end) {
+        end -= 1;
+    }
+    let mut out = String::with_capacity(end + LLM_TRUNCATION_MARKER.len());
+    out.push_str(&s[..end]);
+    out.push_str(LLM_TRUNCATION_MARKER);
+    out
+}
+
+/// Apply the same bearer-pattern redaction the translator uses for HTTP
+/// error bodies. Inlined here to avoid a circular `crate::llm_translator`
+/// import inside the OCEL store.
+fn redact_bearer(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    let bytes = s.as_bytes();
+    let mut i = 0;
+    let needle = b"Bearer ";
+    while i < bytes.len() {
+        if bytes[i..].starts_with(needle) {
+            out.push_str("Bearer <redacted>");
+            i += needle.len();
+            while i < bytes.len() && !bytes[i].is_ascii_whitespace() {
+                i += 1;
+            }
+        } else {
+            out.push(bytes[i] as char);
+            i += 1;
+        }
+    }
+    out
+}
+
+/// R7 WD-4 — emit an `llm_invoked_full` OCEL event.
+///
+/// `prompt_hash` and `completion_hash` (BLAKE3 hex) are ALWAYS emitted.
+/// `prompt_text` and `completion_text` are emitted only when
+/// `persist_full_io = true`; they are redacted (bearer patterns) and
+/// truncated to 32 KiB with the `[truncated]` marker.
+///
+/// Errors are intentionally swallowed (logged at `tracing::warn`) so
+/// an OCEL persistence failure cannot break the translator's main
+/// success path. The hash digests are deterministic so a repeat call
+/// produces the same `event_id` and the OCEL store's INSERT OR IGNORE
+/// path makes the emit idempotent.
+#[allow(clippy::too_many_arguments)]
+pub fn record_llm_invoked_full(
+    store: &OcelStore,
+    session_id: &str,
+    scope_token: Option<&str>,
+    tenant_id: &str,
+    model: &str,
+    op: &str,
+    success: bool,
+    prompt_text: &str,
+    completion_text: &str,
+    persist_full_io: bool,
+) {
+    let prompt_hash = blake3::hash(prompt_text.as_bytes()).to_hex().to_string();
+    let completion_hash = blake3::hash(completion_text.as_bytes()).to_hex().to_string();
+    let now = chrono::Utc::now().to_rfc3339();
+    let ts_ms = chrono::Utc::now().timestamp_millis();
+
+    // Deterministic event_id incorporates the hashes so two ticks with
+    // identical io collapse to a single OCEL row (idempotency required
+    // by `tests/llm_invoked_full_replay.rs`).
+    let event_id = format!(
+        "{session_id}:llm_invoked_full:{}:{}:{ts_ms}",
+        &prompt_hash[..16],
+        &completion_hash[..16]
+    );
+
+    let success_str = if success { "true" } else { "false" };
+    let mut attrs: Vec<(&str, &str)> = vec![
+        ("model", model),
+        ("op", op),
+        ("success", success_str),
+        ("prompt_hash", &prompt_hash),
+        ("completion_hash", &completion_hash),
+    ];
+
+    let prompt_redacted;
+    let completion_redacted;
+    if persist_full_io {
+        prompt_redacted = truncate_for_ocel(&redact_bearer(prompt_text));
+        completion_redacted = truncate_for_ocel(&redact_bearer(completion_text));
+        attrs.push(("prompt_text", &prompt_redacted));
+        attrs.push(("completion_text", &completion_redacted));
+    }
+
+    if let Err(e) = store.emit_event_in_tenant(
+        &event_id,
+        "llm_invoked_full",
+        &now,
+        session_id,
+        &attrs,
+        &[],
+        scope_token,
+        tenant_id,
+    ) {
+        tracing::warn!("record_llm_invoked_full: emit failed: {e}");
+    }
+}
+
+#[cfg(test)]
+mod llm_full_tests {
+    use super::*;
+
+    #[test]
+    fn truncate_appends_marker_when_over_cap() {
+        let s = "a".repeat(LLM_FULL_TEXT_CAP + 100);
+        let out = truncate_for_ocel(&s);
+        assert!(out.ends_with(LLM_TRUNCATION_MARKER));
+        assert!(out.len() <= LLM_FULL_TEXT_CAP + LLM_TRUNCATION_MARKER.len());
+    }
+
+    #[test]
+    fn truncate_passthrough_when_under_cap() {
+        assert_eq!(truncate_for_ocel("hello"), "hello");
+    }
+
+    #[test]
+    fn redact_strips_bearer_token() {
+        let r = redact_bearer("Authorization: Bearer sk-leak123 trailing");
+        assert!(!r.contains("sk-leak123"));
+        assert!(r.contains("Bearer <redacted>"));
+    }
+}

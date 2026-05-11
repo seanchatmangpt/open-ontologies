@@ -14,6 +14,7 @@
 //! after, with retry-on-failure driven by the typed
 //! `ValidationFailure` taxonomy.
 
+use open_ontologies::llm_input::{LlmInput, LlmInputKind};
 use open_ontologies::llm_translator::GroqTranslator;
 use open_ontologies::signature_shape::{ctq_signature, FieldSpec, SignatureShape};
 use std::collections::BTreeMap;
@@ -122,8 +123,8 @@ async fn shaped_translation_admits_canonical_response_on_first_try() {
     )
     .unwrap();
     let mut inputs = BTreeMap::new();
-    inputs.insert("source_voice".into(), "Sales says committed; Finance can't reconcile".into());
-    inputs.insert("voice_kind".into(), "operator".into());
+    inputs.insert("source_voice".into(), LlmInput::sanitize("Sales says committed; Finance can't reconcile", LlmInputKind::SourceVoice).unwrap());
+    inputs.insert("voice_kind".into(), LlmInput::sanitize("operator", LlmInputKind::Description).unwrap());
 
     let parsed = translator
         .translate_with_signature(&ctq_signature(), &inputs, 2)
@@ -163,8 +164,8 @@ async fn shaped_translation_refines_after_validation_failure() {
     )
     .unwrap();
     let mut inputs = BTreeMap::new();
-    inputs.insert("source_voice".into(), "voice".into());
-    inputs.insert("voice_kind".into(), "operator".into());
+    inputs.insert("source_voice".into(), LlmInput::sanitize("voice", LlmInputKind::SourceVoice).unwrap());
+    inputs.insert("voice_kind".into(), LlmInput::sanitize("operator", LlmInputKind::Description).unwrap());
 
     let parsed = translator
         .translate_with_signature(&ctq_signature(), &inputs, 3)
@@ -205,8 +206,8 @@ async fn shaped_translation_exhausts_refinements_and_errors() {
     )
     .unwrap();
     let mut inputs = BTreeMap::new();
-    inputs.insert("source_voice".into(), "voice".into());
-    inputs.insert("voice_kind".into(), "operator".into());
+    inputs.insert("source_voice".into(), LlmInput::sanitize("voice", LlmInputKind::SourceVoice).unwrap());
+    inputs.insert("voice_kind".into(), LlmInput::sanitize("operator", LlmInputKind::Description).unwrap());
 
     let err = translator
         .translate_with_signature(&ctq_signature(), &inputs, 2)
@@ -239,8 +240,8 @@ async fn shaped_translation_handles_llm_with_code_fences_and_prose() {
     )
     .unwrap();
     let mut inputs = BTreeMap::new();
-    inputs.insert("source_voice".into(), "voice".into());
-    inputs.insert("voice_kind".into(), "operator".into());
+    inputs.insert("source_voice".into(), LlmInput::sanitize("voice", LlmInputKind::SourceVoice).unwrap());
+    inputs.insert("voice_kind".into(), LlmInput::sanitize("operator", LlmInputKind::Description).unwrap());
 
     let parsed = translator
         .translate_with_signature(&ctq_signature(), &inputs, 1)
@@ -271,7 +272,7 @@ async fn shaped_translation_disallowed_value_triggers_refine() {
     )
     .unwrap();
     let mut inputs = BTreeMap::new();
-    inputs.insert("voice".into(), "x".into());
+    inputs.insert("voice".into(), LlmInput::sanitize("x", LlmInputKind::Description).unwrap());
     let parsed = translator
         .translate_with_signature(&shape, &inputs, 2)
         .await

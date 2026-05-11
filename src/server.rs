@@ -2638,10 +2638,24 @@ impl OpenOntologiesServer {
         let mut embedded_count = 0;
         let mut errors: Vec<String> = Vec::new();
 
+        // R7 WD-1 — sanitize each class label through the embed-label
+        // boundary before it reaches the embedding provider. The
+        // 256-byte cap is enforced; labels exceeding it are recorded
+        // as errors and the IRI is skipped (no embedding written).
         for (iri, label) in &class_labels {
+            let label_input = match crate::llm_input::LlmInput::sanitize(
+                label,
+                crate::llm_input::LlmInputKind::EmbedLabel,
+            ) {
+                Ok(v) => v,
+                Err(e) => {
+                    errors.push(format!("{}: LlmInput sanitize: {}", iri, e));
+                    continue;
+                }
+            };
             // Compute the text embedding (may await an HTTP call) BEFORE
             // locking the non-Send VecStore mutex.
-            match embedder.embed(label).await {
+            match embedder.embed_input(&label_input).await {
                 Ok(text_vec) => {
                     let struct_vec = struct_embeddings.get(iri)
                         .cloned()
@@ -2687,7 +2701,22 @@ impl OpenOntologiesServer {
             None => return r#"{"error":"Embedding model not loaded."}"#.to_string(),
         };
 
-        let query_vec = match embedder.embed(&input.query).await {
+        // R7 WD-1 — sanitize the search query through the embed-query
+        // boundary (256-byte cap, chat-marker rejection) before any
+        // bytes reach the embedder.
+        let query_input = match crate::llm_input::LlmInput::sanitize(
+            &input.query,
+            crate::llm_input::LlmInputKind::EmbedQuery,
+        ) {
+            Ok(v) => v,
+            Err(e) => {
+                return format!(
+                    r#"{{"error":"LlmInput sanitize failed: {}"}}"#,
+                    e.to_string().replace('"', "'")
+                )
+            }
+        };
+        let query_vec = match embedder.embed_input(&query_input).await {
             Ok(v) => v,
             Err(e) => return format!(r#"{{"error":"{}"}}"#, e),
         };
@@ -4195,9 +4224,33 @@ impl OpenOntologiesServer {
         // + per-field constraints + demos) and post-validates the
         // response against the same shape, retrying with typed revision
         // hints on failure. The LLM never sees a free-form prompt.
-        let mut shape_inputs = std::collections::BTreeMap::new();
-        shape_inputs.insert("source_voice".into(), input.source_voice.clone());
-        shape_inputs.insert("voice_kind".into(), "operator".into());
+        //
+        // R7 WD-1 — every input crossing the LLM boundary is wrapped
+        // in a sanitized `LlmInput` first. Rejection at this point is
+        // surfaced as a typed error to the caller so injection attempts
+        // (chat markers, oversize, control bytes) cannot reach Groq.
+        let voice_sanitized = match crate::llm_input::LlmInput::sanitize(
+            &input.source_voice,
+            crate::llm_input::LlmInputKind::SourceVoice,
+        ) {
+            Ok(v) => v,
+            Err(e) => {
+                self.emit_tool_ocel("onto_translate_candidate", started, false, &[]);
+                return format!(
+                    r#"{{"ok":false,"error":"LlmInput sanitize failed: {}"}}"#,
+                    e.to_string().replace('"', "'")
+                );
+            }
+        };
+        let kind_sanitized = crate::llm_input::LlmInput::sanitize(
+            "operator",
+            crate::llm_input::LlmInputKind::Description,
+        )
+        .expect("static literal 'operator' is allowlist-safe");
+        let mut shape_inputs: std::collections::BTreeMap<String, crate::llm_input::LlmInput> =
+            std::collections::BTreeMap::new();
+        shape_inputs.insert("source_voice".into(), voice_sanitized);
+        shape_inputs.insert("voice_kind".into(), kind_sanitized);
         let parsed = match translator
             .translate_with_signature(&crate::signature_shape::ctq_signature(), &shape_inputs, 2)
             .await
@@ -4876,7 +4929,42 @@ impl OpenOntologiesServer {
         // staying inside the bounded prompt the translator already
         // implements. The prompt feeds admitted evidence as
         // source_voice; the translator MUST NOT invent facts.
-        let candidate = match translator.translate_candidate_ctq(evidence).await {
+        //
+        // R7 WD-1 — sanitize evidence at the LLM boundary. Evidence is
+        // bounded at 8192 bytes and stripped of control bytes / chat
+        // markers before reaching Groq.
+        let evidence_input = match crate::llm_input::LlmInput::sanitize(
+            evidence,
+            crate::llm_input::LlmInputKind::Evidence,
+        ) {
+            Ok(v) => v,
+            Err(e) => {
+                self.emit_tool_ocel("onto_executive_projection", started, false, &[]);
+                return format!(
+                    r#"{{"ok":false,"error":"LlmInput sanitize failed: {}"}}"#,
+                    e.to_string().replace('"', "'")
+                );
+            }
+        };
+        // R7 WD-4 — capture prompt + completion in OCEL via the
+        // `_full` helper. `persist_full_io` is resolved from
+        // `[llm] persist_full_io` (env override available); when
+        // false (production default) only the BLAKE3 digests are
+        // stored — never the raw text.
+        let persist_full_io =
+            crate::config::resolve_llm_persist_full_io(&llm_cfg);
+        let tenant_for_ocel = self.tenant_snapshot();
+        let candidate = match translator
+            .translate_candidate_ctq_full(
+                &evidence_input,
+                self.ocel_store(),
+                &self.session_id,
+                Some(&input.scope_token),
+                &tenant_for_ocel,
+                persist_full_io,
+            )
+            .await
+        {
             Ok(c) => c,
             Err(e) => {
                 self.emit_tool_ocel("onto_executive_projection", started, false, &[]);

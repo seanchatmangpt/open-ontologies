@@ -167,6 +167,25 @@ pub enum AdmissionOp {
     /// canonical `revoked_principals` table once Task B lands.
     /// TODO(R3 W3): add `op_class()` arm "governance" once the method lands.
     SessionRevoke,
+    // ── R7 WD-4 — LLM IO persistence ──────────────────────────────────
+    /// Audit-only. Pairs with the `llm_invoked_full` OCEL event emitted
+    /// by `crate::ocel_store::record_llm_invoked_full`. The event
+    /// captures `prompt_hash` and `completion_hash` always; the raw
+    /// text only when `[llm] persist_full_io = true`. Never denies —
+    /// the LLM call already happened by the time we log.
+    LlmInvokedFull,
+    // ── R7 WD-3 — alignment proposal lifecycle ────────────────────────
+    /// Audit-only. Wraps the `align_proposal` OCEL event emitted by
+    /// `AlignmentEngine::align_pair` for high-confidence candidates.
+    /// Replaces the pre-WD-3 auto-apply path: alignments now PROPOSE
+    /// (this op) and only `AlignApplied` actually mutates the graph,
+    /// admin-gated.
+    AlignProposed,
+    /// Full admission. Wraps `onto_align_apply`'s
+    /// `graph.load_turtle(...)` call. Admin-gated at the handler level
+    /// via `admin_principals`. The artifact bytes are the canonical
+    /// proposal id (BLAKE3 of triple bytes).
+    AlignApplied,
 }
 
 impl AdmissionOp {
@@ -200,6 +219,10 @@ impl AdmissionOp {
             AdmissionOp::BootstrapUnlock => "bootstrap_unlock",
             AdmissionOp::ReceiptsBatchRevoke => "receipts_batch_revoke",
             AdmissionOp::SessionRevoke => "session_revoke",
+            // R7 WD-3 / WD-4
+            AdmissionOp::LlmInvokedFull => "llm_invoked_full",
+            AdmissionOp::AlignProposed => "align_proposed",
+            AdmissionOp::AlignApplied => "align_applied",
         }
     }
 
@@ -227,6 +250,10 @@ impl AdmissionOp {
                 | AdmissionOp::BootstrapUnlock
                 | AdmissionOp::ReceiptsBatchRevoke
                 | AdmissionOp::SessionRevoke
+                // R7 WD-4 — log-only LLM IO mirror.
+                | AdmissionOp::LlmInvokedFull
+                // R7 WD-3 — proposal is audit-only; only AlignApplied mutates.
+                | AdmissionOp::AlignProposed
         )
     }
 }

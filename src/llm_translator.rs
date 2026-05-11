@@ -29,6 +29,8 @@ use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
 use crate::config::LlmConfig;
+use crate::llm_input::LlmInput;
+use crate::ocel_store::OcelStore;
 
 /// Provisional candidate CTQ produced by the LLM boundary translator.
 ///
@@ -163,7 +165,12 @@ impl GroqTranslator {
     /// Returns `Err(TranslateError::NoLlmConfigured)` if no API key is
     /// resolved — the caller (gate) must treat this as
     /// `LlmAuthorityClaimed` if a candidate proceeds without translation.
-    pub async fn translate_candidate_ctq(&self, source_voice: &str) -> Result<CandidateCtq> {
+    ///
+    /// **R7 WD-1:** accepts a sanitized [`LlmInput`] rather than a raw
+    /// `&str`. Callers must build the `LlmInput` via
+    /// [`LlmInput::sanitize`] which rejects chat-control markers,
+    /// over-length payloads, control bytes, and disallowed characters.
+    pub async fn translate_candidate_ctq(&self, source_voice: &LlmInput) -> Result<CandidateCtq> {
         let api_key = self
             .api_key
             .as_ref()
@@ -177,7 +184,8 @@ impl GroqTranslator {
             defect_class_hint, ctq_text, measure_text, verification_text, \
             negative_case_text, control_plan_text. All values are strings.";
 
-        let user_prompt = format!("Source voice: {source_voice}");
+        let voice_str = source_voice.as_str();
+        let user_prompt = format!("Source voice: {voice_str}");
 
         let body = ChatRequest {
             model: &self.model,
@@ -232,6 +240,49 @@ impl GroqTranslator {
         Ok(candidate)
     }
 
+    /// R7 WD-1 + WD-4 — sanitized variant of `translate_candidate_ctq`
+    /// that ALSO emits an `llm_invoked_full` OCEL event capturing the
+    /// prompt + completion BLAKE3 digests (always) and the raw text
+    /// (only when `cfg.persist_full_io = true`). Bearer-pattern
+    /// redaction and a 32 KiB cap are applied to any persisted text.
+    ///
+    /// This is the boundary helper the server uses; all OCEL writes
+    /// happen here so the call site is structurally guaranteed to log.
+    pub async fn translate_candidate_ctq_full(
+        &self,
+        source_voice: &LlmInput,
+        ocel: &OcelStore,
+        session_id: &str,
+        scope_token: Option<&str>,
+        tenant_id: &str,
+        persist_full_io: bool,
+    ) -> Result<CandidateCtq> {
+        let voice_str = source_voice.as_str();
+        let user_prompt = format!("Source voice: {voice_str}");
+        let outcome = self.translate_candidate_ctq(source_voice).await;
+        // Build a deterministic completion-side payload to hash. On
+        // success we hash the canonical JSON; on error we hash the
+        // error string so the trail still records something.
+        let completion_repr = match &outcome {
+            Ok(c) => serde_json::to_string(c).unwrap_or_default(),
+            Err(e) => format!("error: {e}"),
+        };
+        let success = outcome.is_ok();
+        crate::ocel_store::record_llm_invoked_full(
+            ocel,
+            session_id,
+            scope_token,
+            tenant_id,
+            self.model(),
+            "translate_candidate_ctq",
+            success,
+            &user_prompt,
+            &completion_repr,
+            persist_full_io,
+        );
+        outcome
+    }
+
     /// Drive a DSPy-style **shaped** translation: compile the
     /// signature into a (system, user) prompt pair, send it to Groq,
     /// parse the response back through the shape's gauge, and refine
@@ -249,7 +300,7 @@ impl GroqTranslator {
     pub async fn translate_with_signature(
         &self,
         shape: &crate::signature_shape::SignatureShape,
-        inputs: &std::collections::BTreeMap<String, String>,
+        inputs: &std::collections::BTreeMap<String, LlmInput>,
         max_refinements: u32,
     ) -> Result<crate::signature_shape::ParsedFields> {
         let api_key = self
@@ -257,13 +308,22 @@ impl GroqTranslator {
             .as_ref()
             .ok_or_else(|| anyhow::anyhow!("NoLlmConfigured: GROQ_API_KEY not set"))?;
 
+        // R7 WD-1 — re-flatten the typed `LlmInput` map into the
+        // string map that the signature shape's pure compile path
+        // expects. Sanitization already happened at the caller; this
+        // step only strips the type wrapper.
+        let str_inputs: std::collections::BTreeMap<String, String> = inputs
+            .iter()
+            .map(|(k, v)| (k.clone(), v.as_str().to_string()))
+            .collect();
+
         let mut last_failures: Vec<crate::signature_shape::ValidationFailure> = Vec::new();
 
         for attempt in 0..=max_refinements {
             let (sys, user) = if attempt == 0 {
-                shape.compile_prompt(inputs)
+                shape.compile_prompt(&str_inputs)
             } else {
-                shape.compile_prompt_with_hints(inputs, &last_failures)
+                shape.compile_prompt_with_hints(&str_inputs, &last_failures)
             };
 
             let body = ChatRequest {
@@ -439,7 +499,12 @@ mod tests {
             Duration::from_secs(1),
         )
         .unwrap();
-        let err = t.translate_candidate_ctq("voice").await.unwrap_err();
+        let voice = crate::llm_input::LlmInput::sanitize(
+            "voice",
+            crate::llm_input::LlmInputKind::SourceVoice,
+        )
+        .unwrap();
+        let err = t.translate_candidate_ctq(&voice).await.unwrap_err();
         assert!(err.to_string().contains("NoLlmConfigured"));
     }
 }

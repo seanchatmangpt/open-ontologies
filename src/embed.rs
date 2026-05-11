@@ -186,11 +186,29 @@ impl TextEmbedderProvider {
 
     /// Embed a single text string. Async because the OpenAI variant performs
     /// an HTTP request; the local variant just runs CPU-bound work.
+    ///
+    /// **Internal `&str` surface** — kept for unit tests and the local
+    /// ONNX path that is purely CPU-bound. Production callers crossing
+    /// the LLM boundary MUST go through [`Self::embed_input`] which
+    /// requires a sanitized [`crate::llm_input::LlmInput`].
     pub async fn embed(&self, text: &str) -> anyhow::Result<Vec<f32>> {
         match self {
             Self::Local(e) => e.embed(text),
             Self::OpenAI(e) => e.embed(text).await,
         }
+    }
+
+    /// R7 WD-1 — public LLM-boundary entry point. Accepts a sanitized
+    /// [`crate::llm_input::LlmInput`] so chat-control markers, control
+    /// bytes, and oversize payloads are rejected before any text leaves
+    /// the process. The kind must be `EmbedLabel` or `EmbedQuery` (256
+    /// byte cap) — any other kind is permitted but represents a caller
+    /// bug since embedding is a label/query surface.
+    pub async fn embed_input(
+        &self,
+        input: &crate::llm_input::LlmInput,
+    ) -> anyhow::Result<Vec<f32>> {
+        self.embed(input.as_str()).await
     }
 
     /// Output dimension of the embedding vectors.
