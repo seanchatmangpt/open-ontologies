@@ -26,6 +26,11 @@ pub struct Config {
     /// background job. Defaults are chosen so that single-tenant deployments
     /// with no explicit `[retention]` section still cap unbounded growth.
     pub retention: RetentionConfig,
+    /// `[verifier]` — R7 WA2 A2 V1 Receipt-Chain Verifier worker.
+    /// Continuous tokio loop; ZERO LLM by invariant — crypto verdicts
+    /// must be reproducible bit-for-bit from `(receipt_row,
+    /// trusted_keys_history_row)`. See [`crate::verifier_worker`].
+    pub verifier: VerifierConfig,
     /// `[authority]` — R5 WC-1 §28 HumanOverride closure. Cached at
     /// startup; subsequent env-var changes are ignored (TOCTOU-immune).
     /// Closed-by-default: an empty `admin_principals` list means NO
@@ -221,7 +226,7 @@ pub fn resolve_embeddings_model(cfg: &EmbeddingsConfig) -> String {
 // or projections. See `src/llm_translator.rs`.
 
 /// Configuration for the Groq-backed LLM boundary translator.
-#[derive(Debug, Default, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Clone)]
 #[serde(default)]
 pub struct LlmConfig {
     /// LLM provider name. Currently only `"groq"` is wired; the field is
@@ -256,10 +261,65 @@ pub struct LlmConfig {
     /// Override with `OPEN_ONTOLOGIES_LLM_PYTHON` or per-call via the
     /// `python` tool argument. Default: `"python3"`.
     pub python_interpreter: Option<String>,
-    /// Hard timeout (seconds) for the `groq_pm4py` subprocess. Future-
-    /// hook — current call sites use the underlying script's own timeout
-    /// behaviour. Default: 30.
+    /// Hard timeout (seconds) for every subprocess invoked by the LLM
+    /// path (`groq_pm4py` engine, `ggen sync`, `ontostar_planner.py`,
+    /// `wvda_agent.py`, `mu_star_agent.py`, etc.). Wired into
+    /// [`crate::subprocess::run_with_timeout`] at the 8 historical
+    /// shell-out sites in `src/server.rs`. Default: 60.
+    ///
+    /// Pre-R7-WB-1 this field was *dead* — declared on the config but
+    /// never read by any call site. The active wedge risk that closure
+    /// addresses: the auto-default `groq_pm4py` engine spawns
+    /// `scripts/*.py`, which itself opens a Groq HTTP request; any
+    /// network or API hang wedged the Tokio worker indefinitely.
     pub subprocess_timeout_secs: Option<u64>,
+    /// R7 WB-3 — daily token budget per tenant. When the running
+    /// 24h-window total exceeds this value (within the
+    /// `grace_period_pct` warn band) every subsequent LLM call is
+    /// denied with `DefectClass::LlmBudgetExceeded` until midnight UTC
+    /// or an admin invokes `onto_llm_budget_reset`. `None` (default)
+    /// disables the gate even when `budget_enforce = true`. Default
+    /// magnitude (when set): 100_000 tokens/day.
+    #[serde(default)]
+    pub daily_token_budget_per_tenant: Option<u64>,
+    /// R7 WB-3 — fraction of the daily budget that triggers a warning
+    /// (logged + OCEL `llm_budget_warning`) before hard denial. e.g.
+    /// `0.10` means 0–110% of the budget is allowed but the band 100–
+    /// 110% is logged. Default: `0.10`.
+    #[serde(default = "default_grace_period_pct")]
+    pub grace_period_pct: f64,
+    /// R7 WB-3 — when `false` (default) the budget meter records and
+    /// warns but never denies. Operators flip this to `true` after
+    /// observing one quiet week of capture. Default: `false`.
+    #[serde(default)]
+    pub budget_enforce: bool,
+    /// R7 WB-3 — toggle whether `llm_invoked` OCEL events get the
+    /// additive token attribute set. Off in tests by default to avoid
+    /// schema churn. Default: `true`.
+    #[serde(default = "default_true_bool")]
+    pub emit_token_attrs: bool,
+}
+
+fn default_grace_period_pct() -> f64 { 0.10 }
+fn default_true_bool() -> bool { true }
+
+impl Default for LlmConfig {
+    fn default() -> Self {
+        Self {
+            provider: None,
+            api_base: None,
+            api_key: None,
+            model: None,
+            request_timeout_secs: None,
+            engine: None,
+            python_interpreter: None,
+            subprocess_timeout_secs: None,
+            daily_token_budget_per_tenant: None,
+            grace_period_pct: default_grace_period_pct(),
+            budget_enforce: false,
+            emit_token_attrs: default_true_bool(),
+        }
+    }
 }
 
 /// Resolve the LLM provider name. Precedence:
@@ -373,6 +433,22 @@ pub fn resolve_llm_python(cfg: &LlmConfig) -> String {
         .filter(|v| !v.trim().is_empty())
         .or_else(|| cfg.python_interpreter.clone().filter(|v| !v.trim().is_empty()))
         .unwrap_or_else(|| "python3".to_string())
+}
+
+/// R7 WB-1 — resolve the subprocess wall-clock timeout in seconds.
+///
+/// Precedence: `OPEN_ONTOLOGIES_SUBPROCESS_TIMEOUT_SECS` env > config
+/// > 60. The env override exists so operators (and the
+/// [`tests/wb1_subprocess_timeout`] integration tests) can tighten the
+/// deadline without rewriting `config.toml`. Returned as a `Duration`
+/// so call sites don't repeat the arithmetic.
+pub fn resolve_subprocess_timeout(cfg: &LlmConfig) -> std::time::Duration {
+    let secs = std::env::var("OPEN_ONTOLOGIES_SUBPROCESS_TIMEOUT_SECS")
+        .ok()
+        .and_then(|v| v.trim().parse::<u64>().ok())
+        .or(cfg.subprocess_timeout_secs)
+        .unwrap_or(60);
+    std::time::Duration::from_secs(secs)
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -577,6 +653,58 @@ impl Default for RetentionConfig {
             feedback_days: 365,
             archive_path: None,
             hot_receipt_days: 365,
+        }
+    }
+}
+
+/// `[verifier]` — R7 WA2 A2 V1 Receipt-Chain Verifier.
+///
+/// The verifier worker (`crate::verifier_worker::VerifierWorker`) ticks
+/// every `tick_secs`, scans a batch of new receipts past its cursor, and
+/// runs `crate::verify::crypto_verify` on each row. The function is pure
+/// — verdicts depend only on the receipt row and its matching
+/// `trusted_keys_history` row, NOT on any LLM, network call, or wall
+/// clock comparison performed lazily.
+///
+/// # ZERO-LLM invariant
+///
+/// This is the deterministic autonomic loop. An LLM in this code path
+/// would be a §22 regression. The config has no `llm_*` fields by
+/// design.
+#[derive(Debug, Deserialize, Clone)]
+#[serde(default)]
+pub struct VerifierConfig {
+    /// When false, the worker spawns but skips every tick. Default: true.
+    pub enabled: bool,
+    /// Tick interval in seconds. Clamped to >= 1. Default: 300 (5 min).
+    pub tick_secs: u64,
+    /// Maximum number of receipts to verify per tick. Default: 5000.
+    pub batch_limit: i64,
+    /// On a corruption verdict, advance `retention_paused_until` via
+    /// `fetch_max(now + pause_minutes_on_failure * 60)`. Default: true.
+    pub pause_retention_on_failure: bool,
+    /// How long to pause retention on a corruption verdict, in minutes.
+    /// Default: 60.
+    pub pause_minutes_on_failure: u64,
+    /// On a corruption verdict, emit `tracing::error!(target:"andon",
+    /// ...)` so log scrapers can stop the line. Default: true.
+    pub andon_on_failure: bool,
+    /// Optional clamp: if set, only verify receipts whose `granted_at`
+    /// falls within the past N days. Useful for very large back-fills.
+    /// Default: None (unbounded — verify the full chain).
+    pub max_lookback_days: Option<u64>,
+}
+
+impl Default for VerifierConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            tick_secs: 300,
+            batch_limit: 5000,
+            pause_retention_on_failure: true,
+            pause_minutes_on_failure: 60,
+            andon_on_failure: true,
+            max_lookback_days: None,
         }
     }
 }

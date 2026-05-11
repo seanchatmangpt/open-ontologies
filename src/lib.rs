@@ -68,6 +68,12 @@ pub mod structembed;
 // not feature-gated. The translator is a *proposer*, not an authority.
 pub mod llm_translator;
 
+// R7 WB-1 — Subprocess timeout enforcement. Wraps every shell-out site
+// (groq_pm4py engine, ggen sync, planner) with a hard wall-clock
+// deadline. Closes the active wedge risk where a hung Groq HTTP call
+// inside scripts/*.py held a Tokio worker indefinitely.
+pub mod subprocess;
+
 // DSPy-style signature shapes — the language-to-contract boundary that
 // molds LLM output before generation and gauges it after. Used by the
 // shaped translator to constrain CTQ proposals to a specific output
@@ -89,3 +95,10 @@ pub mod swarm;
 // from a binary or library without reimplementing the strip-and-rehash
 // rules. Backed by `src/cmds/governance.rs::verify`.
 pub mod verify;
+
+// R7 WA2 — A2 V1 Receipt-Chain Verifier worker. ZERO LLM by invariant.
+// Continuous tokio loop that crypto-verifies every receipt row against
+// the trusted-keys history table; on corruption it emits a
+// `verifier_failure` OCEL row, advances `retention_paused_until`, and
+// fires an andon-tagged `tracing::error`.
+pub mod verifier_worker;

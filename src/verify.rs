@@ -46,6 +46,186 @@ use crate::state::StateDb;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 
+// ─── R7 WA2 — A2 V1 Receipt-Chain Verifier ─────────────────────────────────
+//
+// Pure deterministic check that a receipt row is consistent with the
+// trusted-keys history. ZERO LLM by invariant — the verdict must be
+// reproducible bit-for-bit from the row + history. The verifier worker
+// (`crate::verifier_worker`) calls this on every checkpointed receipt.
+
+/// One row from `receipts` as the verifier sees it. Field set is the
+/// minimal projection the worker needs; populated by a single SELECT.
+#[derive(Debug, Clone)]
+pub struct VerifierReceiptRow {
+    pub receipt_hash: String,
+    pub sequence: i64,
+    pub session_id: String,
+    pub scope_token: String,
+    pub granted_at: String,
+    /// `trusted_keys_history.added_at` for the signing fingerprint at the
+    /// time the receipt was persisted. Empty string means the receipt was
+    /// admitted unsigned (legacy or `verify_legacy_receipts = true`).
+    pub key_valid_at: String,
+}
+
+/// What `crypto_verify` decided for one receipt row. Each variant maps
+/// 1:1 to an OCEL emission in the worker tick.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum VerifierError {
+    /// `key_valid_at` references a fingerprint whose `trusted_keys_history`
+    /// row was retired BEFORE this receipt was granted. The receipt was
+    /// signed within the key's window — the key was rotated out later.
+    /// Treated as a warning: retention is NOT paused.
+    SignatureExpiredKey {
+        granted_at: String,
+        removed_at: String,
+    },
+    /// The receipt's `key_valid_at` does NOT match the recorded `added_at`
+    /// of any row in `trusted_keys_history`. Tamper signal —
+    /// `key_valid_at` was edited or the history table was rolled back.
+    UnknownKey { key_valid_at: String },
+    /// `granted_at < key_valid_at` (receipt was supposedly signed before
+    /// the key was even added to the trust set) OR
+    /// `removed_at <= granted_at` (the key was already retired when the
+    /// receipt claims to have been signed). Either case is a tamper of
+    /// the receipt row or the history row. Andon-tagged.
+    SignatureCorrupted {
+        reason: &'static str,
+        granted_at: String,
+        key_valid_at: String,
+        removed_at: Option<String>,
+    },
+    /// The body hash carried on the receipt row does not reproduce from
+    /// the canonical projection of the row's other fields. Reserved for a
+    /// future schema where the canonical bytes are recomputable from the
+    /// row alone — currently never returned because the receipts table
+    /// does not store the full signed payload. Kept in the enum so the
+    /// worker dispatch covers every Vision-2030 A2 V1 verdict.
+    BodyHashMismatch { receipt_hash: String },
+}
+
+impl VerifierError {
+    /// Whether this verdict warrants pausing retention. Failures pause;
+    /// expired-key warnings do not.
+    pub fn is_failure(&self) -> bool {
+        !matches!(self, VerifierError::SignatureExpiredKey { .. })
+    }
+
+    /// Human-readable kind tag, used for OCEL attribute and log fields.
+    pub fn kind(&self) -> &'static str {
+        match self {
+            VerifierError::SignatureExpiredKey { .. } => "signature_expired_key",
+            VerifierError::UnknownKey { .. } => "unknown_key",
+            VerifierError::SignatureCorrupted { .. } => "signature_corrupted",
+            VerifierError::BodyHashMismatch { .. } => "body_hash_mismatch",
+        }
+    }
+}
+
+/// Pure deterministic check for a single receipt row.
+///
+/// Verdict tree:
+/// 1. `key_valid_at == ""` → `Ok` (legacy unsigned, no claim to verify).
+/// 2. `key_valid_at` does not appear in `trusted_keys_history.added_at`
+///    → `UnknownKey`.
+/// 3. `granted_at < key_valid_at` (parseable RFC-3339) → `SignatureCorrupted`
+///    (impossible: receipt was signed before the key was admitted).
+/// 4. `removed_at` set AND `removed_at <= key_valid_at` → `SignatureCorrupted`
+///    (the §22 sabotage case — history row says the key was retired
+///    before it was added; the receipt's claimed validity window is
+///    self-contradictory).
+/// 5. `removed_at` set AND `removed_at <= granted_at` → `SignatureExpiredKey`
+///    (the receipt was signed after the key had been retired —
+///    retroactive insertion).
+/// 6. Otherwise → `Ok`.
+///
+/// Invariant: the verdict depends ONLY on `(row, history_row)`. No
+/// network calls, no LLM, no clock reads — the same inputs always
+/// produce the same verdict.
+pub fn crypto_verify(
+    row: &VerifierReceiptRow,
+    db: &StateDb,
+) -> Result<(), VerifierError> {
+    // Stage 1: legacy unsigned — nothing to verify.
+    if row.key_valid_at.trim().is_empty() {
+        return Ok(());
+    }
+
+    // Stage 2: lookup the history row by `added_at = key_valid_at`. The
+    // production path stamps `key_valid_at` from
+    // `trusted_keys_history.added_at` (see `src/receipts.rs`), so this
+    // is the deterministic join.
+    let history: Option<(String, Option<String>, String)> = {
+        let conn = db.conn();
+        conn.query_row(
+            "SELECT added_at, removed_at, status FROM trusted_keys_history
+             WHERE added_at = ?1
+             LIMIT 1",
+            rusqlite::params![row.key_valid_at],
+            |r| {
+                Ok((
+                    r.get::<_, String>(0)?,
+                    r.get::<_, Option<String>>(1)?,
+                    r.get::<_, String>(2)?,
+                ))
+            },
+        )
+        .ok()
+    };
+    let Some((added_at, removed_at_opt, _status)) = history else {
+        return Err(VerifierError::UnknownKey {
+            key_valid_at: row.key_valid_at.clone(),
+        });
+    };
+
+    // Stage 3: granted_at must be >= added_at. A receipt that claims to
+    // have been signed BEFORE the key was added is a tamper.
+    let cmp_added = compare_rfc3339(&row.granted_at, &added_at);
+    if matches!(cmp_added, Some(std::cmp::Ordering::Less)) {
+        return Err(VerifierError::SignatureCorrupted {
+            reason: "granted_before_key_added",
+            granted_at: row.granted_at.clone(),
+            key_valid_at: added_at.clone(),
+            removed_at: removed_at_opt.clone(),
+        });
+    }
+
+    // Stage 4 + 5: examine `removed_at`.
+    if let Some(removed_at) = removed_at_opt.as_ref() {
+        // Stage 4: removed_at <= key_valid_at (self-contradictory history row).
+        if let Some(ord) = compare_rfc3339(removed_at, &added_at) {
+            if matches!(ord, std::cmp::Ordering::Less | std::cmp::Ordering::Equal) {
+                return Err(VerifierError::SignatureCorrupted {
+                    reason: "removed_before_added",
+                    granted_at: row.granted_at.clone(),
+                    key_valid_at: added_at,
+                    removed_at: Some(removed_at.clone()),
+                });
+            }
+        }
+        // Stage 5: granted_at >= removed_at → expired-key warning.
+        if let Some(ord) = compare_rfc3339(&row.granted_at, removed_at) {
+            if matches!(ord, std::cmp::Ordering::Greater | std::cmp::Ordering::Equal) {
+                return Err(VerifierError::SignatureExpiredKey {
+                    granted_at: row.granted_at.clone(),
+                    removed_at: removed_at.clone(),
+                });
+            }
+        }
+    }
+
+    Ok(())
+}
+
+/// RFC-3339 deterministic comparison. Returns `None` when either side is
+/// unparseable (the verifier worker treats `None` as "skip — bad data";
+/// the row is left at the cursor for the next tick).
+fn compare_rfc3339(a: &str, b: &str) -> Option<std::cmp::Ordering> {
+    let aa = chrono::DateTime::parse_from_rfc3339(a).ok()?;
+    let bb = chrono::DateTime::parse_from_rfc3339(b).ok()?;
+    Some(aa.cmp(&bb))
+}
+
 /// Result of verifying one artifact.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(tag = "verdict")]

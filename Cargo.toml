@@ -55,6 +55,15 @@ dotenvy = "0.15"
 ed25519-dalek = { version = "2", features = ["pkcs8", "pem", "rand_core"] }
 rand_core = "0.6"
 arc-swap = "1"
+# R7 WB-1 — Subprocess timeout enforcement. Wraps every shell-out site
+# (groq_pm4py engine, ggen sync, planner) with a hard wall-clock deadline
+# via `wait_timeout::ChildExt::wait_timeout`. Closes the active wedge
+# risk where a hung Groq HTTP call inside scripts/*.py held a Tokio
+# worker indefinitely.
+wait-timeout = "0.2"
+# R7 WB-2 — Per-tenant cost meter. Concurrent-friendly map of
+# `tenant_id` → `AtomicU64` token counter with daily UTC rollover.
+dashmap = "6"
 
 [features]
 default = []
@@ -84,6 +93,10 @@ tower = { version = "0.5", features = ["util"] }
 syn = { version = "2", features = ["full", "visit", "extra-traits"] }
 quote = "1"
 walkdir = "2"
+# R7 WB-4 / WB-2 — wiremock HTTP server used by retry & cost-capture
+# tests to assert exponential backoff and token capture behaviour without
+# touching the real Groq API.
+wiremock = "0.6"
 
 [[bench]]
 name = "admission_bench"

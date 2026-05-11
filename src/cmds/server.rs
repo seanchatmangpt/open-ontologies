@@ -140,8 +140,25 @@ fn run_stdio_server(cfg: Config, db: StateDb, graph: Arc<GraphStore>, governance
     // worker's tick.
     let (_retention, _pause_handle_kept) =
         open_ontologies::retention::RetentionWorker::spawn_with_pause(
-            db,
+            db.clone(),
             cfg.retention.clone(),
+            pause_handle.clone(),
+        );
+
+    // R7 WA2 — A2 V1 Receipt-Chain Verifier. ZERO LLM by invariant —
+    // crypto verdicts are reproducible bit-for-bit from
+    // `(receipt_row, trusted_keys_history_row)`. Shares the same
+    // `pause_handle` atomic with the retention worker; on a corruption
+    // verdict the verifier calls `fetch_max(now + pause_secs)` so
+    // retention skips its next tick. Monotone — never shortens a pause.
+    let verifier_ocel = std::sync::Arc::new(
+        open_ontologies::ocel_store::OcelStore::new(db.clone()),
+    );
+    let (_verifier, _verifier_cursor) =
+        open_ontologies::verifier_worker::VerifierWorker::spawn_with_cursor(
+            db,
+            verifier_ocel,
+            cfg.verifier.clone(),
             pause_handle,
         );
     tokio::runtime::Handle::current().block_on(async {

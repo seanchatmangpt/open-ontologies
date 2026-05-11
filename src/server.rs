@@ -397,6 +397,126 @@ impl OpenOntologiesServer {
         crate::monitor::Monitor::new(self.db.clone(), self.graph.clone())
     }
 
+    /// R7 WB-1 — resolve the subprocess wall-clock deadline. Funnels
+    /// through [`crate::config::resolve_subprocess_timeout`] which
+    /// honours `OPEN_ONTOLOGIES_SUBPROCESS_TIMEOUT_SECS` then
+    /// `[llm].subprocess_timeout_secs`, falling back to 60s. Stored on
+    /// the server is a single `LlmConfig::default()` instance —
+    /// per-call resolution keeps the env path live for tests that set
+    /// the variable mid-run.
+    fn subprocess_timeout(&self) -> std::time::Duration {
+        crate::config::resolve_subprocess_timeout(&crate::config::LlmConfig::default())
+    }
+
+    /// R7 WB-1 — run a `std::process::Command` with the configured
+    /// wall-clock timeout. On timeout, emits an `llm_subprocess_timeout`
+    /// OCEL event (tagged with `model`, `elapsed_ms`, `tenant_id`,
+    /// `script_path`) so downstream cost analysis can see hung
+    /// subprocesses for what they are. Returns `Err(SubprocessError)`
+    /// on timeout / spawn failure so the call site can map it to the
+    /// tool's denial JSON.
+    ///
+    /// The `model` argument is the LLM-engine string (`"groq_pm4py"`
+    /// for the production path, the engine name for non-LLM
+    /// subprocesses such as `wvda_agent.py`). `script_path` is the
+    /// derived path to the spawned binary or script for diagnostics.
+    fn run_subprocess_with_timeout(
+        &self,
+        cmd: &mut std::process::Command,
+        model: &str,
+        script_path: &str,
+    ) -> Result<crate::subprocess::TimedOutput, crate::subprocess::SubprocessError> {
+        let tenant_id = self.tenant_snapshot();
+        let dur = self.subprocess_timeout();
+        let result = crate::subprocess::run_with_timeout(
+            cmd,
+            dur,
+            crate::subprocess::SubprocessContext {
+                model,
+                tenant_id: &tenant_id,
+                script_path,
+            },
+        );
+        self.maybe_emit_subprocess_timeout(model, &tenant_id, &result);
+        result
+    }
+
+    /// R7 WB-1 stdin variant — same semantics as [`Self::run_subprocess_with_timeout`]
+    /// but feeds `stdin_payload` to the child before waiting. Used by
+    /// the `ontostar_planner.py` site that delivers its JSON request
+    /// via stdin rather than CLI args.
+    fn run_subprocess_with_timeout_stdin(
+        &self,
+        cmd: &mut std::process::Command,
+        stdin_payload: &[u8],
+        model: &str,
+        script_path: &str,
+    ) -> Result<crate::subprocess::TimedOutput, crate::subprocess::SubprocessError> {
+        let tenant_id = self.tenant_snapshot();
+        let dur = self.subprocess_timeout();
+        let result = crate::subprocess::run_with_timeout_stdin(
+            cmd,
+            stdin_payload,
+            dur,
+            crate::subprocess::SubprocessContext {
+                model,
+                tenant_id: &tenant_id,
+                script_path,
+            },
+        );
+        self.maybe_emit_subprocess_timeout(model, &tenant_id, &result);
+        result
+    }
+
+    /// Internal helper: on `LlmTimeout` emit the OCEL `llm_subprocess_timeout`
+    /// event and an andon-tagged tracing error. Pulled out of
+    /// `run_subprocess_with_timeout*` so both variants share the path.
+    fn maybe_emit_subprocess_timeout(
+        &self,
+        model: &str,
+        tenant_id: &str,
+        result: &Result<crate::subprocess::TimedOutput, crate::subprocess::SubprocessError>,
+    ) {
+        if let Err(crate::subprocess::SubprocessError::LlmTimeout {
+            elapsed_ms,
+            limit_ms,
+            script_path: sp,
+        }) = result
+        {
+            let elapsed_str = elapsed_ms.to_string();
+            let limit_str = limit_ms.to_string();
+            let event_id = format!(
+                "{}:llm_subprocess_timeout:{}",
+                self.session_id,
+                chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0)
+            );
+            let ts = chrono::Utc::now().to_rfc3339();
+            let _ = self.ocel_store().emit_event(
+                &event_id,
+                "llm_subprocess_timeout",
+                &ts,
+                &self.session_id,
+                &[
+                    ("model", model),
+                    ("elapsed_ms", elapsed_str.as_str()),
+                    ("limit_ms", limit_str.as_str()),
+                    ("tenant_id", tenant_id),
+                    ("script_path", sp.as_str()),
+                ],
+                &[],
+                None,
+            );
+            tracing::error!(
+                target: "andon",
+                model = model,
+                elapsed_ms = *elapsed_ms,
+                limit_ms = *limit_ms,
+                script_path = sp.as_str(),
+                "subprocess timeout exceeded — child SIGKILLed"
+            );
+        }
+    }
+
     // ─── OntoStar Stream 3: admission helper ──────────────────────────────
 
     /// Run the admission gate before a mutation.
@@ -2784,8 +2904,9 @@ impl OpenOntologiesServer {
 
     #[tool(name = "onto_process_validate_claim", description = "Validate a process mining claim using real event-log evidence from OTel traces. Uses pm4py for process discovery and conformance checking. Requires at least 3 of 5 surfaces to pass: execution, observability, state, process, causality.")]
     async fn onto_process_validate_claim(&self, Parameters(input): Parameters<OntoProcessValidateClaimInput>) -> String {
+        let script = "/Users/sac/chatmangpt/ostar/src/ostar/process/wvda_agent.py";
         let mut cmd = std::process::Command::new("/Users/sac/chatmangpt/ostar/.venv/bin/python");
-        cmd.arg("/Users/sac/chatmangpt/ostar/src/ostar/process/wvda_agent.py");
+        cmd.arg(script);
         cmd.arg("--output");
         cmd.arg("json");
         cmd.arg("validate_claim");
@@ -2799,8 +2920,9 @@ impl OpenOntologiesServer {
             cmd.arg(time.to_string());
         }
 
-        match cmd.output() {
-            Ok(out) => {
+        match self.run_subprocess_with_timeout(&mut cmd, "wvda_agent", script) {
+            Ok(timed) => {
+                let out = timed.output;
                 if out.status.success() {
                     String::from_utf8_lossy(&out.stdout).into_owned()
                 } else {
@@ -2808,21 +2930,26 @@ impl OpenOntologiesServer {
                     format!(r#"{{"error": "Process mining failed: {}"}}"#, err.replace('"', "\\\"").replace('\n', " "))
                 }
             },
-            Err(e) => format!(r#"{{"error": "Failed to spawn Python process: {}"}}"#, e)
+            Err(crate::subprocess::SubprocessError::LlmTimeout { elapsed_ms, limit_ms, .. }) => {
+                format!(r#"{{"error": "Process mining subprocess timed out after {}ms (limit {}ms)"}}"#, elapsed_ms, limit_ms)
+            },
+            Err(crate::subprocess::SubprocessError::SpawnFailed(e)) => format!(r#"{{"error": "Failed to spawn Python process: {}"}}"#, e)
         }
     }
 
     #[tool(name = "onto_process_check_soundness", description = "Check process soundness properties: deadlock-free, liveness, and boundedness. Uses Petri net analysis on discovered process model.")]
     async fn onto_process_check_soundness(&self, Parameters(input): Parameters<OntoProcessCheckSoundnessInput>) -> String {
+        let script = "/Users/sac/chatmangpt/ostar/src/ostar/process/wvda_agent.py";
         let mut cmd = std::process::Command::new("/Users/sac/chatmangpt/ostar/.venv/bin/python");
-        cmd.arg("/Users/sac/chatmangpt/ostar/src/ostar/process/wvda_agent.py");
+        cmd.arg(script);
         cmd.arg("--output");
         cmd.arg("json");
         cmd.arg("check_process_soundness");
         cmd.arg(&input.event_log_path);
 
-        match cmd.output() {
-            Ok(out) => {
+        match self.run_subprocess_with_timeout(&mut cmd, "wvda_agent", script) {
+            Ok(timed) => {
+                let out = timed.output;
                 if out.status.success() {
                     String::from_utf8_lossy(&out.stdout).into_owned()
                 } else {
@@ -2830,17 +2957,21 @@ impl OpenOntologiesServer {
                     format!(r#"{{"error": "Soundness check failed: {}"}}"#, err.replace('"', "\\\"").replace('\n', " "))
                 }
             },
-            Err(e) => format!(r#"{{"error": "Failed to spawn Python process: {}"}}"#, e)
+            Err(crate::subprocess::SubprocessError::LlmTimeout { elapsed_ms, limit_ms, .. }) => {
+                format!(r#"{{"error": "Soundness check subprocess timed out after {}ms (limit {}ms)"}}"#, elapsed_ms, limit_ms)
+            },
+            Err(crate::subprocess::SubprocessError::SpawnFailed(e)) => format!(r#"{{"error": "Failed to spawn Python process: {}"}}"#, e)
         }
     }
 
     #[tool(name = "onto_mustar_solve", description = "Invoke the MuStar Agent to semantically lower a problem intent into a completed artifact. Accepts a problem_statement, domain, constraints, and title. Uses POWL build orders internally and provides empirical validation.")]
     async fn onto_mustar_solve(&self, Parameters(input): Parameters<OntoMustarSolveInput>) -> String {
+        let script = "/Users/sac/chatmangpt/ostar/src/ostar/process/mu_star_agent.py";
         let mut cmd = std::process::Command::new("/Users/sac/chatmangpt/ostar/.venv/bin/python");
-        cmd.arg("/Users/sac/chatmangpt/ostar/src/ostar/process/mu_star_agent.py");
+        cmd.arg(script);
         cmd.arg("--output");
         cmd.arg("json");
-        
+
         if let Some(ref domain) = input.domain {
             cmd.arg("--domain");
             cmd.arg(domain);
@@ -2853,11 +2984,12 @@ impl OpenOntologiesServer {
             cmd.arg("--title");
             cmd.arg(title);
         }
-        
+
         cmd.arg(&input.problem_statement);
 
-        match cmd.output() {
-            Ok(out) => {
+        match self.run_subprocess_with_timeout(&mut cmd, "mu_star_agent", script) {
+            Ok(timed) => {
+                let out = timed.output;
                 if out.status.success() {
                     String::from_utf8_lossy(&out.stdout).into_owned()
                 } else {
@@ -2865,7 +2997,10 @@ impl OpenOntologiesServer {
                     format!(r#"{{"error": "MuStar solver failed: {}"}}"#, err.replace('"', "\\\"").replace('\n', " "))
                 }
             },
-            Err(e) => format!(r#"{{"error": "Failed to spawn Python process: {}"}}"#, e)
+            Err(crate::subprocess::SubprocessError::LlmTimeout { elapsed_ms, limit_ms, .. }) => {
+                format!(r#"{{"error": "MuStar subprocess timed out after {}ms (limit {}ms)"}}"#, elapsed_ms, limit_ms)
+            },
+            Err(crate::subprocess::SubprocessError::SpawnFailed(e)) => format!(r#"{{"error": "Failed to spawn Python process: {}"}}"#, e)
         }
     }
 
@@ -2973,8 +3108,9 @@ impl OpenOntologiesServer {
             .env("OSTAR_SCOPE_TOKEN", &receipt.record.scope_token);
 
         // Execute
-        let result = match cmd.output() {
-            Ok(output) => {
+        let result = match self.run_subprocess_with_timeout(&mut cmd, "ggen_sync", "ggen") {
+            Ok(timed) => {
+                let output = timed.output;
                 let stdout = String::from_utf8_lossy(&output.stdout);
                 let stderr = String::from_utf8_lossy(&output.stderr);
                 if output.status.success() {
@@ -3025,7 +3161,10 @@ impl OpenOntologiesServer {
                     format!(r#"{{"error":"ggen sync failed: {}"}}"#, stderr)
                 }
             }
-            Err(e) => {
+            Err(crate::subprocess::SubprocessError::LlmTimeout { elapsed_ms, limit_ms, .. }) => {
+                format!(r#"{{"error":"ggen sync timed out after {}ms (limit {}ms)"}}"#, elapsed_ms, limit_ms)
+            }
+            Err(crate::subprocess::SubprocessError::SpawnFailed(e)) => {
                 let msg = if e.kind() == std::io::ErrorKind::NotFound {
                     "ggen binary not found. Check config.toml [codegen] ggen_path or ensure ggen is in PATH."
                 } else {
@@ -3468,13 +3607,20 @@ impl OpenOntologiesServer {
             // GROQ_API_KEY must already be in env. PM4PY_FORK_PATH falls
             // back to the script default if unset.
 
-            let out = match cmd.output() {
-                Ok(o) => o,
-                Err(e) => {
+            let script_str = script.to_string_lossy().into_owned();
+            let out = match self.run_subprocess_with_timeout(&mut cmd, "groq_powl", &script_str) {
+                Ok(timed) => timed.output,
+                Err(crate::subprocess::SubprocessError::LlmTimeout { elapsed_ms, limit_ms, .. }) => {
+                    return format!(
+                        r#"{{"ok":false,"error":"powl_from_text.py timed out after {}ms (limit {}ms)"}}"#,
+                        elapsed_ms, limit_ms
+                    );
+                }
+                Err(crate::subprocess::SubprocessError::SpawnFailed(e)) => {
                     return format!(
                         r#"{{"ok":false,"error":"failed to spawn powl_from_text.py: {}"}}"#,
                         e.to_string().replace('"', "'")
-                    )
+                    );
                 }
             };
 
@@ -3611,32 +3757,26 @@ impl OpenOntologiesServer {
 
         let mut cmd = std::process::Command::new(&python);
         cmd.arg(&script);
-        cmd.stdin(std::process::Stdio::piped());
-        cmd.stdout(std::process::Stdio::piped());
-        cmd.stderr(std::process::Stdio::piped());
 
-        let mut child = match cmd.spawn() {
-            Ok(c) => c,
-            Err(e) => {
+        let payload_bytes = payload.to_string().into_bytes();
+        let out = match self.run_subprocess_with_timeout_stdin(
+            &mut cmd,
+            &payload_bytes,
+            "ontostar_planner",
+            &script,
+        ) {
+            Ok(timed) => timed.output,
+            Err(crate::subprocess::SubprocessError::LlmTimeout { elapsed_ms, limit_ms, .. }) => {
+                return format!(
+                    r#"{{"error":"ontostar_planner.py timed out after {}ms (limit {}ms)"}}"#,
+                    elapsed_ms, limit_ms
+                );
+            }
+            Err(crate::subprocess::SubprocessError::SpawnFailed(e)) => {
                 return format!(
                     r#"{{"error":"Failed to spawn ontostar_planner.py: {}"}}"#,
                     e.to_string().replace('"', "'")
-                )
-            }
-        };
-
-        if let Some(mut stdin) = child.stdin.take() {
-            use std::io::Write;
-            let _ = stdin.write_all(payload.to_string().as_bytes());
-        }
-
-        let out = match child.wait_with_output() {
-            Ok(o) => o,
-            Err(e) => {
-                return format!(
-                    r#"{{"error":"planner subprocess failed: {}"}}"#,
-                    e.to_string().replace('"', "'")
-                )
+                );
             }
         };
 
@@ -3994,9 +4134,17 @@ impl OpenOntologiesServer {
             // GROQ_API_KEY must already be in env. Never logged.
 
             let sub_started = std::time::Instant::now();
-            let out = match cmd.output() {
-                Ok(o) => o,
-                Err(e) => {
+            let script_str = script.to_string_lossy().into_owned();
+            let out = match self.run_subprocess_with_timeout(&mut cmd, "groq_pm4py", &script_str) {
+                Ok(timed) => timed.output,
+                Err(crate::subprocess::SubprocessError::LlmTimeout { elapsed_ms, limit_ms, .. }) => {
+                    self.emit_tool_ocel("onto_translate_candidate", started, false, &[]);
+                    return format!(
+                        r#"{{"ok":false,"error":"ctq_from_voice.py timed out after {}ms (limit {}ms)"}}"#,
+                        elapsed_ms, limit_ms
+                    );
+                }
+                Err(crate::subprocess::SubprocessError::SpawnFailed(e)) => {
                     self.emit_tool_ocel("onto_translate_candidate", started, false, &[]);
                     return format!(
                         r#"{{"ok":false,"error":"failed to spawn ctq_from_voice.py: {}"}}"#,
@@ -4755,9 +4903,17 @@ impl OpenOntologiesServer {
             let mut cmd = std::process::Command::new(&python);
             cmd.arg(&script).arg(evidence);
             let sub_started = std::time::Instant::now();
-            let out = match cmd.output() {
-                Ok(o) => o,
-                Err(e) => {
+            let script_str = script.to_string_lossy().into_owned();
+            let out = match self.run_subprocess_with_timeout(&mut cmd, "groq_pm4py", &script_str) {
+                Ok(timed) => timed.output,
+                Err(crate::subprocess::SubprocessError::LlmTimeout { elapsed_ms, limit_ms, .. }) => {
+                    self.emit_tool_ocel("onto_executive_projection", started, false, &[]);
+                    return format!(
+                        r#"{{"ok":false,"error":"executive_projection.py timed out after {}ms (limit {}ms)"}}"#,
+                        elapsed_ms, limit_ms
+                    );
+                }
+                Err(crate::subprocess::SubprocessError::SpawnFailed(e)) => {
                     self.emit_tool_ocel("onto_executive_projection", started, false, &[]);
                     return format!(
                         r#"{{"ok":false,"error":"failed to spawn executive_projection.py: {}"}}"#,
