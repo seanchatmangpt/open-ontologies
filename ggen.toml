@@ -2,15 +2,15 @@
 #
 # Three-tier architecture:
 #   Tier 1 — ontology/cli-open-ontologies.ttl  (source of truth)
-#   Tier 2 — ggen sync (preferred) OR python3 scripts/manufacture_cli.py (fallback)
+#   Tier 2 — ggen sync                         (manufacturing step)
 #   Tier 3 — src/cmds/generated.rs             (generated CLI stubs)
 #
 # Pipeline flow:
-#   cli-open-ontologies.ttl → SPARQL extract → Tera render → src/cmds/generated.rs
+#   cli-open-ontologies.ttl → CONSTRUCT normalize → SELECT aggregate
+#   → Tera render → src/cmds/generated.rs
 #
 # Note: ggen v5 binary requires vocabulary namespaces to be in its internal allowlist.
 # The cli: and onto: namespaces use https://ggen.io/onto/cli/ base URIs (allowed domain).
-# If ggen sync fails, fall back to: python3 scripts/manufacture_cli.py
 
 [project]
 name = "open-ontologies"
