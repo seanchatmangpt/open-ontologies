@@ -182,6 +182,7 @@ pub fn inputs_from_bag(bag: &Bag) -> CellReadyInputs<'_> {
         trusted_keys: None,
         allow_legacy_unsigned: true,
         trusted_keys_db: None,
+        post_bootstrap: false,
     }
 }
 

@@ -103,6 +103,7 @@ fn build_inputs_with_prior<'a>(
         trusted_keys: None,
         allow_legacy_unsigned: true,
         trusted_keys_db: None,
+        post_bootstrap: false,
     }
 }
 

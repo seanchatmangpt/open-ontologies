@@ -147,6 +147,7 @@ fn inputs_from(bag: &Bag) -> CellReadyInputs<'_> {
         trusted_keys: None,
         allow_legacy_unsigned: bag.allow_legacy_unsigned,
         trusted_keys_db: None,
+        post_bootstrap: false,
     }
 }
 

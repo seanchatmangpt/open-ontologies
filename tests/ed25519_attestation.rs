@@ -188,6 +188,7 @@ fn run_cell_ready(
         trusted_keys: trust,
         allow_legacy_unsigned: allow_legacy,
         trusted_keys_db: None,
+        post_bootstrap: false,
     };
     cell_ready(inputs, store)
 }

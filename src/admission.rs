@@ -825,12 +825,15 @@ impl OntoStarAdmissionGate {
         // `A11_GRANTED_AT_REREAD_HOOK` makes the chain non-monotonic →
         // gate denies with `TemporalSkew`.
         //
-        // Edge case (deferred to R8): bootstrap admission has no prior
-        // receipts → chain length 1 → `windows(2)` still yields 0.
-        // Acceptable at bootstrap; suspicious post-bootstrap-lock.
-        // R8-1 will add a post-lock chain-length gate.
+        // R8-1 — determine whether the bootstrap window is closed (production
+        // mode). When `bootstrap_lock` is present, `post_bootstrap = true` and
+        // the chain-length gate in `cell_ready` requires len ≥ 2. The
+        // tenant-wide query variant of `re_read_granted_at_chain` is used when
+        // post-bootstrap so the seed receipt's `granted_at` is visible even in
+        // a new session.
+        let post_bootstrap = !crate::bootstrap::BootstrapState::is_bootstrap(store.db());
         let mut granted_at_chain =
-            re_read_granted_at_chain(store, session_id, &scope_tenant);
+            re_read_granted_at_chain(store, session_id, &scope_tenant, post_bootstrap);
         granted_at_chain.push(chrono::Utc::now().to_rfc3339());
         // R6 WA-3 — §15 A12 DependencyClosure tautology closure.
         // Previously `admitted_receipts = vec![hex(prior_receipt)]` was
@@ -935,6 +938,7 @@ impl OntoStarAdmissionGate {
             trusted_keys: trust_ref,
             allow_legacy_unsigned: self.verify_legacy_receipts,
             trusted_keys_db: Some(store.db()),
+            post_bootstrap,
         };
 
         // Look up workflow_name once so both Ok and Err branches can record
@@ -1387,6 +1391,7 @@ fn re_read_granted_at_chain(
     store: &OcelStore,
     session_id: &str,
     tenant_id: &str,
+    post_bootstrap: bool,
 ) -> Vec<String> {
     #[cfg(debug_assertions)]
     A11_GRANTED_AT_REREAD_HOOK.with(|h| {
@@ -1395,34 +1400,63 @@ fn re_read_granted_at_chain(
         }
     });
     let conn = store.db().conn();
-    let mut stmt = match conn.prepare(
-        "SELECT granted_at FROM receipts
-         WHERE session_id = ?1 AND tenant_id = ?2
-         ORDER BY sequence ASC",
-    ) {
-        Ok(s) => s,
-        Err(_) => {
-            tracing::debug!(
-                target: "ontostar.admission.witness_reread",
-                gate = "A11",
-                session_id = session_id,
-                witness_count = 0_usize,
-                "prepare failed; returning empty granted_at chain",
-            );
-            return Vec::new();
+    // R8-1: post-bootstrap uses a tenant-wide query so the seed receipt's
+    // granted_at is visible even when the caller is in a new session with
+    // no rows of its own.
+    let chain: Vec<String> = if post_bootstrap {
+        let mut stmt = match conn.prepare(
+            "SELECT granted_at FROM receipts
+             WHERE tenant_id = ?1
+             ORDER BY sequence ASC",
+        ) {
+            Ok(s) => s,
+            Err(_) => {
+                tracing::debug!(
+                    target: "ontostar.admission.witness_reread",
+                    gate = "A11",
+                    session_id = session_id,
+                    post_bootstrap = true,
+                    witness_count = 0_usize,
+                    "prepare failed (tenant-wide); returning empty granted_at chain",
+                );
+                return Vec::new();
+            }
+        };
+        match stmt.query_map(rusqlite::params![tenant_id], |r| r.get::<_, String>(0)) {
+            Ok(it) => it.filter_map(|r| r.ok()).collect(),
+            Err(_) => Vec::new(),
         }
-    };
-    let chain: Vec<String> = match stmt.query_map(
-        rusqlite::params![session_id, tenant_id],
-        |r| r.get::<_, String>(0),
-    ) {
-        Ok(it) => it.filter_map(|r| r.ok()).collect(),
-        Err(_) => Vec::new(),
+    } else {
+        let mut stmt = match conn.prepare(
+            "SELECT granted_at FROM receipts
+             WHERE session_id = ?1 AND tenant_id = ?2
+             ORDER BY sequence ASC",
+        ) {
+            Ok(s) => s,
+            Err(_) => {
+                tracing::debug!(
+                    target: "ontostar.admission.witness_reread",
+                    gate = "A11",
+                    session_id = session_id,
+                    post_bootstrap = false,
+                    witness_count = 0_usize,
+                    "prepare failed; returning empty granted_at chain",
+                );
+                return Vec::new();
+            }
+        };
+        match stmt.query_map(rusqlite::params![session_id, tenant_id], |r| {
+            r.get::<_, String>(0)
+        }) {
+            Ok(it) => it.filter_map(|r| r.ok()).collect(),
+            Err(_) => Vec::new(),
+        }
     };
     tracing::debug!(
         target: "ontostar.admission.witness_reread",
         gate = "A11",
         session_id = session_id,
+        post_bootstrap = post_bootstrap,
         witness_count = chain.len(),
         "A11 granted_at chain re-read from receipts",
     );

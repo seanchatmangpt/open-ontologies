@@ -56,3 +56,8 @@ jobs:
       - uses: taiki-e/install-action@v2
         with: { tool: cargo-expand }
       - run: make adversarial
+      - name: saboteur gates (A11/A12/A13 load-bearing deny-path proofs)
+        run: |
+          cargo test --test saboteur_a11_temporal_validity_load_bearing -- --ignored --test-threads=1
+          cargo test --test saboteur_a12_dependency_closure_load_bearing -- --ignored --test-threads=1
+          cargo test --test saboteur_a13_replay_proof_load_bearing -- --ignored --test-threads=1

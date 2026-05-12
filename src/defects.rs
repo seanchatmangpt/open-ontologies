@@ -84,13 +84,19 @@ use serde::{Deserialize, Serialize};
 /// No variant additions, removals, or renames — `TemporalSkew` and
 /// `DependencyClosureBroken` already had correct shapes.
 /// [`DEFECTS_TAXONOMY_DISCRIMINANT_HASH`] remains pinned; forward-compatible.
-pub const DEFECTS_TAXONOMY_VERSION: &str = "ontostar-defects-4.7.0";
+///
+/// Bumped from `4.7.0` → `4.8.0` (R8-1) after addition of
+/// [`DefectClass::BootstrapChainTooShort`] for the post-bootstrap-lock
+/// chain-length gate. When `bootstrap_lock` is active (production mode),
+/// `granted_at_chain.len() < 2` is denied — a single-entry chain post-lock
+/// indicates admission manufactured without prior history. Forward-compatible.
+pub const DEFECTS_TAXONOMY_VERSION: &str = "ontostar-defects-4.8.0";
 
 /// BLAKE3 hex of `tag1\0tag2\0...\0` for [`DefectClass::all_tags()`].
 /// CI-pinned. Adding/renaming/removing a variant changes this, forcing a
 /// taxonomy version bump.
 pub const DEFECTS_TAXONOMY_DISCRIMINANT_HASH: &str =
-    "6984749a1ef04b4669aa22fa977506d4c0d8b1baf5898e9e7e8d9cf84e92b3d9";
+    "14e16b0cef4527edb0368f6a50fa4b6cce8e5f94c6b54597f5c70f4847765b24";
 
 /// Typed denial classes. Every `Denied` outcome in admission/cell-ready
 /// machinery short-circuits on the first failing variant.
@@ -222,6 +228,13 @@ pub enum DefectClass {
     /// non-`seed-v0` receipt has been admitted, and the
     /// `OPEN_ONTOLOGIES_BOOTSTRAP_MODE=1` env override is not set).
     BootstrapClosed,
+    /// R8-1: post-bootstrap-lock admission with a `granted_at_chain` shorter
+    /// than 2 entries. During the bootstrap window a single-entry chain is
+    /// acceptable (no prior history exists); once `bootstrap_lock` is set the
+    /// admission pipeline must see at least the seed grant followed by the
+    /// current in-flight timestamp. A chain of length 1 post-lock means the
+    /// history lookup produced no prior rows — suspicious.
+    BootstrapChainTooShort,
 }
 
 impl DefectClass {
@@ -259,6 +272,7 @@ impl DefectClass {
             DefectClass::ReplayDivergence { .. } => "replay_divergence",
             DefectClass::AttestationInvalid { .. } => "attestation_invalid",
             DefectClass::BootstrapClosed => "bootstrap_closed",
+            DefectClass::BootstrapChainTooShort => "bootstrap_chain_too_short",
         }
     }
 
@@ -298,6 +312,7 @@ impl DefectClass {
             "replay_divergence",
             "attestation_invalid",
             "bootstrap_closed",
+            "bootstrap_chain_too_short",
         ]
     }
 }

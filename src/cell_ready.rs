@@ -112,6 +112,13 @@ pub struct CellReadyInputs<'a> {
     /// [`DefectClass::AttestationMissing`].
     pub allow_legacy_unsigned: bool,
 
+    /// R8-1 — true when the `bootstrap_lock` DB row is present (production
+    /// mode). When true, `granted_at_chain.len() < 2` raises
+    /// [`DefectClass::BootstrapChainTooShort`] after the A11 monotonicity
+    /// check. During the bootstrap window this field is `false` and a
+    /// single-entry chain is accepted.
+    pub post_bootstrap: bool,
+
     /// Round 4 WD — `StateDb` handle used to resolve the signing
     /// fingerprint's `trusted_keys_history` row. When `Some`, A10
     /// rejects receipts whose `granted_at` falls outside the
@@ -371,6 +378,15 @@ pub fn cell_ready(
             let skew_ms = parse_skew_ms(&w[0], &w[1]).unwrap_or(-1);
             return Err(DefectClass::TemporalSkew { observed_skew_ms: skew_ms });
         }
+    }
+
+    // 11b. R8-1 bootstrap chain-length gate — post-lock, history must exist.
+    // During the bootstrap window a single-entry chain is fine (no prior
+    // receipts). Once `bootstrap_lock` is set the tenant-wide re-read must
+    // return at least one prior row, making the chain length ≥ 2. A length-1
+    // chain post-lock means the history lookup returned nothing — suspicious.
+    if inp.post_bootstrap && inp.granted_at_chain.len() < 2 {
+        return Err(DefectClass::BootstrapChainTooShort);
     }
 
     // 12. A12_dependency_closure — every prior_receipt is admitted.

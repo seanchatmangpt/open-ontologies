@@ -206,6 +206,7 @@ fn signed_then_rotated_out_rejected() {
         trusted_keys: Some(&trust), // pre-rotation trust set still has A
         allow_legacy_unsigned: false,
         trusted_keys_db: Some(&db), // history-aware: window check fires
+        post_bootstrap: false,
     };
     let outcome = cell_ready(inputs, &store);
     match outcome {
@@ -316,6 +317,7 @@ fn additive_rotation_preserves_old_signatures() {
         trusted_keys: Some(&trust_after),
         allow_legacy_unsigned: false,
         trusted_keys_db: Some(&db),
+        post_bootstrap: false,
     };
     let outcome = cell_ready(inputs, &store);
     assert!(

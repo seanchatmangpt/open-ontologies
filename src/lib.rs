@@ -108,3 +108,7 @@ pub mod verify;
 // `verifier_failure` OCEL row, advances `retention_paused_until`, and
 // fires an andon-tagged `tracing::error`.
 pub mod verifier_worker;
+
+// R8-3 — Telemetry initialisation. Reads TelemetryConfig from Config and
+// wires tracing-subscriber; OTLP layer extension point for R9-3.
+pub mod telemetry;

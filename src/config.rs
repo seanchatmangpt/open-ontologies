@@ -37,6 +37,9 @@ pub struct Config {
     /// admin operations are permitted (admin-only handlers reject all
     /// callers). Operators must opt in explicitly.
     pub authority: AuthorityConfig,
+    /// `[telemetry]` — R8-3 OTEL export wiring. When `otlp_endpoint` is set,
+    /// `src/telemetry.rs` exports `tracing` spans to the configured collector.
+    pub telemetry: TelemetryConfig,
 }
 
 
@@ -792,6 +795,34 @@ pub struct LoggingConfig {
 impl Default for LoggingConfig {
     fn default() -> Self {
         Self { level: "info".into(), format: "compact".into(), file: None }
+    }
+}
+
+/// `[telemetry]` — R8-3 OTEL export wiring.
+///
+/// When `otlp_endpoint` is set, `src/telemetry.rs::init_telemetry` will wire
+/// a `tracing-opentelemetry` layer exporting spans to that endpoint. When
+/// unset, only the `tracing-subscriber` logging layer is active.
+///
+/// All `tracing::debug!(target: "ontostar.*", ...)` spans produced by the
+/// admission gate and verifier worker are exported via this path when wired.
+#[derive(Debug, Deserialize, Clone)]
+#[serde(default)]
+pub struct TelemetryConfig {
+    /// OTLP gRPC endpoint URL, e.g. `http://localhost:4317`. When `None`,
+    /// OTEL export is disabled and spans are consumed only by the local
+    /// `tracing-subscriber` log sink.
+    pub otlp_endpoint: Option<String>,
+    /// Service name reported in OTLP resource attributes.
+    pub service_name: String,
+}
+
+impl Default for TelemetryConfig {
+    fn default() -> Self {
+        Self {
+            otlp_endpoint: None,
+            service_name: "open-ontologies".to_string(),
+        }
     }
 }
 
