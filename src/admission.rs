@@ -84,6 +84,50 @@ thread_local! {
         = const { std::cell::RefCell::new(None) };
 }
 
+// R6 WA-2 — §15 A11 TemporalValidity tautology closure.
+//
+// Test-only hook fired BEFORE the SELECT in `re_read_granted_at_chain`
+// so sabotage tests can INSERT a backdated receipt row between the
+// `latest_for_session_in_tenant` lookup and the helper's own SELECT.
+// The backdated row makes the returned chain non-monotonic →
+// A11's `windows(2)` loop produces a `TemporalSkew` denial.
+//
+// Gated on `debug_assertions`; same envelope as A9/A13 hooks.
+#[cfg(debug_assertions)]
+#[doc(hidden)]
+pub type A11GrantedAtRereadFn =
+    Box<dyn Fn(&OcelStore, &str, &str) + Send + 'static>;
+
+#[cfg(debug_assertions)]
+thread_local! {
+    #[doc(hidden)]
+    pub static A11_GRANTED_AT_REREAD_HOOK:
+        std::cell::RefCell<Option<A11GrantedAtRereadFn>>
+        = const { std::cell::RefCell::new(None) };
+}
+
+// R6 WA-3 — §15 A12 DependencyClosure tautology closure.
+//
+// Test-only hook fired BEFORE the SELECT in `re_read_admitted_receipts`
+// so sabotage tests can DELETE the prior_receipt row from the `receipts`
+// table between the `latest_for_session_in_tenant` lookup and the
+// helper's own SELECT. The deleted row makes the admitted set empty →
+// A12's `iter().any(...)` check fails with `DependencyClosureBroken`.
+//
+// Gated on `debug_assertions`; same envelope as A9/A13 hooks.
+#[cfg(debug_assertions)]
+#[doc(hidden)]
+pub type A12AdmittedReceiptsRereadFn =
+    Box<dyn Fn(&OcelStore, &str, &str) + Send + 'static>;
+
+#[cfg(debug_assertions)]
+thread_local! {
+    #[doc(hidden)]
+    pub static A12_ADMITTED_RECEIPTS_REREAD_HOOK:
+        std::cell::RefCell<Option<A12AdmittedReceiptsRereadFn>>
+        = const { std::cell::RefCell::new(None) };
+}
+
 /// What kind of mutation is being requested at the gate.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum AdmissionOp {
@@ -770,19 +814,35 @@ impl OntoStarAdmissionGate {
         // empty Vec → gate denies with `ProvenanceMissing`.
         let provenance_evidence =
             re_read_provenance_evidence(store, session_id, &artifact_hash_hex);
-        // TODO(R6 §15.A11): caller-trust-burden — `granted_at_chain` only
-        // contains a single timestamp at admission; windows(2) check
-        // trivially passes; needs receipt-chain reconstruction for
-        // monotonicity.
-        let granted_at_chain: Vec<String> = vec![chrono::Utc::now().to_rfc3339()];
-        // TODO(R6 §15.A12): caller-trust-burden — `admitted_receipts` is
-        // `vec![hex(prior_receipt)]` constructed from the same value being
-        // checked; needs DB lookup against `receipts WHERE record_hash =
-        // prior_receipt`.
-        let admitted_receipts: Vec<String> = match prior_receipt.as_ref() {
-            Some(h) => vec![hex32_pub(h)],
-            None => Vec::new(),
-        };
+        // R6 WA-2 — §15 A11 TemporalValidity tautology closure.
+        // Previously `granted_at_chain = vec![Utc::now().to_rfc3339()]`
+        // was a single-element Vec; `windows(2)` produced zero iterations
+        // and the monotonicity loop body at `cell_ready.rs:367` was dead
+        // code. Cure: re-read prior grants in sequence order from the
+        // `receipts` table (independent source), then append the in-flight
+        // timestamp so A10's `granted_at_chain.last()` invariant is
+        // preserved. A sabotage that inserts a backdated row via
+        // `A11_GRANTED_AT_REREAD_HOOK` makes the chain non-monotonic →
+        // gate denies with `TemporalSkew`.
+        //
+        // Edge case (deferred to R8): bootstrap admission has no prior
+        // receipts → chain length 1 → `windows(2)` still yields 0.
+        // Acceptable at bootstrap; suspicious post-bootstrap-lock.
+        // R8-1 will add a post-lock chain-length gate.
+        let mut granted_at_chain =
+            re_read_granted_at_chain(store, session_id, &scope_tenant);
+        granted_at_chain.push(chrono::Utc::now().to_rfc3339());
+        // R6 WA-3 — §15 A12 DependencyClosure tautology closure.
+        // Previously `admitted_receipts = vec![hex(prior_receipt)]` was
+        // derived from the same `Option<[u8;32]>` that `prior_receipt`
+        // came from — `[X].contains(X)` by construction. Cure: independent
+        // SELECT against `receipts WHERE receipt_hash = prior_hex AND
+        // tenant_id = scope_tenant`. If the prior row was never written or
+        // is deleted mid-flight (via `A12_ADMITTED_RECEIPTS_REREAD_HOOK`),
+        // the helper returns empty and A12 denies with
+        // `DependencyClosureBroken`.
+        let admitted_receipts =
+            re_read_admitted_receipts(store, prior_receipt.as_ref(), &scope_tenant);
 
         // Real-Ed25519: when a signer is configured, sign the would-be
         // record (canonical_bytes_for_signing) and pass the signature +
@@ -1311,6 +1371,120 @@ fn re_read_provenance_evidence(
         "A9 provenance evidence re-read from ocel_events",
     );
     evidence
+}
+
+/// R6 WA-2 — §15 A11 TemporalValidity tautology closure.
+///
+/// Returns all `granted_at` timestamps for prior receipts in the session's
+/// tenant, ordered by `sequence ASC`. The caller appends `Utc::now()` to
+/// form the full monotonic chain so A11's `windows(2)` loop has real prior
+/// grants to compare against.
+///
+/// Under `#[cfg(debug_assertions)]`, fires `A11_GRANTED_AT_REREAD_HOOK`
+/// BEFORE the SELECT so tests can insert a backdated receipt row to force
+/// `TemporalSkew`. Fails closed (empty Vec) on prepare or query error.
+fn re_read_granted_at_chain(
+    store: &OcelStore,
+    session_id: &str,
+    tenant_id: &str,
+) -> Vec<String> {
+    #[cfg(debug_assertions)]
+    A11_GRANTED_AT_REREAD_HOOK.with(|h| {
+        if let Some(hook) = h.borrow().as_ref() {
+            hook(store, session_id, tenant_id);
+        }
+    });
+    let conn = store.db().conn();
+    let mut stmt = match conn.prepare(
+        "SELECT granted_at FROM receipts
+         WHERE session_id = ?1 AND tenant_id = ?2
+         ORDER BY sequence ASC",
+    ) {
+        Ok(s) => s,
+        Err(_) => {
+            tracing::debug!(
+                target: "ontostar.admission.witness_reread",
+                gate = "A11",
+                session_id = session_id,
+                witness_count = 0_usize,
+                "prepare failed; returning empty granted_at chain",
+            );
+            return Vec::new();
+        }
+    };
+    let chain: Vec<String> = match stmt.query_map(
+        rusqlite::params![session_id, tenant_id],
+        |r| r.get::<_, String>(0),
+    ) {
+        Ok(it) => it.filter_map(|r| r.ok()).collect(),
+        Err(_) => Vec::new(),
+    };
+    tracing::debug!(
+        target: "ontostar.admission.witness_reread",
+        gate = "A11",
+        session_id = session_id,
+        witness_count = chain.len(),
+        "A11 granted_at chain re-read from receipts",
+    );
+    chain
+}
+
+/// R6 WA-3 — §15 A12 DependencyClosure tautology closure.
+///
+/// Returns the prior receipt hash if its row exists in `receipts` for the
+/// given tenant, or an empty Vec otherwise. Empty result means the prior
+/// receipt never landed (or was deleted mid-flight), which causes A12 to
+/// deny with `DependencyClosureBroken`. On `prior_receipt = None` (bootstrap
+/// path), returns empty immediately — A12's gate short-circuits because
+/// `inp.prior_receipt.is_none()`.
+///
+/// Under `#[cfg(debug_assertions)]`, fires `A12_ADMITTED_RECEIPTS_REREAD_HOOK`
+/// BEFORE the SELECT so tests can DELETE the prior row to force denial.
+fn re_read_admitted_receipts(
+    store: &OcelStore,
+    prior_receipt: Option<&[u8; 32]>,
+    tenant_id: &str,
+) -> Vec<String> {
+    let Some(prior_hash) = prior_receipt else {
+        return Vec::new();
+    };
+    let prior_hex = hex32_pub(prior_hash);
+    #[cfg(debug_assertions)]
+    A12_ADMITTED_RECEIPTS_REREAD_HOOK.with(|h| {
+        if let Some(hook) = h.borrow().as_ref() {
+            hook(store, &prior_hex, tenant_id);
+        }
+    });
+    let conn = store.db().conn();
+    let mut stmt = match conn.prepare(
+        "SELECT receipt_hash FROM receipts
+         WHERE receipt_hash = ?1 AND tenant_id = ?2",
+    ) {
+        Ok(s) => s,
+        Err(_) => {
+            tracing::debug!(
+                target: "ontostar.admission.witness_reread",
+                gate = "A12",
+                witness_count = 0_usize,
+                "prepare failed; falling closed with empty admitted set",
+            );
+            return Vec::new();
+        }
+    };
+    let admitted: Vec<String> = match stmt.query_map(
+        rusqlite::params![prior_hex, tenant_id],
+        |r| r.get::<_, String>(0),
+    ) {
+        Ok(it) => it.filter_map(|r| r.ok()).collect(),
+        Err(_) => Vec::new(),
+    };
+    tracing::debug!(
+        target: "ontostar.admission.witness_reread",
+        gate = "A12",
+        witness_count = admitted.len(),
+        "A12 admitted receipts re-read from receipts table",
+    );
+    admitted
 }
 
 /// R5 WB-2 — §15 OCEL anchor closure: atomic conformance INSERT + OCEL witness.
