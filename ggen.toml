@@ -44,13 +44,53 @@ max_results = 5000
 cache_enabled = true
 cache_ttl = 3600
 
+# Inference rules (μ₁ CONSTRUCT) — normalise CLI ontology triples before SELECT queries run.
+# Required by ggen DMAIC Phase 2 "Measure" gate: at least one CONSTRUCT inference rule must
+# be present before the measurement system is considered capable.
+[[inference.rules]]
+name = "normalize-cli-commands"
+description = "Materialize canonical cli:name, cli:summary, cli:description triples for every Command and SpecialCommand, and cli:verb / cli:noun triples for every Subcommand."
+construct = """
+PREFIX cli:  <https://ggen.io/onto/cli/spec/>
+PREFIX onto: <https://ggen.io/onto/cli/open-ontologies/>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+
+CONSTRUCT {
+  ?cmd  cli:commandType  ?cmdType ;
+        cli:name         ?name ;
+        cli:summary      ?summary ;
+        cli:description  ?desc .
+  ?sub  cli:subcommandOf ?cmd ;
+        cli:verb         ?verb ;
+        cli:noun         ?noun .
+}
+WHERE {
+  onto:OntoInterface cli:hasCommand ?cmd .
+  { ?cmd a cli:Command .        BIND("Command"        AS ?cmdType) }
+  UNION
+  { ?cmd a cli:SpecialCommand . BIND("SpecialCommand"  AS ?cmdType) }
+
+  ?cmd cli:name        ?name ;
+       cli:summary     ?summary ;
+       cli:description ?desc .
+
+  OPTIONAL {
+    ?cmd cli:hasSubcommand ?sub .
+    ?sub cli:verb ?verb ;
+         cli:noun ?noun .
+  }
+}
+"""
+
 [generation]
 enabled = true
 
 # Generation rules — each rule = SPARQL query + Tera template → output file
 rules = [
-    # Stage 1: Extract top-level nouns + subcommand stubs, render CLI module
-    { name = "cli-cmds", query = { file = ".specify/queries/cli/commands.rq" }, template = { file = ".specify/templates/cli/cmds.rs.tera" }, output_file = "src/cmds/generated.rs", mode = "Overwrite" },
+    # Stage 1: Extract all top-level nouns in ONE aggregated row, render CLI module.
+    # commands_aggregated.rq uses GROUP_CONCAT so the template renders exactly once
+    # (ggen v5 renders per-row; one row = one file, no partial overwrites).
+    { name = "cli-cmds", query = { file = ".specify/queries/cli/commands_aggregated.rq" }, template = { file = ".specify/templates/cli/cmds.rs.tera" }, output_file = "src/cmds/generated.rs", mode = "Overwrite" },
 ]
 
 # Protected paths — the hand-written implementations; never overwrite

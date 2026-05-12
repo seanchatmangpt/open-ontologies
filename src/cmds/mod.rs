@@ -8,6 +8,7 @@ pub mod alignment;
 pub mod clinical;
 pub mod data;
 pub mod doctor;
+pub mod generated;
 pub mod governance;
 pub mod marketplace;
 pub mod ontology;
