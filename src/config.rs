@@ -455,11 +455,10 @@ pub fn resolve_llm_python(cfg: &LlmConfig) -> String {
 
 /// R7 WB-1 — resolve the subprocess wall-clock timeout in seconds.
 ///
-/// Precedence: `OPEN_ONTOLOGIES_SUBPROCESS_TIMEOUT_SECS` env > config
-/// > 60. The env override exists so operators (and the
-/// [`tests/wb1_subprocess_timeout`] integration tests) can tighten the
-/// deadline without rewriting `config.toml`. Returned as a `Duration`
-/// so call sites don't repeat the arithmetic.
+/// Precedence order: `OPEN_ONTOLOGIES_SUBPROCESS_TIMEOUT_SECS` env,
+/// then config, then 60s default. The env override lets operators
+/// (and integration tests) tighten the deadline without rewriting
+/// `config.toml`. Returns a `Duration` so call sites skip the cast.
 pub fn resolve_subprocess_timeout(cfg: &LlmConfig) -> std::time::Duration {
     let secs = std::env::var("OPEN_ONTOLOGIES_SUBPROCESS_TIMEOUT_SECS")
         .ok()

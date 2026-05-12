@@ -193,24 +193,20 @@ pub fn crypto_verify(
     // Stage 4 + 5: examine `removed_at`.
     if let Some(removed_at) = removed_at_opt.as_ref() {
         // Stage 4: removed_at <= key_valid_at (self-contradictory history row).
-        if let Some(ord) = compare_rfc3339(removed_at, &added_at) {
-            if matches!(ord, std::cmp::Ordering::Less | std::cmp::Ordering::Equal) {
-                return Err(VerifierError::SignatureCorrupted {
-                    reason: "removed_before_added",
-                    granted_at: row.granted_at.clone(),
-                    key_valid_at: added_at,
-                    removed_at: Some(removed_at.clone()),
-                });
-            }
+        if let Some(ord) = compare_rfc3339(removed_at, &added_at) && matches!(ord, std::cmp::Ordering::Less | std::cmp::Ordering::Equal) {
+            return Err(VerifierError::SignatureCorrupted {
+                reason: "removed_before_added",
+                granted_at: row.granted_at.clone(),
+                key_valid_at: added_at,
+                removed_at: Some(removed_at.clone()),
+            });
         }
         // Stage 5: granted_at >= removed_at → expired-key warning.
-        if let Some(ord) = compare_rfc3339(&row.granted_at, removed_at) {
-            if matches!(ord, std::cmp::Ordering::Greater | std::cmp::Ordering::Equal) {
-                return Err(VerifierError::SignatureExpiredKey {
-                    granted_at: row.granted_at.clone(),
-                    removed_at: removed_at.clone(),
-                });
-            }
+        if let Some(ord) = compare_rfc3339(&row.granted_at, removed_at) && matches!(ord, std::cmp::Ordering::Greater | std::cmp::Ordering::Equal) {
+            return Err(VerifierError::SignatureExpiredKey {
+                granted_at: row.granted_at.clone(),
+                removed_at: removed_at.clone(),
+            });
         }
     }
 

@@ -158,7 +158,7 @@ impl VerifierWorker {
         // a wall-clock event_id (one per second ceiling is plenty —
         // collisions inside a single second collapse to one row).
         let now_iso = chrono::Utc::now().to_rfc3339();
-        let _ = self.emit_idempotent(
+        self.emit_idempotent(
             &format!(
                 "verifier_tick_started::{}",
                 chrono::Utc::now().timestamp_millis()
@@ -166,7 +166,7 @@ impl VerifierWorker {
             "verifier_tick_started",
             &now_iso,
             &[("cursor", &cursor_before.to_string())],
-        );
+        ).ok();
 
         // Single SELECT batch — no `.await` between the conn() acquire
         // and conn drop (rusqlite::MutexGuard is !Send).
@@ -196,7 +196,7 @@ impl VerifierWorker {
                     report.warnings += 1;
                     let event_id =
                         format!("verifier_warning::{}", row.receipt_hash);
-                    let _ = self.emit_idempotent(
+                    self.emit_idempotent(
                         &event_id,
                         "verifier_warning",
                         &now_iso,
@@ -207,7 +207,7 @@ impl VerifierWorker {
                             ("removed_at", removed_at.as_str()),
                             ("session_id", row.session_id.as_str()),
                         ],
-                    );
+                    ).ok();
                 }
                 Err(err) => {
                     report.failures += 1;
@@ -230,12 +230,12 @@ impl VerifierWorker {
                     if let Some(ref ra) = removed_at_owned {
                         attrs.push(("removed_at", ra.as_str()));
                     }
-                    let _ = self.emit_idempotent(
+                    self.emit_idempotent(
                         &event_id,
                         "verifier_failure",
                         &now_iso,
                         &attrs,
-                    );
+                    ).ok();
                     if self.cfg.pause_retention_on_failure {
                         let pause_until = chrono::Utc::now().timestamp()
                             .saturating_add(
@@ -275,7 +275,7 @@ impl VerifierWorker {
             .store(chrono::Utc::now().timestamp(), Ordering::Relaxed);
 
         // Tick-completed OCEL anchor.
-        let _ = self.emit_idempotent(
+        self.emit_idempotent(
             &format!(
                 "verifier_tick_completed::{}",
                 chrono::Utc::now().timestamp_millis()
@@ -288,7 +288,7 @@ impl VerifierWorker {
                 ("failures", &report.failures.to_string()),
                 ("cursor", &report.cursor_after.to_string()),
             ],
-        );
+        ).ok();
 
         span.record("verifier.cursor", report.cursor_after);
         span.record("verifier.scanned", report.scanned);
