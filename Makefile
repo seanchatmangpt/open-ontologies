@@ -54,7 +54,11 @@ expand: expand-prereq
 	@test -s target/expanded.rs || (echo "expand produced empty target/expanded.rs" && exit 1)
 	@echo "✓ target/expanded.rs produced ($$(wc -l < target/expanded.rs) lines)"
 
-adversarial: check-dead-params check-test-count check-test-removal-tag check-ast-audit expand clean-worktrees-soft
+verify-receipts:
+	@bash tools/verify-receipts.sh
+	@echo "✓ ggen receipt integrity verified"
+
+adversarial: check-dead-params check-test-count check-test-removal-tag check-ast-audit expand clean-worktrees-soft verify-receipts
 	cargo clippy -- -D clippy::todo -D clippy::unimplemented
 	cargo test --test adversarial_jtbd_test -- --test-threads=1
 	cargo test --test round5_ast_red_team expanded_dispatch_arms_match_source_attributes -- --test-threads=1
@@ -63,7 +67,7 @@ adversarial: check-dead-params check-test-count check-test-removal-tag check-ast
 audit:
 	cargo audit
 
-check: check-dead-params check-ast-audit lint test audit
+check: check-dead-params check-ast-audit lint test audit verify-receipts
 
 # ─── Benchmarks ──────────────────────────────────────────────────────────────
 
