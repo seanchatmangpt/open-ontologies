@@ -79,8 +79,8 @@ pub fn persist_with_tenant_in_tx(
     // same session_id cannot race the (session_id, sequence) unique index
     // because the surrounding transaction serializes the read+write.
     let next_sequence: i64 = tx.query_row(
-        "SELECT COALESCE(MAX(sequence), 0) + 1 FROM receipts WHERE session_id = ?1",
-        rusqlite::params![session_id],
+        "SELECT COALESCE(MAX(sequence), 0) + 1 FROM receipts WHERE session_id = ?1 AND tenant_id = ?2",
+        rusqlite::params![session_id, tenant_id],
         |r| r.get(0),
     )?;
 

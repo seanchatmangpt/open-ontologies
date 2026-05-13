@@ -110,7 +110,7 @@ async fn fortune5_revops_revenue_trust_trial_inproc() {
     let req_artifact = ArtifactRef { kind: "req", bytes: source_voice.as_bytes() };
     let req_receipt = gate
         .evaluate(&token, AdmissionOp::RequirementProposed, &req_artifact,
-            &store, &replay, session, powl, &observed)
+            &store, &replay, session, powl, &observed, "default")
         .expect("RequirementProposed admits");
 
     // CtqAdmitted
@@ -126,7 +126,7 @@ async fn fortune5_revops_revenue_trust_trial_inproc() {
     let ctq_artifact = ArtifactRef { kind: "ctq", bytes: ctq_canonical.as_bytes() };
     let ctq_receipt = gate
         .evaluate(&token, AdmissionOp::CtqAdmitted, &ctq_artifact,
-            &store, &replay, session, powl, &observed)
+            &store, &replay, session, powl, &observed, "default")
         .expect("CtqAdmitted admits");
 
     // WorkOrderAdmitted with counterfactual
@@ -141,7 +141,7 @@ async fn fortune5_revops_revenue_trust_trial_inproc() {
     let wo_artifact = ArtifactRef { kind: "wo", bytes: wo_canonical.as_bytes() };
     let wo_receipt = gate
         .evaluate(&token, AdmissionOp::WorkOrderAdmitted, &wo_artifact,
-            &store, &replay, session, powl, &observed)
+            &store, &replay, session, powl, &observed, "default")
         .expect("WorkOrderAdmitted admits");
 
     // ── 4. Receipt chain ────────────────────────────────────────────────
@@ -152,7 +152,7 @@ async fn fortune5_revops_revenue_trust_trial_inproc() {
     assert_eq!(wo_receipt.record.prior_receipt, Some(ctq_receipt.bytes));
 
     // ── 5. Real-replay smoke against the observed trace ────────────────
-    let conf = replay.replay(&token, powl);
+    let conf = replay.replay(&token, powl, "default");
     assert!(
         conf.fitness > 0.0,
         "real replay must compute a non-zero fitness against the observed RequirementsManufacturing trace; got {}",

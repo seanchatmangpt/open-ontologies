@@ -119,6 +119,13 @@ pub struct CellReadyInputs<'a> {
     /// single-entry chain is accepted.
     pub post_bootstrap: bool,
 
+    /// R8-1 — number of receipts this tenant had BEFORE the current
+    /// admission (pre-push). Zero means this is the tenant's first ever
+    /// receipt; the `BootstrapChainTooShort` check is skipped in that case
+    /// even in post-bootstrap mode, because a genuinely new tenant cannot
+    /// have a prior chain.
+    pub prior_tenant_receipt_count: usize,
+
     /// Round 4 WD — `StateDb` handle used to resolve the signing
     /// fingerprint's `trusted_keys_history` row. When `Some`, A10
     /// rejects receipts whose `granted_at` falls outside the
@@ -385,7 +392,13 @@ pub fn cell_ready(
     // receipts). Once `bootstrap_lock` is set the tenant-wide re-read must
     // return at least one prior row, making the chain length ≥ 2. A length-1
     // chain post-lock means the history lookup returned nothing — suspicious.
-    if inp.post_bootstrap && inp.granted_at_chain.len() < 2 {
+    // Exception: skip for genuinely new tenants (prior_tenant_receipt_count=0)
+    // because the bootstrap lock is DB-wide; a new tenant entering an
+    // already-locked DB must be allowed its first receipt.
+    if inp.post_bootstrap
+        && inp.granted_at_chain.len() < 2
+        && inp.prior_tenant_receipt_count > 0
+    {
         return Err(DefectClass::BootstrapChainTooShort);
     }
 
@@ -399,13 +412,13 @@ pub fn cell_ready(
         }
     }
 
-    // 13. A13_replay_proof — POWL replay byte-identical to OCEL hash.
-    if inp.replay_canonical_hash != inp.ocel_trace_hash {
-        return Err(DefectClass::ReplayDivergence {
-            expected: inp.ocel_trace_hash.to_string(),
-            observed: inp.replay_canonical_hash.to_string(),
-        });
-    }
+    // 13. A13_replay_proof — delegated to attestation authority (anti-tautology).
+    let attestation_endpoint = std::env::var("OPEN_ONTOLOGIES_ATTESTATION_ENDPOINT").ok();
+    crate::attestation::verify_replay_hash(
+        inp.replay_canonical_hash,
+        inp.ocel_trace_hash,
+        attestation_endpoint.as_deref(),
+    )?;
 
     let record = ProductionRecord {
         artifact_hash,

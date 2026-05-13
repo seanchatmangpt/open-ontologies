@@ -88,6 +88,7 @@ fn run_first_admission(db: &StateDb, store: &OcelStore, session: &str) {
     gate.evaluate(
         &token, AdmissionOp::Apply, &artifact, store,
         &NoopPowlReplay, session, workflow.powl_string, &observed,
+        "default",
     )
     .expect("first admission must succeed to populate receipts table");
 }
@@ -190,6 +191,7 @@ fn a11_temporal_validity_is_load_bearing_under_backdated_receipt() {
     let result = gate.evaluate(
         &token2, AdmissionOp::Apply, &artifact, &store,
         &NoopPowlReplay, session, workflow.powl_string, &observed,
+        "default",
     );
     admission::A11_GRANTED_AT_REREAD_HOOK.with(|cell| {
         *cell.borrow_mut() = None;

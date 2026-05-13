@@ -207,6 +207,7 @@ fn signed_then_rotated_out_rejected() {
         allow_legacy_unsigned: false,
         trusted_keys_db: Some(&db), // history-aware: window check fires
         post_bootstrap: false,
+        prior_tenant_receipt_count: 0,
     };
     let outcome = cell_ready(inputs, &store);
     match outcome {
@@ -318,6 +319,7 @@ fn additive_rotation_preserves_old_signatures() {
         allow_legacy_unsigned: false,
         trusted_keys_db: Some(&db),
         post_bootstrap: false,
+        prior_tenant_receipt_count: 0,
     };
     let outcome = cell_ready(inputs, &store);
     assert!(

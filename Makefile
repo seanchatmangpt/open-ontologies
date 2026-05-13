@@ -1,4 +1,4 @@
-.PHONY: build test lint audit check adversarial check-dead-params check-test-count check-test-removal-tag check-ast-audit expand expand-prereq bench bench-pizza bench-ontoaxiom bench-mushroom bench-vision bench-reasoner bench-oaei docker docker-run init serve serve-http clean clean-worktrees clean-worktrees-soft gc-build
+.PHONY: build test lint audit check adversarial cell8-certify check-dead-params check-test-count check-test-removal-tag check-ast-audit expand expand-prereq bench bench-pizza bench-ontoaxiom bench-mushroom bench-vision bench-reasoner bench-oaei docker docker-run init serve serve-http clean clean-worktrees clean-worktrees-soft gc-build
 
 # ─── Development ─────────────────────────────────────────────────────────────
 
@@ -63,6 +63,14 @@ adversarial: check-dead-params check-test-count check-test-removal-tag check-ast
 	cargo test --test adversarial_jtbd_test -- --test-threads=1
 	cargo test --test round5_ast_red_team expanded_dispatch_arms_match_source_attributes -- --test-threads=1
 	@echo "✓ All adversarial JTBD gates passed"
+
+cell8-certify: adversarial
+	@echo "Generating Cell8 A1-A13 EARL certification report..."
+	@cargo test --test cell8_thirteen_gates -- --test-threads=1 2>&1 | grep -q "test result: ok"
+	@python3 tools/emit-earl-report.py > cell8-final-assertion-report.ttl
+	@grep -c 'earl:passed' cell8-final-assertion-report.ttl | grep -qx '13'
+	@! grep -q 'earl:failed' cell8-final-assertion-report.ttl
+	@echo "✓ Cell8 A1-A13 certification complete"
 
 audit:
 	cargo audit

@@ -1,0 +1,13 @@
+[Unit]
+Description=OntoStar open-ontologies MCP server
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/open-ontologies mcp start --transport http --port 3050
+Restart=on-failure
+RestartSec=5
+Environment=RUST_LOG=info
+
+[Install]
+WantedBy=multi-user.target

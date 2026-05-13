@@ -83,17 +83,17 @@ fn full_recursive_admission_chain_from_requirement_to_manufactured_stack() {
     let req_artifact = ArtifactRef { kind: "req", bytes: b"voice" };
     let req_receipt = req_gate
         .evaluate(&req_scope, AdmissionOp::RequirementProposed, &req_artifact,
-            &store, &replay, session, req_powl, &observed)
+            &store, &replay, session, req_powl, &observed, "default")
         .expect("RequirementProposed admits");
     let ctq_artifact = ArtifactRef { kind: "ctq", bytes: b"ctq-canonical" };
     let ctq_receipt = req_gate
         .evaluate(&req_scope, AdmissionOp::CtqAdmitted, &ctq_artifact,
-            &store, &replay, session, req_powl, &observed)
+            &store, &replay, session, req_powl, &observed, "default")
         .expect("CtqAdmitted admits");
     let wo_artifact = ArtifactRef { kind: "wo", bytes: b"work-order-canonical" };
     let wo_receipt = req_gate
         .evaluate(&req_scope, AdmissionOp::WorkOrderAdmitted, &wo_artifact,
-            &store, &replay, session, req_powl, &observed)
+            &store, &replay, session, req_powl, &observed, "default")
         .expect("WorkOrderAdmitted admits");
 
     // Receipt chain inside Requirements layer.
@@ -162,7 +162,7 @@ fn full_recursive_admission_chain_from_requirement_to_manufactured_stack() {
     let smfg_replay = PowlBridgeReplay::new(&store);
     let smfg_receipt = smfg_gate
         .evaluate(&smfg_scope, AdmissionOp::SolutionManufactured, &smfg_artifact,
-            &store, &smfg_replay, session, smfg_powl, &observed_smfg)
+            &store, &smfg_replay, session, smfg_powl, &observed_smfg, "default")
         .expect("SolutionManufactured admits");
 
     // ── Recursive admission claim: receipt chain crosses layers ─────────

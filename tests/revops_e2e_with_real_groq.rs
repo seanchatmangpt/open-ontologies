@@ -151,7 +151,7 @@ async fn fortune5_revops_revenue_trust_trial_with_real_groq() {
     let req_artifact = ArtifactRef { kind: "req", bytes: source_voice.as_bytes() };
     let req_receipt = gate
         .evaluate(&token, AdmissionOp::RequirementProposed, &req_artifact,
-            &store, &replay, session, powl, &observed)
+            &store, &replay, session, powl, &observed, "default")
         .expect("RequirementProposed admits");
 
     let ctq_canonical = format!(
@@ -166,7 +166,7 @@ async fn fortune5_revops_revenue_trust_trial_with_real_groq() {
     let ctq_artifact = ArtifactRef { kind: "ctq", bytes: ctq_canonical.as_bytes() };
     let ctq_receipt = gate
         .evaluate(&token, AdmissionOp::CtqAdmitted, &ctq_artifact,
-            &store, &replay, session, powl, &observed)
+            &store, &replay, session, powl, &observed, "default")
         .expect("CtqAdmitted admits real-Groq output");
 
     let counterfactual_delta = "Manufacturing path prevents unsupported forecast trust; \
@@ -180,7 +180,7 @@ async fn fortune5_revops_revenue_trust_trial_with_real_groq() {
     let wo_artifact = ArtifactRef { kind: "wo", bytes: wo_canonical.as_bytes() };
     let wo_receipt = gate
         .evaluate(&token, AdmissionOp::WorkOrderAdmitted, &wo_artifact,
-            &store, &replay, session, powl, &observed)
+            &store, &replay, session, powl, &observed, "default")
         .expect("WorkOrderAdmitted admits");
 
     // ── 4. Receipt chain integrity ──────────────────────────────────────

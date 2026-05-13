@@ -73,7 +73,7 @@ fn admit_ctq(
     let gate = build_gate();
     let replay = PowlBridgeReplay::new(store);
     gate.evaluate(scope, AdmissionOp::CtqAdmitted, &artifact, store, &replay,
-        session, powl, &observed)
+        session, powl, &observed, "default")
 }
 
 fn fresh_scope(session: &str) -> (StateDb, OcelStore, String) {

@@ -946,3 +946,16 @@ pub struct OntoRetentionPauseInput {
     pub minutes: u64,
 }
 
+/// R10-2: `onto_ontostar_attest` input. Verifies an external OntoStar
+/// Ed25519 receipt and seals the key fingerprint into `trusted_keys_history`.
+#[derive(Deserialize, JsonSchema)]
+pub struct OntoOntostarAttestInput {
+    /// Base64-encoded Ed25519 signature from the external OntoStar receipt.
+    pub signature: String,
+    /// BLAKE3 hash (hex or UTF-8 string) of the receipt payload being attested.
+    pub payload_hash: String,
+    /// Key fingerprint hex (exactly 16 hex chars = 8 bytes) identifying the
+    /// external signer within the local `TrustedKeys` set.
+    pub key_fpr: String,
+}
+

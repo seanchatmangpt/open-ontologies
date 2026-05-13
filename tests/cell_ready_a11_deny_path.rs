@@ -115,6 +115,7 @@ fn build_inputs<'a>(
         allow_legacy_unsigned: true,
         trusted_keys_db: None,
         post_bootstrap: false,
+        prior_tenant_receipt_count: 0,
     }
 }
 

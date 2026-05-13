@@ -362,6 +362,7 @@ fn read_only_tools_listed_in_allowlist() {
         "onto_verify",
         "onto_cell8_attest",
         "onto_attestation_rotate_keys",
+        "onto_ontostar_attest",
     ]
     .into_iter()
     .collect();

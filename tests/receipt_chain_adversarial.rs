@@ -193,6 +193,7 @@ fn concurrent_sessions_do_not_cross_chain() {
                 &session,
                 powl,
                 &observed,
+                "default",
             )
             .expect("admission must grant");
         }
@@ -363,6 +364,7 @@ fn orphan_detection_refuses_to_chain() {
         session,
         powl,
         &observed,
+        "default",
     );
     assert!(
         sabotaged.is_err(),
@@ -421,6 +423,7 @@ fn orphan_detection_refuses_to_chain() {
             session,
             powl,
             &observed,
+            "default",
         )
         .expect("clean follow-up admission must grant");
 

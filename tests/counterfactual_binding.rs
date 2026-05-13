@@ -69,7 +69,7 @@ fn admission_ok_persists_gates_fired_and_manufacturing_delta() {
         .unwrap_or_default();
     let result = gate.evaluate(
         &token, AdmissionOp::Apply, &artifact, &store, &replay,
-        session, powl, &observed,
+        session, powl, &observed, "default",
     );
     assert!(result.is_ok(), "happy-path admission must succeed: {:?}", result.err());
 
@@ -159,7 +159,7 @@ fn admission_denial_persists_gates_denied_with_defect_tag() {
         .unwrap_or_default();
     let result = gate.evaluate(
         &token, AdmissionOp::Apply, &artifact, &store, &replay,
-        session, powl, &observed,
+        session, powl, &observed, "default",
     );
     assert!(result.is_err(), "skipped-stage admission must deny");
 

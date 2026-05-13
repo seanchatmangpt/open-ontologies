@@ -196,6 +196,7 @@ async fn revops_complaint_to_admitted_work_order_secret_clean() {
             session,
             powl,
             &observed,
+            "default",
         )
         .expect("RequirementProposed must admit");
 
@@ -223,6 +224,7 @@ async fn revops_complaint_to_admitted_work_order_secret_clean() {
             session,
             powl,
             &observed,
+            "default",
         )
         .expect("CtqAdmitted must admit");
 
@@ -266,6 +268,7 @@ async fn revops_complaint_to_admitted_work_order_secret_clean() {
             session,
             powl,
             &observed_for_wo,
+            "default",
         )
         .expect("WorkOrderAdmitted must admit");
 

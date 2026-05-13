@@ -184,6 +184,7 @@ fn a13_replay_proof_is_load_bearing_under_concurrent_mutation() {
         session,
         powl,
         &observed,
+        "default",
     );
     admission::A13_BETWEEN_SNAPSHOT_HOOK.with(|cell| {
         *cell.borrow_mut() = None;

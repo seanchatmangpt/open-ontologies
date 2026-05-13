@@ -148,6 +148,7 @@ fn a13_replay_divergence_under_concurrent_mutation() {
             session,
             powl,
             &observed,
+            "default",
         )
     });
 
@@ -216,6 +217,7 @@ fn a13_re_snapshot_quiescent_store_still_grants() {
         session,
         powl,
         &observed,
+        "default",
     );
 
     // Non-tautological A13: under quiescent store the two snapshots

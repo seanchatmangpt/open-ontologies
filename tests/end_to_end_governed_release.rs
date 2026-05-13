@@ -68,7 +68,7 @@ fn end_to_end_declare_walk_admit_receipt_in_ocel() {
     //    fitness, not a stub 1.0).
     let powl = by_name("DataExtensionFastPath").unwrap().powl_string;
     let replay = PowlBridgeReplay::new(&store);
-    let conf = replay.replay(&token, powl);
+    let conf = replay.replay(&token, powl, "default");
     assert!(
         conf.fitness >= 0.95,
         "pre-flight fitness should be >= 0.95, got {}",
@@ -99,6 +99,7 @@ fn end_to_end_declare_walk_admit_receipt_in_ocel() {
         session,
         powl,
         &observed,
+        "default",
     ) {
         Ok(r) => r,
         Err((defect, devs)) => panic!(

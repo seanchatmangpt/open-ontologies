@@ -134,6 +134,7 @@ fn happy_path_counterfactual_shows_no_delta_but_admits() {
             session,
             powl,
             &observed,
+            "default",
         )
         .expect("HappyPath admission must succeed");
     assert!(!receipt.hex().is_empty());

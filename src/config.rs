@@ -40,6 +40,10 @@ pub struct Config {
     /// `[telemetry]` — R8-3 OTEL export wiring. When `otlp_endpoint` is set,
     /// `src/telemetry.rs` exports `tracing` spans to the configured collector.
     pub telemetry: TelemetryConfig,
+    /// R9-1 — optional external A13 attestation endpoint.
+    /// When set (or via `OPEN_ONTOLOGIES_ATTESTATION_ENDPOINT`), `cell_ready`
+    /// POSTs the replay+OCEL hash pair to this URL for external witnessing.
+    pub attestation_endpoint: Option<String>,
 }
 
 

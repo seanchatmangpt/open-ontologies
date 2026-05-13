@@ -101,6 +101,7 @@ fn run_first_admission(
             session,
             workflow.powl_string,
             &observed,
+            "default",
         )
         .expect("first admission must succeed");
     // Return the receipt hash hex so the saboteur can target it.
@@ -174,6 +175,7 @@ fn a12_dependency_closure_is_load_bearing_under_deleted_prior_receipt() {
         session,
         workflow.powl_string,
         &observed,
+        "default",
     );
     admission::A12_ADMITTED_RECEIPTS_REREAD_HOOK.with(|cell| {
         *cell.borrow_mut() = None;

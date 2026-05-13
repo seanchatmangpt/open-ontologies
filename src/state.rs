@@ -422,6 +422,22 @@ impl StateDb {
             let _ = conn.execute_batch(stmt);
         }
 
+        // ─── R9-3: tenant-scoped receipt sequence unique index ─────────────
+        // The original index `receipts_session_sequence_uniq` keys on
+        // (session_id, sequence), which prevents two tenants from sharing the
+        // same session_id with independent per-tenant counters. Replace it with
+        // a (session_id, tenant_id, sequence) triple to allow per-tenant
+        // sequence namespaces while still enforcing no duplicate within a
+        // single tenant's session.
+        let _ = conn.execute_batch(
+            "DROP INDEX IF EXISTS receipts_session_sequence_uniq;\
+             DROP INDEX IF EXISTS receipts_session_seq_desc;\
+             CREATE UNIQUE INDEX IF NOT EXISTS receipts_session_tenant_seq_uniq \
+                 ON receipts(session_id, tenant_id, sequence);\
+             CREATE INDEX IF NOT EXISTS receipts_session_tenant_seq_desc \
+                 ON receipts(session_id, tenant_id, sequence DESC);"
+        );
+
         // ─── Round 4 WD — §29 Cell8 retirement closure ────────────────────
         // Trust-set rotation history + receipt validity-window column.
         // Additive/idempotent — safe on existing databases.

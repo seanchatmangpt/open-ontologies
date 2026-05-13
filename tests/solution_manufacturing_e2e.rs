@@ -140,6 +140,7 @@ fn solution_manufacturing_e2e_admits_full_stack() {
             session,
             powl,
             &observed,
+            "default",
         )
         .expect("SolutionManufactured admission must succeed");
 

@@ -35,14 +35,16 @@ fn r4_red_team_depth1_helper_writes_db_caught() {
     // `evil_insert(...)` that runs `conn.execute("INSERT INTO ...")` with
     // no admission gate anywhere on the path.
     let synthetic = r#"
-        #[tool(name = "onto_naked_insert", description = "evil")]
-        fn onto_naked_insert(&self) -> String {
-            self.evil_insert();
-            "{}".to_string()
-        }
-        fn evil_insert(&self) {
-            let conn = self.db.conn();
-            let _ = conn.execute("INSERT INTO foo VALUES (?1)", []);
+        impl OpenOntologiesServer {
+            #[tool(name = "onto_naked_insert", description = "evil")]
+            fn onto_naked_insert(&self) -> String {
+                self.evil_insert();
+                "{}".to_string()
+            }
+            fn evil_insert(&self) {
+                let conn = self.db.conn();
+                let _ = conn.execute("INSERT INTO foo VALUES (?1)", []);
+            }
         }
     "#;
     let handlers = nba::extract_handlers_for_test(synthetic);
@@ -61,17 +63,19 @@ fn r4_red_team_depth1_helper_gated_passes() {
     // ratchet must NOT flag this — it's the canonical safe pattern (see
     // `persist_planned_scope`).
     let synthetic = r#"
-        #[tool(name = "onto_safe", description = "ok")]
-        fn onto_safe(&self) -> String {
-            self.gated_insert();
-            "{}".to_string()
-        }
-        fn gated_insert(&self) {
-            if let Err(e) = self.evaluate_admission(op, None, "k", b"v", None, None) {
-                return;
+        impl OpenOntologiesServer {
+            #[tool(name = "onto_safe", description = "ok")]
+            fn onto_safe(&self) -> String {
+                self.gated_insert();
+                "{}".to_string()
             }
-            let conn = self.db.conn();
-            let _ = conn.execute("INSERT INTO foo VALUES (?1)", []);
+            fn gated_insert(&self) {
+                if let Err(e) = self.evaluate_admission(op, None, "k", b"v", None, None) {
+                    return;
+                }
+                let conn = self.db.conn();
+                let _ = conn.execute("INSERT INTO foo VALUES (?1)", []);
+            }
         }
     "#;
     let handlers = nba::extract_handlers_for_test(synthetic);
@@ -96,14 +100,16 @@ fn r4_red_team_conditionally_gated_path_caught() {
         format!("{}{}", "let _ = self.", "evaluate_admission(op, None, \"k\", b\"v\", None, None);");
     let synthetic = format!(
         r#"
-        #[tool(name = "onto_conditional", description = "x")]
-        fn onto_conditional(&self) -> String {{
-            if false {{
-                {DEAD_GATE_CALL}
+        impl OpenOntologiesServer {{
+            #[tool(name = "onto_conditional", description = "x")]
+            fn onto_conditional(&self) -> String {{
+                if false {{
+                    {DEAD_GATE_CALL}
+                }}
+                let conn = self.db.conn();
+                let _ = conn.execute("INSERT INTO foo VALUES (?1)", []);
+                "{{}}".to_string()
             }}
-            let conn = self.db.conn();
-            let _ = conn.execute("INSERT INTO foo VALUES (?1)", []);
-            "{{}}".to_string()
         }}
     "#,
         DEAD_GATE_CALL = dead_gate_call,
@@ -152,11 +158,13 @@ fn r4_red_team_direct_db_write_in_handler_body_caught() {
     // Synthetic: handler body itself contains `conn.execute("INSERT INTO …")`
     // with no admission anywhere. Pure inline mutation.
     let synthetic = r#"
-        #[tool(name = "onto_direct_write", description = "x")]
-        fn onto_direct_write(&self) -> String {
-            let conn = self.db.conn();
-            let _ = conn.execute("INSERT INTO secrets VALUES (?1)", []);
-            "{}".to_string()
+        impl OpenOntologiesServer {
+            #[tool(name = "onto_direct_write", description = "x")]
+            fn onto_direct_write(&self) -> String {
+                let conn = self.db.conn();
+                let _ = conn.execute("INSERT INTO secrets VALUES (?1)", []);
+                "{}".to_string()
+            }
         }
     "#;
     let handlers = nba::extract_handlers_for_test(synthetic);

@@ -177,6 +177,7 @@ fn n7_admission_without_scope_token_yields_scope_unclosed_or_capability_zero() {
         session,
         powl,
         &observed,
+        "default",
     );
     // The gate denies — exact variant is CapabilityZero or OcelIncomplete
     // depending on which conjunct fires first (both are valid; the

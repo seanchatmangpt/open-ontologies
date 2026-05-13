@@ -1,12 +1,12 @@
 {
-  "operation_id": "8af8b8a8-e1e3-42f5-a19a-de177c03e0a0",
-  "timestamp": "2026-05-12T21:39:19.886315Z",
+  "operation_id": "f6cb2b7f-9223-4773-a6e1-2cc74b2c4301",
+  "timestamp": "2026-05-13T00:11:26.449782Z",
   "input_hashes": [
-    "ggen.toml:f5804d04a9c8a2f2f9dc7a0a064f881161ac9af99e70a9555128abfcfa9d2247"
+    "ggen.toml:d6985112f15ab2ae94f3f9e3feeb040dbe0cddd36ffaa4acf4f28e59a0c3cc5f"
   ],
   "output_hashes": [
-    "./src/cmds/generated.rs:8198972e09e687907d515be2967f0b17c0704f7e8d6dd96bffa6d00d53bc9678"
+    "./src/cmds/generated_revops.rs:b469360672c4f5b4ec53dad9080029423e86ff2c49c90e76a3977616667eb575"
   ],
-  "signature": "2acf1c8d2d9d00c95036e090d24fb9436d71ec0a4babc147e1792dcc1aed0ec746c98a259cf674fa1d65f2ed143578da5991c0c4a76080da2194d8c07f51ed07",
-  "previous_receipt_hash": "7906b6574f598154c03402dc7677940b5e36caf093091b5fcb9f3bad5c59770e"
+  "signature": "db6b449659955962e824d813c9452fb85a30d3e20996808920ad6678c99c5189f9e93ee6ae553e6dd74950bcff285ee7d40da6aa7019fc20152bd692c3e8e100",
+  "previous_receipt_hash": "b306f6d64b4328e4b49acc5be4d668a19a7f20f2b0282bc93dceb52a3ad715a1"
 }

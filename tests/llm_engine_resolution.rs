@@ -16,7 +16,7 @@
 //! mutation+assertion in a guard so a panic in one test does not leak
 //! environment into another.
 
-use std::sync::Arc;
+use std::sync::{Arc, Mutex, OnceLock};
 
 use open_ontologies::config::{
     resolve_llm_engine, CacheConfig, EmbeddingsConfig, LlmConfig,
@@ -25,6 +25,15 @@ use open_ontologies::graph::GraphStore;
 use open_ontologies::server::OpenOntologiesServer;
 use open_ontologies::state::StateDb;
 use open_ontologies::toolfilter::ToolFilter;
+
+/// Serialises all env-mutating tests in this binary.
+/// `unsafe { std::env::set_var }` is not thread-safe; this mutex ensures
+/// only one test touches env vars at a time, matching the `--test-threads=1`
+/// contract described in the module-level comment.
+static ENV_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+fn env_lock() -> std::sync::MutexGuard<'static, ()> {
+    ENV_LOCK.get_or_init(|| Mutex::new(())).lock().unwrap_or_else(|e| e.into_inner())
+}
 
 /// RAII guard that restores environment-variable state when dropped, so
 /// concurrent test files do not see leaked overrides if a test panics.
@@ -98,6 +107,7 @@ const RELEVANT_KEYS: &[&str] = &[
 
 #[test]
 fn default_engine_is_groq_pm4py_when_key_present() {
+    let _lock = env_lock();
     let guard = EnvGuard::capture(RELEVANT_KEYS);
     guard.unset_all();
     guard.set("GROQ_API_KEY", "test-key-not-real-not-sent-anywhere");
@@ -117,6 +127,7 @@ fn default_engine_is_groq_pm4py_when_key_present() {
 
 #[test]
 fn header_override_to_inproc_takes_effect() {
+    let _lock = env_lock();
     let guard = EnvGuard::capture(RELEVANT_KEYS);
     guard.unset_all();
     guard.set("GROQ_API_KEY", "test-key-not-real-not-sent-anywhere");
@@ -142,6 +153,7 @@ fn header_override_to_inproc_takes_effect() {
 
 #[test]
 fn key_unset_falls_back_to_inproc() {
+    let _lock = env_lock();
     let guard = EnvGuard::capture(RELEVANT_KEYS);
     guard.unset_all();
 

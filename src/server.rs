@@ -674,7 +674,8 @@ impl OpenOntologiesServer {
         // Pre-compute conformance once so we can record the *real* fitness /
         // precision in the lineage trail (the gate also calls replay
         // internally; this is a cheap second call against the parsed POWL).
-        let conf = replay.replay(&scope_row.scope_token, &scope_row.powl_string);
+        let caller_tenant = self.tenant.current();
+        let conf = replay.replay(&scope_row.scope_token, &scope_row.powl_string, caller_tenant.current());
 
         // ─── PHASE 11 ENFORCEMENT POINT ────────────────────────────────────
         // All 27 #[tool] handlers that mutate funnel through this helper.
@@ -690,7 +691,6 @@ impl OpenOntologiesServer {
         // entirely, is a Phase-11 regression that the
         // `multi_tenant_boundary_wired` test suite is designed to catch.
         // ───────────────────────────────────────────────────────────────────
-        let caller_tenant = self.tenant.current();
         match gate.evaluate_in_tenant(
             &scope_row.scope_token,
             op,
@@ -3569,7 +3569,7 @@ impl OpenOntologiesServer {
 
         match self
             .ocel_store()
-            .replay_against_powl(&input.scope_token, &bridge, root)
+            .replay_against_powl(&input.scope_token, &bridge, root, "default")
         {
             Ok(res) => serde_json::json!({
                 "ok": true,
@@ -5772,6 +5772,106 @@ impl OpenOntologiesServer {
             "now_paused": false,
         })
         .to_string()
+    }
+
+    // ── R10-2: Ontostar integration seal ────────────────────────────────────
+
+    #[tool(
+        name = "onto_ontostar_attest",
+        description = "R10-2 Ontostar integration seal: verify an external OntoStar Ed25519 receipt and record the key fingerprint in trusted_keys_history. Accepts base64-encoded signature, BLAKE3 payload hash, and hex key fingerprint. Returns {ok, fingerprint, recorded} on success. Rejects if signature does not verify against TrustedKeys."
+    )]
+    pub fn onto_ontostar_attest(
+        &self,
+        Parameters(input): Parameters<crate::inputs::OntoOntostarAttestInput>,
+    ) -> String {
+        use crate::attestation::{TrustedKeys, fingerprint_hex};
+        use base64::Engine as _;
+
+        // Decode signature bytes into fixed [u8;64] — Ed25519 signatures are always 64 bytes.
+        let sig_bytes: [u8; 64] = {
+            let v = match base64::engine::general_purpose::STANDARD.decode(&input.signature) {
+                Ok(b) => b,
+                Err(e) => return serde_json::json!({
+                    "ok": false,
+                    "error": format!("base64 decode signature: {e}"),
+                }).to_string(),
+            };
+            match v.try_into() {
+                Ok(arr) => arr,
+                Err(_) => return serde_json::json!({
+                    "ok": false,
+                    "error": "signature must be 64 bytes (Ed25519)",
+                }).to_string(),
+            }
+        };
+
+        // Load trusted keys from env (same path as A10 verifier).
+        let trusted = match TrustedKeys::from_env() {
+            Ok(Some(t)) => t,
+            Ok(None) => return serde_json::json!({
+                "ok": false,
+                "error": "OPEN_ONTOLOGIES_TRUSTED_KEYS_DIR not configured",
+            }).to_string(),
+            Err(e) => return serde_json::json!({
+                "ok": false,
+                "error": format!("load trusted keys: {e}"),
+            }).to_string(),
+        };
+
+        // Decode fingerprint into [u8;8].
+        let fpr_bytes: [u8; 8] = match hex::decode(&input.key_fpr) {
+            Ok(b) if b.len() == 8 => {
+                let mut arr = [0u8; 8];
+                arr.copy_from_slice(&b);
+                arr
+            }
+            _ => return serde_json::json!({
+                "ok": false,
+                "error": "key_fpr must be 16 hex chars (8 bytes)",
+            }).to_string(),
+        };
+
+        // Verify signature.
+        let payload_bytes = input.payload_hash.as_bytes();
+        let outcome = crate::attestation::verify_strict(
+            &trusted,
+            &fpr_bytes,
+            payload_bytes,
+            &sig_bytes,
+        );
+        if outcome != crate::attestation::VerifyOutcome::Valid {
+            return serde_json::json!({
+                "ok": false,
+                "error": format!("signature verification failed: {outcome:?}"),
+            }).to_string();
+        }
+
+        // Emit audit trail before writing so the OCEL event is durable
+        // even if the INSERT is skipped on duplicate. This call exempts
+        // the handler from the no_bypass_audit DB-write gate check.
+        self.evaluate_admission_audit(
+            crate::admission::AdmissionOp::OntostarAttest,
+            None,
+            "ontostar_attest",
+            &fpr_bytes,
+        );
+
+        // Record fingerprint in trusted_keys_history (idempotent INSERT OR IGNORE).
+        let now = chrono::Utc::now().to_rfc3339();
+        let fpr_hex = fingerprint_hex(&fpr_bytes);
+        let conn = self.db.conn();
+        let recorded = conn.execute(
+            "INSERT OR IGNORE INTO trusted_keys_history
+                (fingerprint, pem, added_at, removed_at, status)
+             VALUES (?1, '', ?2, NULL, 'ontostar-external')",
+            rusqlite::params![fpr_hex, now],
+        ).unwrap_or(0);
+
+        serde_json::json!({
+            "ok": true,
+            "fingerprint": fpr_hex,
+            "recorded": recorded > 0,
+        }).to_string()
     }
 }
 

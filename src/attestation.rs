@@ -381,6 +381,28 @@ pub fn verify_strict(
     }
 }
 
+/// R9-1: Verify A13 replay hash.
+///
+/// Separates the A13 comparison from the `cell_ready` gate so the witness
+/// lives in the attestation authority, not inside the gate's own inputs struct
+/// (which would be a tautological self-witness).
+///
+/// When `_endpoint` is `Some`, an external HTTP POST is planned for R9-3 OTLP
+/// wiring. The local comparison must pass first in all cases.
+pub fn verify_replay_hash(
+    replay_hash: &str,
+    ocel_hash: &str,
+    _endpoint: Option<&str>,
+) -> Result<(), crate::defects::DefectClass> {
+    if replay_hash != ocel_hash {
+        return Err(crate::defects::DefectClass::ReplayDivergence {
+            expected: ocel_hash.to_string(),
+            observed: replay_hash.to_string(),
+        });
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

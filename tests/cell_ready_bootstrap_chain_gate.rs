@@ -61,6 +61,7 @@ fn build_inputs<'a>(
     session_id: &'a str,
     granted_at_chain: &'a [String],
     post_bootstrap: bool,
+    prior_tenant_receipt_count: usize,
 ) -> CellReadyInputs<'a> {
     let mut powl_hash = [0u8; 32];
     powl_hash[0] = 0xab;
@@ -104,6 +105,7 @@ fn build_inputs<'a>(
         allow_legacy_unsigned: true,
         trusted_keys_db: None,
         post_bootstrap,
+        prior_tenant_receipt_count,
     }
 }
 
@@ -117,7 +119,8 @@ fn bootstrap_mode_allows_chain_length_1() {
     let scope_token = setup_scope(&db, session);
 
     let chain = vec![chrono::Utc::now().to_rfc3339()];
-    let inputs = build_inputs(&scope_token, session, &chain, false);
+    // prior_tenant_receipt_count=0 → bootstrap window applies to both old and new tenants.
+    let inputs = build_inputs(&scope_token, session, &chain, false, 0);
     let result = cell_ready(inputs, &store);
     assert!(
         !matches!(result, Err(DefectClass::BootstrapChainTooShort)),
@@ -125,9 +128,12 @@ fn bootstrap_mode_allows_chain_length_1() {
     );
 }
 
-/// 2. Production mode (post_bootstrap = true) with chain length 1 → DENIED.
+/// 2. Production mode (post_bootstrap = true) with chain length 1 and
+///    prior_tenant_receipt_count > 0 → DENIED.
 ///    This is the load-bearing negative path: proves the gate is not
-///    bypassed when `bootstrap_lock` is active.
+///    bypassed when `bootstrap_lock` is active and the tenant has prior history.
+///    (A new tenant with prior_tenant_receipt_count=0 is allowed its first receipt
+///    even in post-bootstrap; the denial case requires a known existing tenant.)
 #[test]
 fn post_bootstrap_denies_chain_length_1() {
     let (_db, store) = fresh_store();
@@ -136,11 +142,34 @@ fn post_bootstrap_denies_chain_length_1() {
     let scope_token = setup_scope(&db, session);
 
     let chain = vec![chrono::Utc::now().to_rfc3339()];
-    let inputs = build_inputs(&scope_token, session, &chain, true);
+    // prior_tenant_receipt_count=1: simulates an existing tenant whose chain
+    // suspiciously returned only 1 entry (e.g., history tampered with).
+    let inputs = build_inputs(&scope_token, session, &chain, true, 1);
     let result = cell_ready(inputs, &store);
     assert!(
         matches!(result, Err(DefectClass::BootstrapChainTooShort)),
-        "post-bootstrap single-entry chain MUST raise BootstrapChainTooShort; got {result:?}"
+        "post-bootstrap single-entry chain for existing tenant MUST raise BootstrapChainTooShort; got {result:?}"
+    );
+}
+
+/// 2b. Production mode (post_bootstrap = true) with chain length 1 but
+///     prior_tenant_receipt_count=0 → ALLOWED.
+///     A genuinely new tenant entering a post-bootstrap DB gets its first
+///     receipt — the bootstrap lock is DB-wide, not per-tenant.
+#[test]
+fn post_bootstrap_new_tenant_chain_length_1_allowed() {
+    let (_db, store) = fresh_store();
+    let db = store.db().clone();
+    let session = "sess-post-bootstrap-new-tenant";
+    let scope_token = setup_scope(&db, session);
+
+    let chain = vec![chrono::Utc::now().to_rfc3339()];
+    // prior_tenant_receipt_count=0: this tenant has never admitted before.
+    let inputs = build_inputs(&scope_token, session, &chain, true, 0);
+    let result = cell_ready(inputs, &store);
+    assert!(
+        !matches!(result, Err(DefectClass::BootstrapChainTooShort)),
+        "post-bootstrap new tenant (prior_count=0) must NOT raise BootstrapChainTooShort; got {result:?}"
     );
 }
 
@@ -156,7 +185,7 @@ fn post_bootstrap_admits_chain_length_2() {
     let t0 = "2026-05-12T00:00:00Z".to_string();
     let t1 = chrono::Utc::now().to_rfc3339();
     let chain = vec![t0, t1];
-    let inputs = build_inputs(&scope_token, session, &chain, true);
+    let inputs = build_inputs(&scope_token, session, &chain, true, 1);
     let result = cell_ready(inputs, &store);
     assert!(
         !matches!(result, Err(DefectClass::BootstrapChainTooShort)),

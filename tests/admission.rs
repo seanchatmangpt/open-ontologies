@@ -76,6 +76,7 @@ fn skipped_stage_denial() {
         session,
         powl,
         &observed,
+        "default",
     );
     match result {
         Err((DefectClass::CapabilityZero, _)) => {}
@@ -123,6 +124,7 @@ fn wrong_order_denial() {
         session,
         powl,
         &observed,
+        "default",
     );
     match result {
         // Without plan_computed in the observed trace, `RequiredStagesPresent`
@@ -179,6 +181,7 @@ fn happy_path_admission_persists_receipt() {
             session,
             powl,
             &observed,
+            "default",
         )
         .expect("admission must grant on happy path");
 
@@ -232,6 +235,7 @@ fn replay_enforcement_after_corruption() {
         session,
         powl,
         &observed,
+        "default",
     )
     .expect("first eval grants");
 
@@ -250,6 +254,7 @@ fn replay_enforcement_after_corruption() {
             &self,
             scope_token: &str,
             _powl: &str,
+            _tenant_id: &str,
         ) -> admission::ConformanceResult {
             admission::ConformanceResult {
                 fitness: 1.0,
@@ -269,6 +274,7 @@ fn replay_enforcement_after_corruption() {
         session,
         powl,
         &observed,
+        "default",
     );
     match result {
         Err((DefectClass::ReplayFailed, _)) => {}
@@ -310,6 +316,7 @@ fn bypass_revokes_subsequent_operations() {
         session,
         powl,
         &observed,
+        "default",
     );
     match result {
         Err((DefectClass::BypassRevoked { .. }, _)) => {}
@@ -328,6 +335,7 @@ fn bypass_revokes_subsequent_operations() {
         session,
         powl,
         &observed,
+        "default",
     )
     .expect("after reset, gate must admit again");
 }

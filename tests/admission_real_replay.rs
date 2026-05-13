@@ -54,7 +54,7 @@ fn powl_bridge_replay_returns_real_fitness_not_stub_one_point_zero() {
 
     let powl = by_name("DataExtensionFastPath").unwrap().powl_string;
     let replay = PowlBridgeReplay::new(&store);
-    let conf = replay.replay(&token, powl);
+    let conf = replay.replay(&token, powl, "default");
 
     // The bridge — not the stub — produced this verdict. The stub would
     // have returned the literal {fitness: 1.0, run_id: "stub-run-..."}.
@@ -115,7 +115,7 @@ fn syntactically_broken_powl_denies_with_replay_failed() {
 
     let powl = "PO=garbage_no_braces_at_all";
     let replay = PowlBridgeReplay::new(&store);
-    let conf = replay.replay(token, powl);
+    let conf = replay.replay(token, powl, "default");
 
     assert!(
         conf.fitness == 0.0,
@@ -146,6 +146,7 @@ fn syntactically_broken_powl_denies_with_replay_failed() {
         session,
         powl,
         &observed,
+        "default",
     );
     let _ = scope.close(token); // best-effort cleanup
     match result {

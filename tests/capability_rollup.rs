@@ -94,6 +94,7 @@ fn admit_once(db: &StateDb, store: &OcelStore, session: &str) -> Result<(), Stri
         session,
         powl,
         &observed,
+        "default",
     )
     .map(|_| ())
     .map_err(|e| format!("{:?}", e))
@@ -184,6 +185,7 @@ fn failure_count_increments_on_denial() {
         session,
         powl,
         &observed,
+        "default",
     );
     assert!(result.is_err(), "admission must be denied");
 

@@ -69,6 +69,7 @@ fn replay_from_ocel_alone_matches_canonical_replay() {
         session,
         powl,
         &observed,
+        "default",
     );
 
     // Sabotage: delete the declared_workflows row. From this point on, the

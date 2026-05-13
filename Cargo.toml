@@ -50,6 +50,8 @@ wasm4pm-algos = { path = "/Users/sac/wasm4pm/crates/wasm4pm-algos" }
 wasm4pm = { path = "/Users/sac/wasm4pm/wasm4pm", default-features = false, features = ["powl", "conformance_basic", "hand_rolled_stats", "streaming_basic", "discovery_advanced", "ml"] }
 wasm4pm-cognition = { path = "/Users/sac/wasm4pm/crates/wasm4pm-cognition", default-features = false }
 blake3 = "1"
+hex = "0.4"
+base64 = "0.22"
 ulid = "1"
 dotenvy = "0.15"
 ed25519-dalek = { version = "2", features = ["pkcs8", "pem", "rand_core"] }

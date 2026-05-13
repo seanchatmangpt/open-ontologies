@@ -230,6 +230,11 @@ pub enum AdmissionOp {
     /// via `admin_principals`. The artifact bytes are the canonical
     /// proposal id (BLAKE3 of triple bytes).
     AlignApplied,
+    /// Audit-only. R10-2 external OntoStar receipt verification.
+    /// Verifies an Ed25519 receipt from an external OntoStar instance
+    /// and records the key fingerprint in `trusted_keys_history`.
+    /// Never denies — the caller decides whether to act on the result.
+    OntostarAttest,
 }
 
 impl AdmissionOp {
@@ -267,6 +272,7 @@ impl AdmissionOp {
             AdmissionOp::LlmInvokedFull => "llm_invoked_full",
             AdmissionOp::AlignProposed => "align_proposed",
             AdmissionOp::AlignApplied => "align_applied",
+            AdmissionOp::OntostarAttest => "ontostar_attest",
         }
     }
 
@@ -298,6 +304,8 @@ impl AdmissionOp {
                 | AdmissionOp::LlmInvokedFull
                 // R7 WD-3 — proposal is audit-only; only AlignApplied mutates.
                 | AdmissionOp::AlignProposed
+                // R10-2 — external OntoStar receipt verification.
+                | AdmissionOp::OntostarAttest
         )
     }
 }
@@ -325,7 +333,7 @@ impl<'a> ArtifactRef<'a> {
 /// TODO(stream-2): swap to the wasm4pm-backed bridge. This stub MUST be
 /// replaced before production.
 pub trait PowlReplay {
-    fn replay(&self, scope_token: &str, powl_string: &str) -> ConformanceResult;
+    fn replay(&self, scope_token: &str, powl_string: &str, tenant_id: &str) -> ConformanceResult;
 }
 
 #[derive(Clone, Debug)]
@@ -345,7 +353,7 @@ pub struct NoopPowlReplay;
 pub const STREAM3_STUB_POWL_REPLAY_MARKER: &str = "TODO(stream-2): replace NoopPowlReplay";
 
 impl PowlReplay for NoopPowlReplay {
-    fn replay(&self, scope_token: &str, _powl_string: &str) -> ConformanceResult {
+    fn replay(&self, scope_token: &str, _powl_string: &str, _tenant_id: &str) -> ConformanceResult {
         ConformanceResult {
             fitness: 1.0,
             precision: 1.0,
@@ -372,7 +380,7 @@ impl<'a> PowlBridgeReplay<'a> {
 }
 
 impl<'a> PowlReplay for PowlBridgeReplay<'a> {
-    fn replay(&self, scope_token: &str, powl_string: &str) -> ConformanceResult {
+    fn replay(&self, scope_token: &str, powl_string: &str, tenant_id: &str) -> ConformanceResult {
         let mut bridge = crate::powl_bridge::PowlBridge::new();
         let root = match bridge.parse(powl_string) {
             Ok(r) => r,
@@ -385,7 +393,7 @@ impl<'a> PowlReplay for PowlBridgeReplay<'a> {
                 };
             }
         };
-        match self.store.replay_against_powl(scope_token, &bridge, root) {
+        match self.store.replay_against_powl(scope_token, &bridge, root, tenant_id) {
             Ok(r) => ConformanceResult {
                 fitness: r.fitness,
                 precision: r.precision.unwrap_or(0.0),
@@ -558,6 +566,7 @@ impl OntoStarAdmissionGate {
             session_id,
             powl_string,
             observed_stages,
+            caller_tenant,
         )
     }
 
@@ -627,6 +636,7 @@ impl OntoStarAdmissionGate {
         session_id: &str,
         powl_string: &str,
         observed_stages: &[String],
+        tenant_id: &str,
     ) -> Result<Receipt, (DefectClass, Vec<Deviation>)> {
         // No scope_token? Refuse before touching the store.
         if scope_token.is_empty() {
@@ -761,7 +771,7 @@ impl OntoStarAdmissionGate {
         let gate_config_hash_hex = hex32_pub(&self.gate_config_hash);
 
         // Run conformance via wasm4pm bridge (or stub).
-        let mut conf = replay.replay(scope_token, powl_string);
+        let mut conf = replay.replay(scope_token, powl_string, tenant_id);
         // Phase 7 Task C.fix: namespace `run_id` with the scope_token. The
         // bridge derives `run_id` from the trace canonical hash alone, which
         // is identical across two scopes that share the same `event_type`
@@ -834,6 +844,10 @@ impl OntoStarAdmissionGate {
         let post_bootstrap = !crate::bootstrap::BootstrapState::is_bootstrap(store.db());
         let mut granted_at_chain =
             re_read_granted_at_chain(store, session_id, &scope_tenant, post_bootstrap);
+        // Track pre-push length: 0 means genuinely new tenant (no prior receipts).
+        // Used by the R8-1 BootstrapChainTooShort gate to skip the length≥2 check
+        // for new tenants entering a post-bootstrap DB.
+        let prior_tenant_receipt_count = granted_at_chain.len();
         granted_at_chain.push(chrono::Utc::now().to_rfc3339());
         // R6 WA-3 — §15 A12 DependencyClosure tautology closure.
         // Previously `admitted_receipts = vec![hex(prior_receipt)]` was
@@ -939,6 +953,7 @@ impl OntoStarAdmissionGate {
             allow_legacy_unsigned: self.verify_legacy_receipts,
             trusted_keys_db: Some(store.db()),
             post_bootstrap,
+            prior_tenant_receipt_count,
         };
 
         // Look up workflow_name once so both Ok and Err branches can record

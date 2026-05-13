@@ -203,6 +203,7 @@ fn a9_provenance_chain_is_load_bearing_under_witness_deletion() {
         session,
         powl,
         &observed,
+        "default",
     );
     admission::A9_PROVENANCE_REREAD_HOOK.with(|cell| {
         *cell.borrow_mut() = None;

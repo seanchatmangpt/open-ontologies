@@ -213,6 +213,7 @@ impl OcelStore {
         scope_token: &str,
         bridge: &crate::powl_bridge::PowlBridge,
         root: u32,
+        tenant_id: &str,
     ) -> Result<crate::powl_bridge::ConformanceResult> {
         // Make sure the conformance_runs table exists. The Stream-3 stub
         // migration is idempotent so cheap to run.
@@ -223,10 +224,10 @@ impl OcelStore {
         let trace: Vec<String> = {
             let mut stmt = conn.prepare(
                 "SELECT event_type FROM ocel_events
-                 WHERE scope_token = ?1
+                 WHERE scope_token = ?1 AND tenant_id = ?2
                  ORDER BY time ASC, event_id ASC",
             )?;
-            let rows = stmt.query_map(rusqlite::params![scope_token], |r| r.get::<_, String>(0))?;
+            let rows = stmt.query_map(rusqlite::params![scope_token, tenant_id], |r| r.get::<_, String>(0))?;
             let mut out = Vec::new();
             for r in rows {
                 out.push(r?);
@@ -320,7 +321,7 @@ impl OcelStore {
 
         // Reuse the canonical replay path. This re-reads the same events but
         // does NOT touch declared_workflows.
-        self.replay_against_powl(scope_token, &bridge, root)
+        self.replay_against_powl(scope_token, &bridge, root, "default")
     }
 
     /// Stream-3 helper: list event_types observed for a session.

@@ -132,6 +132,7 @@ fn denial_witness_survives_primary_emit_failure() {
             session,
             workflow.powl_string,
             &[],
+            "default",
         )
     });
 
@@ -178,6 +179,7 @@ fn denial_witness_normal_path_no_fallback() {
         session,
         workflow.powl_string,
         &[],
+        "default",
     );
     assert_eq!(count_events(&db, "admission_denied"), 1);
     assert_eq!(count_events(&db, "admission_denied_ocel_failed"), 0);
@@ -228,6 +230,7 @@ fn workflow_declared_witness_survives_primary_emit_failure() {
             session,
             workflow.powl_string,
             &observed,
+            "default",
         )
     });
     // Independent of grant/deny — the witness contract is what we are
@@ -286,6 +289,7 @@ fn conformance_runs_writes_atomic_with_ocel_witness() {
         session,
         workflow.powl_string,
         &observed,
+        "default",
     );
     // The NoopPowlReplay returns a 1.0/1.0 verdict so the conformance
     // INSERT happens regardless of the final cell_ready outcome.
@@ -349,6 +353,7 @@ fn conformance_runs_rollback_on_ocel_witness_failure() {
             session,
             workflow.powl_string,
             &observed,
+            "default",
         )
     });
 

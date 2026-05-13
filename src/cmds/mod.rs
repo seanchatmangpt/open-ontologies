@@ -9,6 +9,9 @@ pub mod clinical;
 pub mod data;
 pub mod doctor;
 pub mod generated;
+/// R10-1: Generated RevOps manufacturing stage constants. Do not edit directly.
+/// Regenerate with: `ggen sync --manifest ggen-revops.toml`
+pub mod generated_revops;
 pub mod governance;
 pub mod marketplace;
 pub mod ontology;

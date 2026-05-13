@@ -189,6 +189,7 @@ fn run_cell_ready(
         allow_legacy_unsigned: allow_legacy,
         trusted_keys_db: None,
         post_bootstrap: false,
+        prior_tenant_receipt_count: 0,
     };
     cell_ready(inputs, store)
 }

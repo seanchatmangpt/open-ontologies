@@ -91,6 +91,10 @@ rules = [
     # commands_aggregated.rq uses GROUP_CONCAT so the template renders exactly once
     # (ggen v5 renders per-row; one row = one file, no partial overwrites).
     { name = "cli-cmds", query = { file = ".specify/queries/cli/commands_aggregated.rq" }, template = { file = ".specify/templates/cli/cmds.rs.tera" }, output_file = "src/cmds/generated.rs", mode = "Overwrite" },
+    # R10-1: RevOps test case — CodeManufactory manufacturing stage constants.
+    # stages_aggregated.rq aggregates revops:ManufacturingStage individuals into
+    # ONE row; template renders REVOPS_STAGES constant in one pass.
+    { name = "revops-stages", query = { file = ".specify/queries/revops/stages_aggregated.rq" }, template = { file = ".specify/templates/revops/cmds.rs.tera" }, output_file = "src/cmds/generated_revops.rs", mode = "Overwrite" },
 ]
 
 # Protected paths — the hand-written implementations; never overwrite
@@ -110,9 +114,10 @@ protected_paths = [
     "src/domain/**",
 ]
 
-# Regeneratable — generated.rs is the only tier-3 artifact managed by ggen
+# Regeneratable — tier-3 artifacts managed by ggen
 regenerate_paths = [
     "src/cmds/generated.rs",
+    "src/cmds/generated_revops.rs",
 ]
 
 generated_header = """
@@ -144,6 +149,7 @@ output = "stderr"
 allowed_namespaces = [
     "https://ggen.io/onto/cli/spec/",
     "https://ggen.io/onto/cli/open-ontologies/",
+    "https://ggen.io/onto/cli/revops/",
     "http://purl.org/dc/terms/",
 ]
 

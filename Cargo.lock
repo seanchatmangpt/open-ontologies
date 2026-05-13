@@ -3021,6 +3021,7 @@ dependencies = [
  "arc-swap",
  "arrow 54.3.1",
  "axum",
+ "base64 0.22.1",
  "blake3",
  "calamine",
  "chrono",
@@ -3034,6 +3035,7 @@ dependencies = [
  "dotenvy",
  "duckdb",
  "ed25519-dalek",
+ "hex",
  "linkme",
  "oxigraph",
  "parquet",
@@ -3563,7 +3565,7 @@ dependencies = [
 
 [[package]]
 name = "prolog8"
-version = "26.4.28"
+version = "26.5.12"
 dependencies = [
  "blake3",
  "once_cell",
@@ -5775,7 +5777,7 @@ dependencies = [
 
 [[package]]
 name = "wasm4pm"
-version = "26.4.28"
+version = "26.5.12"
 dependencies = [
  "blake3",
  "chrono",
@@ -5803,7 +5805,7 @@ dependencies = [
 
 [[package]]
 name = "wasm4pm-algos"
-version = "26.4.28"
+version = "26.5.12"
 dependencies = [
  "hashbrown 0.17.0",
  "itertools 0.14.0",
@@ -5815,7 +5817,7 @@ dependencies = [
 
 [[package]]
 name = "wasm4pm-cognition"
-version = "26.4.28"
+version = "26.5.12"
 dependencies = [
  "blake3",
  "hex",
@@ -5831,7 +5833,7 @@ dependencies = [
 
 [[package]]
 name = "wasm4pm-types"
-version = "26.4.28"
+version = "26.5.12"
 dependencies = [
  "blake3",
  "chrono",
