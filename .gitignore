@@ -28,3 +28,6 @@ ontology/cell8-*.ttl
 .DS_Store
 *.swp
 *.swo
+
+# DuckDB database files.
+*.duckdb
