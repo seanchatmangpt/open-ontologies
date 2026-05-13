@@ -269,6 +269,16 @@ fn build_http_axum_router(cfg: &Config, shared_graph: Arc<GraphStore>, shared_db
 
     let llm_cfg_for_health = cfg.llm.clone();
     let api = build_api_router(shared_graph, shared_db, llm_cfg_for_health);
+
+    // Health endpoint bypasses auth middleware by being on separate router
+    let health = axum::Router::new()
+        .route("/health", axum::routing::get(|| async {
+            axum::Json(serde_json::json!({
+                "status": "ok",
+                "version": env!("CARGO_PKG_VERSION"),
+            }))
+        }));
+
     let mut router = axum::Router::new().nest("/api", api).nest_service("/mcp", service);
 
     // R5 WC-2 — X-Ontostar-Principal extraction layer. Wired AFTER the
@@ -322,6 +332,7 @@ fn build_http_axum_router(cfg: &Config, shared_graph: Arc<GraphStore>, shared_db
         }));
     }
     router = router.layer(tower_http::cors::CorsLayer::permissive());
+    let router = health.merge(router);
     (router, host, port, ct)
 }
 

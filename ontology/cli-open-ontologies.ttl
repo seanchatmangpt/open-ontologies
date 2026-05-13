@@ -91,7 +91,8 @@ onto:GovernanceCommand a cli:Command ;
                       onto:GovernanceMonitorCommand,
                       onto:GovernanceMonitorClearCommand,
                       onto:GovernanceLineageCommand,
-                      onto:GovernanceDriftCommand .
+                      onto:GovernanceDriftCommand,
+                      onto:GovernanceVerifyCommand .
 
 onto:AlignmentCommand a cli:Command ;
     cli:name "alignment" ;
@@ -398,6 +399,14 @@ onto:GovernanceDriftCommand a cli:Command ;
     cli:description """Compute drift velocity and rename candidates between two ontology versions.""" ;
     cli:hasOption onto:FileAOption,
                   onto:FileBOption .
+
+onto:GovernanceVerifyCommand a cli:Command ;
+    cli:name "verify" ;
+    cli:summary "Verify artifact receipt chain" ;
+    cli:description """Strip-and-rehash artifact, walk receipt chain. Non-zero exit on non-Admitted.""" ;
+    cli:hasPositionalArgument onto:PathArg ;
+    cli:hasOption onto:DbOption,
+                  onto:AsciiTreeFlag .
 
 #################################################################
 # alignment subcommands

@@ -19,8 +19,7 @@
 # The container exposes port 3050 by default. Override via CLI flag --port or
 # config [http] port.
 #
-# Healthcheck: TCP probe on 3050 (no /health HTTP endpoint exists on the
-# server today; the MCP transport listens on /mcp).
+# Healthcheck: HTTP GET /health on 3050.
 
 ARG RUST_VERSION=1.75
 
@@ -93,9 +92,8 @@ EXPOSE 3050
 
 VOLUME ["/data", "/config", "/secrets"]
 
-# TCP-level healthcheck — there is no /health HTTP endpoint today.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
-    CMD nc -z 127.0.0.1 3050 || exit 1
+    CMD curl -fsS http://127.0.0.1:3050/health > /dev/null || exit 1
 
 ENTRYPOINT ["/usr/local/bin/open-ontologies"]
 CMD ["server", "serve_http", \

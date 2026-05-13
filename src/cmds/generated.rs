@@ -99,7 +99,7 @@ pub mod governance_stub {
     use clap_noun_verb::NounVerbError;
     use clap_noun_verb::Result as NounVerbResult;
 
-    /// Not yet wired — 8 subcommand(s) defined in ontology.
+    /// Not yet wired — 9 subcommand(s) defined in ontology.
     /// Real implementation: src/cmds/governance.rs
     pub fn not_yet_wired() -> NounVerbResult<serde_json::Value> {
         Err(NounVerbError::execution_error("not yet wired"))

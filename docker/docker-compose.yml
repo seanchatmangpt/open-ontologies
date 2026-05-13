@@ -38,7 +38,7 @@ services:
       - ontostar-data:/data
       - ./config.toml:/config/config.toml:ro
     healthcheck:
-      test: ["CMD-SHELL", "nc -z 127.0.0.1 3050 || exit 1"]
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:3050/health > /dev/null || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 3
