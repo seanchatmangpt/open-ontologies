@@ -3565,7 +3565,7 @@ dependencies = [
 
 [[package]]
 name = "prolog8"
-version = "26.5.12"
+version = "26.5.13"
 dependencies = [
  "blake3",
  "once_cell",
@@ -5777,7 +5777,7 @@ dependencies = [
 
 [[package]]
 name = "wasm4pm"
-version = "26.5.12"
+version = "26.5.13"
 dependencies = [
  "blake3",
  "chrono",
@@ -5805,7 +5805,7 @@ dependencies = [
 
 [[package]]
 name = "wasm4pm-algos"
-version = "26.5.12"
+version = "26.5.13"
 dependencies = [
  "hashbrown 0.17.0",
  "itertools 0.14.0",
@@ -5817,7 +5817,7 @@ dependencies = [
 
 [[package]]
 name = "wasm4pm-cognition"
-version = "26.5.12"
+version = "26.5.13"
 dependencies = [
  "blake3",
  "hex",
@@ -5833,7 +5833,7 @@ dependencies = [
 
 [[package]]
 name = "wasm4pm-types"
-version = "26.5.12"
+version = "26.5.13"
 dependencies = [
  "blake3",
  "chrono",
