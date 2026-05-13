@@ -1,0 +1,49 @@
+# =============================================================================
+# open_obligations.rq — Pending obligations per cell, grouped by status
+# =============================================================================
+#
+# Queries obligation queue: SELECT count of open obligations per cell,
+# partitioned by status (pending, in-flight, blocked, needs-human).
+# Used to identify bottlenecks and human-signoff requirements.
+#
+# Input: port:Obligation instances with port:obligationStatus
+# Output: Count of obligations per cell per status, excluding done
+#
+# Variables:
+#   ?cell           — cell URI
+#   ?cellId         — cell identifier
+#   ?status         — obligation status (pending|in-flight|blocked|needs-human)
+#   ?count          — count of obligations in this status
+#   ?totalOpen      — total open obligations for this cell
+# =============================================================================
+
+PREFIX port:    <https://ggen.io/onto/portfolio-os/>
+PREFIX rdfs:    <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX xsd:     <http://www.w3.org/2001/XMLSchema#>
+
+SELECT ?cellId ?status (COUNT(?obl) AS ?count) ?totalOpen
+WHERE {
+  # Find all open obligations
+  ?obl a port:Obligation ;
+      port:obligationCell ?cell ;
+      port:obligationStatus ?status .
+
+  ?cell port:cellId ?cellId .
+
+  # Filter: exclude done obligations
+  FILTER(?status != "done")
+
+  # Count total open obligations per cell
+  {
+    SELECT ?cell (COUNT(?oblAll) AS ?totalOpen)
+    WHERE {
+      ?oblAll a port:Obligation ;
+             port:obligationCell ?cell ;
+             port:obligationStatus ?statusAll .
+      FILTER(?statusAll != "done")
+    }
+    GROUP BY ?cell
+  }
+}
+GROUP BY ?cellId ?status ?totalOpen
+ORDER BY ?cellId DESC(?count)

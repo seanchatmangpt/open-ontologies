@@ -1,0 +1,40 @@
+# =============================================================================
+# receipt_lineage.rq — Chain of custody for last N ticks (LIMIT 10)
+# =============================================================================
+#
+# Traces receipt chain lineage: SELECT last 10 receipts showing tick ID,
+# hash chain (prev_hash -> this_hash), cell, and verdict. Used for
+# portfolio dashboard and chain integrity verification.
+#
+# Input: port:Receipt instances with cryptographic chain metadata
+# Output: Ordered list of recent receipts with chain linkage
+#
+# Variables:
+#   ?receipt        — receipt URI
+#   ?tickId         — tick identifier
+#   ?tickTs         — receipt timestamp
+#   ?prevHash       — hash of previous receipt (chain link)
+#   ?thisHash       — BLAKE3 hash of this receipt
+#   ?cell           — cell that generated receipt
+#   ?verdict        — outcome (success|partial|failure)
+#   ?signedBy       — signer identity
+# =============================================================================
+
+PREFIX port:    <https://ggen.io/onto/portfolio-os/>
+PREFIX prov:    <http://www.w3.org/ns/prov#>
+PREFIX dcterms: <http://purl.org/dc/terms/>
+PREFIX xsd:     <http://www.w3.org/2001/XMLSchema#>
+
+SELECT ?tickId ?tickTs ?prevHash ?thisHash ?cell ?verdict ?signedBy
+WHERE {
+  ?receipt a port:Receipt ;
+          port:tickId ?tickId ;
+          port:receiptTimestamp ?tickTs ;
+          port:prevHash ?prevHash ;
+          port:thisHash ?thisHash ;
+          port:tickCell ?cell ;
+          port:verdict ?verdict ;
+          port:signedBy ?signedBy .
+}
+ORDER BY DESC(?tickTs)
+LIMIT 10

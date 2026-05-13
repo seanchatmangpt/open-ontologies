@@ -1,0 +1,67 @@
+# =============================================================================
+# construct_chapter_routes.rq — Assign claims to chapters by domain/scope
+# =============================================================================
+#
+# Routes claims to chapters by matching tm:Claim domain/scope against
+# tm:Chapter research question and subject. Uses explicit tm:routeTo
+# relationship if present; falls back to dcterms:subject matching.
+# Constructs updated tm:Chapter instances with dcat:hasPart references.
+#
+# Input: tm:Claim and tm:Chapter instances with domain/scope metadata
+# Output: Constructed tm:Chapter graph with updated dcat:hasPart references
+#
+# Variables (used in CONSTRUCT):
+#   ?chapter        — chapter URI
+#   ?claim          — routed claim URI
+#   ?domain         — claim domain for matching
+#   ?scope          — claim scope for matching
+#   ?subject        — chapter research subject
+# =============================================================================
+
+PREFIX tm:      <https://ggen.io/onto/thesis-manufacturing/>
+PREFIX dcat:    <http://www.w3.org/ns/dcat#>
+PREFIX dcterms: <http://purl.org/dc/terms/>
+PREFIX rdfs:    <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX skos:    <http://www.w3.org/2004/02/skos/core#>
+
+CONSTRUCT {
+  ?chapter a tm:Chapter ;
+          dcat:hasPart ?claim .
+}
+WHERE {
+  # Find all claims and chapters
+  ?claim a tm:Claim ;
+        tm:domain ?claimDomain ;
+        tm:scope ?claimScope .
+
+  ?chapter a tm:Chapter ;
+          dcterms:subject ?subject .
+
+  # Routing strategy 1: explicit tm:routeTo relationship
+  {
+    ?claim tm:routeTo ?chapter .
+  }
+  UNION
+  # Routing strategy 2: domain/scope matching against chapter subject
+  {
+    FILTER NOT EXISTS { ?claim tm:routeTo ?other . }
+
+    # Match claim domain or scope against chapter subject
+    # (subject is a skos:Concept or literal keyword)
+    {
+      ?chapter dcterms:subject ?subject .
+      FILTER(
+        STRSTARTS(?claimDomain, STR(?subject)) ||
+        STRSTARTS(STR(?subject), ?claimDomain)
+      )
+    }
+    UNION
+    {
+      ?chapter dcterms:subject ?subject .
+      FILTER(
+        STRSTARTS(?claimScope, STR(?subject)) ||
+        STRSTARTS(STR(?subject), ?claimScope)
+      )
+    }
+  }
+}

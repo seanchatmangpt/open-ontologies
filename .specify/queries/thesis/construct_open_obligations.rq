@@ -1,0 +1,83 @@
+# =============================================================================
+# construct_open_obligations.rq — Extract claims needing evaluation,
+# literature, formal proof
+# =============================================================================
+#
+# Selects claims with open proof obligations:
+#   - tm:evaluationRequired = true (empirical evaluation missing)
+#   - tm:literatureRequired = true (published evidence needed)
+#   - tm:formalProofRequired = true (mathematical/formal proof needed)
+#
+# Groups open obligations by type and produces counts per claim.
+# Used by ThesisMaker to generate ProofObligation packets.
+#
+# Input: tm:Claim instances with obligation requirement flags
+# Output: List of claims with obligation types and counts
+#
+# Variables:
+#   ?claim              — claim URI
+#   ?claimText          — claim description
+#   ?obligationType     — obligation type (evaluation|literature|formalProof)
+#   ?obligationCount    — count of obligations of this type
+#   ?totalObligations   — total open obligations for claim
+# =============================================================================
+
+PREFIX tm:      <https://ggen.io/onto/thesis-manufacturing/>
+PREFIX dcterms: <http://purl.org/dc/terms/>
+PREFIX rdfs:    <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX xsd:     <http://www.w3.org/2001/XMLSchema#>
+
+SELECT ?claim ?claimText ?obligationType ?obligationCount ?totalObligations
+WHERE {
+  ?claim a tm:Claim ;
+        dcterms:description ?claimText .
+
+  # Collect all open obligation types for this claim
+  {
+    # Type 1: Evaluation obligations
+    FILTER(?evalReq = true)
+    ?claim tm:evaluationRequired ?evalReq .
+    BIND("evaluation" AS ?obligationType)
+    BIND(1 AS ?obligationCount)
+  }
+  UNION
+  {
+    # Type 2: Literature obligations
+    FILTER(?litReq = true)
+    ?claim tm:literatureRequired ?litReq .
+    BIND("literature" AS ?obligationType)
+    BIND(1 AS ?obligationCount)
+  }
+  UNION
+  {
+    # Type 3: Formal proof obligations
+    FILTER(?formalReq = true)
+    ?claim tm:formalProofRequired ?formalReq .
+    BIND("formalProof" AS ?obligationType)
+    BIND(1 AS ?obligationCount)
+  }
+
+  # Count total obligations per claim
+  {
+    SELECT ?claim (SUM(?count) AS ?totalObligations)
+    WHERE {
+      ?claim a tm:Claim .
+      {
+        ?claim tm:evaluationRequired true .
+        BIND(1 AS ?count)
+      }
+      UNION
+      {
+        ?claim tm:literatureRequired true .
+        BIND(1 AS ?count)
+      }
+      UNION
+      {
+        ?claim tm:formalProofRequired true .
+        BIND(1 AS ?count)
+      }
+    }
+    GROUP BY ?claim
+  }
+}
+ORDER BY DESC(?totalObligations) ?claim

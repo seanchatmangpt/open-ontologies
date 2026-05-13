@@ -1,0 +1,60 @@
+# =============================================================================
+# construct_unsupported_claims.rq — Anti-theater audit: SELECT unsupported
+# claims in admitted chapters
+# =============================================================================
+#
+# Audits chapters for "theater" — cases where claims have been admitted into
+# a chapter but their support status != supported. This is the NO-THEATER law.
+# Anti-pattern: unsupported claims in admitted chapters indicate either
+# admission gate failure or evidence loss after admission.
+#
+# Input: tm:Chapter with dcat:hasPart claims, each claim with tm:supportStatus
+# Output: Unsupported claims still in chapters (flags for projection audit)
+#
+# Variables:
+#   ?chapter        — chapter URI
+#   ?chapterLabel   — chapter label
+#   ?claim          — unsupported claim URI
+#   ?claimText      — claim text/description
+#   ?supportStatus  — actual support status (not "supported")
+#   ?defectCount    — number of open defects against this claim
+# =============================================================================
+
+PREFIX tm:      <https://ggen.io/onto/thesis-manufacturing/>
+PREFIX dcat:    <http://www.w3.org/ns/dcat#>
+PREFIX rdfs:    <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX dcterms: <http://purl.org/dc/terms/>
+
+SELECT ?chapter ?chapterLabel ?claim ?claimText ?supportStatus ?defectCount
+WHERE {
+  # Match all chapters
+  ?chapter a tm:Chapter ;
+          rdfs:label ?chapterLabel .
+
+  # Find claims routed into this chapter
+  ?chapter dcat:hasPart ?claim .
+
+  # Get claim metadata
+  ?claim a tm:Claim ;
+        dcterms:description ?claimText .
+
+  # Get support status
+  ?claim tm:supportStatus ?supportStatus .
+
+  # FILTER: only unsupported/unproven claims (anti-theater)
+  FILTER(?supportStatus != tm:Supported && ?supportStatus != tm:PartiallySupportedStatus)
+
+  # Count open defects against this claim (optional)
+  {
+    SELECT ?claim (COUNT(?defect) AS ?defectCount)
+    WHERE {
+      ?defect a tm:Defect ;
+             tm:targetClaim ?claim ;
+             tm:defectStatus tm:Open .
+    }
+    GROUP BY ?claim
+  } UNION {
+    BIND(0 AS ?defectCount)
+  }
+}
+ORDER BY ?chapter DESC(?supportStatus) DESC(?defectCount)

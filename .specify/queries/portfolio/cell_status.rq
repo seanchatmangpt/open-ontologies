@@ -1,0 +1,83 @@
+# =============================================================================
+# cell_status.rq — Portfolio cell health: which cells are green/red/frozen?
+# =============================================================================
+#
+# Queries portfolio cell state by counting receipts (activity) and joining
+# with andon state. Returns status roll-up: green (no active andons),
+# yellow/orange (auto-clearable andons), red (critical andons), frozen.
+#
+# Input: port:Cell instances with port:cellStatus, joined with andon events
+# Output: Cell status roll-up with activity count and last update timestamp
+#
+# Variables:
+#   ?cell           — cell URI
+#   ?cellId         — cell identifier
+#   ?cellStatus     — base cell status (active|frozen|quarantined|retired)
+#   ?andonStatus    — derived andon status (green|yellow|orange|red)
+#   ?activity       — count of receipts (proxy for recent work)
+#   ?lastUpdate     — most recent receipt timestamp
+#   ?activeAndons   — count of open andons
+# =============================================================================
+
+PREFIX port:    <https://ggen.io/onto/portfolio-os/>
+PREFIX org:     <http://www.w3.org/ns/org#>
+PREFIX dcterms: <http://purl.org/dc/terms/>
+PREFIX xsd:     <http://www.w3.org/2001/XMLSchema#>
+
+SELECT ?cell ?cellId ?cellStatus ?andonStatus ?activity ?lastUpdate ?activeAndons
+WHERE {
+  # Identify all cells in portfolio
+  ?cell a port:Cell ;
+       port:cellId ?cellId ;
+       port:cellStatus ?cellStatus .
+
+  # Count receipts (activity indicator)
+  {
+    SELECT ?cell (COUNT(?receipt) AS ?activity) (MAX(?receiptTs) AS ?lastUpdate)
+    WHERE {
+      ?receipt a port:Receipt ;
+              port:tickCell ?cell ;
+              port:receiptTimestamp ?receiptTs .
+    }
+    GROUP BY ?cell
+  }
+
+  # Count active andons and determine status
+  {
+    SELECT ?cell (COUNT(?andon) AS ?activeAndons)
+           (IF(COUNT(?criticalAndon) > 0, "red",
+            IF(COUNT(?warningAndon) > 0, "orange",
+            IF(COUNT(?autoClearableAndon) > 0, "yellow", "green"))) AS ?andonStatus)
+    WHERE {
+      OPTIONAL {
+        ?andon a port:Andon ;
+              port:andonCell ?cell ;
+              port:andonStatus "open" .
+        BIND(?andon AS ?andon_inner)
+      }
+
+      OPTIONAL {
+        ?criticalAndon a port:Andon ;
+                      port:andonCell ?cell ;
+                      port:andonStatus "open" ;
+                      port:andonSeverity "red" .
+      }
+
+      OPTIONAL {
+        ?warningAndon a port:Andon ;
+                     port:andonCell ?cell ;
+                     port:andonStatus "open" ;
+                     port:andonSeverity "orange" .
+      }
+
+      OPTIONAL {
+        ?autoClearableAndon a port:Andon ;
+                           port:andonCell ?cell ;
+                           port:andonStatus "open" ;
+                           port:autoClearable true .
+      }
+    }
+    GROUP BY ?cell
+  }
+}
+ORDER BY ?cellId
