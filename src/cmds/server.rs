@@ -110,8 +110,57 @@ fn run_stdio_server(cfg: Config, db: StateDb, graph: Arc<GraphStore>, governance
     for d in &ontology_dirs {
         if !d.exists() { eprintln!("warning: ontology_dirs entry does not exist: {}", d.display()); }
     }
-    let server = OpenOntologiesServer::new_with_repo_options(db, graph, governance_webhook, cfg.embeddings, cache_config, tool_filter, ontology_dirs);
+    let llm_engine = open_ontologies::config::resolve_llm_engine(&cfg.llm);
+    eprintln!("info: default LLM engine = {}", llm_engine);
+    // R5 WC-1 — resolve the admin principal allowlist ONCE at startup.
+    // Subsequent env mutations are ignored (TOCTOU-immune).
+    let admin_principals =
+        open_ontologies::config::resolve_admin_principals(&cfg.authority);
+    eprintln!(
+        "info: admin principals configured = {} entries",
+        admin_principals.len()
+    );
+    // R5 WC-2 — share the retention pause handle between the worker
+    // and the MCP server so `onto_retention_pause` /
+    // `onto_retention_resume` mutate the same atomic the worker reads.
+    let pause_handle =
+        std::sync::Arc::new(std::sync::atomic::AtomicI64::new(0));
+    let server = OpenOntologiesServer::new_with_repo_options(db.clone(), graph, governance_webhook, cfg.embeddings, cache_config, tool_filter, ontology_dirs)
+        .with_default_llm_engine(llm_engine)
+        .with_admin_principals(admin_principals)
+        .with_retention_pause(pause_handle.clone());
     let _evictor = open_ontologies::registry::spawn_evictor(server.registry());
+    // Round 4 WD — §29 Cell8 retirement closure. Spawn the retention
+    // worker alongside the cache evictor so every persistent table has
+    // a defined retirement path. The worker logs (does not panic) on
+    // failure; dropping the handle does not abort.
+    //
+    // R5 WC-2 — spawn with the externally-owned pause handle so the
+    // server's `onto_retention_pause` admin tool can drive the
+    // worker's tick.
+    let (_retention, _pause_handle_kept) =
+        open_ontologies::retention::RetentionWorker::spawn_with_pause(
+            db.clone(),
+            cfg.retention.clone(),
+            pause_handle.clone(),
+        );
+
+    // R7 WA2 — A2 V1 Receipt-Chain Verifier. ZERO LLM by invariant —
+    // crypto verdicts are reproducible bit-for-bit from
+    // `(receipt_row, trusted_keys_history_row)`. Shares the same
+    // `pause_handle` atomic with the retention worker; on a corruption
+    // verdict the verifier calls `fetch_max(now + pause_secs)` so
+    // retention skips its next tick. Monotone — never shortens a pause.
+    let verifier_ocel = std::sync::Arc::new(
+        open_ontologies::ocel_store::OcelStore::new(db.clone()),
+    );
+    let (_verifier, _verifier_cursor) =
+        open_ontologies::verifier_worker::VerifierWorker::spawn_with_cursor(
+            db,
+            verifier_ocel,
+            cfg.verifier.clone(),
+            pause_handle,
+        );
     tokio::runtime::Handle::current().block_on(async {
         let service = server.serve(rmcp::transport::stdio()).await
             .map_err(|e| anyhow::anyhow!(e))?;
@@ -121,18 +170,17 @@ fn run_stdio_server(cfg: Config, db: StateDb, graph: Arc<GraphStore>, governance
 }
 
 fn auto_restore_last_ontology(db: &StateDb, graph: Arc<GraphStore>) -> NounVerbResult<()> {
-    if let Ok(Some(path)) = db.get_last_active_path() {
-        if std::path::Path::new(&path).exists() {
+    if let Ok(Some(path)) = db.get_last_active_path()
+        && std::path::Path::new(&path).exists() {
             match graph.load_file(&path) {
                 Ok(n) => eprintln!("info: restored last active ontology from {path} ({n} triples)"),
                 Err(e) => eprintln!("warn: could not restore last active ontology: {e}"),
             }
         }
-    }
     Ok(())
 }
 
-fn run_unix_server(cfg: Config, socket_path: String, files: Vec<String>) -> NounVerbResult<()> {
+fn run_unix_server(socket_path: String, files: Vec<String>) -> NounVerbResult<()> {
     let graph = Arc::new(GraphStore::new());
     for f in &files {
         let path = expand_tilde(f);
@@ -142,7 +190,6 @@ fn run_unix_server(cfg: Config, socket_path: String, files: Vec<String>) -> Noun
         }
     }
     eprintln!("Graph has {} triples total", graph.triple_count());
-    let _ = cfg;
     tokio::runtime::Handle::current()
         .block_on(open_ontologies::socket::serve(&socket_path, graph))
         .map_err(|e| clap_noun_verb::NounVerbError::execution_error(e.to_string()))
@@ -168,18 +215,100 @@ fn build_http_axum_router(cfg: &Config, shared_graph: Arc<GraphStore>, shared_db
     let tf = tool_filter.clone();
     let dirs = open_ontologies::config::resolve_ontology_dirs(&cfg.general.ontology_dirs);
     let sg = shared_graph.clone();
+    let llm_engine = open_ontologies::config::resolve_llm_engine(&cfg.llm);
+    let llm_engine_for_factory = llm_engine.clone();
+    eprintln!("info: default LLM engine = {}", llm_engine);
+    // R5 WC-1 — resolve admin principal allowlist ONCE at HTTP startup.
+    // Cloned into each per-request server (the cache itself is an Arc, so
+    // the actual Vec is shared, not duplicated). Env-var mutations
+    // post-startup are ignored across all subsequent factory invocations.
+    let admin_principals_for_factory =
+        open_ontologies::config::resolve_admin_principals(&cfg.authority);
+    eprintln!(
+        "info: admin principals configured = {} entries",
+        admin_principals_for_factory.len()
+    );
+
+    // R5 WC-2 — resolve the X-Ontostar-Tenant allowlist ONCE at HTTP
+    // startup. Empty list preserves backwards-compat (any well-formed
+    // tenant accepted); non-empty list enforces strict allowlist with
+    // 403 on unknown.
+    let known_tenants_for_layer = std::sync::Arc::new(
+        open_ontologies::config::resolve_known_tenants(&cfg.authority),
+    );
+    eprintln!(
+        "info: known tenants allowlist = {} entries (empty = open)",
+        known_tenants_for_layer.len()
+    );
+    // Admin allowlist Arc for the principal_extract_layer — shared with
+    // the factory closure (same Vec resolved once).
+    let admin_principals_for_layer =
+        std::sync::Arc::new(admin_principals_for_factory.clone());
 
     let service: StreamableHttpService<_, LocalSessionManager> = StreamableHttpService::new(
         move || {
             let db = StateDb::open(&db_path).map_err(std::io::Error::other)?;
-            Ok(OpenOntologiesServer::new_with_repo_options(db, sg.clone(), gw.clone(), embed.clone(), cc.clone(), tf.clone(), dirs.clone()))
+            // Phase 11: per-request tenant rebind. The factory closure runs
+            // once per HTTP request; reading the tenant from the
+            // `TENANT_OVERRIDE` task-local (set by `tenant_extract_layer`)
+            // means this server instance is bound to the tenant declared
+            // in the `X-Ontostar-Tenant` header for the lifetime of the
+            // call. Concurrent requests cannot leak across each other
+            // because each gets its own task-local scope and its own
+            // freshly-cloned `OpenOntologiesServer`.
+            let tenant = open_ontologies::server::current_tenant_override()
+                .unwrap_or_else(|| "default".to_string());
+            Ok(OpenOntologiesServer::new_with_repo_options(db, sg.clone(), gw.clone(), embed.clone(), cc.clone(), tf.clone(), dirs.clone())
+                .with_default_llm_engine(llm_engine_for_factory.clone())
+                .with_admin_principals(admin_principals_for_factory.clone())
+                .with_tenant(&tenant))
         },
         Default::default(),
         http_config,
     );
 
-    let api = build_api_router(shared_graph, shared_db);
+    let llm_cfg_for_health = cfg.llm.clone();
+    let api = build_api_router(shared_graph, shared_db, llm_cfg_for_health);
     let mut router = axum::Router::new().nest("/api", api).nest_service("/mcp", service);
+
+    // R5 WC-2 — X-Ontostar-Principal extraction layer. Wired AFTER the
+    // bearer-token layer (added below) so the caller's principal is
+    // known. When the header is set, only callers in the admin
+    // allowlist may carry it; non-admin → 403 with FalsePass shape.
+    // Empty header is silently allowed (default principal resolution
+    // unchanged). Layers in axum apply outside-in (last `.layer(...)`
+    // runs first), so this is added AFTER tenant_extract_layer.
+    {
+        let admins = admin_principals_for_layer.clone();
+        router = router.layer(axum::middleware::from_fn(
+            move |req: axum::extract::Request, next: axum::middleware::Next| {
+                let admins = admins.clone();
+                async move { principal_extract_layer(admins, req, next).await }
+            },
+        ));
+    }
+
+    // R5 WC-2 — X-Ontostar-Tenant extraction layer with allowlist
+    // enforcement. Empty `known_tenants` preserves Phase 11 behaviour
+    // (any well-formed tenant accepted); non-empty enforces strict
+    // 403 on unknown. Validates the value against
+    // `^[a-z][a-z0-9_-]{0,63}$` and parks it in the `TENANT_OVERRIDE`
+    // task-local for the per-request server factory. Must precede
+    // `llm_engine_extract_layer` so layers compose correctly.
+    {
+        let known = known_tenants_for_layer.clone();
+        router = router.layer(axum::middleware::from_fn(
+            move |req: axum::extract::Request, next: axum::middleware::Next| {
+                let known = known.clone();
+                async move { tenant_extract_layer_with_allowlist(known, req, next).await }
+            },
+        ));
+    }
+
+    // X-Ontostar-LLM-Engine extraction layer. Validates the value
+    // against `config::VALID_LLM_ENGINES` and parks it in the
+    // `LLM_ENGINE_OVERRIDE` task-local for downstream tool handlers.
+    router = router.layer(axum::middleware::from_fn(llm_engine_extract_layer));
 
     if let Some(ref t) = resolved_token {
         let expected = format!("Bearer {}", t);
@@ -196,15 +325,226 @@ fn build_http_axum_router(cfg: &Config, shared_graph: Arc<GraphStore>, shared_db
     (router, host, port, ct)
 }
 
-fn build_api_router(shared_graph: Arc<GraphStore>, shared_db: StateDb) -> axum::Router {
+/// Validate a tenant_id against `^[a-z][a-z0-9_-]{0,63}$`. Implemented
+/// without `regex` to avoid pulling a new top-level dep.
+pub(crate) fn is_valid_tenant_id(s: &str) -> bool {
+    let bytes = s.as_bytes();
+    if bytes.is_empty() || bytes.len() > 64 {
+        return false;
+    }
+    if !bytes[0].is_ascii_lowercase() {
+        return false;
+    }
+    bytes
+        .iter()
+        .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || *b == b'_' || *b == b'-')
+}
+
+/// Read the `X-Ontostar-Tenant` header (if any), validate it against
+/// `^[a-z][a-z0-9_-]{0,63}$`, and run the downstream handler with
+/// [`open_ontologies::server::TENANT_OVERRIDE`] set. An invalid /
+/// missing header falls back to `"default"` (the server's compile-time
+/// default tenant) — single-tenant deployments work unchanged.
+///
+/// **R5 WC-2**: this function preserves the original (pre-allowlist)
+/// behaviour for tests and code paths that don't have the allowlist
+/// available. The HTTP router uses
+/// [`tenant_extract_layer_with_allowlist`] for the allowlist-enforced
+/// path.
+#[allow(dead_code)] // retained for test compat; HTTP router uses allowlist variant
+pub(crate) async fn tenant_extract_layer(
+    req: axum::extract::Request,
+    next: axum::middleware::Next,
+) -> axum::response::Response {
+    let header_val = req
+        .headers()
+        .get("x-ontostar-tenant")
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .filter(|s| is_valid_tenant_id(s));
+    let tenant = header_val.unwrap_or_else(|| "default".to_string());
+    open_ontologies::server::TENANT_OVERRIDE
+        .scope(Some(tenant), next.run(req))
+        .await
+}
+
+/// R5 WC-2 — strict-allowlist variant of [`tenant_extract_layer`].
+///
+/// When `allowlist` is empty: behaves exactly like `tenant_extract_layer`
+/// (backward-compat — any well-formed tenant accepted, invalid /
+/// missing falls back to `"default"`).
+///
+/// When `allowlist` is non-empty:
+///   * If the header is set AND its value is in the allowlist: parks it
+///     in `TENANT_OVERRIDE` and passes through.
+///   * If the header is set AND its value is NOT in the allowlist:
+///     returns HTTP 403 with `FalsePass { reason: "tenant_not_in_allowlist" }`.
+///     The downstream factory is never invoked.
+///   * If the header is unset / blank / invalid syntax: falls back to
+///     `"default"` (single-tenant operators set the env / config to
+///     match their `tenant_id`).
+///
+/// This intentionally enforces 403 instead of silent fallback for
+/// known-invalid tenants — closes the §28 path where a malicious
+/// caller spoofs a tenant header and gets quietly downgraded to
+/// `default`.
+pub(crate) async fn tenant_extract_layer_with_allowlist(
+    allowlist: std::sync::Arc<Vec<String>>,
+    req: axum::extract::Request,
+    next: axum::middleware::Next,
+) -> axum::response::Response {
+    let header_raw = req
+        .headers()
+        .get("x-ontostar-tenant")
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty());
+    if !allowlist.is_empty()
+        && let Some(ref hv) = header_raw {
+            // Caller explicitly set the header — strictly validate.
+            if !is_valid_tenant_id(hv) || !allowlist.iter().any(|t| t == hv) {
+                let body = serde_json::json!({
+                    "ok": false,
+                    "defect": {
+                        "kind": "FalsePass",
+                        "reason": "tenant_not_in_allowlist",
+                    },
+                    "error": format!("tenant '{}' is not in OPEN_ONTOLOGIES_KNOWN_TENANTS allowlist",
+                        hv.replace('"', "'")),
+                })
+                .to_string();
+                return axum::http::Response::builder()
+                    .status(403)
+                    .header("content-type", "application/json")
+                    .body(axum::body::Body::from(body))
+                    .unwrap();
+            }
+        }
+    let tenant = header_raw
+        .filter(|s| is_valid_tenant_id(s))
+        .unwrap_or_else(|| "default".to_string());
+    open_ontologies::server::TENANT_OVERRIDE
+        .scope(Some(tenant), next.run(req))
+        .await
+}
+
+/// R5 WC-2 — principal override extraction layer.
+///
+/// Reads the `X-Ontostar-Principal` header (if any). When set, the
+/// caller MUST appear in the admin allowlist; a non-admin caller
+/// presenting the header receives HTTP 403 with
+/// `FalsePass { reason: "principal_override_requires_admin" }`. When
+/// the header is unset, default principal resolution is unchanged
+/// (the per-request server factory uses the tenant_id as principal_id
+/// fallback).
+///
+/// The admin gate uses the same allowlist resolved at startup for
+/// `OpenOntologiesServer::admin_principals` — TOCTOU-immune by virtue
+/// of being captured into this closure once at router construction.
+///
+/// NOTE: this layer must be wired AFTER the bearer-token layer (in axum
+/// `.layer(...)` order, which is outside-in: later `.layer` runs
+/// first) so the bearer token has already been validated by the time
+/// we check the principal header. The bearer token authenticates the
+/// caller; this layer authorises an admin override of the per-request
+/// principal identity.
+async fn principal_extract_layer(
+    admin_allowlist: std::sync::Arc<Vec<String>>,
+    req: axum::extract::Request,
+    next: axum::middleware::Next,
+) -> axum::response::Response {
+    let header_val = req
+        .headers()
+        .get("x-ontostar-principal")
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty());
+    if let Some(ref pid) = header_val {
+        // The header is set — admin gate.
+        // Until R3 Task B's principal helper lands, we authorise on
+        // the same identity space as `is_admin_principal`: an admin
+        // is a tenant_id in the cached allowlist. The tenant header
+        // carries that identity. If the tenant header is unset, the
+        // override is rejected (no default-tenant admin).
+        let caller_tenant = req
+            .headers()
+            .get("x-ontostar-tenant")
+            .and_then(|v| v.to_str().ok())
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .unwrap_or_default();
+        let is_admin = !admin_allowlist.is_empty()
+            && admin_allowlist.iter().any(|p| p == &caller_tenant);
+        if !is_admin {
+            let body = serde_json::json!({
+                "ok": false,
+                "defect": {
+                    "kind": "FalsePass",
+                    "reason": "principal_override_requires_admin",
+                },
+                "error": format!(
+                    "X-Ontostar-Principal='{}' presented by non-admin caller (tenant='{}')",
+                    pid.replace('"', "'"),
+                    caller_tenant.replace('"', "'")
+                ),
+            })
+            .to_string();
+            return axum::http::Response::builder()
+                .status(403)
+                .header("content-type", "application/json")
+                .body(axum::body::Body::from(body))
+                .unwrap();
+        }
+        // Admin caller — accept the override. Currently we do not have
+        // a per-request principal task-local (R3 Task B's territory);
+        // when it lands, install it here. The header presence is
+        // already audit-logged via the request log.
+    }
+    next.run(req).await
+}
+
+/// Read the `X-Ontostar-LLM-Engine` header (if any), validate it
+/// against [`open_ontologies::config::VALID_LLM_ENGINES`], and run the
+/// downstream handler with [`open_ontologies::server::LLM_ENGINE_OVERRIDE`]
+/// set. Unknown / blank values are silently dropped (the server default
+/// then applies) — the goal is graceful degradation, not authentication.
+async fn llm_engine_extract_layer(
+    req: axum::extract::Request,
+    next: axum::middleware::Next,
+) -> axum::response::Response {
+    let header_val = req
+        .headers()
+        .get("x-ontostar-llm-engine")
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .filter(|s| open_ontologies::config::VALID_LLM_ENGINES.contains(&s.as_str()));
+    open_ontologies::server::LLM_ENGINE_OVERRIDE
+        .scope(header_val, next.run(req))
+        .await
+}
+
+fn build_api_router(shared_graph: Arc<GraphStore>, shared_db: StateDb, llm_cfg: open_ontologies::config::LlmConfig) -> axum::Router {
     let sg_stats = shared_graph.clone();
     let sg_query = shared_graph.clone();
     let sg_update = shared_graph.clone();
     let sg_load = shared_graph.clone();
     let sg_save = shared_graph.clone();
     let sg_turtle = shared_graph.clone();
+    let llm_cfg_health = llm_cfg.clone();
 
     axum::Router::new()
+        // ── Plan 4: GET /health/llm ───────────────────────────────────────
+        // Spawns scripts/groq_status.py once and returns the JSON line it
+        // writes to stdout, alongside the resolved engine. NEVER logs or
+        // returns the API key. Returns the same shape as `onto_groq_status`
+        // plus an `engine` field; a `key_present=false` body means the
+        // resolver auto-detected `inproc` (no remote probe possible).
+        .route("/health/llm", axum::routing::get(move || {
+            let cfg = llm_cfg_health.clone();
+            async move { axum::Json(health_llm_probe(&cfg).await) }
+        }))
         .route("/stats", axum::routing::get(move || { let g = sg_stats.clone(); async move { axum::Json(serde_json::from_str::<serde_json::Value>(&g.get_stats().unwrap_or_else(|e| format!(r#"{{"error":"{}"}}"#, e))).unwrap_or_default()) } }))
         .route("/query", axum::routing::post(move |body: axum::Json<serde_json::Value>| { let g = sg_query.clone(); async move { let q = body.0["query"].as_str().unwrap_or("").to_string(); axum::Json(serde_json::from_str::<serde_json::Value>(&g.sparql_select(&q).unwrap_or_else(|e| format!(r#"{{"error":"{}"}}"#, e))).unwrap_or_default()) } }))
         .route("/update", axum::routing::post(move |body: axum::Json<serde_json::Value>| { let g = sg_update.clone(); async move { let q = body.0["query"].as_str().unwrap_or("").to_string(); axum::Json(serde_json::from_str::<serde_json::Value>(&match g.sparql_update(&q) { Ok(n) => format!(r#"{{"ok":true,"affected":{}}}"#, n), Err(e) => format!(r#"{{"error":"{}"}}"#, e) }).unwrap_or_default()) } }))
@@ -224,11 +564,111 @@ fn build_api_router(shared_graph: Arc<GraphStore>, shared_db: StateDb) -> axum::
         }))
 }
 
+/// `GET /health/llm` handler body. Returns:
+/// `{ ok, engine, model_reachable, key_present, model, error? }`.
+/// Spawns `scripts/groq_status.py` once when the resolved engine is
+/// `groq_pm4py`; otherwise short-circuits with a static answer that
+/// only reports whether a key is configured. Never logs the key.
+async fn health_llm_probe(cfg: &open_ontologies::config::LlmConfig) -> serde_json::Value {
+    let engine = open_ontologies::config::resolve_llm_engine(cfg);
+    let key_present = open_ontologies::config::resolve_llm_api_key(cfg).is_some();
+    if engine != "groq_pm4py" {
+        return serde_json::json!({
+            "ok": true,
+            "engine": engine,
+            "model_reachable": false,
+            "key_present": key_present,
+            "model": "",
+        });
+    }
+    let python = open_ontologies::config::resolve_llm_python(cfg);
+    let script = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("scripts/groq_status.py");
+    let out = match tokio::task::spawn_blocking(move || {
+        std::process::Command::new(&python).arg(&script).output()
+    })
+    .await
+    {
+        Ok(Ok(o)) => o,
+        Ok(Err(e)) => {
+            return serde_json::json!({
+                "ok": false,
+                "engine": engine,
+                "model_reachable": false,
+                "key_present": key_present,
+                "model": "",
+                "error": format!("failed to spawn groq_status.py: {e}"),
+            });
+        }
+        Err(e) => {
+            return serde_json::json!({
+                "ok": false,
+                "engine": engine,
+                "model_reachable": false,
+                "key_present": key_present,
+                "model": "",
+                "error": format!("join error: {e}"),
+            });
+        }
+    };
+    let stdout = String::from_utf8_lossy(&out.stdout).into_owned();
+    let stderr = String::from_utf8_lossy(&out.stderr).into_owned();
+    let json_line = stdout
+        .lines()
+        .rev()
+        .find(|l| l.trim_start().starts_with('{'))
+        .map(|s| s.trim().to_string());
+    let mut resp = match json_line.and_then(|l| serde_json::from_str::<serde_json::Value>(&l).ok()) {
+        Some(v) => v,
+        None => serde_json::json!({
+            "ok": false,
+            "model_reachable": false,
+            "key_present": key_present,
+            "model": "",
+            "error": format!("groq_status.py produced no JSON: stderr={}",
+                stderr.replace('"', "'").replace('\n', " ")),
+        }),
+    };
+    if let Some(obj) = resp.as_object_mut() {
+        obj.insert("engine".to_string(), serde_json::Value::String(engine));
+    }
+    resp
+}
+
 // ── verbs ─────────────────────────────────────────────────────────────────
 
+/// Apply --llm-engine / --llm-python overrides into the process
+/// environment so [`open_ontologies::config::resolve_llm_engine`] picks
+/// them up uniformly with config + auto-detect. Must be called before
+/// `Config::load` so resolution is consistent.
+fn apply_llm_cli_overrides(llm_engine: Option<&str>, llm_python: Option<&str>) -> NounVerbResult<()> {
+    if let Some(e) = llm_engine.map(|s| s.trim()).filter(|s| !s.is_empty()) {
+        if !open_ontologies::config::VALID_LLM_ENGINES.contains(&e) {
+            return Err(clap_noun_verb::NounVerbError::execution_error(format!(
+                "invalid --llm-engine={:?}; valid values: {:?}",
+                e,
+                open_ontologies::config::VALID_LLM_ENGINES
+            )));
+        }
+        // SAFETY: process is single-threaded at CLI bootstrap time.
+        unsafe { std::env::set_var("OPEN_ONTOLOGIES_LLM_ENGINE", e); }
+    }
+    if let Some(p) = llm_python.map(|s| s.trim()).filter(|s| !s.is_empty()) {
+        // SAFETY: process is single-threaded at CLI bootstrap time.
+        unsafe { std::env::set_var("OPEN_ONTOLOGIES_LLM_PYTHON", p); }
+    }
+    Ok(())
+}
+
 /// Start the MCP server (stdio transport)
+#[allow(clippy::too_many_arguments)] // Every parameter is a CLI flag exposed by clap_noun_verb; struct-wrapping would lose the auto-derived argument metadata.
 #[verb]
-fn serve(config: Option<String>, governance_webhook: Option<String>, watch: Option<bool>, watch_interval: Option<u64>, tools_allow: Option<String>, tools_deny: Option<String>, idle_ttl_secs: Option<u64>, auto_refresh: Option<bool>) -> NounVerbResult<ServeOutput> {
+fn serve(config: Option<String>, governance_webhook: Option<String>, watch: Option<bool>, watch_interval: Option<u64>, tools_allow: Option<String>, tools_deny: Option<String>, idle_ttl_secs: Option<u64>, auto_refresh: Option<bool>, llm_engine: Option<String>, llm_python: Option<String>) -> NounVerbResult<ServeOutput> {
+    // Load .env into the process environment before resolving config so the
+    // Groq translator can pick up GROQ_API_KEY without leaking it to a
+    // shell. Best-effort: missing .env is not an error.
+    dotenvy::dotenv().ok();
+    apply_llm_cli_overrides(llm_engine.as_deref(), llm_python.as_deref())?;
     let cfg = load_cfg(config.as_deref().unwrap_or(DEFAULT_CONFIG_PATH))
         .map_err(|e| clap_noun_verb::NounVerbError::execution_error(e.to_string()))?;
     init_tracing_cfg(&cfg.logging);
@@ -245,8 +685,11 @@ fn serve(config: Option<String>, governance_webhook: Option<String>, watch: Opti
 }
 
 /// Start the MCP server (Streamable HTTP transport)
+#[allow(clippy::too_many_arguments)] // Every parameter is a CLI flag exposed by clap_noun_verb; struct-wrapping would lose the auto-derived argument metadata.
 #[verb]
-fn serve_http(config: Option<String>, host: Option<String>, port: Option<u16>, token: Option<String>, governance_webhook: Option<String>, watch: Option<bool>, watch_interval: Option<u64>, tools_allow: Option<String>, tools_deny: Option<String>, idle_ttl_secs: Option<u64>, auto_refresh: Option<bool>) -> NounVerbResult<ServeOutput> {
+fn serve_http(config: Option<String>, host: Option<String>, port: Option<u16>, token: Option<String>, governance_webhook: Option<String>, watch: Option<bool>, watch_interval: Option<u64>, tools_allow: Option<String>, tools_deny: Option<String>, idle_ttl_secs: Option<u64>, auto_refresh: Option<bool>, llm_engine: Option<String>, llm_python: Option<String>) -> NounVerbResult<ServeOutput> {
+    dotenvy::dotenv().ok();
+    apply_llm_cli_overrides(llm_engine.as_deref(), llm_python.as_deref())?;
     let cfg = load_cfg(config.as_deref().unwrap_or(DEFAULT_CONFIG_PATH))
         .map_err(|e| clap_noun_verb::NounVerbError::execution_error(e.to_string()))?;
     init_tracing_cfg(&cfg.logging);
@@ -273,6 +716,7 @@ fn serve_http(config: Option<String>, host: Option<String>, port: Option<u16>, t
 /// Start unix socket server for Tardygrada fact grounding
 #[verb]
 fn serve_unix(config: Option<String>, socket: Option<String>, files_csv: Option<String>) -> NounVerbResult<ServeOutput> {
+    dotenvy::dotenv().ok();
     let cfg = load_cfg(config.as_deref().unwrap_or(DEFAULT_CONFIG_PATH))
         .map_err(|e| clap_noun_verb::NounVerbError::execution_error(e.to_string()))?;
     init_tracing_cfg(&cfg.logging);
@@ -284,14 +728,20 @@ fn serve_unix(config: Option<String>, socket: Option<String>, files_csv: Option<
     } else {
         cfg.socket.preload_files.clone()
     };
-    run_unix_server(cfg, socket_path, preload)?;
+    run_unix_server(socket_path, preload)?;
     Ok(ServeOutput { status: "done".to_string() })
 }
 
 /// Initialize data directory, DB, and default config
 #[verb]
 fn init(data_dir: Option<String>, model_url: Option<String>, tokenizer_url: Option<String>, model_name: Option<String>) -> NounVerbResult<InitOutput> {
-    let _ = (model_url, tokenizer_url, model_name);
+    // Option B: model_url/tokenizer_url/model_name are accepted as CLI flags but not yet wired.
+    // Reject explicit values loudly so users aren't misled into thinking the download happened.
+    if model_url.is_some() || tokenizer_url.is_some() || model_name.is_some() {
+        return Err(clap_noun_verb::NounVerbError::execution_error(
+            "model_url/tokenizer_url/model_name are not yet supported by `onto init`. Manually copy the model files into ~/.open-ontologies/models/ until this is wired.".to_string(),
+        ));
+    }
     let dir_str = data_dir.unwrap_or_else(|| "~/.open-ontologies".to_string());
     let dir_expanded = expand_tilde(&dir_str);
     let data_path = std::path::Path::new(&dir_expanded);

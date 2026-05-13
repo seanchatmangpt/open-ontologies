@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "ontostar.fullname" . }}
+  labels:
+    {{- include "ontostar.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.type }}
+  selector:
+    {{- include "ontostar.selectorLabels" . | nindent 4 }}
+  ports:
+    - name: mcp-http
+      port: {{ .Values.service.port }}
+      targetPort: 3050
+      protocol: TCP

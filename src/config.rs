@@ -20,6 +20,30 @@ pub struct Config {
     pub socket: SocketConfig,
     pub logging: LoggingConfig,
     pub codegen: CodegenConfig,
+    pub llm: LlmConfig,
+    /// `[retention]` — Round 4 WD §29 Cell8 retirement closure. Per-table
+    /// retention windows (in days) for the [`crate::retention::RetentionWorker`]
+    /// background job. Defaults are chosen so that single-tenant deployments
+    /// with no explicit `[retention]` section still cap unbounded growth.
+    pub retention: RetentionConfig,
+    /// `[verifier]` — R7 WA2 A2 V1 Receipt-Chain Verifier worker.
+    /// Continuous tokio loop; ZERO LLM by invariant — crypto verdicts
+    /// must be reproducible bit-for-bit from `(receipt_row,
+    /// trusted_keys_history_row)`. See [`crate::verifier_worker`].
+    pub verifier: VerifierConfig,
+    /// `[authority]` — R5 WC-1 §28 HumanOverride closure. Cached at
+    /// startup; subsequent env-var changes are ignored (TOCTOU-immune).
+    /// Closed-by-default: an empty `admin_principals` list means NO
+    /// admin operations are permitted (admin-only handlers reject all
+    /// callers). Operators must opt in explicitly.
+    pub authority: AuthorityConfig,
+    /// `[telemetry]` — R8-3 OTEL export wiring. When `otlp_endpoint` is set,
+    /// `src/telemetry.rs` exports `tracing` spans to the configured collector.
+    pub telemetry: TelemetryConfig,
+    /// R9-1 — optional external A13 attestation endpoint.
+    /// When set (or via `OPEN_ONTOLOGIES_ATTESTATION_ENDPOINT`), `cell_ready`
+    /// POSTs the replay+OCEL hash pair to this URL for external witnessing.
+    pub attestation_endpoint: Option<String>,
 }
 
 
@@ -196,6 +220,261 @@ pub fn resolve_embeddings_model(cfg: &EmbeddingsConfig) -> String {
         .unwrap_or_else(|| "text-embedding-3-small".to_string())
 }
 
+// ─── LLM Boundary Translator (Groq) ───────────────────────────────────────
+//
+// The translator is a *language-boundary proposer*, not an authority. It
+// converts messy stakeholder voice into candidate CTQ structure that the
+// deterministic CTQ admission gate then admits or denies. The Groq API is
+// OpenAI-compatible at `/v1/chat/completions`.
+//
+// Secret hygiene (Invariant 7): the resolved key is held only on the
+// translator struct and bound to outbound requests via `bearer_auth`. It
+// must never appear in logs, OCEL attributes, receipts, error messages,
+// or projections. See `src/llm_translator.rs`.
+
+/// Configuration for the Groq-backed LLM boundary translator.
+#[derive(Debug, Deserialize, Clone)]
+#[serde(default)]
+pub struct LlmConfig {
+    /// LLM provider name. Currently only `"groq"` is wired; the field is
+    /// reserved for future provider substitution. Override with
+    /// `OPEN_ONTOLOGIES_LLM_PROVIDER`.
+    pub provider: Option<String>,
+    /// OpenAI-compatible API base URL, **without** the trailing
+    /// `/chat/completions` path. Default: `https://api.groq.com/openai/v1`.
+    /// Override with `OPEN_ONTOLOGIES_LLM_API_BASE`.
+    #[serde(alias = "base_url")]
+    pub api_base: Option<String>,
+    /// API key. Resolution order:
+    ///   `OPEN_ONTOLOGIES_LLM_API_KEY` env > `GROQ_API_KEY` env > config.
+    /// Sent as `Authorization: Bearer <key>` and **never** logged.
+    pub api_key: Option<String>,
+    /// Model name. Default: `llama-3.3-70b-versatile`. Override with
+    /// `OPEN_ONTOLOGIES_LLM_MODEL`.
+    pub model: Option<String>,
+    /// HTTP request timeout in seconds. Default: 30.
+    pub request_timeout_secs: Option<u64>,
+    /// Default engine selecting how `onto_translate_candidate`,
+    /// `onto_executive_projection`, and `onto_groq_status` run when the
+    /// caller does not supply an explicit `engine` parameter or
+    /// `X-Ontostar-LLM-Engine` HTTP header. Recognised values:
+    ///   - `"inproc"` — in-process `GroqTranslator` HTTP path.
+    ///   - `"groq_pm4py"` — shell out to `scripts/*.py` (real-Groq via dspy).
+    ///
+    /// Override with `OPEN_ONTOLOGIES_LLM_ENGINE`. Default: auto-detected
+    /// (`groq_pm4py` when an API key is available, else `inproc`).
+    pub engine: Option<String>,
+    /// Path to the python interpreter used by the `groq_pm4py` engine.
+    /// Override with `OPEN_ONTOLOGIES_LLM_PYTHON` or per-call via the
+    /// `python` tool argument. Default: `"python3"`.
+    pub python_interpreter: Option<String>,
+    /// Hard timeout (seconds) for every subprocess invoked by the LLM
+    /// path (`groq_pm4py` engine, `ggen sync`, `ontostar_planner.py`,
+    /// `wvda_agent.py`, `mu_star_agent.py`, etc.). Wired into
+    /// [`crate::subprocess::run_with_timeout`] at the 8 historical
+    /// shell-out sites in `src/server.rs`. Default: 60.
+    ///
+    /// Pre-R7-WB-1 this field was *dead* — declared on the config but
+    /// never read by any call site. The active wedge risk that closure
+    /// addresses: the auto-default `groq_pm4py` engine spawns
+    /// `scripts/*.py`, which itself opens a Groq HTTP request; any
+    /// network or API hang wedged the Tokio worker indefinitely.
+    pub subprocess_timeout_secs: Option<u64>,
+    /// R7 WB-3 — daily token budget per tenant. When the running
+    /// 24h-window total exceeds this value (within the
+    /// `grace_period_pct` warn band) every subsequent LLM call is
+    /// denied with `DefectClass::LlmBudgetExceeded` until midnight UTC
+    /// or an admin invokes `onto_llm_budget_reset`. `None` (default)
+    /// disables the gate even when `budget_enforce = true`. Default
+    /// magnitude (when set): 100_000 tokens/day.
+    #[serde(default)]
+    pub daily_token_budget_per_tenant: Option<u64>,
+    /// R7 WB-3 — fraction of the daily budget that triggers a warning
+    /// (logged + OCEL `llm_budget_warning`) before hard denial. e.g.
+    /// `0.10` means 0–110% of the budget is allowed but the band 100–
+    /// 110% is logged. Default: `0.10`.
+    #[serde(default = "default_grace_period_pct")]
+    pub grace_period_pct: f64,
+    /// R7 WB-3 — when `false` (default) the budget meter records and
+    /// warns but never denies. Operators flip this to `true` after
+    /// observing one quiet week of capture. Default: `false`.
+    #[serde(default)]
+    pub budget_enforce: bool,
+    /// R7 WB-3 — toggle whether `llm_invoked` OCEL events get the
+    /// additive token attribute set. Off in tests by default to avoid
+    /// schema churn. Default: `true`.
+    #[serde(default = "default_true_bool")]
+    pub emit_token_attrs: bool,
+    /// R7 WD-4 — when `true`, the `llm_invoked_full` OCEL event also
+    /// stores the redacted, 32 KiB-truncated prompt and completion
+    /// text. The BLAKE3 prompt/completion hashes are ALWAYS stored
+    /// regardless of this flag. Default: `false` (production-safe;
+    /// enable in test/staging to capture LLM IO for debugging).
+    /// Override with `OPEN_ONTOLOGIES_LLM_PERSIST_FULL_IO=1`.
+    pub persist_full_io: Option<bool>,
+}
+
+fn default_grace_period_pct() -> f64 { 0.10 }
+fn default_true_bool() -> bool { true }
+
+/// R7 WD-4 — resolve `[llm] persist_full_io`. Precedence:
+/// `OPEN_ONTOLOGIES_LLM_PERSIST_FULL_IO` env > config > `false`.
+pub fn resolve_llm_persist_full_io(cfg: &LlmConfig) -> bool {
+    if let Ok(v) = std::env::var("OPEN_ONTOLOGIES_LLM_PERSIST_FULL_IO") {
+        let trimmed = v.trim();
+        return matches!(trimmed, "1" | "true" | "TRUE" | "True" | "yes" | "on");
+    }
+    cfg.persist_full_io.unwrap_or(false)
+}
+
+impl Default for LlmConfig {
+    fn default() -> Self {
+        Self {
+            provider: None,
+            api_base: None,
+            api_key: None,
+            model: None,
+            request_timeout_secs: None,
+            engine: None,
+            python_interpreter: None,
+            subprocess_timeout_secs: None,
+            daily_token_budget_per_tenant: None,
+            grace_period_pct: default_grace_period_pct(),
+            budget_enforce: false,
+            emit_token_attrs: default_true_bool(),
+            persist_full_io: None,
+        }
+    }
+}
+
+/// Resolve the LLM provider name. Precedence:
+/// `OPEN_ONTOLOGIES_LLM_PROVIDER` env > config > `"groq"`.
+pub fn resolve_llm_provider(cfg: &LlmConfig) -> String {
+    std::env::var("OPEN_ONTOLOGIES_LLM_PROVIDER")
+        .ok()
+        .filter(|v| !v.trim().is_empty())
+        .or_else(|| cfg.provider.clone().filter(|v| !v.trim().is_empty()))
+        .unwrap_or_else(|| "groq".to_string())
+        .trim()
+        .to_lowercase()
+}
+
+/// Resolve the LLM API base URL. Precedence:
+/// `OPEN_ONTOLOGIES_LLM_API_BASE` env > config >
+/// `https://api.groq.com/openai/v1`. Trailing slashes are stripped.
+pub fn resolve_llm_api_base(cfg: &LlmConfig) -> String {
+    std::env::var("OPEN_ONTOLOGIES_LLM_API_BASE")
+        .ok()
+        .filter(|v| !v.trim().is_empty())
+        .or_else(|| cfg.api_base.clone().filter(|v| !v.trim().is_empty()))
+        .unwrap_or_else(|| "https://api.groq.com/openai/v1".to_string())
+        .trim()
+        .trim_end_matches('/')
+        .to_string()
+}
+
+/// Resolve the LLM API key. Precedence:
+/// `OPEN_ONTOLOGIES_LLM_API_KEY` env > `GROQ_API_KEY` env > config.
+/// Returns `None` if no key is configured — the translator then refuses
+/// to call the remote and the CTQ admission gate denies any proposal that
+/// requires translation, with `LlmAuthorityClaimed`.
+pub fn resolve_llm_api_key(cfg: &LlmConfig) -> Option<String> {
+    std::env::var("OPEN_ONTOLOGIES_LLM_API_KEY")
+        .ok()
+        .filter(|v| !v.trim().is_empty())
+        .or_else(|| {
+            std::env::var("GROQ_API_KEY")
+                .ok()
+                .filter(|v| !v.trim().is_empty())
+        })
+        .or_else(|| cfg.api_key.clone().filter(|v| !v.trim().is_empty()))
+}
+
+/// Resolve the LLM model name. Precedence:
+/// `OPEN_ONTOLOGIES_LLM_MODEL` env > config > `llama-3.3-70b-versatile`.
+pub fn resolve_llm_model(cfg: &LlmConfig) -> String {
+    std::env::var("OPEN_ONTOLOGIES_LLM_MODEL")
+        .ok()
+        .filter(|v| !v.trim().is_empty())
+        .or_else(|| cfg.model.clone().filter(|v| !v.trim().is_empty()))
+        .unwrap_or_else(|| "llama-3.3-70b-versatile".to_string())
+}
+
+/// Recognised `engine` values for the LLM boundary.
+///
+/// `"inproc"`        → in-process `GroqTranslator` (HTTP via reqwest).
+/// `"groq_pm4py"`    → shell out to `scripts/*.py` (dspy / pm4py path).
+pub const VALID_LLM_ENGINES: &[&str] = &["inproc", "groq_pm4py"];
+
+/// Resolve the default LLM engine for unparametrised tool calls.
+///
+/// Precedence:
+/// 1. `OPEN_ONTOLOGIES_LLM_ENGINE` env var (validated against
+///    [`VALID_LLM_ENGINES`]; unknown values are dropped).
+/// 2. `[llm] engine = "..."` in config (same validation).
+/// 3. Auto-detect: when an API key is resolvable via
+///    [`resolve_llm_api_key`], default to `"groq_pm4py"` — every
+///    real-Groq integration test in `tests/real_groq_*` proves the
+///    subprocess path. Otherwise fall back to `"inproc"` so the
+///    in-process translator still serves audit-only callers without
+///    requiring a python venv.
+pub fn resolve_llm_engine(cfg: &LlmConfig) -> String {
+    fn validated(v: String) -> Option<String> {
+        let trimmed = v.trim().to_string();
+        if VALID_LLM_ENGINES.contains(&trimmed.as_str()) {
+            Some(trimmed)
+        } else {
+            None
+        }
+    }
+
+    if let Some(v) = std::env::var("OPEN_ONTOLOGIES_LLM_ENGINE")
+        .ok()
+        .filter(|v| !v.trim().is_empty())
+        .and_then(validated)
+    {
+        return v;
+    }
+    if let Some(v) = cfg
+        .engine
+        .clone()
+        .filter(|v| !v.trim().is_empty())
+        .and_then(validated)
+    {
+        return v;
+    }
+    if resolve_llm_api_key(cfg).is_some() {
+        "groq_pm4py".to_string()
+    } else {
+        "inproc".to_string()
+    }
+}
+
+/// Resolve the python interpreter for the `groq_pm4py` engine.
+/// Precedence: `OPEN_ONTOLOGIES_LLM_PYTHON` env > config > `"python3"`.
+pub fn resolve_llm_python(cfg: &LlmConfig) -> String {
+    std::env::var("OPEN_ONTOLOGIES_LLM_PYTHON")
+        .ok()
+        .filter(|v| !v.trim().is_empty())
+        .or_else(|| cfg.python_interpreter.clone().filter(|v| !v.trim().is_empty()))
+        .unwrap_or_else(|| "python3".to_string())
+}
+
+/// R7 WB-1 — resolve the subprocess wall-clock timeout in seconds.
+///
+/// Precedence order: `OPEN_ONTOLOGIES_SUBPROCESS_TIMEOUT_SECS` env,
+/// then config, then 60s default. The env override lets operators
+/// (and integration tests) tighten the deadline without rewriting
+/// `config.toml`. Returns a `Duration` so call sites skip the cast.
+pub fn resolve_subprocess_timeout(cfg: &LlmConfig) -> std::time::Duration {
+    let secs = std::env::var("OPEN_ONTOLOGIES_SUBPROCESS_TIMEOUT_SECS")
+        .ok()
+        .and_then(|v| v.trim().parse::<u64>().ok())
+        .or(cfg.subprocess_timeout_secs)
+        .unwrap_or(60);
+    std::time::Duration::from_secs(secs)
+}
+
 #[derive(Debug, Deserialize, Clone)]
 #[serde(default)]
 pub struct CacheConfig {
@@ -361,6 +640,99 @@ impl Default for FeedbackConfig {
     fn default() -> Self { Self { suppress_threshold: 3, downgrade_threshold: 2 } }
 }
 
+/// `[retention]` — Round 4 WD §29 Cell8 retirement closure. Per-table
+/// retention windows in days. The [`crate::retention::RetentionWorker`]
+/// runs on a `poll_interval_secs` cadence and prunes rows older than
+/// each respective window.
+///
+/// `archive_path` (when set) names the on-disk directory where the
+/// receipt cold-storage Parquet shards + sidecar index are written.
+/// Receipts older than `hot_receipt_days` are archived there before
+/// being removed from the hot `receipts` table.
+#[derive(Debug, Deserialize, Clone)]
+#[serde(default)]
+pub struct RetentionConfig {
+    pub poll_interval_secs: u64,
+    pub ocel_days: u64,
+    pub lineage_days: u64,
+    pub conformance_days: u64,
+    pub revocation_grace_days: u64,
+    pub receipt_files_days: u64,
+    pub exemplar_days: u64,
+    pub feedback_days: u64,
+    pub archive_path: Option<std::path::PathBuf>,
+    pub hot_receipt_days: u64,
+}
+
+impl Default for RetentionConfig {
+    fn default() -> Self {
+        Self {
+            poll_interval_secs: 86_400, // once per day
+            ocel_days: 90,
+            lineage_days: 180,
+            conformance_days: 30,
+            revocation_grace_days: 30,
+            receipt_files_days: 365,
+            exemplar_days: 365,
+            feedback_days: 365,
+            archive_path: None,
+            hot_receipt_days: 365,
+        }
+    }
+}
+
+/// `[verifier]` — R7 WA2 A2 V1 Receipt-Chain Verifier.
+///
+/// The verifier worker (`crate::verifier_worker::VerifierWorker`) ticks
+/// every `tick_secs`, scans a batch of new receipts past its cursor, and
+/// runs `crate::verify::crypto_verify` on each row. The function is pure
+/// — verdicts depend only on the receipt row and its matching
+/// `trusted_keys_history` row, NOT on any LLM, network call, or wall
+/// clock comparison performed lazily.
+///
+/// # ZERO-LLM invariant
+///
+/// This is the deterministic autonomic loop. An LLM in this code path
+/// would be a §22 regression. The config has no `llm_*` fields by
+/// design.
+#[derive(Debug, Deserialize, Clone)]
+#[serde(default)]
+pub struct VerifierConfig {
+    /// When false, the worker spawns but skips every tick. Default: true.
+    pub enabled: bool,
+    /// Tick interval in seconds. Clamped to >= 1. Default: 300 (5 min).
+    pub tick_secs: u64,
+    /// Maximum number of receipts to verify per tick. Default: 5000.
+    pub batch_limit: i64,
+    /// On a corruption verdict, advance `retention_paused_until` via
+    /// `fetch_max(now + pause_minutes_on_failure * 60)`. Default: true.
+    pub pause_retention_on_failure: bool,
+    /// How long to pause retention on a corruption verdict, in minutes.
+    /// Default: 60.
+    pub pause_minutes_on_failure: u64,
+    /// On a corruption verdict, emit `tracing::error!(target:"andon",
+    /// ...)` so log scrapers can stop the line. Default: true.
+    pub andon_on_failure: bool,
+    /// Optional clamp: if set, only verify receipts whose `granted_at`
+    /// falls within the past N days. Useful for very large back-fills.
+    /// Default: None (unbounded — verify the full chain).
+    pub max_lookback_days: Option<u64>,
+}
+
+impl Default for VerifierConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            tick_secs: 300,
+            batch_limit: 5000,
+            pause_retention_on_failure: true,
+            pause_minutes_on_failure: 60,
+            andon_on_failure: true,
+            max_lookback_days: None,
+        }
+    }
+}
+
 /// `[imports]` — `owl:imports` resolution policy.
 #[derive(Debug, Deserialize, Clone)]
 #[serde(default)]
@@ -430,6 +802,34 @@ impl Default for LoggingConfig {
     }
 }
 
+/// `[telemetry]` — R8-3 OTEL export wiring.
+///
+/// When `otlp_endpoint` is set, `src/telemetry.rs::init_telemetry` will wire
+/// a `tracing-opentelemetry` layer exporting spans to that endpoint. When
+/// unset, only the `tracing-subscriber` logging layer is active.
+///
+/// All `tracing::debug!(target: "ontostar.*", ...)` spans produced by the
+/// admission gate and verifier worker are exported via this path when wired.
+#[derive(Debug, Deserialize, Clone)]
+#[serde(default)]
+pub struct TelemetryConfig {
+    /// OTLP gRPC endpoint URL, e.g. `http://localhost:4317`. When `None`,
+    /// OTEL export is disabled and spans are consumed only by the local
+    /// `tracing-subscriber` log sink.
+    pub otlp_endpoint: Option<String>,
+    /// Service name reported in OTLP resource attributes.
+    pub service_name: String,
+}
+
+impl Default for TelemetryConfig {
+    fn default() -> Self {
+        Self {
+            otlp_endpoint: None,
+            service_name: "open-ontologies".to_string(),
+        }
+    }
+}
+
 #[derive(Debug, Deserialize, Clone)]
 #[serde(default)]
 pub struct CodegenConfig {
@@ -443,6 +843,114 @@ impl Default for CodegenConfig {
     fn default() -> Self {
         Self { ggen_path: "ggen".to_string() }
     }
+}
+
+/// `[authority]` — R5 WC-1 §28 HumanOverride closure.
+///
+/// `admin_principals` lists the principal IDs (currently the
+/// caller's `tenant_id` until R3 Task B's principal helper lands)
+/// that may invoke admin-only MCP tools. The list is read from the
+/// config file AND, if set, the `OPEN_ONTOLOGIES_ADMIN_PRINCIPALS`
+/// env var (env wins over config); the resolution is performed
+/// **once at startup** by [`resolve_admin_principals`] and cached
+/// on `OpenOntologiesServer` as `Arc<Vec<String>>`. Subsequent env
+/// changes do not affect already-running servers — closes the
+/// TOCTOU race that the previous per-call `std::env::var(...)` read
+/// admitted.
+///
+/// Closed by default: an empty list means NO callers are admin.
+#[derive(Debug, Default, Deserialize, Clone)]
+#[serde(default)]
+pub struct AuthorityConfig {
+    /// Principal IDs (typically tenant IDs in the current implementation)
+    /// authorised to invoke admin-only MCP tools. Empty list → no admins.
+    pub admin_principals: Vec<String>,
+    /// R5 WC-2 — tenant allowlist for the HTTP `X-Ontostar-Tenant` header.
+    /// When non-empty, requests carrying a tenant header NOT in this list
+    /// are rejected with HTTP 403 + `FalsePass { reason:
+    /// "tenant_not_in_allowlist" }`. Empty list preserves the
+    /// pre-R5-WC-2 behaviour (any well-formed tenant accepted), so
+    /// existing single-tenant deployments are unaffected. Resolved at
+    /// startup by [`resolve_known_tenants`] and cached on the HTTP
+    /// router; subsequent env-var mutations are ignored. Closed-by-
+    /// default once any value is configured.
+    pub known_tenants: Vec<String>,
+}
+
+/// Resolve the admin principal allowlist ONCE at startup. Precedence:
+/// `OPEN_ONTOLOGIES_ADMIN_PRINCIPALS` env var (comma-separated) > config
+/// file (`[authority] admin_principals = [...]`) > empty (closed).
+///
+/// Trims whitespace and drops empty entries. The returned `Vec<String>`
+/// is intended to be wrapped in an `Arc` and stored on the server so
+/// subsequent calls to `is_admin_principal` are TOCTOU-immune.
+///
+/// This is the **only** place the env var is read in production code;
+/// any other reader is a §28 HumanOverride leak.
+pub fn resolve_admin_principals(cfg: &AuthorityConfig) -> Vec<String> {
+    let from_env = std::env::var("OPEN_ONTOLOGIES_ADMIN_PRINCIPALS").ok();
+    let raw_iter: Vec<String> = match from_env {
+        Some(v) if !v.trim().is_empty() => v
+            .split(',')
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .collect(),
+        _ => cfg
+            .admin_principals
+            .iter()
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .collect(),
+    };
+    // Deduplicate while preserving order.
+    let mut seen = std::collections::HashSet::new();
+    let mut out = Vec::with_capacity(raw_iter.len());
+    for entry in raw_iter {
+        if seen.insert(entry.clone()) {
+            out.push(entry);
+        }
+    }
+    out
+}
+
+/// R5 WC-2 — resolve the tenant allowlist for the HTTP
+/// `X-Ontostar-Tenant` header ONCE at startup. Precedence:
+/// `OPEN_ONTOLOGIES_KNOWN_TENANTS` env var (comma-separated) > config
+/// file (`[authority] known_tenants = [...]`) > empty (open: any
+/// well-formed tenant accepted).
+///
+/// The env var is the **only** source read in production code; any
+/// other reader is a §28 HumanOverride leak. Mirrors
+/// [`resolve_admin_principals`] semantics: trims whitespace, drops
+/// empty entries, deduplicates while preserving order.
+///
+/// An empty result means "no allowlist configured" — backward-compatible
+/// with single-tenant deployments. A non-empty result enforces the
+/// allowlist; unknown tenants are rejected at the HTTP middleware layer
+/// before the per-request server is constructed.
+pub fn resolve_known_tenants(cfg: &AuthorityConfig) -> Vec<String> {
+    let from_env = std::env::var("OPEN_ONTOLOGIES_KNOWN_TENANTS").ok();
+    let raw_iter: Vec<String> = match from_env {
+        Some(v) if !v.trim().is_empty() => v
+            .split(',')
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .collect(),
+        _ => cfg
+            .known_tenants
+            .iter()
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .collect(),
+    };
+    let mut seen = std::collections::HashSet::new();
+    let mut out = Vec::with_capacity(raw_iter.len());
+    for entry in raw_iter {
+        if seen.insert(entry.clone()) {
+            out.push(entry);
+        }
+    }
+    out
 }
 
 // ─── Env-override resolvers for the most operationally critical fields ──

@@ -101,6 +101,93 @@ fn lineage(session: Option<String>, data_dir: Option<String>) -> NounVerbResult<
     Ok(LineageOutput { session_id, events: events.trim().to_string() })
 }
 
+/// External verifier — strip-and-rehash an artifact, optionally walk
+/// its receipt chain. Read-only. Non-zero exit on any non-Admitted
+/// verdict so CI can gate on it directly.
+#[verb]
+fn verify(
+    path: String,
+    db: Option<String>,
+    ascii_tree: Option<bool>,
+) -> NounVerbResult<serde_json::Value> {
+    do_verify(&path, db.as_deref(), ascii_tree.unwrap_or(false))
+}
+
+/// Domain helper for the `verify` verb — extracted to keep the verb body
+/// thin (Poka-Yoke FM-1.1: complexity ≤ 5).
+fn do_verify(
+    path: &str,
+    db_path: Option<&str>,
+    ascii_tree: bool,
+) -> NounVerbResult<serde_json::Value> {
+    let db_handle = open_db_handle(db_path)?;
+    let verdict = compute_verdict(path, db_handle.as_ref());
+    let mut out = serde_json::to_value(&verdict).map_err(to_verb_err)?;
+    maybe_attach_chain(&mut out, &verdict, db_handle.as_ref(), ascii_tree);
+    if !verdict.is_admitted() {
+        return Err(clap_noun_verb::NounVerbError::execution_error(format!(
+            "verify failed: {}",
+            serde_json::to_string(&out).unwrap_or_default()
+        )));
+    }
+    Ok(out)
+}
+
+fn open_db_handle(db_path: Option<&str>) -> NounVerbResult<Option<open_ontologies::state::StateDb>> {
+    match db_path {
+        Some(p) => Ok(Some(
+            open_ontologies::state::StateDb::open(std::path::Path::new(p)).map_err(to_verb_err)?,
+        )),
+        None => Ok(None),
+    }
+}
+
+fn compute_verdict(
+    path: &str,
+    db: Option<&open_ontologies::state::StateDb>,
+) -> open_ontologies::verify::Verdict {
+    use open_ontologies::verify as v;
+    let p = std::path::Path::new(path);
+    if p.is_dir() {
+        v::verify_iac_bundle(p, db)
+    } else {
+        v::verify_artifact(p, db)
+    }
+}
+
+fn maybe_attach_chain(
+    out: &mut serde_json::Value,
+    verdict: &open_ontologies::verify::Verdict,
+    db: Option<&open_ontologies::state::StateDb>,
+    ascii_tree: bool,
+) {
+    use open_ontologies::verify as v;
+    if !ascii_tree {
+        return;
+    }
+    let (Some(db), v::Verdict::Admitted { receipt_hash, .. }) = (db, verdict) else {
+        return;
+    };
+    let Some(rh) = hex_to_32(receipt_hash) else { return };
+    let chain = v::walk_receipt_chain(db, &rh);
+    let ascii = v::render_chain_ascii(&chain);
+    if let Some(obj) = out.as_object_mut() {
+        obj.insert("chain".into(), serde_json::json!(chain));
+        obj.insert("ascii".into(), serde_json::Value::String(ascii));
+    }
+}
+
+fn hex_to_32(s: &str) -> Option<[u8; 32]> {
+    if s.len() != 64 {
+        return None;
+    }
+    let mut out = [0u8; 32];
+    for i in 0..32 {
+        out[i] = u8::from_str_radix(&s[i * 2..i * 2 + 2], 16).ok()?;
+    }
+    Some(out)
+}
+
 /// Detect drift between two ontology versions
 #[verb]
 fn drift(file_a: String, file_b: String, data_dir: Option<String>) -> NounVerbResult<serde_json::Value> {

@@ -1,0 +1,18 @@
+apiVersion: v2
+name: ontostar
+description: open-ontologies (ontostar) MCP server — Helm chart
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+home: https://github.com/fabio-rovai/open-ontologies
+sources:
+  - https://github.com/fabio-rovai/open-ontologies
+keywords:
+  - rdf
+  - owl
+  - sparql
+  - shacl
+  - mcp
+  - ontology
+maintainers:
+  - name: open-ontologies

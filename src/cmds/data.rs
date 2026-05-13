@@ -37,9 +37,9 @@ fn resolve_mapping(mapping: Option<&str>, rows: &[std::collections::HashMap<Stri
     }
 }
 
-fn do_ingest(path: &str, mapping: Option<&str>, base: &str, data_dir: &str) -> NounVerbResult<serde_json::Value> {
+fn do_ingest(path: &str, format: Option<&str>, mapping: Option<&str>, base: &str, data_dir: &str) -> NounVerbResult<serde_json::Value> {
     let (_db, graph) = setup(data_dir).map_err(to_verb_err)?;
-    let rows = DataIngester::parse_file(path).map_err(to_verb_err)?;
+    let rows = DataIngester::parse_file_with_format(path, format).map_err(to_verb_err)?;
     if rows.is_empty() {
         return Ok(serde_json::json!({"ok": true, "triples_loaded": 0, "rows": 0}));
     }
@@ -49,9 +49,9 @@ fn do_ingest(path: &str, mapping: Option<&str>, base: &str, data_dir: &str) -> N
     Ok(serde_json::json!({"ok": true, "triples_loaded": count, "rows": rows.len()}))
 }
 
-fn do_map(data_path: &str, save: Option<&str>, data_dir: &str) -> NounVerbResult<serde_json::Value> {
+fn do_map(data_path: &str, format: Option<&str>, save: Option<&str>, data_dir: &str) -> NounVerbResult<serde_json::Value> {
     let (_db, graph) = setup(data_dir).map_err(to_verb_err)?;
-    let rows = DataIngester::parse_file(data_path).map_err(to_verb_err)?;
+    let rows = DataIngester::parse_file_with_format(data_path, format).map_err(to_verb_err)?;
     let headers = DataIngester::extract_headers(&rows);
     let classes_q = r#"SELECT DISTINCT ?c WHERE { { ?c a <http://www.w3.org/2002/07/owl#Class> } UNION { ?c a <http://www.w3.org/2000/01/rdf-schema#Class> } }"#;
     let props_q = r#"SELECT DISTINCT ?p WHERE { { ?p a <http://www.w3.org/2002/07/owl#ObjectProperty> } UNION { ?p a <http://www.w3.org/2002/07/owl#DatatypeProperty> } UNION { ?p a <http://www.w3.org/1999/02/22-rdf-syntax-ns#Property> } }"#;
@@ -100,12 +100,11 @@ fn do_import_owl(max_depth: usize, data_dir: &str) -> NounVerbResult<ImportOwlOu
         for url in batch {
             if imported.contains(&url) { continue; }
             let result = tokio::runtime::Handle::current().block_on(GraphStore::fetch_url(&url));
-            if let Ok(content) = result {
-                if let Ok(count) = graph.load_turtle(&content, None) {
+            if let Ok(content) = result
+                && let Ok(count) = graph.load_turtle(&content, None) {
                     eprintln!("Imported {} ({} triples)", url, count);
                     imported.push(url);
                 }
-            }
         }
         depth += 1;
     }
@@ -114,17 +113,15 @@ fn do_import_owl(max_depth: usize, data_dir: &str) -> NounVerbResult<ImportOwlOu
 
 fn collect_imports(graph: &open_ontologies::graph::GraphStore, q: &str) -> Vec<String> {
     let mut result = Vec::new();
-    if let Ok(json) = graph.sparql_select(q) {
-        if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&json) {
-            if let Some(rows) = parsed["results"].as_array() {
+    if let Ok(json) = graph.sparql_select(q)
+        && let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&json)
+            && let Some(rows) = parsed["results"].as_array() {
                 for row in rows {
                     if let Some(uri) = row["import"].as_str() {
                         result.push(uri.trim_matches(|c| c == '<' || c == '>').to_string());
                     }
                 }
             }
-        }
-    }
     result
 }
 
@@ -149,22 +146,22 @@ fn do_sql_ingest(connection: &str, sql: &str, mapping: Option<&str>, inline_mapp
     Ok(serde_json::json!({"ok": true, "driver": driver.as_str(), "triples_loaded": count, "rows_processed": rows.len(), "mapping_fields": cfg.mappings.len()}))
 }
 
-fn do_extend(data_path: &str, mapping: Option<&str>, shapes: Option<&str>, profile: Option<&str>, data_dir: &str) -> NounVerbResult<serde_json::Value> {
+fn do_extend(data_path: &str, format: Option<&str>, mapping: Option<&str>, shapes: Option<&str>, profile: Option<&str>, data_dir: &str) -> NounVerbResult<serde_json::Value> {
     use open_ontologies::shacl::ShaclValidator;
     use open_ontologies::reason::Reasoner;
     let (_db, graph) = setup(data_dir).map_err(to_verb_err)?;
     let base = "http://example.org/data/";
-    let rows = DataIngester::parse_file(data_path).map_err(to_verb_err)?;
+    let rows = DataIngester::parse_file_with_format(data_path, format).map_err(to_verb_err)?;
     let cfg = resolve_mapping(mapping, &rows, base)?;
     let ntriples = cfg.rows_to_ntriples(&rows);
     let triples_loaded = graph.load_ntriples(&ntriples).map_err(to_verb_err)?;
-    let shacl_result = shapes.map(|sp| {
+    let shacl_result = shapes.and_then(|sp| {
         std::fs::read_to_string(sp).ok()
             .and_then(|sc| ShaclValidator::validate(&graph, &sc).ok())
             .and_then(|r| serde_json::from_str::<serde_json::Value>(&r).ok())
-    }).flatten();
-    let reason_result = profile.map(|p| Reasoner::run(&graph, p, true).ok()
-        .and_then(|r| serde_json::from_str::<serde_json::Value>(&r).ok())).flatten();
+    });
+    let reason_result = profile.and_then(|p| Reasoner::run(&graph, p, true).ok()
+        .and_then(|r| serde_json::from_str::<serde_json::Value>(&r).ok()));
     Ok(serde_json::json!({"ok": true, "triples_loaded": triples_loaded, "rows": rows.len(), "shacl": shacl_result, "reason": reason_result}))
 }
 
@@ -173,18 +170,16 @@ fn do_extend(data_path: &str, mapping: Option<&str>, shapes: Option<&str>, profi
 /// Ingest structured data into RDF
 #[verb]
 fn ingest(path: String, format: Option<String>, mapping: Option<String>, base_iri: Option<String>, data_dir: Option<String>) -> NounVerbResult<serde_json::Value> {
-    let _ = format;
     let base = base_iri.as_deref().unwrap_or("http://example.org/data/");
     let dir = data_dir.as_deref().unwrap_or(DEFAULT_DATA_DIR);
-    do_ingest(&path, mapping.as_deref(), base, dir)
+    do_ingest(&path, format.as_deref(), mapping.as_deref(), base, dir)
 }
 
 /// Generate mapping config from data file + ontology
 #[verb]
 fn map(data_path: String, format: Option<String>, save: Option<String>, data_dir: Option<String>) -> NounVerbResult<serde_json::Value> {
-    let _ = format;
     let dir = data_dir.as_deref().unwrap_or(DEFAULT_DATA_DIR);
-    do_map(&data_path, save.as_deref(), dir)
+    do_map(&data_path, format.as_deref(), save.as_deref(), dir)
 }
 
 /// Fetch ontology from URL or SPARQL endpoint
@@ -200,14 +195,22 @@ fn pull(url: String, sparql: Option<bool>, sparql_query: Option<String>, data_di
 /// Push ontology to SPARQL endpoint
 #[verb]
 fn push(endpoint: String, graph_name: Option<String>, data_dir: Option<String>) -> NounVerbResult<serde_json::Value> {
-    let _ = graph_name;
     let dir = data_dir.as_deref().unwrap_or(DEFAULT_DATA_DIR);
     let (_db, g) = setup(dir).map_err(to_verb_err)?;
     let content = g.serialize("ntriples").map_err(to_verb_err)?;
-    let msg = tokio::runtime::Handle::current()
-        .block_on(GraphStore::push_sparql(&endpoint, &content))
-        .map_err(to_verb_err)?;
-    Ok(serde_json::json!({"ok": true, "message": msg}))
+    // Sync verb body invoked from within `#[tokio::main]` — must yield the
+    // current worker thread before driving an async future, otherwise tokio
+    // panics with "Cannot start a runtime from within a runtime".
+    let msg = tokio::task::block_in_place(|| {
+        tokio::runtime::Handle::current().block_on(GraphStore::push_sparql_graph(
+            &endpoint,
+            &content,
+            graph_name.as_deref(),
+            &[],
+        ))
+    })
+    .map_err(to_verb_err)?;
+    Ok(serde_json::json!({"ok": true, "message": msg, "graph": graph_name}))
 }
 
 /// Resolve and load owl:imports chain
@@ -235,6 +238,7 @@ fn do_import_schema_inner(connection: &str, base_iri: &str, data_dir: &str) -> N
     Ok(serde_json::json!({"ok": true, "driver": driver.as_str(), "tables": tables.len(), "triples": count, "base_iri": base_iri}))
 }
 
+#[cfg_attr(not(any(feature = "postgres", feature = "duckdb")), allow(unused_variables))]
 fn fetch_schema_tables(connection: &str, driver: &open_ontologies::sqlsource::SqlDriver) -> NounVerbResult<Vec<open_ontologies::schema::TableInfo>> {
     match driver {
         open_ontologies::sqlsource::SqlDriver::Postgres => {
@@ -284,9 +288,8 @@ fn sql_ingest(connection: String, sql: String, mapping: Option<String>, inline_m
 /// Full pipeline: ingest → SHACL → reason
 #[verb]
 fn extend(data_path: String, format: Option<String>, mapping: Option<String>, shapes: Option<String>, profile: Option<String>, data_dir: Option<String>) -> NounVerbResult<serde_json::Value> {
-    let _ = format;
     let dir = data_dir.as_deref().unwrap_or(DEFAULT_DATA_DIR);
-    do_extend(&data_path, mapping.as_deref(), shapes.as_deref(), profile.as_deref(), dir)
+    do_extend(&data_path, format.as_deref(), mapping.as_deref(), shapes.as_deref(), profile.as_deref(), dir)
 }
 
 /// Run a batch of commands from a file or stdin

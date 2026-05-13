@@ -1,0 +1,19 @@
+{
+  "generated": "2026-05-12",
+  "tool": "cargo bench (Criterion)",
+  "note": "Baseline captured on ontostar-integration branch; R9 state post-tenant-isolation",
+  "baselines": {
+    "evaluate_admission/powl_bridge_construct": { "mean_ps": 553, "unit": "ps" },
+    "evaluate_admission/powl_bridge_parse":     { "mean_us": 9.83, "unit": "µs" },
+    "evaluate_admission/powl_bridge_replay_full": { "mean_us": 50.4, "unit": "µs" },
+    "evaluate_admission/full_noop":             { "mean_ms": 6.86, "unit": "ms" },
+    "evaluate_admission/full_real":             { "mean_ms": 13.3, "unit": "ms" },
+    "receipts/latest_for_session/10":           { "mean_us": 4.07, "unit": "µs" },
+    "receipts/latest_for_session/100":          { "mean_us": 4.08, "unit": "µs" },
+    "receipts/latest_for_session/1000":         { "mean_us": 4.18, "unit": "µs" },
+    "receipts/build_receipt":                   { "mean_us": 4.32, "unit": "µs" },
+    "receipts/persist_receipt":                 { "mean_us": 31.5, "unit": "µs" },
+    "receipts/chain_walk":                      { "mean_us": 9.39, "unit": "µs" },
+    "manufacturing/build_receipt":              { "mean_us": 1.75, "unit": "µs" }
+  }
+}

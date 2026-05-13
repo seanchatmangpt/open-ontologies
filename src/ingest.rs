@@ -370,7 +370,38 @@ impl DataIngester {
     /// Dispatch to the correct parser based on detected format.
     /// For text formats, reads the file content first.
     pub fn parse_file(path: &str) -> Result<Vec<HashMap<String, String>>> {
-        let format = Self::detect_format(path);
+        Self::parse_file_with_format(path, None)
+    }
+
+    /// Parse with explicit format override. When `format` is `Some`, the
+    /// supplied string takes precedence over extension-based detection.
+    /// Accepted: csv, json, ndjson, yaml, xml, xlsx, parquet (case-insensitive).
+    pub fn parse_file_with_format(
+        path: &str,
+        format: Option<&str>,
+    ) -> Result<Vec<HashMap<String, String>>> {
+        let detected = Self::detect_format(path);
+        let format: &str = match format {
+            None => detected,
+            Some(f) => {
+                let lower = f.to_ascii_lowercase();
+                match lower.as_str() {
+                    "csv" => "csv",
+                    "json" => "json",
+                    "ndjson" => "ndjson",
+                    "yaml" | "yml" => "yaml",
+                    "xml" => "xml",
+                    "xlsx" => "xlsx",
+                    "parquet" => "parquet",
+                    other => {
+                        anyhow::bail!(
+                            "unsupported format override '{}': expected one of csv, json, ndjson, yaml, xml, xlsx, parquet",
+                            other
+                        )
+                    }
+                }
+            }
+        };
         match format {
             "csv" => {
                 let content = fs::read_to_string(path)

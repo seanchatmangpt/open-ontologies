@@ -45,6 +45,27 @@ tract-onnx = { version = "0.21", optional = true }
 tokenizers = { version = "0.21", optional = true, default-features = false, features = ["onig"] }
 dirs = "6"
 shell-words = "1"
+wasm4pm-types = { path = "/Users/sac/wasm4pm/crates/wasm4pm-types", features = ["import"] }
+wasm4pm-algos = { path = "/Users/sac/wasm4pm/crates/wasm4pm-algos" }
+wasm4pm = { path = "/Users/sac/wasm4pm/wasm4pm", default-features = false, features = ["powl", "conformance_basic", "hand_rolled_stats", "streaming_basic", "discovery_advanced", "ml"] }
+wasm4pm-cognition = { path = "/Users/sac/wasm4pm/crates/wasm4pm-cognition", default-features = false }
+blake3 = "1"
+hex = "0.4"
+base64 = "0.22"
+ulid = "1"
+dotenvy = "0.15"
+ed25519-dalek = { version = "2", features = ["pkcs8", "pem", "rand_core"] }
+rand_core = "0.6"
+arc-swap = "1"
+# R7 WB-1 — Subprocess timeout enforcement. Wraps every shell-out site
+# (groq_pm4py engine, ggen sync, planner) with a hard wall-clock deadline
+# via `wait_timeout::ChildExt::wait_timeout`. Closes the active wedge
+# risk where a hung Groq HTTP call inside scripts/*.py held a Tokio
+# worker indefinitely.
+wait-timeout = "0.2"
+# R7 WB-2 — Per-tenant cost meter. Concurrent-friendly map of
+# `tenant_id` → `AtomicU64` token counter with daily UTC rollover.
+dashmap = "6"
 
 [features]
 default = []
@@ -60,3 +81,37 @@ dbg_macro = "deny"
 
 [dev-dependencies]
 tempfile = "3"
+criterion = { version = "0.5", features = ["html_reports"] }
+tower = { version = "0.5", features = ["util"] }
+# R6 WB — §22 syn AST migration. Used by:
+#   * tests/round5_ast_red_team.rs        — order-independent #[tool] extraction
+#   * tests/round5_ast_red_team_sabotage.rs — B1/B2/B3/B4 sabotage tests
+#   * tests/derive_allowlist_audit.rs     — derives on authority types audit
+#   * tools/dead_param_gate (Rust binary) — post-expansion let _ = $p; scan
+# `syn` 2.x is already in the closure (transitively pulled by serde_derive,
+# clap_derive, and rmcp's tool_router macro). Adding it as a dev-dep makes
+# the audit substrate AST-aware (closes the §17 fake-gauge that R5 WA
+# explicitly deferred to R6 WB).
+syn = { version = "2", features = ["full", "visit", "extra-traits"] }
+quote = "1"
+walkdir = "2"
+# R7 WB-4 / WB-2 — wiremock HTTP server used by retry & cost-capture
+# tests to assert exponential backoff and token capture behaviour without
+# touching the real Groq API.
+wiremock = "0.6"
+
+[[bench]]
+name = "admission_bench"
+harness = false
+
+[[bench]]
+name = "manufacturing_bench"
+harness = false
+
+[[bench]]
+name = "swarm_bench"
+harness = false
+
+[[bench]]
+name = "receipts_bench"
+harness = false

@@ -1,0 +1,45 @@
+name: Bench
+
+on:
+  workflow_dispatch:
+    inputs:
+      bench_filter:
+        description: "Optional substring filter passed to cargo bench"
+        required: false
+        default: ""
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  bench:
+    name: cargo bench --quick
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: bench
+      - name: Run benchmarks (quick)
+        run: |
+          mkdir -p bench-results
+          if [ -n "${{ inputs.bench_filter }}" ]; then
+            cargo bench --quick -- "${{ inputs.bench_filter }}" 2>&1 | tee bench-results/output.txt
+          else
+            cargo bench --quick 2>&1 | tee bench-results/output.txt
+          fi
+      - name: Collect criterion artifacts (if present)
+        if: always()
+        run: |
+          if [ -d target/criterion ]; then
+            cp -r target/criterion bench-results/criterion
+          fi
+      - name: Upload bench results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bench-results-${{ github.sha }}
+          path: bench-results/
+          retention-days: 30

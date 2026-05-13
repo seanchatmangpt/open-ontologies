@@ -1,0 +1,66 @@
+# Nightly real-Groq sweep (R4 WA, §24 Chicago TDD).
+#
+# The default `ci.yml::real-groq-sweep` job runs only on PR/push and
+# short-circuits when `GROQ_API_KEY` is unset. This nightly cron drives
+# the SAME tests on a schedule so silent regressions in the third-party
+# Groq API surface (model deprecation, response-shape drift, rate-limit
+# behaviour) are detected within 24h instead of the next user-triggered
+# build.
+#
+# Honest scope: this workflow does NOT replace the gated CI step — it
+# duplicates it on a wall-clock cadence. Both gates fail loudly when the
+# real boundary breaks; neither one substitutes for the other.
+
+name: nightly-real-groq
+
+on:
+  schedule:
+    # 03:17 UTC every day (off-peak relative to most CI usage).
+    - cron: '17 3 * * *'
+  workflow_dispatch: {}
+
+jobs:
+  nightly-real-groq:
+    name: nightly real-Groq sweep
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    env:
+      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: nightly-real-groq
+      - name: Skip if no Groq key
+        if: env.GROQ_API_KEY == ''
+        run: |
+          echo "::warning::GROQ_API_KEY not present; nightly real-Groq sweep skipped cleanly."
+          exit 0
+      - name: real_groq_chicago_e2e
+        if: env.GROQ_API_KEY != ''
+        run: cargo test --test real_groq_chicago_e2e -- --nocapture --test-threads=1
+      - name: real_groq_ctq
+        if: env.GROQ_API_KEY != ''
+        run: cargo test --test real_groq_ctq -- --nocapture --test-threads=1
+      - name: real_groq_executive_projection
+        if: env.GROQ_API_KEY != ''
+        run: cargo test --test real_groq_executive_projection -- --nocapture --test-threads=1
+      - name: real_groq_mcp_handler
+        if: env.GROQ_API_KEY != ''
+        run: cargo test --test real_groq_mcp_handler -- --nocapture --test-threads=1
+      - name: real_groq_plan_workflow
+        if: env.GROQ_API_KEY != ''
+        run: cargo test --test real_groq_plan_workflow -- --nocapture --test-threads=1
+      - name: real_groq_powl
+        if: env.GROQ_API_KEY != ''
+        run: cargo test --test real_groq_powl -- --nocapture --test-threads=1
+      - name: real_groq_powl_refine
+        if: env.GROQ_API_KEY != ''
+        run: cargo test --test real_groq_powl_refine -- --nocapture --test-threads=1
+      - name: real_groq_solution_spec
+        if: env.GROQ_API_KEY != ''
+        run: cargo test --test real_groq_solution_spec -- --nocapture --test-threads=1
+      - name: revops_e2e_with_real_groq
+        if: env.GROQ_API_KEY != ''
+        run: cargo test --test revops_e2e_with_real_groq -- --ignored --nocapture --test-threads=1

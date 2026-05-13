@@ -1,35 +1,115 @@
 name: CI
+
 on:
   push:
-    branches: [main]
+    branches: [main, ontostar-integration]
   pull_request:
-    branches: [main]
+    branches: [main, ontostar-integration]
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
+  RUST_BACKTRACE: 1
 
 jobs:
-  build:
+  # The bulk of unit + integration + lint coverage is now driven by the single
+  # verification matrix in regression-gates.yml. CI here keeps only the jobs
+  # that need extra toolchains or secrets that the matrix runner cannot satisfy.
+
+  verification-matrix:
+    name: verification matrix
     runs-on: ubuntu-latest
     env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-      CARGO_INCREMENTAL: 0
-      CARGO_PROFILE_DEV_DEBUG: 0
+      GITHUB_PR_LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
     steps:
       - uses: actions/checkout@v4
-      - name: Free disk space
-        run: |
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/powershell /usr/local/share/chromium /usr/local/share/edge
-          sudo apt-get clean
-          df -h
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy
       - uses: Swatinem/rust-cache@v2
-      - name: Build
-        run: cargo build
-      - name: Test
-        run: cargo test
-      - name: Clippy
-        run: cargo clippy -- -D warnings
-      - name: Audit
+        with:
+          key: ci-verification-matrix
+      - name: chmod scripts
+        run: chmod +x .github/scripts/*.sh tools/dead-param-gate.sh
+      - name: run verification matrix
+        run: bash .github/scripts/run-verification-matrix.sh
+
+  real-toolchain-smoke:
+    name: real-toolchain smoke (${{ matrix.os }})
+    needs: verification-matrix
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: real-toolchain-${{ matrix.os }}
+      - name: Install Erlang/OTP + Terraform (Linux)
+        if: runner.os == 'Linux'
         run: |
-          cargo install cargo-audit
-          cargo audit
+          sudo apt-get update
+          sudo apt-get install -y erlang
+          wget -qO- https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
+          echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
+          sudo apt-get update
+          sudo apt-get install -y terraform
+          erlc -version
+          terraform -version
+      - name: Install Erlang/OTP + Terraform (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew install erlang terraform
+          erlc -version
+          terraform -version
+      - name: cargo test adversarial_real_toolchains
+        run: cargo test --test adversarial_real_toolchains -- --nocapture --test-threads=1
+
+  real-groq-sweep:
+    name: real-Groq sweep (gated)
+    needs: verification-matrix
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    env:
+      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: real-groq
+      - name: Skip if no Groq key
+        if: env.GROQ_API_KEY == ''
+        run: |
+          echo "::warning::GROQ_API_KEY not present; skipping real-Groq sweep cleanly."
+          exit 0
+      - name: real_groq_chicago_e2e
+        if: env.GROQ_API_KEY != ''
+        run: cargo test --test real_groq_chicago_e2e -- --nocapture --test-threads=1
+      - name: real_groq_ctq
+        if: env.GROQ_API_KEY != ''
+        run: cargo test --test real_groq_ctq -- --nocapture --test-threads=1
+      - name: real_groq_executive_projection
+        if: env.GROQ_API_KEY != ''
+        run: cargo test --test real_groq_executive_projection -- --nocapture --test-threads=1
+      - name: real_groq_mcp_handler
+        if: env.GROQ_API_KEY != ''
+        run: cargo test --test real_groq_mcp_handler -- --nocapture --test-threads=1
+      - name: real_groq_plan_workflow
+        if: env.GROQ_API_KEY != ''
+        run: cargo test --test real_groq_plan_workflow -- --nocapture --test-threads=1
+      - name: real_groq_powl
+        if: env.GROQ_API_KEY != ''
+        run: cargo test --test real_groq_powl -- --nocapture --test-threads=1
+      - name: real_groq_powl_refine
+        if: env.GROQ_API_KEY != ''
+        run: cargo test --test real_groq_powl_refine -- --nocapture --test-threads=1
+      - name: real_groq_solution_spec
+        if: env.GROQ_API_KEY != ''
+        run: cargo test --test real_groq_solution_spec -- --nocapture --test-threads=1
+      - name: revops_e2e_with_real_groq
+        if: env.GROQ_API_KEY != ''
+        run: cargo test --test revops_e2e_with_real_groq -- --ignored --nocapture --test-threads=1

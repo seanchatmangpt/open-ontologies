@@ -1,0 +1,45 @@
+# Canonical config for containerized ontostar deployments.
+# Mounted into the container at /config/config.toml.
+
+[general]
+data_dir = "/data"
+ontology_dirs = ["/data/ontologies"]
+
+[http]
+host = "0.0.0.0"
+port = 3050
+
+[logging]
+# Set to "debug" or "trace" for verbose troubleshooting.
+level = "info"
+
+[cache]
+# Auto-refresh on file mtime changes; idle TTL keeps memory bounded.
+auto_refresh = true
+
+[embeddings]
+# "local" requires --features=embeddings at build time. "openai" works against
+# any OpenAI-compatible gateway (Groq, Azure OpenAI, Ollama, vLLM, LocalAI).
+provider = "openai"
+
+[llm]
+# Reads GROQ_API_KEY from the environment / mounted .env file.
+provider = "groq"
+
+# Default engine for onto_translate_candidate / onto_executive_projection /
+# onto_groq_status when the caller does not pass `engine` explicitly and no
+# `X-Ontostar-LLM-Engine` HTTP header is present. Recognised values:
+#   "inproc"     — in-process GroqTranslator HTTP path (no venv needed).
+#   "groq_pm4py" — shell out to scripts/*.py (real-Groq via dspy/pm4py).
+# When this key is omitted, the resolver auto-detects: an API key present
+# selects "groq_pm4py", otherwise "inproc". Override at runtime via the env
+# var OPEN_ONTOLOGIES_LLM_ENGINE or the CLI flag --llm-engine.
+engine = "inproc"
+# engine = "groq_pm4py"
+
+# Path to the python interpreter used by the "groq_pm4py" engine. Override
+# via OPEN_ONTOLOGIES_LLM_PYTHON or --llm-python.
+# python_interpreter = "/opt/venv/bin/python"
+
+# Hard timeout (seconds) for the groq_pm4py subprocess.
+# subprocess_timeout_secs = 30

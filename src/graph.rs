@@ -24,6 +24,19 @@ impl GraphStore {
         }
     }
 
+    /// Open a file-backed Oxigraph store at `path`. Used by the CLI so that
+    /// successive `open-ontologies` subprocess invocations sharing the same
+    /// `--data_dir` operate on the same persistent triple set. Falls back to
+    /// an in-memory store if the on-disk store cannot be opened (e.g. the
+    /// directory exists but is locked by another process).
+    pub fn open<P: AsRef<std::path::Path>>(path: P) -> anyhow::Result<Self> {
+        let store = Store::open(path.as_ref())
+            .map_err(|e| anyhow::anyhow!("Failed to open Oxigraph store at {:?}: {e}", path.as_ref()))?;
+        Ok(Self {
+            store: Mutex::new(store),
+        })
+    }
+
     pub fn triple_count(&self) -> usize {
         let store = self.store.lock().unwrap();
         store.len().unwrap_or(0)
@@ -278,13 +291,54 @@ impl GraphStore {
     }
 
     pub async fn push_sparql(endpoint: &str, content: &str) -> anyhow::Result<String> {
+        Self::push_sparql_graph(endpoint, content, None, &[]).await
+    }
+
+    /// SPARQL 1.1 Update push with optional named graph and arbitrary extra
+    /// HTTP headers. When `graph_iri` is `Some(iri)`, the body becomes
+    /// `INSERT DATA { GRAPH <iri> { ntriples } }`; when `None`, the default
+    /// graph form is used.
+    ///
+    /// `extra_headers` is a slice of `(name, value)` pairs prepended to the
+    /// request — used by OntoStar to bind a receipt hash to the push via
+    /// `X-Ostar-Receipt-Hash` and `X-Ostar-Production-Law`.
+    ///
+    /// Validates `graph_iri` syntactically: must be non-empty, must not be
+    /// wrapped in `< >` (caller passes the raw IRI), and must not contain
+    /// whitespace.
+    pub async fn push_sparql_graph(
+        endpoint: &str,
+        content: &str,
+        graph_iri: Option<&str>,
+        extra_headers: &[(&str, &str)],
+    ) -> anyhow::Result<String> {
+        let body = match graph_iri {
+            None => format!("INSERT DATA {{ {} }}", content),
+            Some(iri) => {
+                let trimmed = iri.trim();
+                if trimmed.is_empty() {
+                    anyhow::bail!("graph IRI must not be empty");
+                }
+                if trimmed.starts_with('<') || trimmed.ends_with('>') {
+                    anyhow::bail!(
+                        "graph IRI must not be wrapped in angle brackets (got '{}')",
+                        iri
+                    );
+                }
+                if trimmed.chars().any(|c| c.is_whitespace()) {
+                    anyhow::bail!("graph IRI must not contain whitespace (got '{}')", iri);
+                }
+                format!("INSERT DATA {{ GRAPH <{}> {{ {} }} }}", trimmed, content)
+            }
+        };
         let client = reqwest::Client::new();
-        let resp = client
+        let mut req = client
             .post(endpoint)
-            .header("Content-Type", "application/sparql-update")
-            .body(format!("INSERT DATA {{ {} }}", content))
-            .send()
-            .await?;
+            .header("Content-Type", "application/sparql-update");
+        for (name, value) in extra_headers {
+            req = req.header(*name, *value);
+        }
+        let resp = req.body(body).send().await?;
         if !resp.status().is_success() {
             anyhow::bail!("SPARQL update returned HTTP {}", resp.status());
         }

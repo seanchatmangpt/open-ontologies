@@ -1,5 +1,11 @@
 use crate::state::StateDb;
 
+// ─── OntoStar autonomic feedback loops (Stream 4) ──
+pub mod exemplars;
+pub mod thresholds;
+pub mod discovery;
+pub mod regression;
+
 /// What to do with an issue based on feedback history.
 #[derive(Debug, PartialEq)]
 pub enum FeedbackAction {

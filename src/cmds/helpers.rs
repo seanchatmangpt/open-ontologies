@@ -15,7 +15,17 @@ pub fn setup(data_dir: &str) -> anyhow::Result<(StateDb, Arc<GraphStore>)> {
     std::fs::create_dir_all(data_path)?;
     let db_path = data_path.join("open-ontologies.db");
     let db = StateDb::open(&db_path)?;
-    let graph = Arc::new(GraphStore::new());
+    // File-backed Oxigraph rooted at <data_dir>/oxigraph so that separate
+    // CLI invocations (load → query → version → clear → rollback) sharing
+    // the same --data_dir actually see the same triple set. Fall back to an
+    // in-memory store if the on-disk path is unavailable (e.g. concurrent
+    // lock held by another `open-ontologies` process) — better to accept
+    // reduced isolation than to crash the verb.
+    let oxi_path = data_path.join("oxigraph");
+    let graph = match GraphStore::open(&oxi_path) {
+        Ok(g) => Arc::new(g),
+        Err(_) => Arc::new(GraphStore::new()),
+    };
     Ok((db, graph))
 }
 

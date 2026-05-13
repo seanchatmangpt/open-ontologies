@@ -1,0 +1,29 @@
+# =============================================================================
+# stages_aggregated.rq — All RevOps manufacturing stages in ONE aggregated row
+# =============================================================================
+#
+# Returns a SINGLE row with pipe-delimited aggregates so the Tera template
+# can render the complete file in one pass (ggen renders once per row).
+#
+# Variables:
+#   ?stageNames    — pipe-delimited revops:stageName values in stage order
+#   ?stageOrders   — pipe-delimited revops:stageOrder values
+#   ?stageLabels   — pipe-delimited rdfs:label values
+# =============================================================================
+
+PREFIX revops: <https://ggen.io/onto/cli/revops/>
+PREFIX rdfs:   <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX xsd:    <http://www.w3.org/2001/XMLSchema#>
+
+SELECT
+  (GROUP_CONCAT(?stageName;  SEPARATOR="|") AS ?stageNames)
+  (GROUP_CONCAT(?stageOrder; SEPARATOR="|") AS ?stageOrders)
+  (GROUP_CONCAT(?label;      SEPARATOR="|") AS ?stageLabels)
+WHERE {
+  revops:RevOpsManufacturingProfile revops:hasStage ?stage .
+
+  ?stage revops:stageName  ?stageName ;
+         revops:stageOrder ?stageOrder ;
+         rdfs:label        ?label .
+}
+ORDER BY ?stageOrder

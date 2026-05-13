@@ -8,3 +8,13 @@ tests/
 !README.md
 .github/
 skills/
+.claude/
+node_modules/
+.env
+.env.*
+!.env.example
+*.log
+deploy/
+docker/
+studio/node_modules/
+case-studies/

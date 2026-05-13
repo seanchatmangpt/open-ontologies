@@ -5,3 +5,26 @@ data/
 !case-studies/heritage-aerial/data/**
 # Ignore generated OWL files in root, but keep benchmark references
 /*.owl
+
+# Secrets — Invariant 7. NEVER commit anything matching these patterns.
+.env
+.env.*
+*.pem
+*.key
+secrets/
+
+# Local Claude Code config — user-specific.
+.claude/
+
+# Local OntoStar working directories not part of the manufactured solution.
+cell8-ggen/
+ontology/cell8-*.ttl
+
+# Erlang / AtomVM build outputs.
+*.beam
+*.avm
+
+# Editor / OS noise.
+.DS_Store
+*.swp
+*.swo

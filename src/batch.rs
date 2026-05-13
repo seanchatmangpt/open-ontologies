@@ -2,12 +2,79 @@
 //!
 //! Reads commands from a file or stdin (one per line, or JSON array),
 //! executes them sequentially with shared state, and outputs NDJSON.
+//!
+//! # Subprocess JSON parsing
+//!
+//! Many helpers (lint / shacl / reason / plan / apply / version /
+//! drift / etc.) return their result as a JSON-string. Historically
+//! `batch.rs` swallowed parse failures by falling back to
+//! `json!({"raw": s})` — a §7-class fail-open silence: a malformed
+//! subprocess result was indistinguishable from a successful one in
+//! the NDJSON stream. The `has_error` detector at line 45 missed
+//! every malformed payload because the wrapping `{"raw": ...}` JSON
+//! had no `error` key.
+//!
+//! Round 4 (R4 WC) replaces every fail-open call site with the
+//! [`BatchOutcome`] enum and the [`parse_subprocess_json`] helper.
+//! Malformed JSON is now surfaced as a structured object with
+//! `error` and `subprocess_malformed: true` fields, which the runner
+//! detects via `has_error` and accounts for in the exit code. The
+//! batch runner runs OUTSIDE the admission gate, so `BatchOutcome`
+//! deliberately does NOT use `DefectClass::SubprocessMalformed`
+//! (§21 theatrical-taxonomy guard: one tag, one meaning).
 
 use std::sync::Arc;
 use serde_json::{json, Value};
 
 use crate::graph::GraphStore;
 use crate::state::StateDb;
+
+/// Outcome of attempting to deserialize a subprocess's JSON-string
+/// result. The runner consumes this via [`BatchOutcome::into_value`]
+/// to produce a Value for the NDJSON stream.
+///
+/// `Malformed` is **not** a [`crate::defects::DefectClass`] — the
+/// batch runner runs outside the admission gate. Conflating
+/// subprocess-CLI parse errors with ontology-mutation defects would
+/// pollute the typed taxonomy (§21).
+#[derive(Debug, Clone)]
+enum BatchOutcome {
+    /// Subprocess returned valid JSON.
+    Parsed(Value),
+    /// Subprocess returned a string that did not parse as JSON. The
+    /// `reason` is the serde error short message; `snippet` is the
+    /// first 200 chars of the string for diagnostic visibility.
+    Malformed { reason: String, snippet: String },
+}
+
+impl BatchOutcome {
+    /// Lower the outcome into the NDJSON-stream `Value`. `Malformed`
+    /// surfaces an `error` key (so `has_error` at the runner level
+    /// catches it) plus a sentinel `subprocess_malformed: true`.
+    fn into_value(self) -> Value {
+        match self {
+            BatchOutcome::Parsed(v) => v,
+            BatchOutcome::Malformed { reason, snippet } => json!({
+                "error": format!("subprocess returned malformed JSON: {reason}"),
+                "subprocess_malformed": true,
+                "snippet": snippet,
+            }),
+        }
+    }
+}
+
+/// Parse a subprocess's stringly-typed JSON result. Replaces the
+/// historical `serde_json::from_str(&s).unwrap_or(json!({"raw": s}))`
+/// fail-open pattern (§7 fail-open silence — Round 4 WC).
+fn parse_subprocess_json(s: &str) -> BatchOutcome {
+    match serde_json::from_str::<Value>(s) {
+        Ok(v) => BatchOutcome::Parsed(v),
+        Err(e) => BatchOutcome::Malformed {
+            reason: e.to_string(),
+            snippet: s.chars().take(200).collect(),
+        },
+    }
+}
 
 /// Holds shared state across batch commands.
 pub struct BatchRunner {
@@ -132,7 +199,7 @@ impl BatchRunner {
 
     fn exec_stats(&self) -> Value {
         match self.graph.get_stats() {
-            Ok(s) => serde_json::from_str(&s).unwrap_or(json!({"raw": s})),
+            Ok(s) => parse_subprocess_json(&s).into_value(),
             Err(e) => json!({"error": e.to_string()}),
         }
     }
@@ -143,7 +210,7 @@ impl BatchRunner {
             None => return json!({"error": "query requires a SPARQL string"}),
         };
         match self.graph.sparql_select(query) {
-            Ok(s) => serde_json::from_str(&s).unwrap_or(json!({"raw": s})),
+            Ok(s) => parse_subprocess_json(&s).into_value(),
             Err(e) => json!({"error": e.to_string()}),
         }
     }
@@ -169,7 +236,7 @@ impl BatchRunner {
             Ok(content) => {
                 let result = OntologyService::lint_with_feedback(&content, Some(&self.db))
                     .unwrap_or_else(|e| format!(r#"{{"error":"{}"}}"#, e));
-                serde_json::from_str(&result).unwrap_or(json!({"raw": result}))
+                parse_subprocess_json(&result).into_value()
             }
             Err(e) => json!({"error": e.to_string()}),
         }
@@ -182,7 +249,7 @@ impl BatchRunner {
             .unwrap_or("rdfs".to_string());
         let result = Reasoner::run(&self.graph, &profile, true)
             .unwrap_or_else(|e| format!(r#"{{"error":"{}"}}"#, e));
-        serde_json::from_str(&result).unwrap_or(json!({"raw": result}))
+        parse_subprocess_json(&result).into_value()
     }
 
     fn exec_shacl(&self, args: &[String]) -> Value {
@@ -195,7 +262,7 @@ impl BatchRunner {
             Ok(shapes_content) => {
                 let result = ShaclValidator::validate(&self.graph, &shapes_content)
                     .unwrap_or_else(|e| format!(r#"{{"error":"{}"}}"#, e));
-                serde_json::from_str(&result).unwrap_or(json!({"raw": result}))
+                parse_subprocess_json(&result).into_value()
             }
             Err(e) => json!({"error": e.to_string()}),
         }
@@ -216,7 +283,7 @@ impl BatchRunner {
         };
         let result = OntologyService::diff(&old, &new)
             .unwrap_or_else(|e| format!(r#"{{"error":"{}"}}"#, e));
-        serde_json::from_str(&result).unwrap_or(json!({"raw": result}))
+        parse_subprocess_json(&result).into_value()
     }
 
     fn exec_convert(&self, args: &[String]) -> Value {
@@ -252,7 +319,7 @@ impl BatchRunner {
         let enforcer = crate::enforce::Enforcer::new(self.db.clone(), self.graph.clone());
         let result = enforcer.enforce_with_feedback(pack, Some(&self.db))
             .unwrap_or_else(|e| format!(r#"{{"error":"{}"}}"#, e));
-        serde_json::from_str(&result).unwrap_or(json!({"raw": result}))
+        parse_subprocess_json(&result).into_value()
     }
 
     fn exec_plan(&self, args: &[String]) -> Value {
@@ -265,7 +332,7 @@ impl BatchRunner {
                 let planner = crate::plan::Planner::new(self.db.clone(), self.graph.clone());
                 let result = planner.plan(&turtle)
                     .unwrap_or_else(|e| format!(r#"{{"error":"{}"}}"#, e));
-                serde_json::from_str(&result).unwrap_or(json!({"raw": result}))
+                parse_subprocess_json(&result).into_value()
             }
             Err(e) => json!({"error": e.to_string()}),
         }
@@ -276,7 +343,7 @@ impl BatchRunner {
         let planner = crate::plan::Planner::new(self.db.clone(), self.graph.clone());
         let result = planner.apply(mode)
             .unwrap_or_else(|e| format!(r#"{{"error":"{}"}}"#, e));
-        serde_json::from_str(&result).unwrap_or(json!({"raw": result}))
+        parse_subprocess_json(&result).into_value()
     }
 
     fn exec_version(&self, args: &[String]) -> Value {
@@ -287,14 +354,14 @@ impl BatchRunner {
         };
         let result = OntologyService::save_version(&self.db, &self.graph, label)
             .unwrap_or_else(|e| format!(r#"{{"error":"{}"}}"#, e));
-        serde_json::from_str(&result).unwrap_or(json!({"raw": result}))
+        parse_subprocess_json(&result).into_value()
     }
 
     fn exec_history(&self) -> Value {
         use crate::ontology::OntologyService;
         let result = OntologyService::list_versions(&self.db)
             .unwrap_or_else(|e| format!(r#"{{"error":"{}"}}"#, e));
-        serde_json::from_str(&result).unwrap_or(json!({"raw": result}))
+        parse_subprocess_json(&result).into_value()
     }
 
     fn exec_rollback(&self, args: &[String]) -> Value {
@@ -305,7 +372,7 @@ impl BatchRunner {
         };
         let result = OntologyService::rollback_version(&self.db, &self.graph, label)
             .unwrap_or_else(|e| format!(r#"{{"error":"{}"}}"#, e));
-        serde_json::from_str(&result).unwrap_or(json!({"raw": result}))
+        parse_subprocess_json(&result).into_value()
     }
 
     fn exec_status(&self) -> Value {
@@ -395,7 +462,7 @@ impl BatchRunner {
         let detector = crate::drift::DriftDetector::new(self.db.clone());
         let result = detector.detect(&v1, &v2)
             .unwrap_or_else(|e| format!(r#"{{"error":"{}"}}"#, e));
-        serde_json::from_str(&result).unwrap_or(json!({"raw": result}))
+        parse_subprocess_json(&result).into_value()
     }
 
     fn exec_lock(&self, args: &[String]) -> Value {

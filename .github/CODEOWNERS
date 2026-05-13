@@ -1,0 +1,7 @@
+# Default owner for everything in the repo.
+# Override with more specific entries below if needed.
+*       @sac
+
+# Workflow + CI infrastructure
+/.github/                @sac
+/tools/dead-param-gate.sh @sac

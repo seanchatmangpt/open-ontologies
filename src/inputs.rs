@@ -121,6 +121,13 @@ pub struct OntoSaveInput {
     pub path: String,
     /// Format: turtle, ntriples, rdfxml, nquads, trig
     pub format: Option<String>,
+    /// Optional explicit scope token for admission. Falls back to the latest
+    /// open scope for the session.
+    pub scope_token: Option<String>,
+    /// Bypass admission gate. Requires `bypass_reason`. Revokes the session.
+    pub bypass_admission: Option<bool>,
+    /// Required when `bypass_admission` is true.
+    pub bypass_reason: Option<String>,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -155,6 +162,13 @@ pub struct OntoPushInput {
     pub endpoint: String,
     /// Optional named graph IRI
     pub graph: Option<String>,
+    /// Optional explicit scope token for admission. Falls back to the latest
+    /// open scope for the session.
+    pub scope_token: Option<String>,
+    /// Bypass admission gate. Requires `bypass_reason`. Revokes the session.
+    pub bypass_admission: Option<bool>,
+    /// Required when `bypass_admission` is true.
+    pub bypass_reason: Option<String>,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -173,6 +187,12 @@ pub struct OntoVersionInput {
 pub struct OntoRollbackInput {
     /// Version label to restore
     pub label: String,
+    /// Optional explicit scope token; falls back to the latest open scope.
+    pub scope_token: Option<String>,
+    /// Bypass admission gate. Requires `bypass_reason`. Revokes the session.
+    pub bypass_admission: Option<bool>,
+    /// Required when `bypass_admission` is true.
+    pub bypass_reason: Option<String>,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -187,6 +207,12 @@ pub struct OntoIngestInput {
     pub inline_mapping: Option<bool>,
     /// Base IRI for generated instances (default: http://example.org/data/)
     pub base_iri: Option<String>,
+    /// Optional explicit scope token; falls back to the latest open scope.
+    pub scope_token: Option<String>,
+    /// Bypass admission gate. Requires `bypass_reason`. Revokes the session.
+    pub bypass_admission: Option<bool>,
+    /// Required when `bypass_admission` is true.
+    pub bypass_reason: Option<String>,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -249,6 +275,12 @@ pub struct OntoExtendInput {
     pub reason_profile: Option<String>,
     /// If true (default), stop pipeline on SHACL violations
     pub stop_on_violations: Option<bool>,
+    /// Optional explicit scope token; falls back to the latest open scope.
+    pub scope_token: Option<String>,
+    /// Bypass admission gate. Requires `bypass_reason`. Revokes the session.
+    pub bypass_admission: Option<bool>,
+    /// Required when `bypass_admission` is true.
+    pub bypass_reason: Option<String>,
 }
 
 // ─── v2 input structs ───────────────────────────────────────────────────────
@@ -261,8 +293,23 @@ pub struct OntoPlanInput {
 
 #[derive(Deserialize, JsonSchema)]
 pub struct OntoApplyInput {
-    /// Apply mode: "safe" (default), "force" (ignores monitor), "migrate" (adds bridges)
+    /// Apply mode: "safe" (default), "force" (skip monitor watchers), "migrate" (adds bridges).
+    ///
+    /// NOTE on `force` semantics: the legacy `force` mode is retained but its
+    /// meaning is now narrowed — it only skips monitor watchers. It does NOT
+    /// bypass the OntoStar admission gate. To bypass admission, use the
+    /// explicit `bypass_admission` field below (which requires a `bypass_reason`
+    /// and revokes the session for subsequent operations until
+    /// `onto_session_reset`).
     pub mode: Option<String>,
+    /// Optional explicit scope token; if omitted, the latest open scope for
+    /// the session is used. If no scope is open, admission denies with
+    /// `ScopeUnclosed`.
+    pub scope_token: Option<String>,
+    /// Bypass admission gate. Requires `bypass_reason`. Revokes the session.
+    pub bypass_admission: Option<bool>,
+    /// Required when `bypass_admission` is true. Free text but must be non-empty.
+    pub bypass_reason: Option<String>,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -315,6 +362,46 @@ pub struct OntoEnrichInput {
 pub struct OntoLineageInput {
     /// Session ID to query (omit for current session)
     pub session_id: Option<String>,
+    /// Export format: "text" (default) or "ocel" (Object-Centric Event Log JSON)
+    pub format: Option<String>,
+}
+
+// ─── OntoStar Stream 1 — workflow scope ─────────────────────────────────────
+
+#[derive(Deserialize, JsonSchema)]
+pub struct OntoDeclareWorkflowInput {
+    /// Built-in workflow name (e.g. "OntologyAuthoring", "DataExtension"). If
+    /// omitted, `powl` must be provided.
+    pub name: Option<String>,
+    /// Inline POWL string. Overrides catalog lookup when both are supplied.
+    pub powl: Option<String>,
+    /// Reuse an existing scope token (idempotent re-open). If omitted, a new
+    /// ULID is minted.
+    pub scope_token: Option<String>,
+    /// Bypass admission gate. Requires `bypass_reason`. Revokes the session.
+    pub bypass_admission: Option<bool>,
+    /// Required when `bypass_admission` is true.
+    pub bypass_reason: Option<String>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct OntoCloseWorkflowInput {
+    /// The scope token returned by `onto_declare_workflow`.
+    pub scope_token: String,
+    /// Bypass admission gate. Requires `bypass_reason`. Revokes the session.
+    pub bypass_admission: Option<bool>,
+    /// Required when `bypass_admission` is true.
+    pub bypass_reason: Option<String>,
+}
+
+// ─── OntoStar Stream 2 — conformance check ──────────────────────────────────
+
+#[derive(Deserialize, JsonSchema)]
+pub struct OntoConformanceCheckInput {
+    /// Scope token returned by `onto_declare_workflow`. Events tagged with
+    /// this scope are projected to a trace and replayed against the declared
+    /// POWL via `wasm4pm` (zero local PM math).
+    pub scope_token: String,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -326,6 +413,12 @@ pub struct OntoImportSchemaInput {
     pub connection: String,
     /// Base IRI for generated classes (default: http://example.org/db/)
     pub base_iri: Option<String>,
+    /// Optional explicit scope token; falls back to the latest open scope.
+    pub scope_token: Option<String>,
+    /// Bypass admission gate. Requires `bypass_reason`. Revokes the session.
+    pub bypass_admission: Option<bool>,
+    /// Required when `bypass_admission` is true.
+    pub bypass_reason: Option<String>,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -345,6 +438,12 @@ pub struct OntoSqlIngestInput {
     pub inline_mapping: Option<bool>,
     /// Base IRI for generated instances (default: http://example.org/data/)
     pub base_iri: Option<String>,
+    /// Optional explicit scope token; falls back to the latest open scope.
+    pub scope_token: Option<String>,
+    /// Bypass admission gate. Requires `bypass_reason`. Revokes the session.
+    pub bypass_admission: Option<bool>,
+    /// Required when `bypass_admission` is true.
+    pub bypass_reason: Option<String>,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -357,6 +456,13 @@ pub struct OntoAlignInput {
     pub min_confidence: Option<f64>,
     /// If true, return candidates only without inserting triples (default false)
     pub dry_run: Option<bool>,
+    /// Optional explicit scope token; falls back to the latest open scope.
+    /// Only consulted when `dry_run=false` (auto-apply path requires admission).
+    pub scope_token: Option<String>,
+    /// Bypass admission gate. Requires `bypass_reason`. Revokes the session.
+    pub bypass_admission: Option<bool>,
+    /// Required when `bypass_admission` is true.
+    pub bypass_reason: Option<String>,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -500,6 +606,30 @@ pub struct OntoMustarSolveInput {
 pub type OntoAlphastarSolveInput = OntoMustarSolveInput;
 
 #[derive(Deserialize, JsonSchema)]
+pub struct OntoAdmissionCheckInput {
+    /// Operation to dry-run admission for: "apply", "codegen", "save", "push".
+    pub op: String,
+    /// Optional explicit scope token; falls back to the latest open scope for
+    /// the session.
+    pub scope_token: Option<String>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct OntoSessionResetInput {
+    /// Session id whose `revoked_sessions` row should be cleared.
+    pub session_id: String,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct OntoCell8AttestInput {
+    /// Scope token whose latest receipt (or current admission dry-run state)
+    /// should be attested via the Cell8 13-gate EARL report. Read-only:
+    /// emits no OCEL events, performs no mutation, returns the EARL Turtle
+    /// plus pass/fail counts and any typed defect classes observed.
+    pub scope_token: String,
+}
+
+#[derive(Deserialize, JsonSchema)]
 pub struct OntoCodegenInput {
     /// Generator name / target language (e.g., "python-client" → python, "rust-structs" → rust, "typescript-types" → typescript, or accepted values: python, rust, typescript, go, elixir)
     pub generator: String,
@@ -511,6 +641,39 @@ pub struct OntoCodegenInput {
     pub manifest_path: Option<String>,
     /// Path to a directory of SPARQL .rq query files (low-level pipeline mode). Either this or manifest_path must be provided.
     pub queries_dir: Option<String>,
+    /// Optional explicit scope token for admission. Falls back to the latest
+    /// open scope for the session.
+    pub scope_token: Option<String>,
+    /// Bypass admission gate. Requires `bypass_reason`. Revokes the session.
+    pub bypass_admission: Option<bool>,
+    /// Required when `bypass_admission` is true.
+    pub bypass_reason: Option<String>,
+}
+
+// ─── OntoStar Stream 4 — feedback handler inputs ─────────────────────────────
+
+#[derive(Deserialize, JsonSchema)]
+pub struct OntoPlannerDemosInput {
+    /// Domain key (workflow class name, e.g. "OntologyAuthoring").
+    pub domain: String,
+    /// Minimum fitness floor for returned exemplars. Default 0.95.
+    pub min_fitness: Option<f64>,
+    /// Maximum number of exemplars. Default 10.
+    pub limit: Option<usize>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct OntoWorkflowDiscoverInput {
+    /// Domain key (workflow class name) to run discovery for.
+    pub domain: String,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct OntoWorkflowFeedbackInput {
+    /// `discovered_workflows.id` row to flip.
+    pub id: String,
+    /// true = mark accepted, false = mark rejected.
+    pub accepted: bool,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -521,5 +684,278 @@ pub struct GenerateCodeInput {
     pub generator: Option<String>,
     /// Output directory where generated code will be written. Default: "./generated"
     pub output_dir: Option<String>,
+}
+
+// ─── Stream 5 inputs ────────────────────────────────────────────────────────
+
+#[derive(Deserialize, JsonSchema)]
+pub struct OntoPlanWorkflowInput {
+    /// Natural-language description of the workflow to plan.
+    pub problem_statement: String,
+    /// Domain bucket used to look up warm-start exemplars (e.g. "ONTOLOGY").
+    pub domain: String,
+    /// Optional technical constraints passed to the planner.
+    pub constraints: Option<String>,
+    /// Override the python interpreter (default: "python3").
+    pub python: Option<String>,
+    /// Override the planner script path. Default:
+    /// `~/chatmangpt/ostar/src/ostar/process/ontostar_planner.py`.
+    pub planner_script: Option<String>,
+    /// Planner engine: "mustar" (default, MuStar+PowlPredictor subprocess)
+    /// or "groq_powl" (real Groq via pm4py.algo.dspy.powl through
+    /// `scripts/powl_from_text.py`). Unknown values are treated as "mustar".
+    pub engine: Option<String>,
+    /// Bypass admission gate. Requires `bypass_reason`. Revokes the session.
+    pub bypass_admission: Option<bool>,
+    /// Required when `bypass_admission` is true.
+    pub bypass_reason: Option<String>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct OntoExemplarSeedInput {
+    /// Path to the seed OCEL JSON file. Default:
+    /// `~/chatmangpt/ostar/artifacts/ocel/mu_star/ONTOLOGY.oceljson`.
+    pub path: Option<String>,
+    /// Domain to assign to seeded exemplars when the OCEL event omits it.
+    pub domain: Option<String>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct OntoCounterfactualInput {
+    /// Scope token returned by `onto_declare_workflow` / `onto_plan_workflow`.
+    pub scope_token: String,
+}
+
+// ── Requirements-Andon / CTQ-Forge inputs (Phase 1.5) ────────────────────
+
+/// Capture a source-voice signal and propose a requirement. The
+/// admission gate denies with `RequirementWithoutSource` if
+/// `source_voice` is empty.
+#[derive(Deserialize, JsonSchema)]
+pub struct OntoProposeRequirementInput {
+    /// Stakeholder voice / process evidence / defect log line. The
+    /// translator echoes this back; the gate refuses on empty / whitespace.
+    pub source_voice: String,
+    /// Voice category — one of `customer`, `operator`, `process`,
+    /// `defect`, `control_plan`, `counterfactual`, `business`, `policy`.
+    pub voice_kind: Option<String>,
+    /// Optional explicit scope token for admission. Falls back to the
+    /// latest open scope for the session.
+    pub scope_token: Option<String>,
+    pub bypass_admission: Option<bool>,
+    pub bypass_reason: Option<String>,
+}
+
+/// Call the Groq LLM boundary translator on a previously-proposed
+/// requirement. **Audit-only.** The translator output is provisional
+/// and must pass through `onto_admit_ctq` before any work order is
+/// admitted.
+#[derive(Deserialize, JsonSchema)]
+pub struct OntoTranslateCandidateInput {
+    /// Scope token returned by `onto_propose_requirement`.
+    pub scope_token: String,
+    /// Source-voice signal to translate (re-echoed for self-contained
+    /// audit; must match the value provided to `onto_propose_requirement`).
+    pub source_voice: String,
+    /// Translation engine. `"inproc"` (default) — drives the in-process
+    /// `GroqTranslator` shaped-signature path. `"groq_pm4py"` — shells
+    /// out to `scripts/ctq_from_voice.py`, the same pm4py/dspy subprocess
+    /// proven against real Groq in `tests/real_groq_ctq.rs`. Unknown
+    /// values are treated as `"inproc"`.
+    pub engine: Option<String>,
+    /// Override the python interpreter used by the `groq_pm4py` engine
+    /// (default: `"python3"`). Ignored by the in-process engine.
+    pub python: Option<String>,
+}
+
+/// Admit a CTQ. The deterministic gate denies with
+/// `CtqIncomplete{missing}` if any of the 5 mandatory fields are
+/// empty / whitespace.
+#[derive(Deserialize, JsonSchema)]
+pub struct OntoAdmitCtqInput {
+    /// Scope token from the propose / translate phase.
+    pub scope_token: String,
+    /// Source-voice the CTQ derives from.
+    pub source_voice: String,
+    /// CTQ statement.
+    pub ctq_text: String,
+    /// Measurement description.
+    pub measure_text: String,
+    /// Verification method.
+    pub verification_text: String,
+    /// Negative case.
+    pub negative_case_text: String,
+    /// Control plan.
+    pub control_plan_text: String,
+    pub bypass_admission: Option<bool>,
+    pub bypass_reason: Option<String>,
+}
+
+/// Bind an admitted CTQ to a draft work order with a counterfactual
+/// delta. **Read-only / allowlisted** — no mutation; admission happens
+/// at `onto_admit_work_order`.
+#[derive(Deserialize, JsonSchema)]
+pub struct OntoProposeWorkOrderInput {
+    pub scope_token: String,
+    /// Receipt hash returned by `onto_admit_ctq`.
+    pub ctq_receipt_hash: String,
+    /// Naked-craft path: what an unadmitted prompt-to-code workflow
+    /// would have allowed.
+    pub naked_craft_path: String,
+    /// Manufacturing path: what OntoStar admission/replay enforces.
+    pub manufacturing_path: String,
+    /// Material delta — the defect or risk this work order prevents.
+    pub counterfactual_delta: String,
+}
+
+/// Admit a work order. Denies with `WorkOrderMissingCounterfactual` if
+/// the counterfactual fields are absent.
+#[derive(Deserialize, JsonSchema)]
+pub struct OntoAdmitWorkOrderInput {
+    pub scope_token: String,
+    pub ctq_receipt_hash: String,
+    pub naked_craft_path: String,
+    pub manufacturing_path: String,
+    pub counterfactual_delta: String,
+    pub bypass_admission: Option<bool>,
+    pub bypass_reason: Option<String>,
+}
+
+/// Project admitted evidence into an executive-readable summary via
+/// the Groq translator. **Read-only / allowlisted.** The summary must
+/// only cite tokens that already appear in the admitted evidence.
+#[derive(Deserialize, JsonSchema)]
+pub struct OntoExecutiveProjectionInput {
+    pub scope_token: String,
+    /// Pre-rendered evidence text (assembled by the caller from
+    /// admitted OCEL events / receipts). The translator's summary
+    /// must be a token-overlap subset of this.
+    pub admitted_evidence: String,
+    /// Projection engine. `"inproc"` (default) — uses the in-process
+    /// `GroqTranslator`. `"groq_pm4py"` — shells out to
+    /// `scripts/executive_projection.py`. Unknown values treated as
+    /// `"inproc"`.
+    pub engine: Option<String>,
+    /// Override the python interpreter used by the `groq_pm4py` engine
+    /// (default: `"python3"`).
+    pub python: Option<String>,
+}
+
+/// Read-only liveness probe for the real-Groq subprocess engine.
+/// Invokes a tiny Python harness that imports `dspy` and inspects the
+/// `GROQ_API_KEY` env var. Never logs the key.
+#[derive(Deserialize, JsonSchema, Default)]
+pub struct OntoGroqStatusInput {
+    /// Override the python interpreter (default: `"python3"`).
+    pub python: Option<String>,
+}
+
+/// Manufacture a complete multi-target solution stack (IaC + Rust +
+/// Erlang + AtomVM) from a SolutionSpec. Full admission. The gate
+/// denies with `ArchitectureUnbound` when the work-order receipt is
+/// not a valid 64-char hex; with `IacInvalid` / `RustInvalid` /
+/// `ErlangInvalid` / `AtomVmInvalid` when a target generator fails;
+/// with `ManufacturingChainBroken` when receipt headers are missing.
+#[derive(Deserialize, JsonSchema)]
+pub struct OntoManufactureSolutionInput {
+    pub scope_token: String,
+    /// Solution name. Must match `[a-z][a-z0-9_]*`.
+    pub name: String,
+    pub description: String,
+    /// Cloud target for IaC. Currently `"aws"` only.
+    pub iac_target: String,
+    pub region: String,
+    /// Number of supervisor children for the Erlang/OTP tree (1..=64).
+    pub supervisor_children: u32,
+    /// MCU for AtomVM. One of `"esp32"`, `"stm32"`, `"rp2040"`.
+    pub mcu_target: String,
+    /// 64-char hex BLAKE3 of the upstream WorkOrderAdmitted receipt.
+    pub work_order_receipt_hash: String,
+    /// Optional: write the manufactured bundle to this directory. When
+    /// absent, the bundle is returned in the JSON response only.
+    pub output_dir: Option<String>,
+    pub bypass_admission: Option<bool>,
+    pub bypass_reason: Option<String>,
+}
+
+/// Run a single old-AI cognition breed (ELIZA / CBR / DENDRAL / STRIPS
+/// / Prolog / MYCIN / GPS / SOAR / Hearsay) against the supplied
+/// `BreedInput` JSON. Read-only / allowlisted — breeds are pure
+/// functions over inputs.
+#[derive(Deserialize, JsonSchema)]
+pub struct OntoOldAiStationInput {
+    /// Breed name: one of `eliza`, `cbr`, `dendral`, `strips`, `prolog`,
+    /// `mycin`, `gps`, `soar`, `hearsay` (case-insensitive).
+    pub breed: String,
+    /// `wasm4pm_cognition::breeds::BreedInput` JSON. Must contain at
+    /// minimum the `intent` field; other fields default to empty
+    /// vectors. Optional `scope_token` field on the wrapper is honoured
+    /// when emitting the OCEL trace step.
+    pub input_json: String,
+    /// Optional scope token for OCEL trace emission. The breed step is
+    /// recorded as an `old_ai_station` event with the breed name and
+    /// trace step count.
+    pub scope_token: Option<String>,
+}
+
+// ─── R5 WC-2 — admin-only operational tool inputs ──────────────────────
+
+/// `onto_receipts_revoke_batch` input. Soft-deletes (UPDATE
+/// `production_law_version`) every receipt whose `scope_token` matches
+/// `scope_token_pattern` and whose `production_law_version` is not the
+/// `seed-v0` sentinel. The chain is preserved for audit (no row is
+/// physically removed).
+#[derive(Deserialize, JsonSchema)]
+pub struct OntoReceiptsRevokeBatchInput {
+    /// SQLite GLOB pattern matched against `receipts.scope_token`.
+    /// Examples: `"scope-prod-*"`, `"tenant:foo:*"`. Pure GLOB syntax
+    /// (`*`, `?`, `[abc]`); does NOT use SQL `LIKE` placeholders.
+    pub scope_token_pattern: String,
+    /// Operator-supplied free-text reason. Recorded verbatim in the
+    /// `receipts_revoke_batch` OCEL audit event so an external auditor
+    /// can correlate the bulk action with a justification.
+    pub reason: String,
+}
+
+/// `onto_session_revoke_by_principal` input. Forcefully revokes all
+/// active sessions owned by a principal in a tenant. Falls back to
+/// bulk-INSERT into `revoked_sessions` until R3 Task B's
+/// `revoked_principals` table lands.
+#[derive(Deserialize, JsonSchema)]
+pub struct OntoSessionRevokeByPrincipalInput {
+    /// Tenant the principal belongs to. Must match the `tenant_id`
+    /// column on `declared_workflows` for the affected workflows.
+    pub tenant_id: String,
+    /// Principal identifier (typically the same as `tenant_id` until
+    /// R3 Task B's principal helper lands). Currently an alias.
+    pub principal_id: String,
+    /// Operator-supplied free-text reason. Recorded as
+    /// `revoked_sessions.reason` for every inserted row and in the
+    /// `session_revoke` OCEL audit event.
+    pub reason: String,
+}
+
+/// `onto_retention_pause` input. Suspends the [`crate::retention::RetentionWorker`]
+/// for `minutes` minutes via a shared `Arc<AtomicI64>`.
+#[derive(Deserialize, JsonSchema)]
+pub struct OntoRetentionPauseInput {
+    /// Number of minutes to suspend retention pruning. The pause
+    /// expires at `now() + minutes * 60`. Bounded to `60 * 24 * 7`
+    /// (one week) to prevent an indefinite forget; longer durations
+    /// require multiple calls.
+    pub minutes: u64,
+}
+
+/// R10-2: `onto_ontostar_attest` input. Verifies an external OntoStar
+/// Ed25519 receipt and seals the key fingerprint into `trusted_keys_history`.
+#[derive(Deserialize, JsonSchema)]
+pub struct OntoOntostarAttestInput {
+    /// Base64-encoded Ed25519 signature from the external OntoStar receipt.
+    pub signature: String,
+    /// BLAKE3 hash (hex or UTF-8 string) of the receipt payload being attested.
+    pub payload_hash: String,
+    /// Key fingerprint hex (exactly 16 hex chars = 8 bytes) identifying the
+    /// external signer within the local `TrustedKeys` set.
+    pub key_fpr: String,
 }
 
