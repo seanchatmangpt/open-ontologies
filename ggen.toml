@@ -109,6 +109,7 @@ protected_paths = [
     "src/cmds/mod.rs",
     "src/cmds/ontology.rs",
     "src/cmds/server.rs",
+    "src/cmds/thesis.rs",
     "src/main.rs",
     "src/lib.rs",
     "src/domain/**",

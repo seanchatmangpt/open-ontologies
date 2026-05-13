@@ -31,6 +31,25 @@ pub mod doctor_stub {
 }
 
 // ============================================================================
+// THESIS — Research artifact manufacturing
+
+// ============================================================================
+/// Ingest, extract, validate, route and synthesize research claims and evidence into thesis artifacts.
+///
+/// Generated stub — wired to src/cmds/thesis.rs
+#[allow(dead_code)]
+pub mod thesis_stub {
+    use clap_noun_verb::NounVerbError;
+    use clap_noun_verb::Result as NounVerbResult;
+
+    /// Not yet wired — 10 subcommand(s) defined in ontology.
+    /// Real implementation: src/cmds/thesis.rs
+    pub fn not_yet_wired() -> NounVerbResult<serde_json::Value> {
+        Err(NounVerbError::execution_error("not yet wired"))
+    }
+}
+
+// ============================================================================
 // MARKETPLACE — Ontology marketplace
 
 // ============================================================================

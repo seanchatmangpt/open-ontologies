@@ -30,6 +30,80 @@ pub struct InitOutput {
 
 const DEFAULT_CONFIG_PATH: &str = "~/.open-ontologies/config.toml";
 
+const INIT_CONFIG_TEMPLATE: &str = r#"# Open Ontologies Configuration Template
+
+[general]
+# Data directory for SQLite database, cache, and snapshots
+data_dir = "~/.open-ontologies"
+# Directories to search for ontology files (for onto_repo_list/onto_repo_load)
+# ontology_dirs = ["/path/to/ontologies"]
+
+[http]
+# Server binding
+host = "127.0.0.1"
+port = 8080
+# Optional bearer token for authentication
+token = ""
+# CORS allowed origins (empty = permissive for dev)
+# cors_origins = ["https://example.com", "https://app.example.com"]
+# Rate limit in requests per second (None = no limit)
+# rate_limit_rps = 1000
+
+[logging]
+# Log level: trace, debug, info, warn, error
+level = "info"
+# Optional log file path (leave empty for stderr only)
+# file = "~/.open-ontologies/open-ontologies.log"
+
+[cache]
+# Ontology compile cache TTL in seconds (7200 = 2 hours)
+idle_ttl_secs = 7200
+# Auto-refresh cache on startup if TTL expired
+auto_refresh = false
+
+[monitor]
+# Enable background monitor loop
+enabled = false
+# Monitor sweep interval in seconds
+interval_secs = 30
+
+[embeddings]
+# Provider: "local" (ONNX) or "openai" (or compatible API)
+provider = "local"
+# For OpenAI-compatible APIs, set api_base and api_key
+# api_base = "https://api.openai.com/v1"
+# api_key = "" # or set OPEN_ONTOLOGIES_EMBEDDINGS_API_KEY
+
+[llm]
+# LLM provider: "groq" (recommended) or "openai"
+provider = "groq"
+# API base URL (Groq default is public)
+# api_base = "https://api.groq.com/openai/v1"
+
+[telemetry]
+# OTLP endpoint for tracing export (e.g., "http://localhost:4317")
+# Unset or empty = local logging only
+# otlp_endpoint = "http://localhost:4317"
+# Service name for OTLP resource attributes
+service_name = "open-ontologies"
+
+[authority]
+# Admin principals allowed to call admin-only tools
+# admin_principals = ["default"]
+# Known tenants (empty = any well-formed tenant accepted)
+# known_tenants = ["default"]
+
+[retention]
+# Retention windows (days) for different artifact types
+# [retention.artifacts] days = 90
+# [retention.receipts] days = 180
+
+[verifier]
+# Receipt verification worker
+enabled = false
+interval_secs = 60
+"#;
+
 pub(crate) fn load_cfg(config_path: &str) -> anyhow::Result<Config> {
     let path = expand_tilde(config_path);
     match Config::load(std::path::Path::new(&path)) {
@@ -202,6 +276,8 @@ fn build_http_axum_router(cfg: &Config, shared_graph: Arc<GraphStore>, shared_db
     let host = open_ontologies::config::resolve_http_host(&cfg.http);
     let port = open_ontologies::config::resolve_http_port(&cfg.http);
     let resolved_token = token.or_else(|| open_ontologies::config::resolve_http_token(&cfg.http));
+    let cors_origins = open_ontologies::config::resolve_cors_origins(&cfg.http);
+    let rate_limit_rps = open_ontologies::config::resolve_http_rate_limit_rps(&cfg.http);
 
     let ct = CancellationToken::new();
     let mut http_config = StreamableHttpServerConfig::default();
@@ -331,7 +407,21 @@ fn build_http_axum_router(cfg: &Config, shared_graph: Arc<GraphStore>, shared_db
             }
         }));
     }
-    router = router.layer(tower_http::cors::CorsLayer::permissive());
+
+    // CORS: empty origins list = permissive (dev); non-empty = strict allowlist
+    if cors_origins.is_empty() {
+        router = router.layer(tower_http::cors::CorsLayer::permissive());
+    } else {
+        use tower_http::cors::AllowOrigin;
+        let parsed_origins: Vec<_> = cors_origins.into_iter().filter_map(|o| o.parse().ok()).collect();
+        if !parsed_origins.is_empty() {
+            router = router.layer(tower_http::cors::CorsLayer::new().allow_origin(AllowOrigin::list(parsed_origins)));
+        }
+    }
+
+    // Rate limiting: configuration available via rate_limit_rps (implementation pending)
+    let _rate_limit_rps = rate_limit_rps;
+
     let router = health.merge(router);
     (router, host, port, ct)
 }
@@ -763,7 +853,7 @@ fn init(data_dir: Option<String>, model_url: Option<String>, tokenizer_url: Opti
         .map_err(|e| clap_noun_verb::NounVerbError::execution_error(e.to_string()))?;
     let config_path = data_path.join("config.toml");
     let config_created = if !config_path.exists() {
-        std::fs::write(&config_path, "[general]\ndata_dir = \"~/.open-ontologies\"\n")
+        std::fs::write(&config_path, INIT_CONFIG_TEMPLATE)
             .map_err(|e| clap_noun_verb::NounVerbError::execution_error(e.to_string()))?;
         true
     } else { false };

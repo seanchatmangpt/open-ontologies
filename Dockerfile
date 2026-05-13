@@ -21,7 +21,7 @@
 #
 # Healthcheck: HTTP GET /health on 3050.
 
-ARG RUST_VERSION=1.75
+ARG RUST_VERSION=1.88
 
 ############################
 # Stage 1 — builder

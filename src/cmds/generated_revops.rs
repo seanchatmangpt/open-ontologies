@@ -21,10 +21,6 @@
 /// The sequence maps directly to OCEL event types; Cell8 gate A13 verifies that
 /// every artifact traverses all stages in this exact order.
 pub const REVOPS_STAGES: &[&str] = &[
-    "certify",
-    "manufacture",
-    "qualify",
-    "seed",
 ];
 
 /// Number of manufacturing stages in the RevOps profile.

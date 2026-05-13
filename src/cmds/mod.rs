@@ -16,3 +16,4 @@ pub mod governance;
 pub mod marketplace;
 pub mod ontology;
 pub mod server;
+pub mod thesis;
