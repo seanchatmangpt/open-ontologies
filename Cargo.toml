@@ -1,6 +1,6 @@
 [package]
 name = "open-ontologies"
-version = "0.1.11"
+version = "26.5.13"
 edition = "2024"
 description = "AI-native ontology engine — standalone MCP server"
 license = "MIT"
@@ -66,6 +66,9 @@ wait-timeout = "0.2"
 # R7 WB-2 — Per-tenant cost meter. Concurrent-friendly map of
 # `tenant_id` → `AtomicU64` token counter with daily UTC rollover.
 dashmap = "6"
+# T2-1 — A2A (Agent-to-Agent) protocol support (lightweight, no external deps)
+async-trait = "0.1"
+uuid = { version = "1.4", features = ["v4"] }
 
 [features]
 default = []

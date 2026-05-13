@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-13T06:30:59.227058+00:00",
+  "generated_at": "2026-05-13T07:07:54.861141+00:00",
   "ggen_version": "26.5.5",
   "inputs": {
     "manifest_hash": "",
@@ -9,12 +9,6 @@
   },
   "pipeline": [],
   "outputs": [
-    {
-      "path": "./src/cmds/generated.rs",
-      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "size_bytes": 0,
-      "source_rule": "rule-./src/cmds/generated.rs"
-    },
     {
       "path": "./src/cmds/generated_revops.rs",
       "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",

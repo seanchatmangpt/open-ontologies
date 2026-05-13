@@ -56,6 +56,7 @@ fn skip_unless_available() -> Option<String> {
 }
 
 #[test]
+#[ignore = "requires: GROQ_API_KEY, /Users/sac/chatmangpt/ostar/.venv, /Users/sac/chatmangpt/pm4py"]
 fn plan_workflow_groq_powl_engine_returns_powl_and_verdict() {
     let key = match skip_unless_available() {
         Some(k) => k,

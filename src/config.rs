@@ -44,6 +44,8 @@ pub struct Config {
     /// When set (or via `OPEN_ONTOLOGIES_ATTESTATION_ENDPOINT`), `cell_ready`
     /// POSTs the replay+OCEL hash pair to this URL for external witnessing.
     pub attestation_endpoint: Option<String>,
+    /// `[a2a]` — T2-1 Agent-to-Agent protocol configuration.
+    pub a2a: A2aConfig,
 }
 
 
@@ -853,6 +855,28 @@ impl Default for CodegenConfig {
     }
 }
 
+/// `[a2a]` — T2-1 Agent-to-Agent protocol configuration.
+#[derive(Debug, Deserialize, Clone)]
+#[serde(default)]
+pub struct A2aConfig {
+    /// Enable A2A protocol support. Default: false.
+    pub enabled: bool,
+    /// Agent name for A2A identification. Default: "open-ontologies".
+    pub agent_name: String,
+    /// Agent URL for A2A callbacks. Default: "http://localhost:8080".
+    pub agent_url: String,
+}
+
+impl Default for A2aConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            agent_name: "open-ontologies".to_string(),
+            agent_url: "http://localhost:8080".to_string(),
+        }
+    }
+}
+
 /// `[authority]` — R5 WC-1 §28 HumanOverride closure.
 ///
 /// `admin_principals` lists the principal IDs (currently the
@@ -1052,6 +1076,14 @@ pub fn resolve_telemetry_service_name(cfg: &TelemetryConfig) -> String {
         .ok()
         .filter(|v| !v.trim().is_empty())
         .unwrap_or_else(|| cfg.service_name.clone())
+}
+
+/// T2-3 — Resolve A2A agent URL: env var > config > default.
+pub fn resolve_a2a_agent_url(cfg: &A2aConfig) -> String {
+    std::env::var("OPEN_ONTOLOGIES_A2A_AGENT_URL")
+        .ok()
+        .filter(|v| !v.trim().is_empty())
+        .unwrap_or_else(|| cfg.agent_url.clone())
 }
 
 fn parse_env_u64(var: &str) -> Option<u64> {

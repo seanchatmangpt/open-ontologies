@@ -344,7 +344,8 @@ fn build_http_axum_router(cfg: &Config, shared_graph: Arc<GraphStore>, shared_db
     );
 
     let llm_cfg_for_health = cfg.llm.clone();
-    let api = build_api_router(shared_graph, shared_db, llm_cfg_for_health);
+    let shared_db_for_api = shared_db.clone();
+    let api = build_api_router(shared_graph, shared_db_for_api, llm_cfg_for_health);
 
     // Health endpoint bypasses auth middleware by being on separate router
     let health = axum::Router::new()
@@ -354,6 +355,13 @@ fn build_http_axum_router(cfg: &Config, shared_graph: Arc<GraphStore>, shared_db
                 "version": env!("CARGO_PKG_VERSION"),
             }))
         }));
+
+    // T2-6 — A2A protocol router (also bypasses auth)
+    let a2a_router = {
+        let agent_name = cfg.a2a.agent_name.clone();
+        let agent_url = open_ontologies::config::resolve_a2a_agent_url(&cfg.a2a);
+        open_ontologies::a2a::build_a2a_router(std::sync::Arc::new(shared_db.clone()), &agent_name, &agent_name, &agent_url)
+    };
 
     let mut router = axum::Router::new().nest("/api", api).nest_service("/mcp", service);
 
@@ -422,7 +430,13 @@ fn build_http_axum_router(cfg: &Config, shared_graph: Arc<GraphStore>, shared_db
     // Rate limiting: configuration available via rate_limit_rps (implementation pending)
     let _rate_limit_rps = rate_limit_rps;
 
-    let router = health.merge(router);
+    // T2-6 — Conditionally mount A2A router when enabled
+    let mut router_with_bypassauth = health;
+    if cfg.a2a.enabled {
+        router_with_bypassauth = router_with_bypassauth.nest("/a2a", a2a_router);
+    }
+
+    let router = router_with_bypassauth.merge(router);
     (router, host, port, ct)
 }
 

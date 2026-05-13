@@ -5873,6 +5873,33 @@ impl OpenOntologiesServer {
             "recorded": recorded > 0,
         }).to_string()
     }
+
+    // ── T2-5 A2A Protocol Delegation Wrappers ────────────────────────────────────
+
+    /// T2-5 — Public _raw wrapper for onto_status (A2A dispatch).
+    pub fn onto_status_raw(&self) -> String {
+        self.onto_status()
+    }
+
+    /// T2-5 — Public _raw wrapper for onto_stats (A2A dispatch).
+    pub fn onto_stats_raw(&self) -> String {
+        self.onto_stats()
+    }
+
+    /// T2-5 — Public _raw wrapper for onto_query (A2A dispatch).
+    pub async fn onto_query_raw(&self, input: super::inputs::OntoQueryInput) -> String {
+        self.onto_query(Parameters(input)).await
+    }
+
+    /// T2-5 — Public _raw wrapper for onto_validate (A2A dispatch).
+    pub async fn onto_validate_raw(&self, input: super::inputs::OntoValidateInput) -> String {
+        self.onto_validate(Parameters(input)).await
+    }
+
+    /// T2-5 — Public _raw wrapper for onto_load (A2A dispatch).
+    pub async fn onto_load_raw(&self, input: super::inputs::OntoLoadInput) -> String {
+        self.onto_load(Parameters(input)).await
+    }
 }
 
 // ─── Codegen receipt-stamping helper ────────────────────────────────────────

@@ -1,3 +1,4 @@
+pub mod a2a;
 pub mod admission;
 pub mod attestation;
 pub mod batch;

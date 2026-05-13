@@ -9,6 +9,49 @@ Pre-OntoStar history (the original `open-ontologies` MCP server, releases
 
 ## [Unreleased]
 
+## [26.5.13] - 2026-05-13
+
+### Track 1 — Critical Infrastructure Fixes
+
+- **Health Endpoint**: Added `GET /health` JSON endpoint returning `{"status":"ok","version":"..."}` with HTTP 200. Updated Dockerfile, docker-compose, Kubernetes probes from TCP socket checks to HTTP GET.
+- **Systemd Unit Fix**: Corrected `ExecStart` from `mcp start --transport http` to `server serve_http --host 0.0.0.0 --port 3050`.
+- **MCP JSON Fix**: Updated `.mcp.json` args from `["serve"]` to `["server", "serve"]`; removed invalid hardcoded ggen entry.
+- **MCP Server Documentation**: Complete rewrite of `.claude/rules/mcp-server.md` — now documents all 86 actual onto_* tools across 14 domains with correct registration patterns.
+
+### Track 2 — A2A Protocol Implementation (Agent-to-Agent)
+
+- **A2A Module** (`src/a2a/`): New 5-file module with agent card generation, async message handler, task store backed by StateDb, and HTTP router.
+- **StateDb Schema**: Added `a2a_tasks` table for persistent task storage per tenant with messaging support.
+- **A2A Config**: New `A2aConfig` struct with `enabled` flag, agent name, and URL resolver for env var override (`OPEN_ONTOLOGIES_A2A_AGENT_URL`).
+- **Delegation Wrappers**: Public `_raw` methods on `OpenOntologiesServer` for A2A dispatch: `onto_status_raw()`, `onto_stats_raw()`, `onto_query_raw()`, `onto_validate_raw()`, `onto_load_raw()`.
+- **Router Mount**: A2A router mounted at `/a2a` endpoint (conditional on config) with `/agent-card` discovery endpoint.
+- **Tests**: Comprehensive test suite for task storage, state transitions, and message handler routing.
+
+### Track 3 — Test Coverage Gaps (+12 new tests)
+
+- **governance_verify_cli**: Subprocess tests for `governance verify` CLI command with nonexistent path rejection.
+- **sql_ingest_handler**: Registration tests for `onto_sql_ingest` handler (DuckDB feature gated).
+- **extend_handler**: Registration tests for `onto_extend` all-in-one pipeline handler.
+- **http_mcp_roundtrip**: HTTP endpoint tests using tower::ServiceExt::oneshot (no TCP bind).
+- **a2a_handler_test**: A2A task store operations (create, get, update, exists) with StateDb persistence.
+- **#[ignore] on real_groq_plan_workflow**: Marked with requirements (GROQ_API_KEY, venv, pm4py paths).
+
+### Track 4 — CLI/Hardening
+
+- **CORS Configuration**: Added `cors_origins` field to `HttpConfig` with env var override (`OPEN_ONTOLOGIES_HTTP_CORS_ORIGINS`). Empty = permissive (dev); non-empty = strict allowlist with header parsing.
+- **Rate Limit Config**: Added `rate_limit_rps` field to `HttpConfig` (implementation deferred; config available for future use).
+- **Telemetry Resolvers**: New functions `resolve_telemetry_otlp_endpoint()` and `resolve_telemetry_service_name()` for env var precedence.
+- **Dockerfile Rust Version**: Updated from 1.75 to 1.88 (minimum for edition 2024 + let-chains).
+- **Init Config Template**: Comprehensive `INIT_CONFIG_TEMPLATE` constant documenting all config sections (`[general]`, `[http]`, `[a2a]`, `[telemetry]`, `[logging]`, etc.).
+- **Governance Subcommand**: Added `onto:GovernanceVerifyCommand` to CLI ontology; ggen sync regenerated (subcommand count 8 → 9).
+
+### Summary
+
+- **26 items completed** across 4 tracks: infrastructure fixes, A2A protocol, test coverage, and production hardening.
+- **619 total tests** (up from 607) — all passing, `make adversarial` gate green.
+- **Code compiles cleanly**, no breaking changes to MCP surface.
+- **Inaugural release**: first ever tag pushed to repository; GitHub Actions (`release.yml`, `docker.yml`) will auto-build 3 platform binaries and publish GHCR image.
+
 ### Round 5 WC-2 — §28 admin tools + HTTP header allowlists
 
 Five new admin-only MCP tools, two new HTTP header allowlists, and a
