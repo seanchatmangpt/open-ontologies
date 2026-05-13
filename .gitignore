@@ -28,3 +28,4 @@ ontology/cell8-*.ttl
 .DS_Store
 *.swp
 *.swo
+.ggen/
