@@ -168,39 +168,32 @@ pub enum AdmissionOp {
     /// Full admission. Wraps `WorkflowScope::open(...)` from
     /// `onto_declare_workflow`. The artifact bytes are
     /// `name + "\0" + powl + "\0" + tenant_id`.
-    /// TODO(R3 W3): add `op_class()` arm "governance" once the method lands.
     WorkflowDeclared,
     /// Full admission. Wraps `WorkflowScope::close(...)` from
     /// `onto_close_workflow`. The artifact bytes are the raw
     /// `scope_token` bytes.
-    /// TODO(R3 W3): add `op_class()` arm "governance" once the method lands.
     WorkflowClosed,
     /// Full admission. Wraps the planner's INSERT into `workflow_scopes`
     /// from `onto_plan_workflow` (both groq_powl and mustar paths).
-    /// TODO(R3 W3): add `op_class()` arm "data" once the method lands.
     WorkflowPlanned,
     /// Audit-only. Wraps `OcelStore::seed_from_ocel_bytes` invoked from
     /// `onto_exemplar_seed`. Bootstrap-only — gated by
     /// [`crate::bootstrap::BootstrapState::is_bootstrap`].
-    /// TODO(R3 W3): add `op_class()` arm "bootstrap" once the method lands.
     ExemplarSeeded,
     /// Audit-only. Self-attribution for the `bypass_admission` branch
     /// before `revoked_sessions` is written. Pairs with the existing
     /// `admission_bypass` event for backward compat.
-    /// TODO(R3 W3): add `op_class()` arm "governance" once the method lands.
     Bypass,
     // ── R5 WC-2 — admin-only operational tools ────────────────────────
     /// Audit-only. Last-resort recovery for the `bootstrap_lock` row.
     /// Distinct OCEL audit name (`bootstrap_unlock`) so an external
     /// auditor reviewing the trail sees a different event_type from
     /// any normal operation. Always admin-gated at the handler.
-    /// TODO(R3 W3): add `op_class()` arm "governance" once the method lands.
     BootstrapUnlock,
     /// Audit-only. Bulk soft-delete (UPDATE production_law_version)
     /// over a `scope_token` GLOB pattern. Audit event name
     /// `receipts_revoke_batch` carries the pattern + reason + count
     /// so auditors can correlate against the affected receipts table.
-    /// TODO(R3 W3): add `op_class()` arm "data" once the method lands.
     ReceiptsBatchRevoke,
     /// Audit-only. Bulk-INSERT into `revoked_sessions` for every active
     /// scope owned by a principal. Distinct from generic `Bypass`:
@@ -209,7 +202,6 @@ pub enum AdmissionOp {
     /// sessions.
     /// TODO(R3 Task B): switch from `revoked_sessions` fallback to the
     /// canonical `revoked_principals` table once Task B lands.
-    /// TODO(R3 W3): add `op_class()` arm "governance" once the method lands.
     SessionRevoke,
     // ── R7 WD-4 — LLM IO persistence ──────────────────────────────────
     /// Audit-only. Pairs with the `llm_invoked_full` OCEL event emitted
@@ -273,6 +265,56 @@ impl AdmissionOp {
             AdmissionOp::AlignProposed => "align_proposed",
             AdmissionOp::AlignApplied => "align_applied",
             AdmissionOp::OntostarAttest => "ontostar_attest",
+        }
+    }
+
+    /// Broad category for OCEL analytics grouping. Used as the `op_class`
+    /// attribute on `admission_granted` / `admission_denied` events so process
+    /// miners can slice conformance by class without enumerating every op name.
+    ///
+    /// Classes:
+    /// - `"ontology"` — graph mutations (apply, save, push, align, codegen)
+    /// - `"manufacturing"` — production pipeline (CTQ, work-order, solution)
+    /// - `"data"` — data ingestion, feedback, analytics, LLM IO
+    /// - `"governance"` — admin, recovery, session, lifecycle (also Cell8 A11)
+    /// - `"bootstrap"` — setup-time seeding; always audit-only, never denied
+    pub fn op_class(&self) -> &'static str {
+        match self {
+            AdmissionOp::Apply
+            | AdmissionOp::Save
+            | AdmissionOp::Push
+            | AdmissionOp::Align
+            | AdmissionOp::AlignProposed
+            | AdmissionOp::AlignApplied
+            | AdmissionOp::Clear => "ontology",
+
+            AdmissionOp::Codegen
+            | AdmissionOp::RequirementProposed
+            | AdmissionOp::CtqAdmitted
+            | AdmissionOp::WorkOrderAdmitted
+            | AdmissionOp::LlmTranslate
+            | AdmissionOp::SolutionManufactured => "manufacturing",
+
+            AdmissionOp::Ingest
+            | AdmissionOp::ImportSchema
+            | AdmissionOp::Feedback
+            | AdmissionOp::Discovery
+            | AdmissionOp::ThresholdSweep
+            | AdmissionOp::WorkflowPlanned
+            | AdmissionOp::ReceiptsBatchRevoke
+            | AdmissionOp::LlmInvokedFull => "data",
+
+            AdmissionOp::Rollback
+            | AdmissionOp::Version
+            | AdmissionOp::TenantSwitch
+            | AdmissionOp::WorkflowDeclared
+            | AdmissionOp::WorkflowClosed
+            | AdmissionOp::Bypass
+            | AdmissionOp::BootstrapUnlock
+            | AdmissionOp::SessionRevoke
+            | AdmissionOp::OntostarAttest => "governance",
+
+            AdmissionOp::ExemplarSeeded => "bootstrap",
         }
     }
 
@@ -1002,6 +1044,7 @@ impl OntoStarAdmissionGate {
                         session_id,
                         &[
                             ("op", op.as_str()),
+                            ("op_class", op.op_class()),
                             ("receipt_hash", &receipt_hex),
                             ("scope_token", &receipt.record.scope_token),
                             ("production_law_version", &receipt.record.production_law_version),
@@ -1135,6 +1178,7 @@ impl OntoStarAdmissionGate {
             session_id,
             &[
                 ("op", op.as_str()),
+                ("op_class", op.op_class()),
                 ("defect", defect.tag()),
                 ("production_law_version", "ontostar-1.0.0"),
                 ("defects_taxonomy_version", crate::defects::DEFECTS_TAXONOMY_VERSION),

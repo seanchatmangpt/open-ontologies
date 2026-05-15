@@ -5,6 +5,7 @@
 //! trace alone (no out-of-band state).
 
 use crate::production_record::{hex32_pub, ProductionRecord};
+use crate::receipt_chain;
 use crate::state::StateDb;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
@@ -59,6 +60,16 @@ pub fn persist_with_tenant(
     let tx = conn.transaction()?;
     persist_with_tenant_in_tx(&tx, receipt, session_id, tenant_id)?;
     tx.commit()?;
+    // After SQL commit: append to the supplementary JSONL chain (best-effort).
+    let receipt_hash = receipt.hex();
+    let prior = receipt.record.prior_receipt.as_ref().map(hex32_pub);
+    receipt_chain::maybe_append(
+        &receipt_hash,
+        prior.as_deref(),
+        &receipt.record.scope_token,
+        session_id,
+        tenant_id,
+    );
     Ok(())
 }
 

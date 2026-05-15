@@ -41,6 +41,7 @@ pub mod registry;
 // older receipts to monthly Parquet shards with a sidecar SQLite index.
 pub mod retention;
 pub mod receipt_archive;
+pub mod receipt_chain;
 pub mod repo;
 pub mod runtime;
 pub mod server;

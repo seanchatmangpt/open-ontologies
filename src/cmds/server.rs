@@ -112,6 +112,11 @@ fn run_stdio_server(cfg: Config, db: StateDb, graph: Arc<GraphStore>, governance
     }
     let llm_engine = open_ontologies::config::resolve_llm_engine(&cfg.llm);
     eprintln!("info: default LLM engine = {}", llm_engine);
+    // Initialize JSONL receipt chain if OPEN_ONTOLOGIES_CHAIN_PATH is set.
+    // Best-effort: failure is logged but does not abort startup.
+    if let Err(e) = open_ontologies::receipt_chain::init_from_env() {
+        eprintln!("warn: receipt chain init failed: {e}");
+    }
     // R5 WC-1 — resolve the admin principal allowlist ONCE at startup.
     // Subsequent env mutations are ignored (TOCTOU-immune).
     let admin_principals =
