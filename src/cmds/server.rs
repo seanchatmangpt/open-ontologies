@@ -7,6 +7,7 @@ use std::sync::Arc;
 
 use open_ontologies::config::{expand_tilde, Config};
 use open_ontologies::graph::GraphStore;
+use open_ontologies::mcpp_gate::MaybeGatedServer;
 use open_ontologies::server::OpenOntologiesServer;
 use open_ontologies::state::StateDb;
 
@@ -130,10 +131,22 @@ fn run_stdio_server(cfg: Config, db: StateDb, graph: Arc<GraphStore>, governance
     // `onto_retention_resume` mutate the same atomic the worker reads.
     let pause_handle =
         std::sync::Arc::new(std::sync::atomic::AtomicI64::new(0));
-    let server = OpenOntologiesServer::new_with_repo_options(db.clone(), graph, governance_webhook, cfg.embeddings, cache_config, tool_filter, ontology_dirs)
+    let inner = OpenOntologiesServer::new_with_repo_options(db.clone(), graph, governance_webhook, cfg.embeddings, cache_config, tool_filter, ontology_dirs)
         .with_default_llm_engine(llm_engine)
         .with_admin_principals(admin_principals)
         .with_retention_pause(pause_handle.clone());
+
+    #[cfg(feature = "mcpp")]
+    let server: MaybeGatedServer = match mcpp_core::receipt::KeyLoader::from_env() {
+        Ok(Some(key)) => {
+            eprintln!("info: mcpp proof gating enabled (stdio)");
+            MaybeGatedServer::Gated(open_ontologies::mcpp_gate::ProofGatedServer::new(inner, db.clone(), key))
+        }
+        _ => MaybeGatedServer::Bare(inner),
+    };
+    #[cfg(not(feature = "mcpp"))]
+    let server = MaybeGatedServer::Bare(inner);
+
     let _evictor = open_ontologies::registry::spawn_evictor(server.registry());
     // Round 4 WD — §29 Cell8 retirement closure. Spawn the retention
     // worker alongside the cache evictor so every persistent table has
@@ -250,7 +263,16 @@ fn build_http_axum_router(cfg: &Config, shared_graph: Arc<GraphStore>, shared_db
     let admin_principals_for_layer =
         std::sync::Arc::new(admin_principals_for_factory.clone());
 
-    let service: StreamableHttpService<_, LocalSessionManager> = StreamableHttpService::new(
+    // Load mcpp signing key once at startup; cloned into each per-request factory.
+    #[cfg(feature = "mcpp")]
+    let mcpp_signing_key: Option<ed25519_dalek::SigningKey> =
+        mcpp_core::receipt::KeyLoader::from_env().unwrap_or(None);
+    #[cfg(feature = "mcpp")]
+    if mcpp_signing_key.is_some() {
+        eprintln!("info: mcpp proof gating enabled (HTTP)");
+    }
+
+    let service: StreamableHttpService<MaybeGatedServer, LocalSessionManager> = StreamableHttpService::new(
         move || {
             let db = StateDb::open(&db_path).map_err(std::io::Error::other)?;
             // Phase 11: per-request tenant rebind. The factory closure runs
@@ -263,10 +285,17 @@ fn build_http_axum_router(cfg: &Config, shared_graph: Arc<GraphStore>, shared_db
             // freshly-cloned `OpenOntologiesServer`.
             let tenant = open_ontologies::server::current_tenant_override()
                 .unwrap_or_else(|| "default".to_string());
-            Ok(OpenOntologiesServer::new_with_repo_options(db, sg.clone(), gw.clone(), embed.clone(), cc.clone(), tf.clone(), dirs.clone())
+            let inner = OpenOntologiesServer::new_with_repo_options(db.clone(), sg.clone(), gw.clone(), embed.clone(), cc.clone(), tf.clone(), dirs.clone())
                 .with_default_llm_engine(llm_engine_for_factory.clone())
                 .with_admin_principals(admin_principals_for_factory.clone())
-                .with_tenant(&tenant))
+                .with_tenant(&tenant);
+            #[cfg(feature = "mcpp")]
+            if let Some(ref key) = mcpp_signing_key {
+                return Ok(MaybeGatedServer::Gated(
+                    open_ontologies::mcpp_gate::ProofGatedServer::new(inner, db, key.clone())
+                ));
+            }
+            Ok(MaybeGatedServer::Bare(inner))
         },
         Default::default(),
         http_config,

@@ -44,6 +44,7 @@ pub mod receipt_archive;
 pub mod receipt_chain;
 pub mod repo;
 pub mod runtime;
+pub mod mcpp_gate;
 pub mod server;
 pub mod shacl;
 pub mod state;

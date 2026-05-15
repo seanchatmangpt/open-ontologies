@@ -66,6 +66,7 @@ wait-timeout = "0.2"
 # R7 WB-2 — Per-tenant cost meter. Concurrent-friendly map of
 # `tenant_id` → `AtomicU64` token counter with daily UTC rollover.
 dashmap = "6"
+mcpp-core = { path = "/Users/sac/mcpp/crates/mcpp-core", optional = true }
 
 [features]
 default = []
@@ -73,6 +74,7 @@ postgres = ["sqlx"]
 duckdb = ["dep:duckdb"]
 sql = ["postgres", "duckdb"]
 embeddings = ["tract-onnx", "tokenizers"]
+mcpp = ["dep:mcpp-core"]
 
 [lints.clippy]
 todo = "deny"
