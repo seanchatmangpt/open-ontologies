@@ -2614,7 +2614,7 @@ impl OpenOntologiesServer {
     }
 
     #[tool(name = "onto_threshold_status", description = "Loop 2 (threshold calibration). Read all rows from `workflow_thresholds`.")]
-    async fn onto_threshold_status(&self) -> String {
+    pub async fn onto_threshold_status(&self) -> String {
         match crate::feedback::thresholds::list_all(self.ocel_store()) {
             Ok(rows) => serde_json::json!({"ok": true, "count": rows.len(), "thresholds": rows}).to_string(),
             Err(e) => format!(r#"{{"error":"{}"}}"#, e),
@@ -2622,7 +2622,7 @@ impl OpenOntologiesServer {
     }
 
     #[tool(name = "onto_threshold_sweep", description = "Admin: force-run Loop 2 threshold-calibration sweep. Adjusts `workflow_thresholds.precision_threshold` based on aged-out `bypass_admission` events.")]
-    async fn onto_threshold_sweep(&self) -> String {
+    pub async fn onto_threshold_sweep(&self) -> String {
         self.evaluate_admission_audit(
             crate::admission::AdmissionOp::ThresholdSweep,
             None,
@@ -2636,7 +2636,7 @@ impl OpenOntologiesServer {
     }
 
     #[tool(name = "onto_workflow_discover", description = "Loop 3 (workflow discovery). Pull OCEL traces for the domain and run wasm4pm discovery; if the discovered fitness exceeds declared by 0.05, insert a `discovered_workflows` row with status=pending.")]
-    async fn onto_workflow_discover(&self, Parameters(input): Parameters<OntoWorkflowDiscoverInput>) -> String {
+    pub async fn onto_workflow_discover(&self, Parameters(input): Parameters<OntoWorkflowDiscoverInput>) -> String {
         self.evaluate_admission_audit(
             crate::admission::AdmissionOp::Discovery,
             Some(&input.domain),
@@ -2654,7 +2654,7 @@ impl OpenOntologiesServer {
     }
 
     #[tool(name = "onto_workflow_feedback", description = "Loop 3 surface. Accept or reject a discovered workflow candidate; flips `discovered_workflows.status`. Mirrors the JSON shape of `onto_align_feedback`.")]
-    async fn onto_workflow_feedback(&self, Parameters(input): Parameters<OntoWorkflowFeedbackInput>) -> String {
+    pub async fn onto_workflow_feedback(&self, Parameters(input): Parameters<OntoWorkflowFeedbackInput>) -> String {
         self.evaluate_admission_audit(
             crate::admission::AdmissionOp::Feedback,
             Some(&input.id),
@@ -3530,29 +3530,35 @@ impl OpenOntologiesServer {
         name = "onto_conformance_check",
         description = "OntoStar: replay the OCEL trace tagged with `scope_token` against its declared POWL. Pure delegation to wasm4pm (no local PM math). Returns {fitness, precision, defects, trace_canonical_hash, run_id}."
     )]
-    fn onto_conformance_check(
+    pub fn onto_conformance_check(
         &self,
         Parameters(input): Parameters<OntoConformanceCheckInput>,
     ) -> String {
-        let conn = self.db.conn();
-        let row: Option<(String, Option<String>)> = conn
-            .query_row(
-                "SELECT powl_string, status FROM declared_workflows WHERE scope_token = ?1",
-                rusqlite::params![input.scope_token],
-                |r| Ok((r.get::<_, String>(0)?, r.get::<_, Option<String>>(1)?)),
-            )
-            .ok();
-        let (powl_string, _status) = match row {
-            Some(r) => r,
-            None => {
-                return serde_json::json!({
-                    "ok": false,
-                    "defect": { "kind": "ScopeUnclosed" },
-                    "error": "no declared workflow for scope_token",
-                })
-                .to_string();
+        // Scope the MutexGuard into a block so it is dropped before
+        // replay_against_powl is called. Both self.db and ocel_store.db share
+        // the same Arc<Mutex<Connection>>; holding the guard across the replay
+        // call deadlocks.
+        let powl_string = {
+            let conn = self.db.conn();
+            let row: Option<(String, Option<String>)> = conn
+                .query_row(
+                    "SELECT powl_string, status FROM declared_workflows WHERE scope_token = ?1",
+                    rusqlite::params![input.scope_token],
+                    |r| Ok((r.get::<_, String>(0)?, r.get::<_, Option<String>>(1)?)),
+                )
+                .ok();
+            match row {
+                Some((ps, _)) => ps,
+                None => {
+                    return serde_json::json!({
+                        "ok": false,
+                        "defect": { "kind": "ScopeUnclosed" },
+                        "error": "no declared workflow for scope_token",
+                    })
+                    .to_string();
+                }
             }
-        };
+        }; // conn guard dropped here
 
         let mut bridge = crate::powl_bridge::PowlBridge::new();
         let root = match bridge.parse(&powl_string) {
@@ -4141,7 +4147,7 @@ impl OpenOntologiesServer {
     /// `llm_authority_claimed` OCEL **before** lifting the fields into
     /// `CandidateCtq`, so the audit trail records the adversarial
     /// claim independently of any downstream defect classification.
-    #[tool(name = "onto_translate_candidate", description = "Requirements Andon: invoke the Groq LLM boundary translator on a previously-proposed requirement. AUDIT-ONLY — output is provisional and must pass through onto_admit_ctq before any work order is admitted. Response is projection-only (`_projection_only: true`); admission flows through `onto_admit_ctq`. Emits `llm_candidate_translated` + `llm_invoked` OCEL events with candidate_ctq_id (BLAKE3 of the candidate JSON) but never the API key. `engine` selects `inproc` (default) or `groq_pm4py` (shells to scripts/ctq_from_voice.py).")]
+    #[tool(name = "onto_translate_candidate", description = "Requirements Andon: invoke the LLM boundary translator on a previously-proposed requirement. AUDIT-ONLY — output is provisional and must pass through onto_admit_ctq before any work order is admitted. Response is projection-only (`_projection_only: true`); admission flows through `onto_admit_ctq`. Emits `llm_candidate_translated` + `llm_invoked` OCEL events with candidate_ctq_id (BLAKE3 of the candidate JSON) but never the API key. `engine` selects `inproc` (default), `groq_pm4py` (shells to scripts/ctq_from_voice.py), or `gemini` (headless Gemini CLI via OAuth, no API key required; uses gemini-3.1-flash-lite-preview).")]
     pub async fn onto_translate_candidate(&self, Parameters(input): Parameters<OntoTranslateCandidateInput>) -> String {
         let started = std::time::Instant::now();
 
@@ -4334,6 +4340,166 @@ impl OpenOntologiesServer {
                 "refinements": refinements,
                 "latency_ms": latency_ms,
                 "llm_claimed_authority": llm_claimed_authority_pm4py,
+            }).to_string();
+            self.emit_tool_ocel("onto_translate_candidate", started, true, &[]);
+            return response;
+        }
+
+        // ── Alternative engine: Gemini CLI (OAuth, no API key required) ──
+        // Invokes `gemini -p <prompt> --model gemini-3.1-flash-lite-preview
+        // --approval-mode yolo` and extracts the trailing JSON line from stdout.
+        // Mirrors the speckit-ralph copilot-shim.sh / gemini-invoke.sh pattern.
+        if engine == "gemini" {
+            let prompt = format!(
+                "You are a Critical-To-Quality (CTQ) requirements translator.\n\
+                 Translate the following stakeholder voice into a CTQ JSON object.\n\
+                 IMPORTANT: Output ONLY the raw JSON on the FINAL line of your response.\n\
+                 Use DOUBLE QUOTES for all strings. No markdown, no code fences, no explanation.\n\
+                 The JSON must have exactly these keys:\n\
+                 \"defect_class_hint\", \"ctq_text\", \"measure_text\", \"verification_text\",\n\
+                 \"negative_case_text\", \"control_plan_text\", \"verdict\" (boolean),\n\
+                 \"refinements\" (number, 0), \"provisional\" (boolean, true)\n\
+                 \n\
+                 Stakeholder voice: {}\n\
+                 \n\
+                 Respond with ONLY the JSON object:",
+                input.source_voice
+            );
+
+            let gemini_bin = std::env::var("GEMINI_BIN").unwrap_or_else(|_| "gemini".to_string());
+            let mut cmd = std::process::Command::new(&gemini_bin);
+            cmd.arg("-p")
+                .arg(&prompt)
+                .arg("--model")
+                .arg("gemini-3.1-flash-lite-preview")
+                .arg("--approval-mode")
+                .arg("yolo");
+
+            let sub_started = std::time::Instant::now();
+            let out = match self.run_subprocess_with_timeout(&mut cmd, "gemini", "gemini") {
+                Ok(timed) => timed.output,
+                Err(crate::subprocess::SubprocessError::LlmTimeout { elapsed_ms, limit_ms, .. }) => {
+                    self.emit_tool_ocel("onto_translate_candidate", started, false, &[]);
+                    return format!(
+                        r#"{{"ok":false,"error":"gemini timed out after {}ms (limit {}ms)"}}"#,
+                        elapsed_ms, limit_ms
+                    );
+                }
+                Err(crate::subprocess::SubprocessError::SpawnFailed(e)) => {
+                    self.emit_tool_ocel("onto_translate_candidate", started, false, &[]);
+                    return format!(
+                        r#"{{"ok":false,"error":"failed to spawn gemini: {}"}}"#,
+                        e.to_string().replace('"', "'")
+                    );
+                }
+            };
+            let stdout = String::from_utf8_lossy(&out.stdout).into_owned();
+            // Extract trailing JSON: scan from end for a line containing `{`
+            // anywhere (not just at start, to handle warning prefixes from gemini).
+            let json_line = stdout
+                .lines()
+                .rev()
+                .find_map(|l| {
+                    // Find the first `{` in the line and try to extract from there.
+                    l.find('{').map(|pos| l[pos..].trim().to_string())
+                });
+            let json_line = match json_line {
+                Some(l) => l,
+                None => {
+                    self.emit_tool_ocel("onto_translate_candidate", started, false, &[]);
+                    return format!(
+                        r#"{{"ok":false,"error":"gemini produced no JSON line: {}"}}"#,
+                        stdout.replace('"', "'").replace('\n', " ")
+                    );
+                }
+            };
+            let result: serde_json::Value = match serde_json::from_str(&json_line) {
+                Ok(v) => v,
+                Err(e) => {
+                    self.emit_tool_ocel("onto_translate_candidate", started, false, &[]);
+                    return format!(
+                        r#"{{"ok":false,"error":"gemini non-JSON: {} (raw={})"}}"#,
+                        e,
+                        json_line.replace('"', "'")
+                    );
+                }
+            };
+            let latency_ms = sub_started.elapsed().as_millis() as u64;
+            let get_str = |k: &str| -> String {
+                result.get(k).and_then(|v| v.as_str()).unwrap_or("").to_string()
+            };
+            let candidate = crate::llm_translator::CandidateCtq {
+                source_voice_echo: input.source_voice.clone(),
+                defect_class_hint: get_str("defect_class_hint"),
+                ctq_text: get_str("ctq_text"),
+                measure_text: get_str("measure_text"),
+                verification_text: get_str("verification_text"),
+                negative_case_text: get_str("negative_case_text"),
+                control_plan_text: get_str("control_plan_text"),
+                provisional: true,
+            };
+            let verdict = result.get("verdict").and_then(|v| v.as_bool()).unwrap_or(false);
+            let refinements = result.get("refinements").and_then(|v| v.as_u64()).unwrap_or(0);
+            let candidate_json = serde_json::to_string(&candidate).unwrap_or_else(|_| "{}".into());
+            let candidate_id_hex = blake3::hash(candidate_json.as_bytes()).to_hex().to_string();
+            let model = "gemini-3.1-flash-lite-preview";
+            let now = chrono::Utc::now().to_rfc3339();
+            let ts_ms = chrono::Utc::now().timestamp_millis();
+            let latency_str = latency_ms.to_string();
+            let refinements_str = refinements.to_string();
+            let _ = self.ocel_store().emit_event(
+                &format!("{}:llm_candidate_translated:{}", self.session_id, ts_ms),
+                "llm_candidate_translated",
+                &now,
+                &self.session_id,
+                &[
+                    ("candidate_ctq_id", &candidate_id_hex[..16]),
+                    ("model", model),
+                    ("provisional", "true"),
+                    ("engine", "gemini"),
+                ],
+                &[],
+                Some(&input.scope_token),
+            );
+            let _ = self.ocel_store().emit_event(
+                &format!("{}:llm_invoked:{}", self.session_id, ts_ms),
+                "llm_invoked",
+                &now,
+                &self.session_id,
+                &[
+                    ("model", model),
+                    ("latency_ms", &latency_str),
+                    ("refinements", &refinements_str),
+                    ("engine", "gemini"),
+                ],
+                &[],
+                Some(&input.scope_token),
+            );
+            self.lineage().record(
+                &self.session_id,
+                "LM",
+                "llm_invoked",
+                &format!("engine=gemini model={} latency_ms={} verdict={}", model, latency_ms, verdict),
+            );
+            self.evaluate_admission_audit(
+                crate::admission::AdmissionOp::LlmTranslate,
+                Some(&input.scope_token),
+                "llm-translate",
+                candidate_json.as_bytes(),
+            );
+            let ctq_text_top = candidate.ctq_text.clone();
+            let response = serde_json::json!({
+                "ok": true,
+                "provisional": true,
+                "_projection_only": true,
+                "engine": "gemini",
+                "candidate_ctq_id": &candidate_id_hex[..16],
+                "candidate": candidate,
+                "ctq_text": ctq_text_top,
+                "verdict": verdict,
+                "refinements": refinements,
+                "latency_ms": latency_ms,
+                "llm_claimed_authority": false,
             }).to_string();
             self.emit_tool_ocel("onto_translate_candidate", started, true, &[]);
             return response;

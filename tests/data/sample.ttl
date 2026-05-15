@@ -1,0 +1,22 @@
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl:  <http://www.w3.org/2002/07/owl#> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+@prefix test: <http://example.org/test#> .
+
+<http://example.org/test>
+    a owl:Ontology ;
+    rdfs:label "Test Ontology" .
+
+test:Person
+    a owl:Class ;
+    rdfs:label "Person" ;
+    rdfs:comment "A human being." .
+
+test:Alice
+    a test:Person ;
+    rdfs:label "Alice" .
+
+test:Bob
+    a test:Person ;
+    rdfs:label "Bob" .
