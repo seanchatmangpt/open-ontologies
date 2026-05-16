@@ -107,11 +107,49 @@ pub enum VerifierError {
 impl VerifierError {
     /// Whether this verdict warrants pausing retention. Failures pause;
     /// expired-key warnings do not.
+    ///
+    /// # Examples
+    ///
+    /// `SignatureExpiredKey` is a warning — retention keeps running:
+    /// ```
+    /// # use open_ontologies::verify::VerifierError;
+    /// let warn = VerifierError::SignatureExpiredKey {
+    ///     granted_at: "2025-01-01T00:00:00Z".to_string(),
+    ///     removed_at: "2024-12-01T00:00:00Z".to_string(),
+    /// };
+    /// assert!(!warn.is_failure());
+    /// ```
+    ///
+    /// All other variants ARE failures — retention pauses:
+    /// ```
+    /// # use open_ontologies::verify::VerifierError;
+    /// let err = VerifierError::UnknownKey {
+    ///     key_valid_at: "2025-01-01T00:00:00Z".to_string(),
+    /// };
+    /// assert!(err.is_failure());
+    /// ```
     pub fn is_failure(&self) -> bool {
         !matches!(self, VerifierError::SignatureExpiredKey { .. })
     }
 
     /// Human-readable kind tag, used for OCEL attribute and log fields.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use open_ontologies::verify::VerifierError;
+    /// let e = VerifierError::UnknownKey { key_valid_at: "ts".to_string() };
+    /// assert_eq!(e.kind(), "unknown_key");
+    ///
+    /// let e = VerifierError::BodyHashMismatch { receipt_hash: "abc".to_string() };
+    /// assert_eq!(e.kind(), "body_hash_mismatch");
+    ///
+    /// let e = VerifierError::SignatureExpiredKey {
+    ///     granted_at: "2025-01-01T00:00:00Z".to_string(),
+    ///     removed_at: "2024-12-01T00:00:00Z".to_string(),
+    /// };
+    /// assert_eq!(e.kind(), "signature_expired_key");
+    /// ```
     pub fn kind(&self) -> &'static str {
         match self {
             VerifierError::SignatureExpiredKey { .. } => "signature_expired_key",

@@ -29,6 +29,24 @@ use std::sync::{Mutex, OnceLock};
 use ulid::Ulid;
 
 /// One line of the JSONL chain log.
+///
+/// # Examples
+///
+/// Construct a genesis link (no prior receipt) and check its fields:
+/// ```
+/// # use open_ontologies::receipt_chain::ChainLink;
+/// let link = ChainLink {
+///     receipt_hash: "deadbeef".to_string(),
+///     prev_receipt_hash: None,
+///     scope_token: "scope-abc".to_string(),
+///     ts: "2025-01-01T00:00:00Z".to_string(),
+///     session_id: "sess-1".to_string(),
+///     tenant_id: "tenant-default".to_string(),
+/// };
+/// assert_eq!(link.receipt_hash, "deadbeef");
+/// assert!(link.prev_receipt_hash.is_none());
+/// assert_eq!(link.scope_token, "scope-abc");
+/// ```
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChainLink {
     /// BLAKE3 hex of this receipt's canonical bytes (receipt's unique ID).
@@ -46,6 +64,21 @@ pub struct ChainLink {
 }
 
 /// Structural integrity report from [`ChainStore::verify_chain`].
+///
+/// # Examples
+///
+/// A clean report has `is_contiguous = true` and no gap:
+/// ```
+/// # use open_ontologies::receipt_chain::ChainVerifyReport;
+/// let report = ChainVerifyReport {
+///     links_walked: 42,
+///     is_contiguous: true,
+///     first_gap_at: None,
+/// };
+/// assert!(report.is_contiguous);
+/// assert!(report.first_gap_at.is_none());
+/// assert_eq!(report.links_walked, 42);
+/// ```
 #[derive(Debug, Clone, Serialize)]
 pub struct ChainVerifyReport {
     /// Total links walked (scanned) during verification.
