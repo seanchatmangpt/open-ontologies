@@ -2979,6 +2979,10 @@ impl OpenOntologiesServer {
             }
         }
 
+        if class_labels.is_empty() {
+            return r#"{"error":"No ontology loaded. Call onto_load first, then onto_embed to generate embeddings."}"#.to_string();
+        }
+
         let trainer = crate::structembed::StructuralTrainer::new(struct_dim, struct_epochs, 0.01);
         let struct_embeddings = match trainer.train(&self.graph) {
             Ok(e) => e,
@@ -3073,7 +3077,7 @@ impl OpenOntologiesServer {
 
         let vecstore = self.vecstore.lock().unwrap();
         if vecstore.is_empty() {
-            return r#"{"error":"No embeddings loaded. Run onto_embed first."}"#.to_string();
+            return r#"{"error":"No embeddings loaded. Call onto_embed first to generate embeddings for the loaded ontology, then retry onto_search."}"#.to_string();
         }
 
         let results: Vec<serde_json::Value> = match mode {
@@ -3134,8 +3138,16 @@ impl OpenOntologiesServer {
         let struct_b = vecstore.get_struct_vec(&input.iri_b);
 
         if text_a.is_none() || text_b.is_none() {
-            return format!(r#"{{"error":"IRI not found in embeddings. Run onto_embed first. Missing: {}"}}"#,
-                if text_a.is_none() { &input.iri_a } else { &input.iri_b });
+            let missing = match (text_a.is_none(), text_b.is_none()) {
+                (true, true) => format!("{}, {}", input.iri_a, input.iri_b),
+                (true, false) => input.iri_a.clone(),
+                (false, true) => input.iri_b.clone(),
+                (false, false) => unreachable!(),
+            };
+            return format!(
+                r#"{{"error":"IRI not found in embeddings. Call onto_embed first to generate embeddings for the loaded ontology. Missing: {}"}}"#,
+                missing
+            );
         }
 
         let cos = crate::poincare::cosine_similarity(text_a.unwrap(), text_b.unwrap());
