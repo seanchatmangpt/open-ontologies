@@ -38,10 +38,38 @@
 
 use crate::state::StateDb;
 
+/// Minimum `granted_at_chain` length required after the bootstrap lock is
+/// set (R8-1 chain-length gate). A chain shorter than this in a
+/// post-bootstrap admission with `prior_tenant_receipt_count > 0` raises
+/// [`crate::defects::DefectClass::BootstrapChainTooShort`].
+///
+/// ```
+/// use open_ontologies::bootstrap::MIN_BOOTSTRAP_CHAIN_LENGTH;
+///
+/// // The R8 gate requires at least two prior receipts.
+/// assert_eq!(MIN_BOOTSTRAP_CHAIN_LENGTH, 2);
+///
+/// // A chain of length ≥ 2 passes the gate.
+/// let chain = vec!["receipt-a".to_string(), "receipt-b".to_string()];
+/// assert!(chain.len() >= MIN_BOOTSTRAP_CHAIN_LENGTH);
+///
+/// // A chain of length 1 would fail the gate.
+/// let short_chain = vec!["only-one".to_string()];
+/// assert!(short_chain.len() < MIN_BOOTSTRAP_CHAIN_LENGTH);
+/// ```
+pub const MIN_BOOTSTRAP_CHAIN_LENGTH: usize = 2;
+
 /// Type-level marker for the bootstrap window.
 ///
 /// All state is persisted in the [`StateDb`] SQLite database. The struct
 /// itself carries no fields; it is a namespace for the associated functions.
+///
+/// ```
+/// use open_ontologies::bootstrap::BootstrapState;
+///
+/// // BootstrapState is a zero-sized type — construction is always valid.
+/// let _state = BootstrapState;
+/// ```
 pub struct BootstrapState;
 
 impl BootstrapState {
