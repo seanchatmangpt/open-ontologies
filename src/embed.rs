@@ -1,5 +1,34 @@
 //! ONNX-based text embedding using tract.
 //! Loads a sentence-transformer model exported to ONNX format.
+//!
+//! # Embedding dimension invariant
+//!
+//! The default local model (`bge-small-en-v1.5`) always produces 384-dimensional
+//! L2-normalised vectors. Any embedding dimension constant or configured value must
+//! be a **positive integer**; zero is not a valid embedding dimension.
+//!
+//! ```
+//! // The canonical default dimension for the bge-small-en-v1.5 model.
+//! const BGE_SMALL_DIM: usize = 384;
+//! assert!(BGE_SMALL_DIM > 0, "embedding dimension must be positive");
+//! ```
+//!
+//! # Provider identity
+//!
+//! When the local model files are absent the provider factory returns `Ok(None)`,
+//! meaning the server starts without embedding tools — no panic, no hard error.
+//!
+//! ```
+//! use open_ontologies::embed::TextEmbedderProvider;
+//! use open_ontologies::config::EmbeddingsConfig;
+//!
+//! let cfg = EmbeddingsConfig::default();
+//! let result = TextEmbedderProvider::from_config(&cfg);
+//! // No panic: missing model files are a soft, recoverable condition.
+//! assert!(result.is_ok());
+//! // Provider is None when model files don't exist on disk.
+//! assert!(result.unwrap().is_none());
+//! ```
 
 use anyhow::{Context, Result};
 use std::path::Path;
@@ -7,6 +36,30 @@ use tokenizers::Tokenizer;
 use tract_onnx::prelude::*;
 
 use crate::poincare::l2_normalize;
+
+/// Default embedding dimension for the bge-small-en-v1.5 ONNX model.
+///
+/// This matches the output shape of the model loaded by [`TextEmbedder::load`].
+/// Any value derived from this constant is guaranteed to be a positive integer.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::embed::BGE_SMALL_DIM;
+///
+/// // Dimension is always positive — zero is not a valid embedding dimension.
+/// assert!(BGE_SMALL_DIM > 0);
+/// assert_eq!(BGE_SMALL_DIM, 384);
+/// ```
+///
+/// ```
+/// use open_ontologies::embed::BGE_SMALL_DIM;
+///
+/// // A vector of the default dimension has exactly BGE_SMALL_DIM components.
+/// let placeholder: Vec<f32> = vec![0.0; BGE_SMALL_DIM];
+/// assert_eq!(placeholder.len(), BGE_SMALL_DIM);
+/// ```
+pub const BGE_SMALL_DIM: usize = 384;
 
 /// Model download URL for the ONNX model file (bge-small-en-v1.5).
 ///
@@ -18,6 +71,14 @@ use crate::poincare::l2_normalize;
 /// // URL must point to Hugging Face and end with the expected filename.
 /// assert!(BGE_SMALL_ONNX_URL.starts_with("https://huggingface.co/"));
 /// assert!(BGE_SMALL_ONNX_URL.ends_with("model.onnx"));
+/// ```
+///
+/// ```
+/// use open_ontologies::embed::BGE_SMALL_ONNX_URL;
+///
+/// // URL contains the model name and uses HTTPS.
+/// assert!(BGE_SMALL_ONNX_URL.contains("bge-small-en-v1.5"));
+/// assert!(BGE_SMALL_ONNX_URL.starts_with("https://"));
 /// ```
 pub const BGE_SMALL_ONNX_URL: &str =
     "https://huggingface.co/BAAI/bge-small-en-v1.5/resolve/main/onnx/model.onnx";
@@ -32,6 +93,21 @@ pub const BGE_SMALL_ONNX_URL: &str =
 /// // URL must point to Hugging Face and end with tokenizer.json.
 /// assert!(BGE_SMALL_TOKENIZER_URL.starts_with("https://huggingface.co/"));
 /// assert!(BGE_SMALL_TOKENIZER_URL.ends_with("tokenizer.json"));
+/// ```
+///
+/// ```
+/// use open_ontologies::embed::{BGE_SMALL_ONNX_URL, BGE_SMALL_TOKENIZER_URL};
+///
+/// // Both live under the same Hugging Face repository.
+/// assert!(BGE_SMALL_TOKENIZER_URL.contains("bge-small-en-v1.5"));
+/// assert!(BGE_SMALL_ONNX_URL.contains("bge-small-en-v1.5"));
+/// ```
+///
+/// ```
+/// use open_ontologies::embed::{BGE_SMALL_ONNX_URL, BGE_SMALL_TOKENIZER_URL};
+///
+/// // The two URLs are distinct — they point to different files.
+/// assert_ne!(BGE_SMALL_ONNX_URL, BGE_SMALL_TOKENIZER_URL);
 /// ```
 pub const BGE_SMALL_TOKENIZER_URL: &str =
     "https://huggingface.co/BAAI/bge-small-en-v1.5/resolve/main/tokenizer.json";
@@ -205,6 +281,36 @@ impl TextEmbedderProvider {
     /// // A default config with no model paths set and no ONNX files on disk
     /// // returns Ok(None) — the server starts without embedding tools.
     /// let cfg = EmbeddingsConfig::default();
+    /// let provider = TextEmbedderProvider::from_config(&cfg).unwrap();
+    /// assert!(provider.is_none());
+    /// ```
+    ///
+    /// An unknown provider name is rejected with an error:
+    ///
+    /// ```
+    /// # use open_ontologies::embed::TextEmbedderProvider;
+    /// # use open_ontologies::config::EmbeddingsConfig;
+    /// let cfg = EmbeddingsConfig {
+    ///     provider: Some("unknown-provider-xyz".to_string()),
+    ///     ..EmbeddingsConfig::default()
+    /// };
+    /// let result = TextEmbedderProvider::from_config(&cfg);
+    /// assert!(result.is_err(), "unknown provider must return Err");
+    /// ```
+    ///
+    /// The `"local"` provider with missing model files is a soft failure — the
+    /// server starts without embedding tools rather than aborting:
+    ///
+    /// ```
+    /// # use open_ontologies::embed::TextEmbedderProvider;
+    /// # use open_ontologies::config::EmbeddingsConfig;
+    /// let cfg = EmbeddingsConfig {
+    ///     provider: Some("local".to_string()),
+    ///     model_path: Some("/tmp/nonexistent-model-abc.onnx".to_string()),
+    ///     tokenizer_path: Some("/tmp/nonexistent-tokenizer-abc.json".to_string()),
+    ///     ..EmbeddingsConfig::default()
+    /// };
+    /// // Missing files → Ok(None), not Err.
     /// let provider = TextEmbedderProvider::from_config(&cfg).unwrap();
     /// assert!(provider.is_none());
     /// ```
