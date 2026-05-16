@@ -42,6 +42,8 @@ use crate::ocel_store::OcelStore;
 ///
 /// # Examples
 ///
+/// Constructing a candidate directly (e.g. in tests or as a gate input):
+///
 /// ```
 /// use open_ontologies::llm_translator::CandidateCtq;
 ///
@@ -64,6 +66,28 @@ use crate::ocel_store::OcelStore;
 /// assert!(!c.verification_text.is_empty());
 /// assert!(!c.negative_case_text.is_empty());
 /// assert!(!c.control_plan_text.is_empty());
+/// ```
+///
+/// JSON round-trip — the struct must survive serialize/deserialize intact:
+///
+/// ```
+/// use open_ontologies::llm_translator::CandidateCtq;
+///
+/// let original = CandidateCtq {
+///     source_voice_echo:   "latency spike".to_string(),
+///     defect_class_hint:   "LatencyBreach".to_string(),
+///     ctq_text:            "p99 latency must be < 200 ms".to_string(),
+///     measure_text:        "p99 of all HTTP /api requests".to_string(),
+///     verification_text:   "APM alert fires at p99 > 200 ms".to_string(),
+///     negative_case_text:  "Any request exceeding 200 ms at p99".to_string(),
+///     control_plan_text:   "Weekly SLO review; rollback if breach persists".to_string(),
+///     provisional:         true,
+/// };
+///
+/// let json = serde_json::to_string(&original).expect("serialise");
+/// let recovered: CandidateCtq = serde_json::from_str(&json).expect("deserialise");
+/// assert_eq!(original, recovered);
+/// assert!(recovered.provisional, "provisional flag must survive round-trip");
 /// ```
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct CandidateCtq {
@@ -138,6 +162,35 @@ pub struct GroqTranslator {
 }
 
 impl std::fmt::Debug for GroqTranslator {
+    /// The `Debug` output redacts the API key — the literal key value never
+    /// appears in logs or error messages.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::time::Duration;
+    /// use open_ontologies::llm_translator::GroqTranslator;
+    ///
+    /// // With a key: shows "<redacted>", never the raw value.
+    /// let t_with_key = GroqTranslator::new(
+    ///     "https://api.groq.com/openai/v1",
+    ///     Some("sk-super-secret".to_string()),
+    ///     "llama-3.3-70b-versatile",
+    ///     Duration::from_secs(30),
+    /// ).unwrap();
+    /// let dbg = format!("{t_with_key:?}");
+    /// assert!(!dbg.contains("sk-super-secret"), "key must not appear in debug output");
+    /// assert!(dbg.contains("<redacted>"));
+    ///
+    /// // Without a key: shows "<unset>".
+    /// let t_no_key = GroqTranslator::new(
+    ///     "https://api.groq.com/openai/v1",
+    ///     None,
+    ///     "llama-3.3-70b-versatile",
+    ///     Duration::from_secs(30),
+    /// ).unwrap();
+    /// assert!(format!("{t_no_key:?}").contains("<unset>"));
+    /// ```
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         // Redact api_key. The field never appears in any output of this impl.
         f.debug_struct("GroqTranslator")
