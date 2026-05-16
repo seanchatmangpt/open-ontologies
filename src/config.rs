@@ -420,7 +420,14 @@ pub fn resolve_llm_model(cfg: &LlmConfig) -> String {
 ///
 /// `"inproc"`        → in-process `GroqTranslator` (HTTP via reqwest).
 /// `"groq_pm4py"`    → shell out to `scripts/*.py` (dspy / pm4py path).
-pub const VALID_LLM_ENGINES: &[&str] = &["inproc", "groq_pm4py"];
+/// `"gemini"`        → headless Gemini CLI via OAuth (`gemini -p … --approval-mode yolo`);
+///                     no API key required. Binary resolved via `GEMINI_BIN` env var or
+///                     `"gemini"` default. Mirrors the speckit-ralph `gemini-invoke.sh` pattern.
+pub const VALID_LLM_ENGINES: &[&str] = &["inproc", "groq_pm4py", "gemini"];
+
+/// Default Gemini model used by the headless CLI engine (`gemini` engine).
+/// Override via the `--model` flag or a future config key.
+pub const GEMINI_DEFAULT_MODEL: &str = "gemini-3.1-flash-lite-preview";
 
 /// Resolve the default LLM engine for unparametrised tool calls.
 ///
@@ -464,6 +471,15 @@ pub fn resolve_llm_engine(cfg: &LlmConfig) -> String {
     } else {
         "inproc".to_string()
     }
+}
+
+/// Resolve the Gemini CLI binary path for the `gemini` engine.
+/// Precedence: `GEMINI_BIN` env var > `"gemini"` default.
+pub fn resolve_gemini_bin() -> String {
+    std::env::var("GEMINI_BIN")
+        .ok()
+        .filter(|v| !v.trim().is_empty())
+        .unwrap_or_else(|| "gemini".to_string())
 }
 
 /// Resolve the python interpreter for the `groq_pm4py` engine.

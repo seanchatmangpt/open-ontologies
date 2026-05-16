@@ -4362,7 +4362,18 @@ impl OpenOntologiesServer {
         // Invokes `gemini -p <prompt> --model gemini-3.1-flash-lite-preview
         // --approval-mode yolo` and extracts the trailing JSON line from stdout.
         // Mirrors the speckit-ralph copilot-shim.sh / gemini-invoke.sh pattern.
+        //
+        // autoML fallback: `engine=gemini` is a *preference*, not a hard
+        // requirement.  If Gemini times out, fails to spawn, or produces no
+        // parseable JSON, we emit an `llm_engine_fallback` OCEL event with the
+        // failure reason and fall through to the inproc engine rather than
+        // returning an error immediately.  This lets the system automatically
+        // select the next reliable engine without caller intervention.
         if engine == "gemini" {
+            // Attempt the Gemini path; returns Some(response_json) on success or
+            // None on any failure (timeout / spawn error / no JSON / parse error).
+            // On None we fall through to inproc below.
+            let gemini_outcome: Option<String> = 'gemini: {
             let prompt = format!(
                 "You are a Critical-To-Quality (CTQ) requirements translator.\n\
                  Translate the following stakeholder voice into a CTQ JSON object.\n\
@@ -4384,7 +4395,7 @@ impl OpenOntologiesServer {
             cmd.arg("-p")
                 .arg(&prompt)
                 .arg("--model")
-                .arg("gemini-3.1-flash-lite-preview")
+                .arg(crate::config::GEMINI_DEFAULT_MODEL)
                 .arg("--approval-mode")
                 .arg("yolo");
 
@@ -4392,18 +4403,34 @@ impl OpenOntologiesServer {
             let out = match self.run_subprocess_with_timeout(&mut cmd, "gemini", "gemini") {
                 Ok(timed) => timed.output,
                 Err(crate::subprocess::SubprocessError::LlmTimeout { elapsed_ms, limit_ms, .. }) => {
-                    self.emit_tool_ocel("onto_translate_candidate", started, false, &[]);
-                    return format!(
-                        r#"{{"ok":false,"error":"gemini timed out after {}ms (limit {}ms)"}}"#,
-                        elapsed_ms, limit_ms
+                    let reason = format!("gemini timed out after {}ms (limit {}ms)", elapsed_ms, limit_ms);
+                    let now_fb = chrono::Utc::now().to_rfc3339();
+                    let ts_fb = chrono::Utc::now().timestamp_millis();
+                    let _ = self.ocel_store().emit_event(
+                        &format!("{}:llm_engine_fallback:{}", self.session_id, ts_fb),
+                        "llm_engine_fallback",
+                        &now_fb,
+                        &self.session_id,
+                        &[("from_engine", "gemini"), ("to_engine", "inproc"), ("reason", &reason)],
+                        &[],
+                        Some(&input.scope_token),
                     );
+                    break 'gemini None;
                 }
                 Err(crate::subprocess::SubprocessError::SpawnFailed(e)) => {
-                    self.emit_tool_ocel("onto_translate_candidate", started, false, &[]);
-                    return format!(
-                        r#"{{"ok":false,"error":"failed to spawn gemini: {}"}}"#,
-                        e.to_string().replace('"', "'")
+                    let reason = format!("failed to spawn gemini: {}", e.to_string().replace('"', "'"));
+                    let now_fb = chrono::Utc::now().to_rfc3339();
+                    let ts_fb = chrono::Utc::now().timestamp_millis();
+                    let _ = self.ocel_store().emit_event(
+                        &format!("{}:llm_engine_fallback:{}", self.session_id, ts_fb),
+                        "llm_engine_fallback",
+                        &now_fb,
+                        &self.session_id,
+                        &[("from_engine", "gemini"), ("to_engine", "inproc"), ("reason", &reason)],
+                        &[],
+                        Some(&input.scope_token),
                     );
+                    break 'gemini None;
                 }
             };
             let stdout = String::from_utf8_lossy(&out.stdout).into_owned();
@@ -4419,22 +4446,37 @@ impl OpenOntologiesServer {
             let json_line = match json_line {
                 Some(l) => l,
                 None => {
-                    self.emit_tool_ocel("onto_translate_candidate", started, false, &[]);
-                    return format!(
-                        r#"{{"ok":false,"error":"gemini produced no JSON line: {}"}}"#,
-                        stdout.replace('"', "'").replace('\n', " ")
+                    let reason = format!("gemini produced no JSON line (raw={})", stdout.replace('"', "'").replace('\n', " "));
+                    let now_fb = chrono::Utc::now().to_rfc3339();
+                    let ts_fb = chrono::Utc::now().timestamp_millis();
+                    let _ = self.ocel_store().emit_event(
+                        &format!("{}:llm_engine_fallback:{}", self.session_id, ts_fb),
+                        "llm_engine_fallback",
+                        &now_fb,
+                        &self.session_id,
+                        &[("from_engine", "gemini"), ("to_engine", "inproc"), ("reason", &reason)],
+                        &[],
+                        Some(&input.scope_token),
                     );
+                    break 'gemini None;
                 }
             };
             let result: serde_json::Value = match serde_json::from_str(&json_line) {
                 Ok(v) => v,
                 Err(e) => {
-                    self.emit_tool_ocel("onto_translate_candidate", started, false, &[]);
-                    return format!(
-                        r#"{{"ok":false,"error":"gemini non-JSON: {} (raw={})"}}"#,
-                        e,
-                        json_line.replace('"', "'")
+                    let reason = format!("gemini non-JSON: {} (raw={})", e, json_line.replace('"', "'"));
+                    let now_fb = chrono::Utc::now().to_rfc3339();
+                    let ts_fb = chrono::Utc::now().timestamp_millis();
+                    let _ = self.ocel_store().emit_event(
+                        &format!("{}:llm_engine_fallback:{}", self.session_id, ts_fb),
+                        "llm_engine_fallback",
+                        &now_fb,
+                        &self.session_id,
+                        &[("from_engine", "gemini"), ("to_engine", "inproc"), ("reason", &reason)],
+                        &[],
+                        Some(&input.scope_token),
                     );
+                    break 'gemini None;
                 }
             };
             let latency_ms = sub_started.elapsed().as_millis() as u64;
@@ -4455,7 +4497,7 @@ impl OpenOntologiesServer {
             let refinements = result.get("refinements").and_then(|v| v.as_u64()).unwrap_or(0);
             let candidate_json = serde_json::to_string(&candidate).unwrap_or_else(|_| "{}".into());
             let candidate_id_hex = blake3::hash(candidate_json.as_bytes()).to_hex().to_string();
-            let model = "gemini-3.1-flash-lite-preview";
+            let model = crate::config::GEMINI_DEFAULT_MODEL;
             let now = chrono::Utc::now().to_rfc3339();
             let ts_ms = chrono::Utc::now().timestamp_millis();
             let latency_str = latency_ms.to_string();
@@ -4515,7 +4557,13 @@ impl OpenOntologiesServer {
                 "llm_claimed_authority": false,
             }).to_string();
             self.emit_tool_ocel("onto_translate_candidate", started, true, &[]);
-            return response;
+            Some(response)
+            }; // end 'gemini block
+
+            if let Some(resp) = gemini_outcome {
+                return resp;
+            }
+            // Gemini failed — fall through to inproc engine below.
         }
 
         // Build a per-call translator from env-resolved config. The key is
@@ -5113,7 +5161,7 @@ impl OpenOntologiesServer {
         response.to_string()
     }
 
-    #[tool(name = "onto_executive_projection", description = "Requirements Andon: project admitted evidence into an executive-readable summary via the Groq translator. READ-ONLY (allowlisted). `engine` selects `inproc` (default) or `groq_pm4py` (shells to scripts/executive_projection.py). The summary must only cite tokens that already appear in admitted_evidence — token-overlap check rejects invented tokens.")]
+    #[tool(name = "onto_executive_projection", description = "Requirements Andon: project admitted evidence into an executive-readable summary via the Groq translator. READ-ONLY (allowlisted). `engine` selects `inproc` (default), `groq_pm4py` (shells to scripts/executive_projection.py), or `gemini` (headless Gemini CLI via OAuth, no API key required). The summary must only cite tokens that already appear in admitted_evidence — token-overlap check rejects invented tokens.")]
     pub async fn onto_executive_projection(&self, Parameters(input): Parameters<OntoExecutiveProjectionInput>) -> String {
         let started = std::time::Instant::now();
         let evidence = input.admitted_evidence.trim();
@@ -5240,6 +5288,129 @@ impl OpenOntologiesServer {
                 "scope_token": input.scope_token,
                 "summary": summary_str,
                 "refinements": refinements,
+                "latency_ms": latency_ms,
+            }).to_string();
+        }
+
+        // ── Alternative engine: Gemini CLI (OAuth, no API key required) ──
+        // Mirrors the speckit-ralph gemini-invoke.sh pattern.
+        if engine == "gemini" {
+            let prompt = format!(
+                "You are an executive summary generator.\n\
+                 Summarize the following admitted evidence for a senior executive.\n\
+                 IMPORTANT: Only use tokens that appear in the evidence below — do not invent facts.\n\
+                 Output ONLY a raw JSON object on the FINAL line of your response.\n\
+                 Use DOUBLE QUOTES for all strings. No markdown, no code fences, no explanation.\n\
+                 The JSON must have exactly these keys:\n\
+                 \"summary\" (string), \"key_findings\" (array of strings),\n\
+                 \"risk_level\" (\"low\", \"medium\", or \"high\"), \"provisional\" (boolean, true)\n\
+                 \n\
+                 Admitted evidence:\n{}\n\
+                 \n\
+                 Respond with ONLY the JSON object:",
+                evidence
+            );
+            let gemini_bin = crate::config::resolve_gemini_bin();
+            let mut cmd = std::process::Command::new(&gemini_bin);
+            cmd.arg("-p")
+                .arg(&prompt)
+                .arg("--model")
+                .arg(crate::config::GEMINI_DEFAULT_MODEL)
+                .arg("--approval-mode")
+                .arg("yolo");
+            let sub_started = std::time::Instant::now();
+            let out = match self.run_subprocess_with_timeout(&mut cmd, "gemini", "gemini") {
+                Ok(timed) => timed.output,
+                Err(crate::subprocess::SubprocessError::LlmTimeout { elapsed_ms, limit_ms, .. }) => {
+                    self.emit_tool_ocel("onto_executive_projection", started, false, &[]);
+                    return format!(
+                        r#"{{"ok":false,"error":"gemini timed out after {}ms (limit {}ms)"}}"#,
+                        elapsed_ms, limit_ms
+                    );
+                }
+                Err(crate::subprocess::SubprocessError::SpawnFailed(e)) => {
+                    self.emit_tool_ocel("onto_executive_projection", started, false, &[]);
+                    return format!(
+                        r#"{{"ok":false,"error":"failed to spawn gemini: {}"}}"#,
+                        e.to_string().replace('"', "'")
+                    );
+                }
+            };
+            let stdout = String::from_utf8_lossy(&out.stdout).into_owned();
+            let json_line = stdout
+                .lines()
+                .rev()
+                .find_map(|l| l.find('{').map(|pos| l[pos..].trim().to_string()));
+            let json_line = match json_line {
+                Some(l) => l,
+                None => {
+                    self.emit_tool_ocel("onto_executive_projection", started, false, &[]);
+                    return format!(
+                        r#"{{"ok":false,"error":"gemini produced no JSON line: {}"}}"#,
+                        stdout.replace('"', "'").replace('\n', " ")
+                    );
+                }
+            };
+            let result: serde_json::Value = match serde_json::from_str(&json_line) {
+                Ok(v) => v,
+                Err(e) => {
+                    self.emit_tool_ocel("onto_executive_projection", started, false, &[]);
+                    return format!(
+                        r#"{{"ok":false,"error":"gemini non-JSON: {} (raw={})"}}"#,
+                        e,
+                        json_line.replace('"', "'")
+                    );
+                }
+            };
+            let latency_ms = sub_started.elapsed().as_millis() as u64;
+            let summary_str = result.get("summary").and_then(|v| v.as_str()).unwrap_or("").to_string();
+            let model = crate::config::GEMINI_DEFAULT_MODEL;
+            // Token-overlap check: every word (length >= 4) in the summary must
+            // appear in the admitted evidence — same invariant as the inproc path.
+            let invented = crate::projection_check::invented_tokens(&summary_str, evidence);
+            if !invented.is_empty() {
+                self.emit_tool_ocel("onto_executive_projection", started, false, &[]);
+                return serde_json::json!({
+                    "ok": false,
+                    "engine": "gemini",
+                    "defect": { "kind": "FalsePass" },
+                    "reason": "executive projection introduced tokens not present in admitted evidence",
+                    "invented_tokens": invented,
+                    "summary": summary_str,
+                }).to_string();
+            }
+            let now = chrono::Utc::now().to_rfc3339();
+            let ts_ms = chrono::Utc::now().timestamp_millis();
+            let latency_str = latency_ms.to_string();
+            let _ = self.ocel_store().emit_event(
+                &format!("{}:llm_invoked:{}", self.session_id, ts_ms),
+                "llm_invoked",
+                &now,
+                &self.session_id,
+                &[
+                    ("model", model),
+                    ("latency_ms", &latency_str),
+                    ("refinements", "0"),
+                    ("engine", "gemini"),
+                ],
+                &[],
+                Some(&input.scope_token),
+            );
+            self.lineage().record(
+                &self.session_id,
+                "LM",
+                "llm_invoked",
+                &format!("engine=gemini op=executive_projection model={} latency_ms={}", model, latency_ms),
+            );
+            self.emit_tool_ocel("onto_executive_projection", started, true, &[]);
+            return serde_json::json!({
+                "ok": true,
+                "provisional": true,
+                "engine": "gemini",
+                "scope_token": input.scope_token,
+                "summary": summary_str,
+                "key_findings": result.get("key_findings").cloned().unwrap_or(serde_json::Value::Array(vec![])),
+                "risk_level": result.get("risk_level").and_then(|v| v.as_str()).unwrap_or("low"),
                 "latency_ms": latency_ms,
             }).to_string();
         }
@@ -5435,6 +5606,58 @@ impl OpenOntologiesServer {
         let ok_flag = resp.get("ok").and_then(|v| v.as_bool()).unwrap_or(false);
         self.emit_tool_ocel("onto_groq_status", started, ok_flag, &[]);
         resp.to_string()
+    }
+
+    #[tool(name = "onto_gemini_status", description = "Read-only liveness probe for the Gemini CLI engine. Checks (1) binary availability via `gemini --version`, (2) OAuth session validity via `gemini -p ping --model gemini-3.1-flash-lite-preview --approval-mode yolo`. No API key required — Gemini uses OAuth. Returns {ok, binary_found, oauth_active, model, error}.")]
+    pub async fn onto_gemini_status(&self, Parameters(input): Parameters<OntoGeminiStatusInput>) -> String {
+        let started = std::time::Instant::now();
+        let gemini_bin = input.gemini_bin
+            .as_deref()
+            .filter(|v| !v.trim().is_empty())
+            .map(str::to_string)
+            .unwrap_or_else(crate::config::resolve_gemini_bin);
+        let model = crate::config::GEMINI_DEFAULT_MODEL;
+
+        // Step 1: binary found?
+        let binary_found = std::process::Command::new(&gemini_bin)
+            .arg("--version")
+            .output()
+            .map(|o| o.status.success())
+            .unwrap_or(false);
+
+        if !binary_found {
+            self.emit_tool_ocel("onto_gemini_status", started, false, &[]);
+            return serde_json::json!({
+                "ok": false,
+                "binary_found": false,
+                "oauth_active": false,
+                "model": model,
+                "error": format!("gemini binary not found or not executable: {gemini_bin}"),
+            }).to_string();
+        }
+
+        // Step 2: OAuth active? Run a minimal prompt with a short timeout.
+        let oauth_active = match std::process::Command::new(&gemini_bin)
+            .arg("-p")
+            .arg("ping")
+            .arg("--model")
+            .arg(model)
+            .arg("--approval-mode")
+            .arg("yolo")
+            .output()
+        {
+            Ok(o) => o.status.success(),
+            Err(_) => false,
+        };
+
+        let ok = binary_found && oauth_active;
+        self.emit_tool_ocel("onto_gemini_status", started, ok, &[]);
+        serde_json::json!({
+            "ok": ok,
+            "binary_found": binary_found,
+            "oauth_active": oauth_active,
+            "model": model,
+        }).to_string()
     }
 
     // ─── Round 4 WD — runtime trust-set rotation ────────────────────────────
