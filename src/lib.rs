@@ -116,6 +116,10 @@ pub mod verifier_worker;
 // wires tracing-subscriber; OTLP layer extension point for R9-3.
 pub mod telemetry;
 
+// mcpp proof-gating middleware — transparent wrapper; proof gate active only
+// when the `mcpp` feature is enabled and MCPP_SIGNING_KEY_PATH is set.
+pub mod mcpp_gate;
+
 // Tier 3 — Background Health Guardian. Periodic 60 s tick checks for open
 // workflow scope leaks (>30 min unclosed) and receipt chain sequence gaps.
 // Emits idempotent OCEL events and tracing::warn on findings; heartbeat
