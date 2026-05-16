@@ -35,6 +35,24 @@ impl DataIngester {
     /// Detect the file format from the file extension.
     /// Returns one of: "csv", "json", "ndjson", "xml", "yaml", "xlsx", "parquet".
     /// Defaults to "csv" if the extension is unrecognised.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use open_ontologies::ingest::DataIngester;
+    /// assert_eq!(DataIngester::detect_format("data.csv"), "csv");
+    /// assert_eq!(DataIngester::detect_format("data.json"), "json");
+    /// assert_eq!(DataIngester::detect_format("events.ndjson"), "ndjson");
+    /// assert_eq!(DataIngester::detect_format("events.jsonl"), "ndjson");
+    /// assert_eq!(DataIngester::detect_format("schema.xml"), "xml");
+    /// assert_eq!(DataIngester::detect_format("config.yaml"), "yaml");
+    /// assert_eq!(DataIngester::detect_format("config.yml"), "yaml");
+    /// assert_eq!(DataIngester::detect_format("report.xlsx"), "xlsx");
+    /// assert_eq!(DataIngester::detect_format("data.parquet"), "parquet");
+    /// // Unknown extensions default to csv
+    /// assert_eq!(DataIngester::detect_format("unknown.xyz"), "csv");
+    /// assert_eq!(DataIngester::detect_format("no_extension"), "csv");
+    /// ```
     pub fn detect_format(path: &str) -> &'static str {
         let ext = std::path::Path::new(path)
             .extension()
@@ -54,6 +72,33 @@ impl DataIngester {
     }
 
     /// Parse CSV content with headers into rows.
+    ///
+    /// The first row is treated as the header. Each subsequent row becomes a
+    /// `HashMap<String, String>` keyed by header name.
+    ///
+    /// **Process-mining note:** These field names become OCEL attribute keys
+    /// downstream. A typo here causes a silent event-attribute drop — the most
+    /// common source of missing attributes in mined logs.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use open_ontologies::ingest::DataIngester;
+    /// let rows = DataIngester::parse_csv("name,age\nAlice,30\nBob,25").unwrap();
+    /// assert_eq!(rows.len(), 2);
+    /// assert_eq!(rows[0]["name"], "Alice");
+    /// assert_eq!(rows[0]["age"], "30");
+    /// assert_eq!(rows[1]["name"], "Bob");
+    /// assert_eq!(rows[1]["age"], "25");
+    /// ```
+    ///
+    /// Empty content (headers only) produces no rows:
+    ///
+    /// ```
+    /// # use open_ontologies::ingest::DataIngester;
+    /// let rows = DataIngester::parse_csv("name,age\n").unwrap();
+    /// assert_eq!(rows.len(), 0);
+    /// ```
     pub fn parse_csv(content: &str) -> Result<Vec<HashMap<String, String>>> {
         let mut reader = csv::Reader::from_reader(content.as_bytes());
         let headers: Vec<String> = reader
@@ -78,6 +123,34 @@ impl DataIngester {
     }
 
     /// Parse a JSON string. Accepts a JSON array of objects or a single object.
+    ///
+    /// Scalar values (string, number, bool) are stringified. `null` becomes an
+    /// empty string. Nested objects and arrays are serialised via their `Display`
+    /// representation.
+    ///
+    /// # Examples
+    ///
+    /// Array of objects:
+    ///
+    /// ```
+    /// # use open_ontologies::ingest::DataIngester;
+    /// let json = r#"[{"city":"Chicago","pop":2700000},{"city":"Austin","pop":978908}]"#;
+    /// let rows = DataIngester::parse_json(json).unwrap();
+    /// assert_eq!(rows.len(), 2);
+    /// assert_eq!(rows[0]["city"], "Chicago");
+    /// assert_eq!(rows[0]["pop"], "2700000");
+    /// ```
+    ///
+    /// Single object is wrapped in a one-element vec:
+    ///
+    /// ```
+    /// # use open_ontologies::ingest::DataIngester;
+    /// let json = r#"{"name":"Alice","active":true}"#;
+    /// let rows = DataIngester::parse_json(json).unwrap();
+    /// assert_eq!(rows.len(), 1);
+    /// assert_eq!(rows[0]["name"], "Alice");
+    /// assert_eq!(rows[0]["active"], "true");
+    /// ```
     pub fn parse_json(content: &str) -> Result<Vec<HashMap<String, String>>> {
         let value: serde_json::Value =
             serde_json::from_str(content).context("Failed to parse JSON")?;
@@ -107,6 +180,28 @@ impl DataIngester {
     }
 
     /// Parse newline-delimited JSON (NDJSON / JSON Lines).
+    ///
+    /// Each non-empty line must be a JSON object. Blank lines are skipped.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use open_ontologies::ingest::DataIngester;
+    /// let ndjson = "{\"id\":\"e1\",\"action\":\"start\"}\n{\"id\":\"e2\",\"action\":\"stop\"}";
+    /// let rows = DataIngester::parse_ndjson(ndjson).unwrap();
+    /// assert_eq!(rows.len(), 2);
+    /// assert_eq!(rows[0]["id"], "e1");
+    /// assert_eq!(rows[1]["action"], "stop");
+    /// ```
+    ///
+    /// Blank lines are ignored:
+    ///
+    /// ```
+    /// # use open_ontologies::ingest::DataIngester;
+    /// let ndjson = "{\"x\":\"1\"}\n\n{\"x\":\"2\"}\n";
+    /// let rows = DataIngester::parse_ndjson(ndjson).unwrap();
+    /// assert_eq!(rows.len(), 2);
+    /// ```
     pub fn parse_ndjson(content: &str) -> Result<Vec<HashMap<String, String>>> {
         let mut rows = Vec::new();
         for line in content.lines() {
@@ -128,6 +223,30 @@ impl DataIngester {
     }
 
     /// Parse a YAML string containing an array of objects.
+    ///
+    /// The top-level value must be a YAML sequence. Each element must be a
+    /// mapping. Scalar values are stringified; `null` becomes an empty string.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use open_ontologies::ingest::DataIngester;
+    /// let yaml = "- name: Alice\n  score: 95\n- name: Bob\n  score: 87\n";
+    /// let rows = DataIngester::parse_yaml(yaml).unwrap();
+    /// assert_eq!(rows.len(), 2);
+    /// assert_eq!(rows[0]["name"], "Alice");
+    /// assert_eq!(rows[0]["score"], "95");
+    /// assert_eq!(rows[1]["name"], "Bob");
+    /// ```
+    ///
+    /// A non-sequence top-level (e.g. a bare mapping) produces an empty vec:
+    ///
+    /// ```
+    /// # use open_ontologies::ingest::DataIngester;
+    /// let yaml = "name: Alice\nscore: 95\n";
+    /// let rows = DataIngester::parse_yaml(yaml).unwrap();
+    /// assert_eq!(rows.len(), 0);
+    /// ```
     pub fn parse_yaml(content: &str) -> Result<Vec<HashMap<String, String>>> {
         let value: serde_yaml::Value =
             serde_yaml::from_str(content).context("Failed to parse YAML")?;
@@ -162,6 +281,31 @@ impl DataIngester {
 
     /// Parse XML with a `<root><record>...</record></root>` structure.
     /// Depth 1 = root element, depth 2 = record boundary, depth 3 = field elements.
+    ///
+    /// The root element name is arbitrary. Each depth-2 child is a record; each
+    /// depth-3 child is a field. Text content of the field becomes the value.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use open_ontologies::ingest::DataIngester;
+    /// let xml = "<root><item><name>Alice</name><age>30</age></item>\
+    ///            <item><name>Bob</name><age>25</age></item></root>";
+    /// let rows = DataIngester::parse_xml(xml).unwrap();
+    /// assert_eq!(rows.len(), 2);
+    /// assert_eq!(rows[0]["name"], "Alice");
+    /// assert_eq!(rows[0]["age"], "30");
+    /// assert_eq!(rows[1]["name"], "Bob");
+    /// ```
+    ///
+    /// Empty root produces no rows:
+    ///
+    /// ```
+    /// # use open_ontologies::ingest::DataIngester;
+    /// let xml = "<root></root>";
+    /// let rows = DataIngester::parse_xml(xml).unwrap();
+    /// assert_eq!(rows.len(), 0);
+    /// ```
     pub fn parse_xml(content: &str) -> Result<Vec<HashMap<String, String>>> {
         use quick_xml::events::Event;
         use quick_xml::reader::Reader;
@@ -227,6 +371,15 @@ impl DataIngester {
     }
 
     /// Parse an Excel (.xlsx) file. First row is treated as headers.
+    ///
+    /// Requires a real `.xlsx` file on disk; not suitable for a hermetic doctest.
+    ///
+    /// ```no_run
+    /// # use open_ontologies::ingest::DataIngester;
+    /// // Provide an actual xlsx path at runtime.
+    /// let rows = DataIngester::parse_xlsx_file("/path/to/data.xlsx").unwrap();
+    /// assert!(!rows.is_empty());
+    /// ```
     pub fn parse_xlsx_file(path: &str) -> Result<Vec<HashMap<String, String>>> {
         use calamine::{open_workbook, Reader, Xlsx};
 
@@ -280,6 +433,15 @@ impl DataIngester {
     }
 
     /// Parse a Parquet file into rows.
+    ///
+    /// Requires a real `.parquet` file on disk; not suitable for a hermetic doctest.
+    ///
+    /// ```no_run
+    /// # use open_ontologies::ingest::DataIngester;
+    /// // Provide an actual parquet path at runtime.
+    /// let rows = DataIngester::parse_parquet_file("/path/to/data.parquet").unwrap();
+    /// assert!(!rows.is_empty());
+    /// ```
     pub fn parse_parquet_file(path: &str) -> Result<Vec<HashMap<String, String>>> {
         use parquet::arrow::arrow_reader::ParquetRecordBatchReaderBuilder;
         use std::fs::File;
@@ -384,6 +546,15 @@ impl DataIngester {
 
     /// Dispatch to the correct parser based on detected format.
     /// For text formats, reads the file content first.
+    ///
+    /// Requires a real file on disk; not suitable for a hermetic doctest.
+    ///
+    /// ```no_run
+    /// # use open_ontologies::ingest::DataIngester;
+    /// // Extension-based dispatch: "data.csv" → parse_csv, "data.json" → parse_json, etc.
+    /// let rows = DataIngester::parse_file("/path/to/data.csv").unwrap();
+    /// assert!(!rows.is_empty());
+    /// ```
     pub fn parse_file(path: &str) -> Result<Vec<HashMap<String, String>>> {
         Self::parse_file_with_format(path, None)
     }
@@ -391,6 +562,19 @@ impl DataIngester {
     /// Parse with explicit format override. When `format` is `Some`, the
     /// supplied string takes precedence over extension-based detection.
     /// Accepted: csv, json, ndjson, yaml, xml, xlsx, parquet (case-insensitive).
+    ///
+    /// Reads from the filesystem; not suitable for a hermetic doctest. The
+    /// signature is:
+    ///
+    /// ```no_run
+    /// # use open_ontologies::ingest::DataIngester;
+    /// // Override the format: treat a .dat file as CSV.
+    /// let rows = DataIngester::parse_file_with_format(
+    ///     "/path/to/data.dat",
+    ///     Some("csv"),
+    /// ).unwrap();
+    /// assert!(!rows.is_empty());
+    /// ```
     pub fn parse_file_with_format(
         path: &str,
         format: Option<&str>,
@@ -454,6 +638,41 @@ impl DataIngester {
     }
 
     /// Collect unique keys from all rows, sorted alphabetically.
+    ///
+    /// Scans every row for its keys and returns the union, deduplicated and
+    /// sorted. Rows with sparse columns (missing keys compared to other rows)
+    /// are handled gracefully — only present keys contribute.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use std::collections::HashMap;
+    /// # use open_ontologies::ingest::DataIngester;
+    /// let rows = DataIngester::parse_csv("name,age,city\nAlice,30,Chicago\nBob,25,Austin").unwrap();
+    /// let headers = DataIngester::extract_headers(&rows);
+    /// assert_eq!(headers, vec!["age", "city", "name"]);
+    /// ```
+    ///
+    /// Sparse rows — keys from all rows are unioned:
+    ///
+    /// ```
+    /// # use std::collections::HashMap;
+    /// # use open_ontologies::ingest::DataIngester;
+    /// let mut r1 = HashMap::new();
+    /// r1.insert("a".to_string(), "1".to_string());
+    /// let mut r2 = HashMap::new();
+    /// r2.insert("b".to_string(), "2".to_string());
+    /// let headers = DataIngester::extract_headers(&[r1, r2]);
+    /// assert_eq!(headers, vec!["a", "b"]);
+    /// ```
+    ///
+    /// Empty slice produces an empty vec:
+    ///
+    /// ```
+    /// # use open_ontologies::ingest::DataIngester;
+    /// let headers = DataIngester::extract_headers(&[]);
+    /// assert!(headers.is_empty());
+    /// ```
     pub fn extract_headers(rows: &[HashMap<String, String>]) -> Vec<String> {
         let mut keys: Vec<String> = rows
             .iter()
