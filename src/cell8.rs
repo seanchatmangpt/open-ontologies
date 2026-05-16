@@ -108,6 +108,34 @@ pub fn count_failed(results: &[(&str, GateOutcome)]) -> u8 {
 /// The thirteen Cell8 gate names in canonical declaration order. Used by
 /// callers (admission gate, MCP `onto_cell8_attest`) that need to enumerate
 /// gates without re-implementing the order.
+///
+/// # Invariants
+///
+/// ```
+/// use open_ontologies::cell8::GATE_NAMES;
+///
+/// // Exactly 13 gates — Cell8 conformance requires the full suite.
+/// assert_eq!(GATE_NAMES.len(), 13, "Cell8 requires exactly 13 gates");
+///
+/// // First gate is A1 (Seed) and last is A13 (Attest).
+/// assert_eq!(GATE_NAMES[0],  "A1_WorkflowDeclared");
+/// assert_eq!(GATE_NAMES[12], "A13_ReplayProof");
+///
+/// // Every gate name is unique — no gate appears twice.
+/// let mut seen = std::collections::HashSet::new();
+/// for name in &GATE_NAMES {
+///     assert!(seen.insert(*name), "duplicate gate name: {name}");
+/// }
+///
+/// // The A-prefix labels A1 through A13 are all present.
+/// for n in 1u8..=13 {
+///     let prefix = format!("A{n}_");
+///     assert!(
+///         GATE_NAMES.iter().any(|g| g.starts_with(&prefix)),
+///         "missing gate with prefix {prefix}",
+///     );
+/// }
+/// ```
 pub const GATE_NAMES: [&str; 13] = [
     "A1_WorkflowDeclared",
     "A2_ScopeClosed",

@@ -21,6 +21,28 @@
 //! conformance suite. Each conjunct still short-circuits to the first
 //! failing typed [`DefectClass`]. **No `bail!`, no `anyhow!`, no string
 //! error authority** — every denial is a typed defect class.
+//!
+//! ## Gate invariants
+//!
+//! The `cell_ready` predicate enforces exactly 13 conjuncts, one per Cell8
+//! gate. The gate list is the single source of truth in
+//! [`crate::cell8::GATE_NAMES`]:
+//!
+//! ```
+//! use open_ontologies::cell8::GATE_NAMES;
+//!
+//! // The CellReady predicate has exactly 13 conjuncts.
+//! assert_eq!(GATE_NAMES.len(), 13);
+//!
+//! // Gates span from A1 (Seed) through A13 (Attest).
+//! assert!(GATE_NAMES[0].starts_with("A1_"));
+//! assert!(GATE_NAMES[12].starts_with("A13_"));
+//!
+//! // No gate is listed more than once — a duplicate would mean a conjunct
+//! // is checked twice and another is silently skipped.
+//! let unique: std::collections::HashSet<_> = GATE_NAMES.iter().collect();
+//! assert_eq!(unique.len(), 13, "all 13 gate names must be distinct");
+//! ```
 
 use crate::attestation::{self, KeyFingerprint, TrustedKeys, VerifyOutcome};
 use crate::defects::DefectClass;
