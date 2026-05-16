@@ -247,12 +247,58 @@ CREATE TABLE IF NOT EXISTS bootstrap_lock (
 ";
 
 /// Minimal SQLite state store for ontology versioning.
+///
+/// `StateDb` wraps a SQLite connection (via `rusqlite`) behind an
+/// `Arc<Mutex<Connection>>` so it can be cloned and shared across threads.
+/// All schema migrations run on [`StateDb::open`]; callers only need a
+/// path (or `":memory:"` for ephemeral use in tests and doctests).
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::state::StateDb;
+/// use std::path::Path;
+///
+/// // Open an ephemeral in-memory database — schema is applied automatically.
+/// let db = StateDb::open(Path::new(":memory:")).unwrap();
+///
+/// // The database is immediately usable; no separate init step is needed.
+/// assert_eq!(db.get_last_active_path().unwrap(), None,
+///     "fresh db has no last-active path");
+/// ```
 #[derive(Clone)]
 pub struct StateDb {
     conn: Arc<Mutex<Connection>>,
 }
 
 impl StateDb {
+    /// Open (or create) a SQLite database at `path` and apply all schema
+    /// migrations.
+    ///
+    /// Pass `Path::new(":memory:")` for an ephemeral, in-process database
+    /// that is discarded when the last `StateDb` clone is dropped.  This is
+    /// the recommended pattern for tests and doctests.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the path is not writable, if the SQLite pragma
+    /// updates fail, or if the baseline schema cannot be applied.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use open_ontologies::state::StateDb;
+    /// use std::path::Path;
+    ///
+    /// // In-memory database — schema migrations run automatically.
+    /// let db = StateDb::open(Path::new(":memory:")).unwrap();
+    ///
+    /// // A cloned handle shares the same underlying connection pool.
+    /// let db2 = db.clone();
+    /// db2.set_last_active_path("/tmp/ontology.ttl").unwrap();
+    /// let stored = db.get_last_active_path().unwrap();
+    /// assert_eq!(stored.as_deref(), Some("/tmp/ontology.ttl"));
+    /// ```
     pub fn open(path: &Path) -> Result<Self> {
         let conn = Connection::open(path)?;
         conn.pragma_update(None, "journal_mode", "WAL")?;
@@ -641,10 +687,63 @@ impl StateDb {
         Ok(())
     }
 
+    /// Acquire a `MutexGuard` to the underlying `rusqlite::Connection`.
+    ///
+    /// The guard is held for the duration of the borrow.  Callers that need
+    /// to execute raw SQL (e.g. in tests) should prefer this over
+    /// constructing a second `Connection`.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the internal mutex has been poisoned (which only happens if
+    /// a previous holder panicked while holding the lock).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use open_ontologies::state::StateDb;
+    /// use std::path::Path;
+    ///
+    /// let db = StateDb::open(Path::new(":memory:")).unwrap();
+    ///
+    /// // Execute ad-hoc SQL through the raw connection.
+    /// let count: i64 = db.conn().query_row(
+    ///     "SELECT COUNT(*) FROM ontology_versions",
+    ///     [],
+    ///     |row| row.get(0),
+    /// ).unwrap();
+    ///
+    /// assert_eq!(count, 0, "fresh db has no ontology versions");
+    /// ```
     pub fn conn(&self) -> std::sync::MutexGuard<'_, Connection> {
         self.conn.lock().unwrap()
     }
 
+    /// Return the path of the most recently active ontology, or `None` if
+    /// it has not been set in this session.
+    ///
+    /// The value is persisted in the `monitor_state` key-value table under
+    /// the key `last_active_ontology_path`.  It survives across process
+    /// restarts for on-disk databases.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use open_ontologies::state::StateDb;
+    /// use std::path::Path;
+    ///
+    /// let db = StateDb::open(Path::new(":memory:")).unwrap();
+    ///
+    /// // No path has been recorded yet.
+    /// assert_eq!(db.get_last_active_path().unwrap(), None);
+    ///
+    /// // After setting a path it is retrievable.
+    /// db.set_last_active_path("/data/pizza.ttl").unwrap();
+    /// assert_eq!(
+    ///     db.get_last_active_path().unwrap().as_deref(),
+    ///     Some("/data/pizza.ttl"),
+    /// );
+    /// ```
     pub fn get_last_active_path(&self) -> Result<Option<String>> {
         let conn = self.conn();
         let mut stmt = conn.prepare("SELECT value FROM monitor_state WHERE key = 'last_active_ontology_path'")?;
@@ -652,6 +751,33 @@ impl StateDb {
         Ok(rows.next()?.map(|r| r.get(0)).transpose()?)
     }
 
+    /// Persist `path` as the most-recently-active ontology path.
+    ///
+    /// Uses `INSERT OR REPLACE` so repeated calls are idempotent — only the
+    /// most recent value is retained.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use open_ontologies::state::StateDb;
+    /// use std::path::Path;
+    ///
+    /// let db = StateDb::open(Path::new(":memory:")).unwrap();
+    ///
+    /// // First write.
+    /// db.set_last_active_path("/ont/v1.ttl").unwrap();
+    /// assert_eq!(
+    ///     db.get_last_active_path().unwrap().as_deref(),
+    ///     Some("/ont/v1.ttl"),
+    /// );
+    ///
+    /// // Overwrite with a newer path — only the latest is stored.
+    /// db.set_last_active_path("/ont/v2.ttl").unwrap();
+    /// assert_eq!(
+    ///     db.get_last_active_path().unwrap().as_deref(),
+    ///     Some("/ont/v2.ttl"),
+    /// );
+    /// ```
     pub fn set_last_active_path(&self, path: &str) -> Result<()> {
         self.conn().execute(
             "INSERT OR REPLACE INTO monitor_state (key, value) VALUES ('last_active_ontology_path', ?1)",
@@ -660,6 +786,31 @@ impl StateDb {
         Ok(())
     }
 
+    /// Remove the last-active-ontology-path record from the store.
+    ///
+    /// After this call, [`StateDb::get_last_active_path`] returns `None`.
+    /// Calling `clear_last_active_path` on a database that has no such
+    /// record is a no-op (returns `Ok`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use open_ontologies::state::StateDb;
+    /// use std::path::Path;
+    ///
+    /// let db = StateDb::open(Path::new(":memory:")).unwrap();
+    ///
+    /// // Set then clear.
+    /// db.set_last_active_path("/ont/tmp.ttl").unwrap();
+    /// assert!(db.get_last_active_path().unwrap().is_some());
+    ///
+    /// db.clear_last_active_path().unwrap();
+    /// assert_eq!(db.get_last_active_path().unwrap(), None);
+    ///
+    /// // Clearing an already-empty store is fine.
+    /// db.clear_last_active_path().unwrap();
+    /// assert_eq!(db.get_last_active_path().unwrap(), None);
+    /// ```
     pub fn clear_last_active_path(&self) -> Result<()> {
         self.conn().execute(
             "DELETE FROM monitor_state WHERE key = 'last_active_ontology_path'",
@@ -668,6 +819,39 @@ impl StateDb {
         Ok(())
     }
 
+    /// Return the `(name, triple_count)` of the most recently accessed cache
+    /// entry, or `None` if the compile cache is empty.
+    ///
+    /// The most-recent entry is determined by `last_access_at` DESC.  A
+    /// freshly opened in-memory database has no cache entries, so this
+    /// returns `None` until at least one row is inserted into
+    /// `ontology_cache`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use open_ontologies::state::StateDb;
+    /// use std::path::Path;
+    ///
+    /// let db = StateDb::open(Path::new(":memory:")).unwrap();
+    ///
+    /// // Empty cache → None.
+    /// assert_eq!(db.last_cache_entry().unwrap(), None);
+    ///
+    /// // Insert a synthetic cache row and verify the accessor returns it.
+    /// db.conn().execute(
+    ///     "INSERT INTO ontology_cache \
+    ///      (name, source_path, source_mtime, source_size, source_sha, \
+    ///       cache_path, triple_count, compiled_at, last_access_at) \
+    ///      VALUES ('pizza', '/ont/pizza.ttl', 0, 0, 'abc', \
+    ///              '/cache/pizza.nt', 42, datetime('now'), datetime('now'))",
+    ///     [],
+    /// ).unwrap();
+    ///
+    /// let (name, count) = db.last_cache_entry().unwrap().unwrap();
+    /// assert_eq!(name, "pizza");
+    /// assert_eq!(count, 42);
+    /// ```
     pub fn last_cache_entry(&self) -> Result<Option<(String, i64)>> {
         let conn = self.conn();
         let mut stmt = conn.prepare(
