@@ -70,6 +70,39 @@ pub struct ArchiveStats {
 /// One archived receipt as it appears in the hot table (and the
 /// Parquet shard). Mirrors the column set persisted by
 /// [`crate::receipts::persist_with_tenant_in_tx`].
+///
+/// # Examples
+///
+/// Fields are public so test code can construct `ArchivedReceipt` values
+/// directly without going through the database and Parquet pipeline.
+///
+/// ```
+/// use open_ontologies::receipt_archive::ArchivedReceipt;
+///
+/// let r = ArchivedReceipt {
+///     receipt_hash:            format!("{:064x}", 0xabu64),
+///     scope_token:             "order-to-cash".into(),
+///     session_id:              "sess-1".into(),
+///     artifact_hash:           format!("{:064x}", 0u64),
+///     declared_powl_hash:      format!("{:064x}", 0u64),
+///     ocel_canonical_hash:     format!("{:064x}", 0u64),
+///     gate_config_hash:        format!("{:064x}", 0u64),
+///     prior_receipt_hash:      None,
+///     production_law_version:  "ontostar-1.0.0".into(),
+///     granted_at:              "2026-01-01T00:00:00Z".into(),
+///     sequence:                1,
+///     tenant_id:               "default".into(),
+///     key_valid_at:            String::new(),
+///     shard_file:              "receipts-2026-01.parquet".into(),
+/// };
+///
+/// assert_eq!(r.sequence, 1);
+/// assert!(r.prior_receipt_hash.is_none());
+/// assert_eq!(r.shard_file, "receipts-2026-01.parquet");
+/// // receipt_hash is a 64-char lowercase hex string.
+/// assert_eq!(r.receipt_hash.len(), 64);
+/// assert!(r.receipt_hash.chars().all(|c| c.is_ascii_hexdigit()));
+/// ```
 #[derive(Debug, Clone)]
 pub struct ArchivedReceipt {
     pub receipt_hash: String,

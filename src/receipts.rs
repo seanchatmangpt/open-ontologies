@@ -233,6 +233,52 @@ pub fn persist_with_tenant(
 /// gate wrap `persist` + OCEL `emit_event` in a single atomic boundary so a
 /// receipt is never durable without its corresponding `admission_granted`
 /// event (or vice-versa).
+///
+/// # Examples
+///
+/// Two receipts written on the same transaction share an atomic commit
+/// boundary. Both become visible after `commit()`, or neither does on rollback.
+///
+/// ```
+/// use open_ontologies::receipts::{build, persist_with_tenant_in_tx, latest_for_session_in_tenant};
+/// use open_ontologies::production_record::ProductionRecord;
+/// use open_ontologies::state::StateDb;
+/// use std::path::Path;
+///
+/// let db  = StateDb::open(Path::new(":memory:")).unwrap();
+///
+/// let make_record = |scope: &str| ProductionRecord {
+///     artifact_hash:            [0u8; 32],
+///     scope_token:              scope.into(),
+///     declared_powl_hash:       [0u8; 32],
+///     ocel_canonical_hash:      [0u8; 32],
+///     conformance_run_id:       "run-tx".into(),
+///     gate_config_hash:         [0u8; 32],
+///     production_law_version:   "seed-v0".into(),
+///     defects_taxonomy_version: "ontostar-defects-4.8.0".into(),
+///     gates_passed:             vec![],
+///     gates_refused:            vec![],
+///     prior_receipt:            None,
+///     signature:                None,
+///     signing_key_fpr:          None,
+/// };
+///
+/// let r1 = build(make_record("p2p"));
+/// let r2 = build(make_record("o2c"));
+///
+/// {
+///     let mut conn = db.conn();
+///     let tx = conn.transaction().unwrap();
+///     persist_with_tenant_in_tx(&tx, &r1, "sess-tx", "alpha").unwrap();
+///     persist_with_tenant_in_tx(&tx, &r2, "sess-tx", "alpha").unwrap();
+///     tx.commit().unwrap();
+/// }
+///
+/// // Both receipts are now visible; the chain tip is the last one inserted.
+/// assert!(latest_for_session_in_tenant(&db, "sess-tx", "alpha").is_some());
+/// // Cross-tenant isolation: beta sees nothing.
+/// assert!(latest_for_session_in_tenant(&db, "sess-tx", "beta").is_none());
+/// ```
 pub fn persist_with_tenant_in_tx(
     tx: &rusqlite::Transaction<'_>,
     receipt: &Receipt,
@@ -509,6 +555,51 @@ fn comment_prefix_for(path: &std::path::Path) -> Option<&'static str> {
 /// whose extension does not support inline comments (returns `Ok(false)` for
 /// those, `Ok(true)` when the file was stamped). Best-effort: I/O errors
 /// surface to the caller.
+///
+/// # Examples
+///
+/// A `.rs` file is stamped (returns `true`); an extension-less binary blob
+/// is skipped (returns `false`).
+///
+/// ```
+/// use open_ontologies::receipts::{build, inject_comment_header};
+/// use open_ontologies::production_record::ProductionRecord;
+/// use tempfile::NamedTempFile;
+/// use std::io::Write;
+///
+/// let record = ProductionRecord {
+///     artifact_hash:            [0u8; 32],
+///     scope_token:              "test-inject".into(),
+///     declared_powl_hash:       [0u8; 32],
+///     ocel_canonical_hash:      [0u8; 32],
+///     conformance_run_id:       "run-inject".into(),
+///     gate_config_hash:         [0u8; 32],
+///     production_law_version:   "ontostar-1.0.0".into(),
+///     defects_taxonomy_version: "ontostar-defects-4.8.0".into(),
+///     gates_passed:             vec![],
+///     gates_refused:            vec![],
+///     prior_receipt:            None,
+///     signature:                None,
+///     signing_key_fpr:          None,
+/// };
+/// let receipt = build(record);
+///
+/// // Write a minimal Rust source file.
+/// let mut rs_file = NamedTempFile::with_suffix(".rs").unwrap();
+/// rs_file.write_all(b"fn main() {}\n").unwrap();
+/// let stamped = inject_comment_header(rs_file.path(), &receipt).unwrap();
+/// assert!(stamped, "`.rs` files should be stamped");
+///
+/// // The injected content begins with `// ostar-` comment lines.
+/// let contents = std::fs::read_to_string(rs_file.path()).unwrap();
+/// assert!(contents.starts_with("// ostar-production-law:"));
+/// assert!(contents.contains("fn main() {}"));
+///
+/// // A file with an unsupported extension is silently skipped.
+/// let bin_file = NamedTempFile::with_suffix(".bin").unwrap();
+/// let skipped = inject_comment_header(bin_file.path(), &receipt).unwrap();
+/// assert!(!skipped, "`.bin` files should be skipped");
+/// ```
 pub fn inject_comment_header(path: &std::path::Path, r: &Receipt) -> std::io::Result<bool> {
     let Some(prefix) = comment_prefix_for(path) else {
         return Ok(false);
