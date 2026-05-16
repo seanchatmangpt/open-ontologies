@@ -51,6 +51,62 @@ thread_local! {
 /// ```
 pub const OCEL_EVENTS_TABLE: &str = "ocel_events";
 
+/// OCEL event type emitted when a seed exemplar is generated from a POWL
+/// replay. Matched in [`OcelStore::seed_from_ocel_bytes`] (1 site) and in
+/// the `record_llm_invoked_full` helper event_id construction (1 site).
+/// Centralised so downstream OCEL consumers can reference the constant rather
+/// than a bare string.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::ocel_store::OCEL_EVENT_BUILD_ORDER_GENERATED;
+///
+/// assert_eq!(OCEL_EVENT_BUILD_ORDER_GENERATED, "build_order_generated");
+/// ```
+pub const OCEL_EVENT_BUILD_ORDER_GENERATED: &str = "build_order_generated";
+
+/// OCEL/JSON attribute key for the POWL model string stored in seed exemplar
+/// events. Used twice inside [`OcelStore::seed_from_ocel_bytes`] to extract
+/// the attribute from an incoming OCEL document.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::ocel_store::OCEL_ATTR_POWL_MODEL;
+///
+/// assert_eq!(OCEL_ATTR_POWL_MODEL, "powl_model");
+/// ```
+pub const OCEL_ATTR_POWL_MODEL: &str = "powl_model";
+
+/// OCEL/JSON attribute key for the domain string in seed exemplar events.
+/// Used twice inside [`OcelStore::seed_from_ocel_bytes`] to extract the domain
+/// from an incoming OCEL document (with fallback to `default_domain`).
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::ocel_store::OCEL_ATTR_DOMAIN;
+///
+/// assert_eq!(OCEL_ATTR_DOMAIN, "domain");
+/// ```
+pub const OCEL_ATTR_DOMAIN: &str = "domain";
+
+/// OCEL event type for a full LLM invocation record (prompt + completion
+/// hashes, optional redacted text). Emitted by [`record_llm_invoked_full`]
+/// and matched by the `AdmissionOp::LlmInvokedFull` discriminant in
+/// `admission.rs`. Appears twice in this file (event_id construction +
+/// emit call).
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::ocel_store::OCEL_EVENT_LLM_INVOKED_FULL;
+///
+/// assert_eq!(OCEL_EVENT_LLM_INVOKED_FULL, "llm_invoked_full");
+/// ```
+pub const OCEL_EVENT_LLM_INVOKED_FULL: &str = "llm_invoked_full";
+
 /// Insert OCEL event + attrs + relationships through a `Connection` (which
 /// transparently accepts a `&Transaction` via deref). Shared by the legacy
 /// `emit_event_in_tenant` (acquires its own conn) and the Phase 7 Task C.fix
@@ -1025,7 +1081,7 @@ impl OcelStore {
                 .or_else(|| ev.get("type"))
                 .and_then(|v| v.as_str())
                 .unwrap_or("");
-            if etype != "build_order_generated" {
+            if etype != OCEL_EVENT_BUILD_ORDER_GENERATED {
                 continue;
             }
             let attrs = ev
@@ -1038,16 +1094,16 @@ impl OcelStore {
                 attrs.get(k).and_then(|v| v.as_str()).unwrap_or("").to_string()
             };
             let problem = s("problem_statement");
-            let powl_model = if !s("powl_model").is_empty() {
-                s("powl_model")
+            let powl_model = if !s(OCEL_ATTR_POWL_MODEL).is_empty() {
+                s(OCEL_ATTR_POWL_MODEL)
             } else {
                 s("powl_string")
             };
             if powl_model.is_empty() {
                 continue;
             }
-            let domain = if !s("domain").is_empty() {
-                s("domain")
+            let domain = if !s(OCEL_ATTR_DOMAIN).is_empty() {
+                s(OCEL_ATTR_DOMAIN)
             } else {
                 default_domain.to_string()
             };
@@ -1208,7 +1264,8 @@ pub fn record_llm_invoked_full(
     // identical io collapse to a single OCEL row (idempotency required
     // by `tests/llm_invoked_full_replay.rs`).
     let event_id = format!(
-        "{session_id}:llm_invoked_full:{}:{}:{ts_ms}",
+        "{session_id}:{}:{}:{}:{ts_ms}",
+        OCEL_EVENT_LLM_INVOKED_FULL,
         &prompt_hash[..16],
         &completion_hash[..16]
     );
@@ -1233,7 +1290,7 @@ pub fn record_llm_invoked_full(
 
     if let Err(e) = store.emit_event_in_tenant(
         &event_id,
-        "llm_invoked_full",
+        OCEL_EVENT_LLM_INVOKED_FULL,
         &now,
         session_id,
         &attrs,
