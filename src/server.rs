@@ -11,7 +11,7 @@ use rmcp::{
     },
     service::RequestContext,
 };
-use crate::config::{expand_tilde, ENGINE_INPROC, ENGINE_GROQ_PM4PY, ENGINE_GEMINI};
+use crate::config::{expand_tilde, ENGINE_INPROC, ENGINE_GROQ_PM4PY};
 use crate::admission::{OCEL_KEY_PRODUCTION_LAW_VERSION, OCEL_KEY_RECEIPT_HASH, OCEL_KEY_DEFECTS_TAXONOMY_VERSION};
 use crate::registry::{NTRIPLES_FORMAT, TURTLE_FORMAT};
 use crate::graph::GraphStore;
@@ -6856,7 +6856,7 @@ impl OpenOntologiesServer {
             .unwrap_or(false);
 
         if !binary_found {
-            self.emit_tool_ocel("onto_gemini_status", started, false, &[]);
+            self.emit_tool_ocel(TOOL_GEMINI_STATUS, started, false, &[]);
             return serde_json::json!({
                 "ok": false,
                 "binary_found": false,
@@ -6881,7 +6881,7 @@ impl OpenOntologiesServer {
         };
 
         let ok = binary_found && oauth_active;
-        self.emit_tool_ocel("onto_gemini_status", started, ok, &[]);
+        self.emit_tool_ocel(TOOL_GEMINI_STATUS, started, ok, &[]);
         serde_json::json!({
             "ok": ok,
             "binary_found": binary_found,

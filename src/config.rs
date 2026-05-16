@@ -495,6 +495,10 @@ pub const ENGINE_INPROC: &str = "inproc";
 /// branches. Extracted from 14 sites in server.rs.
 pub const ENGINE_GROQ_PM4PY: &str = "groq_pm4py";
 
+/// LLM engine identifier: headless Gemini CLI via OAuth (no API key required).
+/// Appears in OCEL `"engine"` attribute positions and engine-dispatch branches.
+pub const ENGINE_GEMINI: &str = "gemini";
+
 /// Default Gemini model used by the headless CLI engine (`gemini` engine).
 /// Override via the `--model` flag or a future config key.
 pub const GEMINI_DEFAULT_MODEL: &str = "gemini-3.1-flash-lite-preview";
