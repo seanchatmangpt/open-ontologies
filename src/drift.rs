@@ -14,6 +14,31 @@ impl DriftDetector {
     }
 
     /// Detect drift between two Turtle strings.
+    ///
+    /// Returns a JSON string with keys: `added`, `removed`, `likely_renames`,
+    /// `drift_velocity`, `v1_count`, `v2_count`.
+    ///
+    /// ```
+    /// use open_ontologies::drift::DriftDetector;
+    /// use open_ontologies::state::StateDb;
+    /// use std::path::Path;
+    ///
+    /// let db = StateDb::open(Path::new(":memory:")).unwrap();
+    /// let detector = DriftDetector::new(db);
+    ///
+    /// let ttl = "@prefix owl: <http://www.w3.org/2002/07/owl#> .\n\
+    ///            <urn:ex:A> a owl:Class .";
+    ///
+    /// let result = detector.detect(ttl, ttl).unwrap();
+    /// let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+    ///
+    /// // Identical ontologies → zero drift velocity
+    /// assert_eq!(parsed["drift_velocity"].as_f64().unwrap(), 0.0);
+    ///
+    /// // No additions or removals
+    /// assert_eq!(parsed["added"].as_array().unwrap().len(), 0);
+    /// assert_eq!(parsed["removed"].as_array().unwrap().len(), 0);
+    /// ```
     pub fn detect(&self, v1_turtle: &str, v2_turtle: &str) -> anyhow::Result<String> {
         let store1 = Arc::new(GraphStore::new());
         let store2 = Arc::new(GraphStore::new());
@@ -106,6 +131,25 @@ impl DriftDetector {
     }
 
     /// Get learned weights from feedback. Returns 4 weights for: domain_range, label_sim, hierarchy, individuals.
+    ///
+    /// A fresh detector (fewer than 10 feedback rows) returns equal weights `[0.25, 0.25, 0.25, 0.25]`.
+    ///
+    /// ```
+    /// use open_ontologies::drift::DriftDetector;
+    /// use open_ontologies::state::StateDb;
+    /// use std::path::Path;
+    ///
+    /// let db = StateDb::open(Path::new(":memory:")).unwrap();
+    /// let detector = DriftDetector::new(db);
+    ///
+    /// let weights = detector.get_learned_weights();
+    ///
+    /// assert_eq!(weights.len(), 4);
+    /// // With no feedback data, all weights are equal
+    /// for w in &weights {
+    ///     assert!((w - 0.25).abs() < 1e-9);
+    /// }
+    /// ```
     pub fn get_learned_weights(&self) -> Vec<f64> {
         let conn = self.db.conn();
         let count: i64 = conn
@@ -335,6 +379,24 @@ fn local_name(iri: &str) -> &str {
 }
 
 /// Jaro-Winkler string similarity (public for testing).
+///
+/// Returns a value in `[0.0, 1.0]` where 1.0 means identical.
+///
+/// ```
+/// use open_ontologies::drift::jaro_winkler;
+///
+/// // Identical strings → 1.0
+/// assert!((jaro_winkler("ontology", "ontology") - 1.0).abs() < 1e-9);
+///
+/// // Completely different short strings → low score
+/// assert!(jaro_winkler("abc", "xyz") < 0.5);
+///
+/// // Both empty strings are equal → 1.0
+/// assert!((jaro_winkler("", "") - 1.0).abs() < 1e-9);
+///
+/// // One empty, one non-empty → 0.0
+/// assert_eq!(jaro_winkler("", "hello"), 0.0);
+/// ```
 pub fn jaro_winkler(s1: &str, s2: &str) -> f64 {
     if s1 == s2 {
         return 1.0;
