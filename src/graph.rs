@@ -520,6 +520,61 @@ impl GraphStore {
         Ok(String::from_utf8(buf)?)
     }
 
+    /// Return a JSON summary of the store: total triples, class count,
+    /// property count, and individual count.
+    ///
+    /// # Examples
+    ///
+    /// An empty store reports zero for every field:
+    ///
+    /// ```
+    /// use open_ontologies::graph::GraphStore;
+    ///
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let store = GraphStore::new();
+    /// let json = store.get_stats()?;
+    /// let v: serde_json::Value = serde_json::from_str(&json)?;
+    /// assert_eq!(v["triples"], 0);
+    /// assert_eq!(v["classes"], 0);
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// After loading a class triple the counts are non-zero:
+    ///
+    /// ```
+    /// use open_ontologies::graph::GraphStore;
+    ///
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let store = GraphStore::new();
+    /// store.load_turtle(
+    ///     "@prefix owl: <http://www.w3.org/2002/07/owl#> .\
+    ///      \n<urn:ex:A> a owl:Class .",
+    ///     None,
+    /// )?;
+    /// let json = store.get_stats()?;
+    /// let v: serde_json::Value = serde_json::from_str(&json)?;
+    /// assert!(v["triples"].as_u64().unwrap() >= 1);
+    /// assert!(v["classes"].as_u64().unwrap() >= 1);
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// The returned JSON always contains the `"triples"` key:
+    ///
+    /// ```
+    /// use open_ontologies::graph::GraphStore;
+    ///
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let store = GraphStore::new();
+    /// let json = store.get_stats()?;
+    /// let v: serde_json::Value = serde_json::from_str(&json)?;
+    /// assert!(v.get("triples").is_some());
+    /// assert!(v.get("classes").is_some());
+    /// assert!(v.get("properties").is_some());
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn get_stats(&self) -> anyhow::Result<String> {
         let store = self.store.lock().unwrap();
         let total = store.len()?;
