@@ -264,11 +264,25 @@ impl LlmInput {
     }
 
     /// Byte length of the sanitized payload.
+    ///
+    /// ```
+    /// # use open_ontologies::llm_input::{LlmInput, LlmInputKind};
+    /// let input = LlmInput::sanitize("abc", LlmInputKind::Evidence).unwrap();
+    /// assert_eq!(input.len(), 3);
+    /// ```
     pub fn len(&self) -> usize {
         self.text.len()
     }
 
     /// True iff the sanitized payload is empty.
+    ///
+    /// ```
+    /// # use open_ontologies::llm_input::{LlmInput, LlmInputKind};
+    /// let empty = LlmInput::sanitize("", LlmInputKind::Evidence).unwrap();
+    /// assert!(empty.is_empty());
+    /// let nonempty = LlmInput::sanitize("x", LlmInputKind::Evidence).unwrap();
+    /// assert!(!nonempty.is_empty());
+    /// ```
     pub fn is_empty(&self) -> bool {
         self.text.is_empty()
     }

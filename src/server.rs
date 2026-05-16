@@ -2829,20 +2829,37 @@ impl OpenOntologiesServer {
 
     #[tool(name = "onto_crosswalk", description = "Look up clinical crosswalk mappings for a code and system (ICD10, SNOMED, MeSH). Uses data/crosswalks.parquet (93-row sample included; run scripts/build_crosswalks.py to extend).")]
     async fn onto_crosswalk(&self, Parameters(input): Parameters<OntoCrosswalkInput>) -> String {
+        if input.code.trim().is_empty() {
+            return serde_json::json!({
+                "ok": false,
+                "error": "'code' is required — provide a term to look up (e.g. 'diabetes', 'M79.3', 'SNOMED:44054006')."
+            }).to_string();
+        }
         match crate::clinical::ClinicalCrosswalks::load("data/crosswalks.parquet") {
             Ok(cw) => {
                 let results = cw.lookup(&input.code, &input.source_system);
-                serde_json::json!({
-                    "code": input.code,
-                    "system": input.source_system,
-                    "mappings": results.iter().map(|r| serde_json::json!({
-                        "target_code": r.target_code,
-                        "target_system": r.target_system,
-                        "relation": r.relation,
-                        "source_label": r.source_label,
-                        "target_label": r.target_label,
-                    })).collect::<Vec<_>>(),
-                }).to_string()
+                if results.is_empty() {
+                    serde_json::json!({
+                        "ok": true,
+                        "code": input.code,
+                        "system": input.source_system,
+                        "mappings": [],
+                        "hint": format!("No mappings found for '{}'. Try a broader term or check onto_validate_clinical for coverage.", input.code),
+                    }).to_string()
+                } else {
+                    serde_json::json!({
+                        "ok": true,
+                        "code": input.code,
+                        "system": input.source_system,
+                        "mappings": results.iter().map(|r| serde_json::json!({
+                            "target_code": r.target_code,
+                            "target_system": r.target_system,
+                            "relation": r.relation,
+                            "source_label": r.source_label,
+                            "target_label": r.target_label,
+                        })).collect::<Vec<_>>(),
+                    }).to_string()
+                }
             }
             Err(e) => format!(r#"{{"error":"Crosswalks not loaded: {}. Run scripts/build_crosswalks.py first."}}"#, e),
         }
@@ -2850,16 +2867,66 @@ impl OpenOntologiesServer {
 
     #[tool(name = "onto_enrich", description = "Enrich an ontology class with a SKOS mapping triple from the clinical crosswalks.")]
     async fn onto_enrich(&self, Parameters(input): Parameters<OntoEnrichInput>) -> String {
+        if self.graph.triple_count() == 0 {
+            return serde_json::json!({
+                "ok": false,
+                "error": "No ontology loaded. Call onto_load first, then use onto_enrich to add skos:exactMatch triples linking classes to clinical codes."
+            }).to_string();
+        }
+        if input.code.trim().is_empty() {
+            return serde_json::json!({
+                "ok": false,
+                "error": "'code' is required — provide a clinical code (ICD-10, SNOMED, or MeSH). Use onto_crosswalk to discover valid codes first."
+            }).to_string();
+        }
         match crate::clinical::ClinicalCrosswalks::load("data/crosswalks.parquet") {
-            Ok(cw) => cw.enrich(&self.graph, &input.class_iri, &input.code, &input.system),
+            Ok(cw) => {
+                // Check that the class IRI exists in the loaded ontology before enriching
+                let iri_check = format!("ASK {{ <{}> ?p ?o }}", input.class_iri);
+                let iri_exists = self.graph.sparql_select(&iri_check)
+                    .ok()
+                    .and_then(|json| serde_json::from_str::<serde_json::Value>(&json).ok())
+                    .and_then(|v| v["result"].as_bool())
+                    .unwrap_or(false);
+                if !iri_exists {
+                    return serde_json::json!({
+                        "ok": false,
+                        "error": format!("IRI not found in loaded ontology: '{}'. Call onto_query with 'SELECT ?s WHERE {{ ?s a owl:Class }}' to list available classes.", input.class_iri),
+                    }).to_string();
+                }
+                cw.enrich(&self.graph, &input.class_iri, &input.code, &input.system)
+            }
             Err(e) => format!(r#"{{"error":"Crosswalks not loaded: {}"}}"#, e),
         }
     }
 
     #[tool(name = "onto_validate_clinical", description = "Validate all class labels in the loaded ontology against clinical crosswalk data. Shows which terms match known clinical codes.")]
     fn onto_validate_clinical(&self) -> String {
+        if self.graph.triple_count() == 0 {
+            return serde_json::json!({
+                "ok": false,
+                "error": "No ontology loaded. Call onto_load first."
+            }).to_string();
+        }
         match crate::clinical::ClinicalCrosswalks::load("data/crosswalks.parquet") {
-            Ok(cw) => cw.validate_clinical(&self.graph),
+            Ok(cw) => {
+                let result = cw.validate_clinical(&self.graph);
+                // If the crosswalk table is empty (no rows loaded), hint the user
+                let parsed: serde_json::Value = serde_json::from_str(&result).unwrap_or(serde_json::Value::Null);
+                if parsed["total_classes"].as_u64().unwrap_or(1) > 0
+                    && parsed["validated"].as_array().map(|v| v.is_empty()).unwrap_or(false)
+                    && parsed["unmatched"].as_array().map(|v| !v.is_empty()).unwrap_or(false)
+                {
+                    // Classes present but none matched — crosswalk may be empty or too sparse
+                    let mut out = parsed.clone();
+                    out["hint"] = serde_json::Value::String(
+                        "No class labels matched the crosswalk. Call onto_crosswalk to verify coverage for your coding system, or run scripts/build_crosswalks.py to extend the crosswalk data.".to_string()
+                    );
+                    out.to_string()
+                } else {
+                    result
+                }
+            }
             Err(e) => format!(r#"{{"error":"Crosswalks not loaded: {}"}}"#, e),
         }
     }
@@ -3356,6 +3423,18 @@ impl OpenOntologiesServer {
 
     #[tool(name = "onto_align_feedback", description = "Accept or reject an alignment candidate to improve future confidence scoring. Stores feedback in align_feedback table for self-calibrating weights. Audit-only admission.")]
     async fn onto_align_feedback(&self, Parameters(input): Parameters<OntoAlignFeedbackInput>) -> String {
+        if input.source_iri.trim().is_empty() {
+            return serde_json::json!({
+                "ok": false,
+                "error": "'source_iri' is required — use the source_iri field from an onto_align response."
+            }).to_string();
+        }
+        if input.target_iri.trim().is_empty() {
+            return serde_json::json!({
+                "ok": false,
+                "error": "'target_iri' is required — use the target_iri field from an onto_align response."
+            }).to_string();
+        }
         self.evaluate_admission_audit(
             crate::admission::AdmissionOp::Feedback,
             None,
@@ -3368,7 +3447,18 @@ impl OpenOntologiesServer {
                 self.lineage().record(&self.session_id, "AF", "align_feedback", if input.accepted { "accepted" } else { "rejected" });
                 result
             }
-            Err(e) => format!(r#"{{"error":"{}"}}"#, e),
+            Err(e) => {
+                let msg = e.to_string();
+                // Surface a friendlier message if the candidate pair was not found in the DB
+                if msg.contains("no rows") || msg.contains("not found") {
+                    serde_json::json!({
+                        "ok": false,
+                        "error": format!("Alignment candidate ('{}' → '{}') not found. Run onto_align first to generate candidates.", input.source_iri, input.target_iri),
+                    }).to_string()
+                } else {
+                    format!(r#"{{"error":"{}"}}"#, msg)
+                }
+            }
         }
     }
 
