@@ -27,6 +27,79 @@ use serde::{Deserialize, Serialize};
 /// ```
 pub const STREAM3_STUB_MIGRATION: &str = "-- stream-3 backstop: schema lives in state.rs\n";
 
+/// A sealed proof of a manufacturing step.
+///
+/// Constructed by [`build`]. Carries the 32-byte BLAKE3 hash of the
+/// [`ProductionRecord`] and the record itself. Two receipts built from
+/// identical records yield identical `bytes`.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::receipts::build;
+/// use open_ontologies::production_record::ProductionRecord;
+///
+/// let record = ProductionRecord {
+///     artifact_hash:            [1u8; 32],
+///     scope_token:              "order-to-cash".into(),
+///     declared_powl_hash:       [0u8; 32],
+///     ocel_canonical_hash:      [0u8; 32],
+///     conformance_run_id:       "run-struct".into(),
+///     gate_config_hash:         [0u8; 32],
+///     production_law_version:   "ontostar-1.0.0".into(),
+///     defects_taxonomy_version: "ontostar-defects-4.8.0".into(),
+///     gates_passed:             vec!["A1_WorkflowDeclared".into()],
+///     gates_refused:            vec![],
+///     prior_receipt:            None,
+///     signature:                None,
+///     signing_key_fpr:          None,
+/// };
+/// let receipt = build(record);
+///
+/// // Field access: bytes is the raw 32-byte BLAKE3 digest.
+/// assert_eq!(receipt.bytes.len(), 32);
+/// // record field carries back the original production record.
+/// assert_eq!(receipt.record.scope_token, "order-to-cash");
+/// assert_eq!(receipt.record.gates_passed, vec!["A1_WorkflowDeclared"]);
+/// // prior_receipt is None for a seed receipt (first in chain).
+/// assert!(receipt.record.prior_receipt.is_none());
+/// ```
+///
+/// Chain link construction — seed → child:
+///
+/// ```
+/// use open_ontologies::receipts::{build, is_valid_hex_hash};
+/// use open_ontologies::production_record::ProductionRecord;
+///
+/// fn record(scope: &str, prior: Option<[u8; 32]>) -> ProductionRecord {
+///     ProductionRecord {
+///         artifact_hash:            [0u8; 32],
+///         scope_token:              scope.into(),
+///         declared_powl_hash:       [0u8; 32],
+///         ocel_canonical_hash:      [0u8; 32],
+///         conformance_run_id:       "run-link".into(),
+///         gate_config_hash:         [0u8; 32],
+///         production_law_version:   "ontostar-1.0.0".into(),
+///         defects_taxonomy_version: "ontostar-defects-4.8.0".into(),
+///         gates_passed:             vec![],
+///         gates_refused:            vec![],
+///         prior_receipt:            prior,
+///         signature:                None,
+///         signing_key_fpr:          None,
+///     }
+/// }
+///
+/// // Seed: first link has no parent.
+/// let seed = build(record("seed", None));
+/// assert!(seed.record.prior_receipt.is_none());
+/// assert!(is_valid_hex_hash(&seed.hex()));
+///
+/// // Child: references seed's bytes as its parent_hash.
+/// let child = build(record("child", Some(seed.bytes)));
+/// assert_eq!(child.record.prior_receipt, Some(seed.bytes));
+/// assert_ne!(child.bytes, seed.bytes);
+/// assert!(is_valid_hex_hash(&child.hex()));
+/// ```
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Receipt {
     /// BLAKE3 over the canonical `ProductionRecord` bytes.

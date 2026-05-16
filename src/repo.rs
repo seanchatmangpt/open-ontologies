@@ -15,6 +15,21 @@ use anyhow::{anyhow, Result};
 
 /// File extensions the RDF parser (`GraphStore::detect_format`) accepts.
 /// Lowercased, without the leading dot. Keep in sync with `graph.rs`.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::repo::RDF_EXTENSIONS;
+///
+/// // Core RDF serialisation formats are included.
+/// assert!(RDF_EXTENSIONS.contains(&"ttl"));
+/// assert!(RDF_EXTENSIONS.contains(&"owl"));
+/// assert!(RDF_EXTENSIONS.contains(&"nt"));
+/// // Non-RDF formats are not included.
+/// assert!(!RDF_EXTENSIONS.contains(&"txt"));
+/// assert!(!RDF_EXTENSIONS.contains(&"csv"));
+/// assert!(!RDF_EXTENSIONS.contains(&"json"));
+/// ```
 pub const RDF_EXTENSIONS: &[&str] = &[
     "ttl", "turtle", "nt", "ntriples", "rdf", "xml", "owl", "nq", "trig", "jsonld",
 ];
@@ -30,6 +45,30 @@ pub const RDF_EXTENSIONS: &[&str] = &[
 /// assert!(!has_rdf_extension(Path::new("notes.txt")));
 /// assert!(!has_rdf_extension(Path::new("no_extension")));
 /// ```
+///
+/// Extension filtering — recognised formats include `.ttl`, `.nt`, `.owl`, and more:
+///
+/// ```
+/// use std::path::Path;
+/// use open_ontologies::repo::has_rdf_extension;
+///
+/// // All standard RDF/OWL extensions are recognised.
+/// for ext in &["ttl", "turtle", "nt", "ntriples", "rdf", "owl", "nq", "trig", "jsonld"] {
+///     let path_str = format!("ontology.{ext}");
+///     assert!(has_rdf_extension(Path::new(&path_str)), "expected true for .{ext}");
+/// }
+///
+/// // Non-RDF extensions are rejected.
+/// for ext in &["n3", "txt", "csv", "json", "rs", "toml", "yaml"] {
+///     let path_str = format!("data.{ext}");
+///     assert!(!has_rdf_extension(Path::new(&path_str)),
+///             "expected false for .{ext}");
+/// }
+///
+/// // Case-insensitive matching works for all recognised formats.
+/// assert!(has_rdf_extension(Path::new("SCHEMA.TTL")));
+/// assert!(has_rdf_extension(Path::new("data.NQ")));
+/// ```
 pub fn has_rdf_extension(path: &Path) -> bool {
     path.extension()
         .and_then(|e| e.to_str())
@@ -41,6 +80,28 @@ pub fn has_rdf_extension(path: &Path) -> bool {
 }
 
 /// One discovered ontology file within a configured repo directory.
+///
+/// # Examples
+///
+/// ```
+/// use std::path::PathBuf;
+/// use open_ontologies::repo::RepoEntry;
+///
+/// // Construct a RepoEntry directly to verify field access.
+/// let entry = RepoEntry {
+///     path:      PathBuf::from("/repo/ontology/pizza.ttl"),
+///     relative:  PathBuf::from("ontology/pizza.ttl"),
+///     repo_dir:  PathBuf::from("/repo"),
+///     name:      "pizza".into(),
+///     size:      1024,
+///     mtime_secs: 1_700_000_000,
+/// };
+///
+/// assert_eq!(entry.name, "pizza");
+/// assert_eq!(entry.size, 1024);
+/// assert_eq!(entry.relative, PathBuf::from("ontology/pizza.ttl"));
+/// assert_eq!(entry.repo_dir, PathBuf::from("/repo"));
+/// ```
 #[derive(Debug, Clone)]
 pub struct RepoEntry {
     /// Absolute path on disk.
@@ -206,6 +267,28 @@ fn walk(repo_dir: &Path, start: &Path, recursive: bool, out: &mut Vec<RepoEntry>
 /// );
 /// assert!(entries.is_empty());
 /// ```
+///
+/// File extension filtering — only RDF files are returned, not `.txt` or `.rs`:
+///
+/// ```
+/// use std::io::Write;
+/// use open_ontologies::repo::list_one;
+///
+/// let dir = tempfile::tempdir().unwrap();
+/// let d = dir.path();
+///
+/// // Write one RDF file and two non-RDF files.
+/// std::fs::write(d.join("pizza.ttl"), b"@prefix owl: <http://www.w3.org/2002/07/owl#> .").unwrap();
+/// std::fs::write(d.join("notes.txt"), b"plain text").unwrap();
+/// std::fs::write(d.join("lib.rs"),    b"fn main() {}").unwrap();
+///
+/// let entries = list_one(d, d, false);
+///
+/// // Only the .ttl file is returned.
+/// assert_eq!(entries.len(), 1);
+/// assert_eq!(entries[0].name, "pizza");
+/// assert_eq!(entries[0].repo_dir, d);
+/// ```
 pub fn list_one(repo_dir: &Path, start: &Path, recursive: bool) -> Vec<RepoEntry> {
     let mut out = Vec::new();
     walk(repo_dir, start, recursive, &mut out);
@@ -225,6 +308,23 @@ pub fn list_one(repo_dir: &Path, start: &Path, recursive: bool) -> Vec<RepoEntry
 ///
 /// // No configured repos → no entries.
 /// assert!(list_all(&[], false).is_empty());
+/// ```
+///
+/// `discover()` — empty directory returns empty list; non-empty returns only RDF files:
+///
+/// ```
+/// use open_ontologies::repo::list_all;
+///
+/// // Empty temp directory → no entries (discover returns empty list).
+/// let dir = tempfile::tempdir().unwrap();
+/// assert!(list_all(&[dir.path().to_path_buf()], false).is_empty());
+///
+/// // Add an OWL file and a non-RDF file; only the OWL file is discovered.
+/// std::fs::write(dir.path().join("schema.owl"), b"").unwrap();
+/// std::fs::write(dir.path().join("readme.md"),  b"# docs").unwrap();
+/// let entries = list_all(&[dir.path().to_path_buf()], false);
+/// assert_eq!(entries.len(), 1);
+/// assert_eq!(entries[0].name, "schema");
 /// ```
 pub fn list_all(repos: &[PathBuf], recursive: bool) -> Vec<RepoEntry> {
     let mut out = Vec::new();
