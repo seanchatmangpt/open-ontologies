@@ -29,6 +29,11 @@ use crate::state::StateDb;
 /// Passed to `GraphStore::serialize` and friends wherever the cache is written.
 pub const NTRIPLES_FORMAT: &str = "ntriples";
 
+/// RDF serialization format string for Turtle (`.ttl`).
+/// Passed to `GraphStore::serialize` and `GraphStore::save_file` at 3 sites in
+/// server.rs; a typo here produces an unserializable artifact silently.
+pub const TURTLE_FORMAT: &str = "turtle";
+
 /// Options accepted by `OntologyRegistry::load_file`.
 #[derive(Debug, Clone, Default)]
 pub struct LoadOptions {
