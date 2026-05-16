@@ -8,9 +8,31 @@ use tract_onnx::prelude::*;
 
 use crate::poincare::l2_normalize;
 
-/// Model download URLs for bge-small-en-v1.5
+/// Model download URL for the ONNX model file (bge-small-en-v1.5).
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::embed::BGE_SMALL_ONNX_URL;
+///
+/// // URL must point to Hugging Face and end with the expected filename.
+/// assert!(BGE_SMALL_ONNX_URL.starts_with("https://huggingface.co/"));
+/// assert!(BGE_SMALL_ONNX_URL.ends_with("model.onnx"));
+/// ```
 pub const BGE_SMALL_ONNX_URL: &str =
     "https://huggingface.co/BAAI/bge-small-en-v1.5/resolve/main/onnx/model.onnx";
+
+/// Model download URL for the tokenizer JSON file (bge-small-en-v1.5).
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::embed::BGE_SMALL_TOKENIZER_URL;
+///
+/// // URL must point to Hugging Face and end with tokenizer.json.
+/// assert!(BGE_SMALL_TOKENIZER_URL.starts_with("https://huggingface.co/"));
+/// assert!(BGE_SMALL_TOKENIZER_URL.ends_with("tokenizer.json"));
+/// ```
 pub const BGE_SMALL_TOKENIZER_URL: &str =
     "https://huggingface.co/BAAI/bge-small-en-v1.5/resolve/main/tokenizer.json";
 
@@ -177,13 +199,13 @@ impl TextEmbedderProvider {
     /// the configured provider cannot be initialised (e.g. local model files
     /// missing) so the server can start without embedding tools wired up.
     ///
-    /// ```no_run
+    /// ```
     /// # use open_ontologies::embed::TextEmbedderProvider;
     /// # use open_ontologies::config::EmbeddingsConfig;
-    /// // A default config with no model files on disk returns Ok(None).
+    /// // A default config with no model paths set and no ONNX files on disk
+    /// // returns Ok(None) — the server starts without embedding tools.
     /// let cfg = EmbeddingsConfig::default();
     /// let provider = TextEmbedderProvider::from_config(&cfg).unwrap();
-    /// // provider is None when model files are absent.
     /// assert!(provider.is_none());
     /// ```
     pub fn from_config(cfg: &crate::config::EmbeddingsConfig) -> anyhow::Result<Option<Self>> {
@@ -272,6 +294,22 @@ impl TextEmbedderProvider {
     }
 
     /// Output dimension of the embedding vectors.
+    ///
+    /// Returns the embedding dimensionality: `384` for the default local
+    /// `bge-small-en-v1.5` ONNX model, or the configured `dimensions` for
+    /// OpenAI-compatible providers.
+    ///
+    /// ```no_run
+    /// # use open_ontologies::embed::TextEmbedderProvider;
+    /// # use open_ontologies::config::EmbeddingsConfig;
+    /// # let provider = TextEmbedderProvider::from_config(
+    /// #     &EmbeddingsConfig { model_path: Some("/path/to/model.onnx".into()),
+    /// #                        tokenizer_path: Some("/path/to/tokenizer.json".into()),
+    /// #                        ..EmbeddingsConfig::default() }
+    /// # ).unwrap().unwrap();
+    /// // The local bge-small-en-v1.5 model always produces 384-dimensional vectors.
+    /// assert_eq!(provider.dim(), 384);
+    /// ```
     pub fn dim(&self) -> usize {
         match self {
             Self::Local(e) => e.dim(),
@@ -280,6 +318,20 @@ impl TextEmbedderProvider {
     }
 
     /// Short provider identifier ("local" or "openai") for diagnostics.
+    ///
+    /// Returns `"local"` for the ONNX/tract backend and `"openai"` for any
+    /// OpenAI-compatible HTTP API (including Ollama, vLLM, Azure OpenAI, etc.).
+    ///
+    /// ```no_run
+    /// # use open_ontologies::embed::TextEmbedderProvider;
+    /// # use open_ontologies::config::EmbeddingsConfig;
+    /// # let local_provider = TextEmbedderProvider::from_config(
+    /// #     &EmbeddingsConfig { model_path: Some("/path/to/model.onnx".into()),
+    /// #                        tokenizer_path: Some("/path/to/tokenizer.json".into()),
+    /// #                        ..EmbeddingsConfig::default() }
+    /// # ).unwrap().unwrap();
+    /// assert_eq!(local_provider.provider_name(), "local");
+    /// ```
     pub fn provider_name(&self) -> &'static str {
         match self {
             Self::Local(_) => "local",
@@ -289,6 +341,23 @@ impl TextEmbedderProvider {
 }
 
 /// Download a file from URL to a local path.
+///
+/// Issues a GET request to `url` and writes the response body to `dest`.
+/// Returns an error if the HTTP status is not 2xx or if the file cannot be
+/// written.
+///
+/// ```no_run
+/// # use std::path::Path;
+/// # async fn example() -> anyhow::Result<()> {
+/// use open_ontologies::embed::{download_model_file, BGE_SMALL_TOKENIZER_URL};
+///
+/// // Download the tokenizer to a temporary path.
+/// let dest = Path::new("/tmp/tokenizer-test.json");
+/// download_model_file(BGE_SMALL_TOKENIZER_URL, dest).await?;
+/// assert!(dest.exists());
+/// # Ok(())
+/// # }
+/// ```
 pub async fn download_model_file(url: &str, dest: &Path) -> Result<()> {
     let client = reqwest::Client::new();
     let resp = client
