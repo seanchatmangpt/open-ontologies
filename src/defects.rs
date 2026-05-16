@@ -254,6 +254,43 @@ impl DefectClass {
     /// );
     /// assert_eq!(DefectClass::BootstrapChainTooShort.tag(), "bootstrap_chain_too_short");
     /// ```
+    ///
+    /// Tags are stable across struct-variant field additions — only the variant
+    /// identity matters, not its payload:
+    ///
+    /// ```
+    /// use open_ontologies::defects::DefectClass;
+    ///
+    /// // Unit variants
+    /// assert_eq!(DefectClass::ReceiptMissing.tag(), "receipt_missing");
+    /// assert_eq!(DefectClass::ArchitectureUnbound.tag(), "architecture_unbound");
+    /// assert_eq!(DefectClass::AttestationMissing.tag(), "attestation_missing");
+    ///
+    /// // Struct variants — payload does not affect the tag
+    /// assert_eq!(
+    ///     DefectClass::ThresholdFailed { metric: "fitness".into(), observed: 0.5, required: 0.8 }.tag(),
+    ///     "threshold_failed"
+    /// );
+    /// assert_eq!(
+    ///     DefectClass::TenantBoundary { from: "acme".into(), to: "globex".into() }.tag(),
+    ///     "tenant_boundary"
+    /// );
+    /// assert_eq!(
+    ///     DefectClass::ReplayDivergence { expected: "abc".into(), observed: "def".into() }.tag(),
+    ///     "replay_divergence"
+    /// );
+    /// ```
+    ///
+    /// `LlmAuthorityClaimed` and `BypassRevoked` default their optional fields
+    /// to empty strings for forward-compat; the tag is still stable:
+    ///
+    /// ```
+    /// use open_ontologies::defects::DefectClass;
+    /// let d = DefectClass::LlmAuthorityClaimed { reason: String::new(), remediation: String::new() };
+    /// assert_eq!(d.tag(), "llm_authority_claimed");
+    /// let d2 = DefectClass::BypassRevoked { reason: "expired".into() };
+    /// assert_eq!(d2.tag(), "bypass_revoked");
+    /// ```
     pub fn tag(&self) -> &'static str {
         match self {
             DefectClass::CapabilityZero => "capability_zero",
@@ -294,6 +331,26 @@ impl DefectClass {
     /// Tag list in declaration order. The hash of this list (NUL-separated)
     /// is pinned in [`DEFECTS_TAXONOMY_DISCRIMINANT_HASH`]. Any variant
     /// add/rename/remove changes the hash and forces a taxonomy version bump.
+    ///
+    /// # Examples
+    ///
+    /// The list is non-empty and every entry is a non-empty ASCII string:
+    ///
+    /// ```
+    /// use open_ontologies::defects::DefectClass;
+    /// let tags = DefectClass::all_tags();
+    /// assert!(!tags.is_empty());
+    /// assert!(tags.iter().all(|t| !t.is_empty()));
+    /// ```
+    ///
+    /// Known boundary tags appear at predictable positions (first and last):
+    ///
+    /// ```
+    /// use open_ontologies::defects::DefectClass;
+    /// let tags = DefectClass::all_tags();
+    /// assert_eq!(tags[0], "capability_zero");
+    /// assert_eq!(*tags.last().unwrap(), "bootstrap_chain_too_short");
+    /// ```
     pub const fn all_tags() -> &'static [&'static str] {
         &[
             "capability_zero",
@@ -738,6 +795,42 @@ fn stage_to_tool(stage: &str) -> Option<&'static str> {
 }
 
 /// Evidence carried alongside a [`DefectClass`] explaining the deviation.
+///
+/// # Examples
+///
+/// Construct a `Deviation` and round-trip it through JSON:
+///
+/// ```
+/// use open_ontologies::defects::Deviation;
+/// let dev = Deviation {
+///     kind: "skipped_task".into(),
+///     stage: "enforce_run".into(),
+///     detail: "stage missing in OCEL trace".into(),
+///     expected: Some("enforce_run".into()),
+///     actual: None,
+/// };
+/// assert_eq!(dev.kind, "skipped_task");
+/// assert!(dev.actual.is_none());
+/// let json = serde_json::to_string(&dev).unwrap();
+/// let back: Deviation = serde_json::from_str(&json).unwrap();
+/// assert_eq!(back, dev);
+/// ```
+///
+/// A `Deviation` with both `expected` and `actual` populated captures
+/// the full mismatch context:
+///
+/// ```
+/// use open_ontologies::defects::Deviation;
+/// let dev = Deviation {
+///     kind: "wrong_order".into(),
+///     stage: "validate".into(),
+///     detail: "stage executed before load".into(),
+///     expected: Some("load".into()),
+///     actual: Some("validate".into()),
+/// };
+/// assert_eq!(dev.expected.as_deref(), Some("load"));
+/// assert_eq!(dev.actual.as_deref(), Some("validate"));
+/// ```
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Deviation {
     pub kind: String,
