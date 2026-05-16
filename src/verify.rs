@@ -46,6 +46,25 @@ use crate::state::StateDb;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 
+// ─── Magic-string constants ───────────────────────────────────────────────────
+
+/// Verdict kind tag emitted when the BLAKE3 body hash does not match the
+/// value stored in the artifact header or sidecar.
+const BODY_HASH_MISMATCH: &str = "body_hash_mismatch";
+
+/// `source` value on [`Verdict::Admitted`] when the receipt was read from a
+/// cold-storage Parquet archive rather than the live `receipts` SQL table.
+const SOURCE_ARCHIVE: &str = "archive";
+
+/// JSON key used in the IaC sidecar receipt for the committed artifact hash.
+const SIDECAR_KEY_ARTIFACT_HASH: &str = "artifact_hash";
+
+/// JSON key used in the IaC sidecar receipt for the work-order receipt hex.
+const SIDECAR_KEY_WORK_ORDER_RECEIPT: &str = "work_order_receipt";
+
+/// JSON key used in the IaC sidecar receipt for the list of bundled files.
+const SIDECAR_KEY_FILES: &str = "files";
+
 // ─── R7 WA2 — A2 V1 Receipt-Chain Verifier ─────────────────────────────────
 //
 // Pure deterministic check that a receipt row is consistent with the
@@ -107,17 +126,87 @@ pub enum VerifierError {
 impl VerifierError {
     /// Whether this verdict warrants pausing retention. Failures pause;
     /// expired-key warnings do not.
+    ///
+    /// `SignatureExpiredKey` is a retroactive-rotation warning; the receipt
+    /// was signed within the key's valid window, so retention continues.
+    /// Every other variant is a tamper signal and pauses retention.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use open_ontologies::verify::VerifierError;
+    ///
+    /// // Expired-key variant: warning only — does NOT pause retention.
+    /// let warn = VerifierError::SignatureExpiredKey {
+    ///     granted_at: "2026-01-10T00:00:00Z".into(),
+    ///     removed_at: "2026-01-09T00:00:00Z".into(),
+    /// };
+    /// assert!(!warn.is_failure());
+    ///
+    /// // UnknownKey: tamper signal — IS a failure.
+    /// let bad_key = VerifierError::UnknownKey {
+    ///     key_valid_at: "2026-01-01T00:00:00Z".into(),
+    /// };
+    /// assert!(bad_key.is_failure());
+    ///
+    /// // BodyHashMismatch: always a failure.
+    /// let hash_fail = VerifierError::BodyHashMismatch {
+    ///     receipt_hash: "abc123".into(),
+    /// };
+    /// assert!(hash_fail.is_failure());
+    /// ```
     pub fn is_failure(&self) -> bool {
         !matches!(self, VerifierError::SignatureExpiredKey { .. })
     }
 
     /// Human-readable kind tag, used for OCEL attribute and log fields.
+    ///
+    /// Each variant maps to a stable lowercase-snake-case string that
+    /// appears verbatim in OCEL event logs and monitoring dashboards.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use open_ontologies::verify::VerifierError;
+    ///
+    /// assert_eq!(
+    ///     VerifierError::SignatureExpiredKey {
+    ///         granted_at: "2026-01-10T00:00:00Z".into(),
+    ///         removed_at: "2026-01-09T00:00:00Z".into(),
+    ///     }.kind(),
+    ///     "signature_expired_key"
+    /// );
+    ///
+    /// assert_eq!(
+    ///     VerifierError::UnknownKey {
+    ///         key_valid_at: "2026-01-01T00:00:00Z".into(),
+    ///     }.kind(),
+    ///     "unknown_key"
+    /// );
+    ///
+    /// assert_eq!(
+    ///     VerifierError::SignatureCorrupted {
+    ///         reason: "granted_before_key_added",
+    ///         granted_at: "2025-12-01T00:00:00Z".into(),
+    ///         key_valid_at: "2026-01-01T00:00:00Z".into(),
+    ///         removed_at: None,
+    ///     }.kind(),
+    ///     "signature_corrupted"
+    /// );
+    ///
+    /// assert_eq!(
+    ///     VerifierError::BodyHashMismatch {
+    ///         receipt_hash: "deadbeef".into(),
+    ///     }.kind(),
+    ///     "body_hash_mismatch"
+    /// );
+    /// ```
     pub fn kind(&self) -> &'static str {
         match self {
             VerifierError::SignatureExpiredKey { .. } => "signature_expired_key",
             VerifierError::UnknownKey { .. } => "unknown_key",
             VerifierError::SignatureCorrupted { .. } => "signature_corrupted",
-            VerifierError::BodyHashMismatch { .. } => "body_hash_mismatch",
+            VerifierError::BodyHashMismatch { .. } => BODY_HASH_MISMATCH,
         }
     }
 }
@@ -142,6 +231,48 @@ impl VerifierError {
 /// Invariant: the verdict depends ONLY on `(row, history_row)`. No
 /// network calls, no LLM, no clock reads — the same inputs always
 /// produce the same verdict.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::verify::{crypto_verify, VerifierError, VerifierReceiptRow};
+/// use open_ontologies::state::StateDb;
+/// use std::path::Path;
+///
+/// let db = StateDb::open(Path::new(":memory:")).unwrap();
+///
+/// // Legacy unsigned row (empty key_valid_at) — always passes.
+/// let legacy = VerifierReceiptRow {
+///     receipt_hash: "abc".into(),
+///     sequence: 1,
+///     session_id: "s1".into(),
+///     scope_token: "tok".into(),
+///     granted_at: "2026-01-10T00:00:00Z".into(),
+///     key_valid_at: "".into(),
+/// };
+/// assert!(crypto_verify(&legacy, &db).is_ok());
+/// ```
+///
+/// ```
+/// use open_ontologies::verify::{crypto_verify, VerifierError, VerifierReceiptRow};
+/// use open_ontologies::state::StateDb;
+/// use std::path::Path;
+///
+/// let db = StateDb::open(Path::new(":memory:")).unwrap();
+///
+/// // Non-empty key_valid_at that has no matching row in
+/// // trusted_keys_history → UnknownKey error.
+/// let row = VerifierReceiptRow {
+///     receipt_hash: "abc".into(),
+///     sequence: 1,
+///     session_id: "s1".into(),
+///     scope_token: "tok".into(),
+///     granted_at: "2026-01-10T00:00:00Z".into(),
+///     key_valid_at: "2026-01-01T00:00:00Z".into(),
+/// };
+/// let err = crypto_verify(&row, &db).unwrap_err();
+/// assert_eq!(err.kind(), "unknown_key");
+/// ```
 pub fn crypto_verify(
     row: &VerifierReceiptRow,
     db: &StateDb,
@@ -223,6 +354,34 @@ fn compare_rfc3339(a: &str, b: &str) -> Option<std::cmp::Ordering> {
 }
 
 /// Result of verifying one artifact.
+///
+/// Serializes with an internal `"verdict"` tag so external audit tooling
+/// can pattern-match on the variant name without knowing the Rust type.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::verify::Verdict;
+///
+/// // Admitted serializes with verdict = "Admitted"; empty `source` is omitted.
+/// let v = Verdict::Admitted {
+///     receipt_hash: "deadbeef".into(),
+///     scope_token: "my-scope".into(),
+///     source: String::new(),
+/// };
+/// let json = serde_json::to_string(&v).unwrap();
+/// assert!(json.contains(r#""verdict":"Admitted""#));
+/// assert!(json.contains(r#""receipt_hash":"deadbeef""#));
+/// // `source` is skip_serializing_if = is_empty, so absent for empty string.
+/// assert!(!json.contains("source"));
+///
+/// // Non-admitted variants carry the variant name as the tag value.
+/// let orphaned = Verdict::Orphaned {
+///     missing_event: "receipt abc not in db".into(),
+/// };
+/// let j2 = serde_json::to_string(&orphaned).unwrap();
+/// assert!(j2.contains(r#""verdict":"Orphaned""#));
+/// ```
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(tag = "verdict")]
 pub enum Verdict {
@@ -265,6 +424,35 @@ pub enum Verdict {
 }
 
 impl Verdict {
+    /// Returns `true` only for the `Admitted` variant.
+    ///
+    /// The CLI exits non-zero on any verdict that is not `Admitted`.
+    /// Use this predicate in pipeline code to decide whether to continue
+    /// after calling [`verify_artifact`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use open_ontologies::verify::Verdict;
+    ///
+    /// let admitted = Verdict::Admitted {
+    ///     receipt_hash: "deadbeef".into(),
+    ///     scope_token: "my-scope".into(),
+    ///     source: String::new(),
+    /// };
+    /// assert!(admitted.is_admitted());
+    ///
+    /// let tampered = Verdict::Tampered {
+    ///     mismatch_at: "foo.rs".into(),
+    ///     expected: "aaa".into(),
+    ///     actual: "bbb".into(),
+    ///     reason: "body_hash_mismatch".into(),
+    /// };
+    /// assert!(!tampered.is_admitted());
+    ///
+    /// assert!(!Verdict::Orphaned { missing_event: "receipt abc not in db".into() }.is_admitted());
+    /// assert!(!Verdict::UnknownChain { reason: "unsupported format".into() }.is_admitted());
+    /// ```
     pub fn is_admitted(&self) -> bool {
         matches!(self, Verdict::Admitted { .. })
     }
@@ -283,6 +471,27 @@ pub struct ChainLink {
 
 /// Re-export of the strip helper so external callers can do their own
 /// verification using the same line-stripping rules as `verify_artifact`.
+///
+/// Strips the leading contiguous block of `<prefix> ostar-*` header lines
+/// and returns the remaining body bytes unchanged. The body is what gets
+/// BLAKE3-hashed and compared to the `ostar-artifact-hash` field.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::verify::strip_receipt_header;
+///
+/// // Rust-style `//` header is removed; the body is returned verbatim.
+/// let src = "// ostar-production-law: urn:x\n\
+///            // ostar-artifact-hash: deadbeef\n\
+///            fn main() {}\n";
+/// let body = strip_receipt_header(src, "//");
+/// assert_eq!(body, "fn main() {}\n");
+///
+/// // Input with no ostar header lines is returned unchanged.
+/// let plain = "fn main() {}\n";
+/// assert_eq!(strip_receipt_header(plain, "//"), plain);
+/// ```
 pub use crate::manufacturing::validators::strip_header as strip_receipt_header;
 
 // ─── public entry points ─────────────────────────────────────────────────
@@ -355,6 +564,21 @@ pub fn verify_iac_bundle(dir: &Path, db: Option<&StateDb>) -> Verdict {
 /// origin (no prior) is reached or a link is missing. The returned vec
 /// is ordered from the supplied receipt back to the origin (or last
 /// reachable link).
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::verify::walk_receipt_chain;
+/// use open_ontologies::state::StateDb;
+/// use std::path::Path;
+///
+/// // An empty database contains no receipts — the walk returns an
+/// // empty vec immediately because the starting hash is not found.
+/// let db = StateDb::open(Path::new(":memory:")).unwrap();
+/// let start = [0u8; 32];
+/// let chain = walk_receipt_chain(&db, &start);
+/// assert!(chain.is_empty());
+/// ```
 pub fn walk_receipt_chain(db: &StateDb, receipt_hash: &[u8; 32]) -> Vec<ChainLink> {
     let conn = db.conn();
     let mut chain = Vec::new();
@@ -399,6 +623,61 @@ pub fn walk_receipt_chain(db: &StateDb, receipt_hash: &[u8; 32]) -> Vec<ChainLin
 /// Render a receipt chain as a vertical ASCII tree with `↓` arrows
 /// linking each step to its prior receipt. Returns a human-readable
 /// multi-line string. Empty chain produces a single explanatory line.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::verify::render_chain_ascii;
+///
+/// // Empty slice produces a clear explanatory message.
+/// let out = render_chain_ascii(&[]);
+/// assert!(out.contains("(no receipts in chain)"));
+/// ```
+///
+/// ```
+/// use open_ontologies::verify::{render_chain_ascii, ChainLink};
+///
+/// // A single-link origin (prior = None) ends with a star marker.
+/// let chain = vec![ChainLink {
+///     receipt_hash: "a".repeat(64),
+///     scope_token: "my-scope".into(),
+///     session_id: "sess-1".into(),
+///     sequence: 1,
+///     granted_at: "2026-01-10T00:00:00Z".into(),
+///     prior: None,
+/// }];
+/// let out = render_chain_ascii(&chain);
+/// assert!(out.contains("receipt chain (newest → origin)"));
+/// assert!(out.contains("★ origin (no prior)"));
+/// assert!(!out.contains("↓"));  // no prior link arrow for single origin
+/// ```
+///
+/// ```
+/// use open_ontologies::verify::{render_chain_ascii, ChainLink};
+///
+/// // Two-link chain: the ↓ arrow appears between links.
+/// let chain = vec![
+///     ChainLink {
+///         receipt_hash: "b".repeat(64),
+///         scope_token: "scope-b".into(),
+///         session_id: "s1".into(),
+///         sequence: 2,
+///         granted_at: "2026-01-11T00:00:00Z".into(),
+///         prior: Some("a".repeat(64)),
+///     },
+///     ChainLink {
+///         receipt_hash: "a".repeat(64),
+///         scope_token: "scope-a".into(),
+///         session_id: "s1".into(),
+///         sequence: 1,
+///         granted_at: "2026-01-10T00:00:00Z".into(),
+///         prior: None,
+///     },
+/// ];
+/// let out = render_chain_ascii(&chain);
+/// assert!(out.contains("↓ (prior_receipt)"));
+/// assert!(out.contains("★ origin (no prior)"));
+/// ```
 pub fn render_chain_ascii(chain: &[ChainLink]) -> String {
     if chain.is_empty() {
         return "(no receipts in chain)\n".to_string();
@@ -504,7 +783,7 @@ fn verify_inline_header(
             mismatch_at: path.to_string(),
             expected,
             actual,
-            reason: "body_hash_mismatch".into(),
+            reason: BODY_HASH_MISMATCH.into(),
         };
     }
     // The inline-header artifacts may name a `receipt-hash` (TTL stamps,
@@ -532,7 +811,7 @@ fn verify_sidecar_against_siblings(
             };
         }
     };
-    let expected = match parsed.get("artifact_hash").and_then(|v| v.as_str()) {
+    let expected = match parsed.get(SIDECAR_KEY_ARTIFACT_HASH).and_then(|v| v.as_str()) {
         Some(s) => s.to_string(),
         None => {
             return Verdict::UnknownChain {
@@ -540,7 +819,7 @@ fn verify_sidecar_against_siblings(
             };
         }
     };
-    let files: Vec<String> = match parsed.get("files").and_then(|v| v.as_array()) {
+    let files: Vec<String> = match parsed.get(SIDECAR_KEY_FILES).and_then(|v| v.as_array()) {
         Some(arr) => arr
             .iter()
             .filter_map(|x| x.as_str().map(|s| s.to_string()))
@@ -580,11 +859,11 @@ fn verify_sidecar_against_siblings(
             mismatch_at: sidecar_path.to_string_lossy().into_owned(),
             expected,
             actual,
-            reason: "body_hash_mismatch".into(),
+            reason: BODY_HASH_MISMATCH.into(),
         };
     }
     let receipt_hash = parsed
-        .get("work_order_receipt")
+        .get(SIDECAR_KEY_WORK_ORDER_RECEIPT)
         .and_then(|v| v.as_str())
         .unwrap_or_default()
         .to_string();
@@ -632,7 +911,7 @@ fn finalize(receipt_hash: String, scope_token: String, db: Option<&StateDb>) -> 
                             &receipt_hash,
                         ) {
                             Ok(Some(_archived)) => {
-                                source = "archive".to_string();
+                                source = SOURCE_ARCHIVE.to_string();
                             }
                             _ => {
                                 return Verdict::Orphaned {
