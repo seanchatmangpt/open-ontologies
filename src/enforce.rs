@@ -3,6 +3,40 @@ use crate::state::StateDb;
 use std::sync::Arc;
 
 /// Design pattern enforcement with built-in and custom rule packs.
+///
+/// # Examples
+///
+/// Auto-instinct: there are exactly four built-in pack names, all non-empty.
+///
+/// ```
+/// let packs = ["generic", "boro", "value_partition", "hierarchy"];
+/// assert_eq!(packs.len(), 4);
+/// for pack in &packs {
+///     assert!(!pack.is_empty());
+/// }
+/// ```
+///
+/// The `hierarchy` pack runs four sub-rules and always returns a JSON response
+/// with `total_rules`, `passed_rules`, and `compliance` fields.
+///
+/// ```
+/// use std::sync::Arc;
+/// use open_ontologies::enforce::Enforcer;
+/// use open_ontologies::graph::GraphStore;
+/// use open_ontologies::state::StateDb;
+///
+/// let db = StateDb::open(std::path::Path::new(":memory:")).unwrap();
+/// let graph = Arc::new(GraphStore::new());
+/// let enforcer = Enforcer::new(db, graph);
+///
+/// let json = enforcer.enforce("hierarchy").unwrap();
+/// let v: serde_json::Value = serde_json::from_str(&json).unwrap();
+/// assert_eq!(v["rule_pack"].as_str().unwrap(), "hierarchy");
+/// assert!(v["total_rules"].as_u64().is_some());
+/// assert!(v["passed_rules"].as_u64().is_some());
+/// let compliance = v["compliance"].as_f64().unwrap();
+/// assert!((0.0..=1.0).contains(&compliance));
+/// ```
 pub struct Enforcer {
     db: StateDb,
     graph: Arc<GraphStore>,
@@ -112,6 +146,67 @@ impl Enforcer {
     ///         "{pack}: empty graph must have compliance 1.0");
     /// }
     /// ```
+    ///
+    /// Auto-instinct: `total_rules == passed_rules` on an empty graph since
+    /// nothing can violate without content.
+    ///
+    /// ```
+    /// use std::sync::Arc;
+    /// use open_ontologies::enforce::Enforcer;
+    /// use open_ontologies::graph::GraphStore;
+    /// use open_ontologies::state::StateDb;
+    ///
+    /// let db = StateDb::open(std::path::Path::new(":memory:")).unwrap();
+    /// let graph = Arc::new(GraphStore::new());
+    /// let enforcer = Enforcer::new(db, graph);
+    ///
+    /// let json = enforcer.enforce("generic").unwrap();
+    /// let v: serde_json::Value = serde_json::from_str(&json).unwrap();
+    /// let total = v["total_rules"].as_u64().unwrap();
+    /// let passed = v["passed_rules"].as_u64().unwrap();
+    /// assert_eq!(total, passed);
+    /// ```
+    ///
+    /// `suppressed_count` is always present and is 0 when called without a
+    /// feedback database.
+    ///
+    /// ```
+    /// use std::sync::Arc;
+    /// use open_ontologies::enforce::Enforcer;
+    /// use open_ontologies::graph::GraphStore;
+    /// use open_ontologies::state::StateDb;
+    ///
+    /// let db = StateDb::open(std::path::Path::new(":memory:")).unwrap();
+    /// let graph = Arc::new(GraphStore::new());
+    /// let enforcer = Enforcer::new(db, graph);
+    ///
+    /// for pack in &["generic", "boro", "value_partition", "hierarchy"] {
+    ///     let json = enforcer.enforce(pack).unwrap();
+    ///     let v: serde_json::Value = serde_json::from_str(&json).unwrap();
+    ///     assert_eq!(v["suppressed_count"].as_u64().unwrap(), 0);
+    /// }
+    /// ```
+    ///
+    /// Auto-instinct: `compliance` is always a finite float in `[0.0, 1.0]`.
+    ///
+    /// ```
+    /// use std::sync::Arc;
+    /// use open_ontologies::enforce::Enforcer;
+    /// use open_ontologies::graph::GraphStore;
+    /// use open_ontologies::state::StateDb;
+    ///
+    /// let db = StateDb::open(std::path::Path::new(":memory:")).unwrap();
+    /// let graph = Arc::new(GraphStore::new());
+    /// let enforcer = Enforcer::new(db, graph);
+    ///
+    /// for pack in &["generic", "boro", "value_partition", "hierarchy", "unknown"] {
+    ///     let json = enforcer.enforce(pack).unwrap();
+    ///     let v: serde_json::Value = serde_json::from_str(&json).unwrap();
+    ///     let c = v["compliance"].as_f64().unwrap();
+    ///     assert!(c.is_finite());
+    ///     assert!((0.0..=1.0).contains(&c));
+    /// }
+    /// ```
     pub fn enforce(&self, rule_pack: &str) -> anyhow::Result<String> {
         self.enforce_with_feedback(rule_pack, None)
     }
@@ -158,6 +253,29 @@ impl Enforcer {
     /// let v: serde_json::Value = serde_json::from_str(&json).unwrap();
     /// // Empty graph, empty feedback table — still zero violations.
     /// assert_eq!(v["violations"].as_array().unwrap().len(), 0);
+    /// ```
+    ///
+    /// Auto-instinct: `enforce(pack)` and `enforce_with_feedback(pack, None)`
+    /// produce identical `total_rules` and `passed_rules`.
+    ///
+    /// ```
+    /// use std::sync::Arc;
+    /// use open_ontologies::enforce::Enforcer;
+    /// use open_ontologies::graph::GraphStore;
+    /// use open_ontologies::state::StateDb;
+    ///
+    /// let db = StateDb::open(std::path::Path::new(":memory:")).unwrap();
+    /// let graph = Arc::new(GraphStore::new());
+    /// let enforcer = Enforcer::new(db, graph);
+    ///
+    /// for pack in &["generic", "boro", "value_partition", "hierarchy"] {
+    ///     let json_a = enforcer.enforce(pack).unwrap();
+    ///     let json_b = enforcer.enforce_with_feedback(pack, None).unwrap();
+    ///     let va: serde_json::Value = serde_json::from_str(&json_a).unwrap();
+    ///     let vb: serde_json::Value = serde_json::from_str(&json_b).unwrap();
+    ///     assert_eq!(va["total_rules"], vb["total_rules"]);
+    ///     assert_eq!(va["passed_rules"], vb["passed_rules"]);
+    /// }
     /// ```
     pub fn enforce_with_feedback(&self, rule_pack: &str, feedback_db: Option<&StateDb>) -> anyhow::Result<String> {
         let mut violations = Vec::new();
