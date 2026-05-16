@@ -112,6 +112,50 @@ impl Receipt {
 /// // hex() is the lowercase hex rendering of those 32 bytes.
 /// assert_eq!(r1.hex().len(), 64);
 /// ```
+///
+/// ## Linked chain — parent→child relationship
+///
+/// ```
+/// use open_ontologies::receipts::{build, is_valid_hex_hash};
+/// use open_ontologies::production_record::ProductionRecord;
+///
+/// fn make_record(scope: &str, prior: Option<[u8; 32]>) -> ProductionRecord {
+///     ProductionRecord {
+///         artifact_hash:            [0u8; 32],
+///         scope_token:              scope.into(),
+///         declared_powl_hash:       [0u8; 32],
+///         ocel_canonical_hash:      [0u8; 32],
+///         conformance_run_id:       "run-chain".into(),
+///         gate_config_hash:         [0u8; 32],
+///         production_law_version:   "ontostar-1.0.0".into(),
+///         defects_taxonomy_version: "ontostar-defects-4.8.0".into(),
+///         gates_passed:             vec![],
+///         gates_refused:            vec![],
+///         prior_receipt:            prior,
+///         signature:                None,
+///         signing_key_fpr:          None,
+///     }
+/// }
+///
+/// let seed = build(make_record("seed", None));
+/// assert!(seed.record.prior_receipt.is_none());
+/// assert!(is_valid_hex_hash(&seed.hex()));
+///
+/// let link1 = build(make_record("link-1", Some(seed.bytes)));
+/// assert_eq!(link1.record.prior_receipt, Some(seed.bytes));
+/// assert_ne!(link1.bytes, seed.bytes);
+/// assert!(is_valid_hex_hash(&link1.hex()));
+///
+/// let link2 = build(make_record("link-2", Some(link1.bytes)));
+/// assert_eq!(link2.record.prior_receipt, Some(link1.bytes));
+/// assert_ne!(link2.bytes, link1.bytes);
+/// assert_ne!(link2.bytes, seed.bytes);
+///
+/// let hashes = [seed.hex(), link1.hex(), link2.hex()];
+/// assert!(hashes.iter().all(|h| is_valid_hex_hash(h)));
+/// let unique: std::collections::HashSet<_> = hashes.iter().collect();
+/// assert_eq!(unique.len(), 3, "chain links must have distinct hashes");
+/// ```
 pub fn build(record: ProductionRecord) -> Receipt {
     let bytes_in = record.canonical_bytes();
     let h = blake3::hash(&bytes_in);
@@ -642,4 +686,86 @@ fn hex_to_32(s: &str) -> Option<[u8; 32]> {
         out[i] = u8::from_str_radix(&s[i * 2..i * 2 + 2], 16).ok()?;
     }
     Some(out)
+}
+
+/// Returns `true` if `s` is a valid lowercase 64-character hex string
+/// that could represent a BLAKE3 receipt hash.
+///
+/// A valid receipt hash is exactly 64 ASCII hexadecimal digits
+/// (`0-9`, `a-f`). Uppercase hex digits, strings of wrong length, and
+/// strings containing non-hex characters all return `false`.
+///
+/// Also demonstrates a three-link chain: seed → link-1 → link-2.  Each
+/// link's `prior_receipt` field carries the previous receipt's `bytes`,
+/// creating a cryptographic chain that can be replayed from the OCEL log.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::receipts::is_valid_hex_hash;
+///
+/// // Exactly 64 lowercase hex characters — valid.
+/// assert!(is_valid_hex_hash(&"a".repeat(64)));
+/// assert!(is_valid_hex_hash(&"0".repeat(64)));
+/// assert!(is_valid_hex_hash(&"f".repeat(64)));
+///
+/// // Wrong length — invalid.
+/// assert!(!is_valid_hex_hash("abc123"));
+/// assert!(!is_valid_hex_hash(""));
+/// assert!(!is_valid_hex_hash(&"a".repeat(63)));
+/// assert!(!is_valid_hex_hash(&"a".repeat(65)));
+///
+/// // Uppercase is rejected — hashes are lowercase canonical.
+/// assert!(!is_valid_hex_hash(&"A".repeat(64)));
+///
+/// // Non-hex character.
+/// let bad = "0".repeat(63) + "g";
+/// assert!(!is_valid_hex_hash(&bad));
+/// ```
+///
+/// Three-link chain — seed → link-1 → link-2:
+///
+/// ```
+/// use open_ontologies::receipts::{build, is_valid_hex_hash};
+/// use open_ontologies::production_record::ProductionRecord;
+///
+/// fn make_record(scope: &str, prior: Option<[u8; 32]>) -> ProductionRecord {
+///     ProductionRecord {
+///         artifact_hash:            [0u8; 32],
+///         scope_token:              scope.into(),
+///         declared_powl_hash:       [0u8; 32],
+///         ocel_canonical_hash:      [0u8; 32],
+///         conformance_run_id:       "run-chain".into(),
+///         gate_config_hash:         [0u8; 32],
+///         production_law_version:   "ontostar-1.0.0".into(),
+///         defects_taxonomy_version: "ontostar-defects-4.8.0".into(),
+///         gates_passed:             vec![],
+///         gates_refused:            vec![],
+///         prior_receipt:            prior,
+///         signature:                None,
+///         signing_key_fpr:          None,
+///     }
+/// }
+///
+/// let seed  = build(make_record("seed",   None));
+/// let link1 = build(make_record("link-1", Some(seed.bytes)));
+/// let link2 = build(make_record("link-2", Some(link1.bytes)));
+///
+/// // Each hash in the chain is a valid 64-char hex string.
+/// assert!(is_valid_hex_hash(&seed.hex()));
+/// assert!(is_valid_hex_hash(&link1.hex()));
+/// assert!(is_valid_hex_hash(&link2.hex()));
+///
+/// // Chain pointers: seed has no prior, link-1 points to seed, link-2 to link-1.
+/// assert!(seed.record.prior_receipt.is_none());
+/// assert_eq!(link1.record.prior_receipt, Some(seed.bytes));
+/// assert_eq!(link2.record.prior_receipt, Some(link1.bytes));
+///
+/// // All three hashes are distinct.
+/// assert_ne!(seed.bytes,  link1.bytes);
+/// assert_ne!(link1.bytes, link2.bytes);
+/// assert_ne!(seed.bytes,  link2.bytes);
+/// ```
+pub fn is_valid_hex_hash(s: &str) -> bool {
+    s.len() == 64 && s.chars().all(|c| matches!(c, '0'..='9' | 'a'..='f'))
 }

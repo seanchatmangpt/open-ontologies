@@ -1,10 +1,56 @@
 /// Database schema introspection and OWL generation.
+///
+/// # Examples
+///
+/// Construct a `TableInfo` with columns and a foreign key:
+///
+/// ```
+/// use open_ontologies::schema::{TableInfo, ColumnInfo, ForeignKey};
+///
+/// let table = TableInfo {
+///     name: "order_line".into(),
+///     columns: vec![
+///         ColumnInfo { name: "id".into(),       data_type: "bigint".into(),  is_nullable: false, is_primary_key: true  },
+///         ColumnInfo { name: "order_id".into(),  data_type: "integer".into(), is_nullable: false, is_primary_key: false },
+///         ColumnInfo { name: "product".into(),   data_type: "text".into(),    is_nullable: true,  is_primary_key: false },
+///     ],
+///     foreign_keys: vec![
+///         ForeignKey { column: "order_id".into(), parent_table: "order".into(), parent_column: "id".into() },
+///     ],
+/// };
+///
+/// assert_eq!(table.name, "order_line");
+/// assert_eq!(table.columns.len(), 3);
+/// assert_eq!(table.foreign_keys.len(), 1);
+/// assert!(table.columns[0].is_primary_key);
+/// assert!(!table.columns[2].is_nullable == false); // product is nullable
+/// assert_eq!(table.foreign_keys[0].parent_table, "order");
+/// ```
 pub struct TableInfo {
     pub name: String,
     pub columns: Vec<ColumnInfo>,
     pub foreign_keys: Vec<ForeignKey>,
 }
 
+/// Metadata for a single column in a database table.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::schema::ColumnInfo;
+///
+/// let col = ColumnInfo {
+///     name:          "created_at".into(),
+///     data_type:     "timestamp".into(),
+///     is_nullable:   false,
+///     is_primary_key: false,
+/// };
+///
+/// assert_eq!(col.name, "created_at");
+/// assert_eq!(col.data_type, "timestamp");
+/// assert!(!col.is_nullable);
+/// assert!(!col.is_primary_key);
+/// ```
 pub struct ColumnInfo {
     pub name: String,
     pub data_type: String,
@@ -12,6 +58,23 @@ pub struct ColumnInfo {
     pub is_primary_key: bool,
 }
 
+/// A foreign key relationship between two tables.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::schema::ForeignKey;
+///
+/// let fk = ForeignKey {
+///     column:        "customer_id".into(),
+///     parent_table:  "customer".into(),
+///     parent_column: "id".into(),
+/// };
+///
+/// assert_eq!(fk.column, "customer_id");
+/// assert_eq!(fk.parent_table, "customer");
+/// assert_eq!(fk.parent_column, "id");
+/// ```
 pub struct ForeignKey {
     pub column: String,
     pub parent_table: String,
@@ -42,6 +105,51 @@ impl SchemaIntrospector {
     /// assert_eq!(SchemaIntrospector::sql_to_xsd("bytea"),          "xsd:hexBinary");
     /// assert_eq!(SchemaIntrospector::sql_to_xsd("uuid"),           "xsd:string");
     /// assert_eq!(SchemaIntrospector::sql_to_xsd("jsonb"),          "xsd:string");
+    /// ```
+    ///
+    /// Integer variants — Postgres and DuckDB specific names all map to `xsd:integer`:
+    ///
+    /// ```
+    /// use open_ontologies::schema::SchemaIntrospector;
+    ///
+    /// for ty in &["int", "int2", "int4", "int8", "serial", "bigserial",
+    ///             "smallserial", "ubigint", "uinteger", "hugeint"] {
+    ///     assert_eq!(SchemaIntrospector::sql_to_xsd(ty), "xsd:integer",
+    ///                "expected xsd:integer for SQL type '{ty}'");
+    /// }
+    /// ```
+    ///
+    /// Float / numeric variants map to `xsd:decimal`:
+    ///
+    /// ```
+    /// use open_ontologies::schema::SchemaIntrospector;
+    ///
+    /// assert_eq!(SchemaIntrospector::sql_to_xsd("numeric"),          "xsd:decimal");
+    /// assert_eq!(SchemaIntrospector::sql_to_xsd("float4"),           "xsd:decimal");
+    /// assert_eq!(SchemaIntrospector::sql_to_xsd("float8"),           "xsd:decimal");
+    /// assert_eq!(SchemaIntrospector::sql_to_xsd("double precision"), "xsd:decimal");
+    /// ```
+    ///
+    /// Temporal variants:
+    ///
+    /// ```
+    /// use open_ontologies::schema::SchemaIntrospector;
+    ///
+    /// assert_eq!(SchemaIntrospector::sql_to_xsd("timestamptz"),                 "xsd:dateTime");
+    /// assert_eq!(SchemaIntrospector::sql_to_xsd("timestamp with time zone"),    "xsd:dateTime");
+    /// assert_eq!(SchemaIntrospector::sql_to_xsd("timestamp without time zone"), "xsd:dateTime");
+    /// assert_eq!(SchemaIntrospector::sql_to_xsd("datetime"),                    "xsd:dateTime");
+    /// assert_eq!(SchemaIntrospector::sql_to_xsd("time without time zone"),      "xsd:time");
+    /// ```
+    ///
+    /// Unknown types fall back to `xsd:string`:
+    ///
+    /// ```
+    /// use open_ontologies::schema::SchemaIntrospector;
+    ///
+    /// assert_eq!(SchemaIntrospector::sql_to_xsd("xml"),          "xsd:string");
+    /// assert_eq!(SchemaIntrospector::sql_to_xsd("hstore"),       "xsd:string");
+    /// assert_eq!(SchemaIntrospector::sql_to_xsd("USER-DEFINED"), "xsd:string");
     /// ```
     pub fn sql_to_xsd(sql_type: &str) -> &'static str {
         let lower = sql_type.to_lowercase();
@@ -80,6 +188,23 @@ impl SchemaIntrospector {
     /// assert_eq!(SchemaIntrospector::table_to_class("user_profile"),      "UserProfile");
     /// assert_eq!(SchemaIntrospector::table_to_class("order_line_item"),   "OrderLineItem");
     /// assert_eq!(SchemaIntrospector::table_to_class("alreadyCamel"),      "AlreadyCamel");
+    /// ```
+    ///
+    /// Single-character segments are capitalised individually:
+    ///
+    /// ```
+    /// use open_ontologies::schema::SchemaIntrospector;
+    ///
+    /// assert_eq!(SchemaIntrospector::table_to_class("a_b_c"), "ABC");
+    /// ```
+    ///
+    /// A single-segment name with no underscores capitalises only the first letter:
+    ///
+    /// ```
+    /// use open_ontologies::schema::SchemaIntrospector;
+    ///
+    /// assert_eq!(SchemaIntrospector::table_to_class("invoice"),  "Invoice");
+    /// assert_eq!(SchemaIntrospector::table_to_class("INVOICE"),  "INVOICE"); // already upper
     /// ```
     pub fn table_to_class(name: &str) -> String {
         name.split('_')

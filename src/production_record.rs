@@ -10,6 +10,84 @@ use serde::{Deserialize, Serialize};
 /// Portable record of a single admitted (or refused) manufacturing operation.
 ///
 /// All hash fields are 32-byte BLAKE3 outputs.
+///
+/// # Examples
+///
+/// Construct a minimal record and verify JSON round-trip via serde:
+///
+/// ```
+/// use open_ontologies::production_record::ProductionRecord;
+///
+/// let rec = ProductionRecord {
+///     artifact_hash:            [0xaau8; 32],
+///     scope_token:              "order-to-cash".into(),
+///     declared_powl_hash:       [0xbbu8; 32],
+///     ocel_canonical_hash:      [0xccu8; 32],
+///     conformance_run_id:       "run-42".into(),
+///     gate_config_hash:         [0xddu8; 32],
+///     production_law_version:   "ontostar-1.0.0".into(),
+///     defects_taxonomy_version: "ontostar-defects-4.8.0".into(),
+///     gates_passed:             vec!["A1".into(), "A3".into()],
+///     gates_refused:            vec![],
+///     prior_receipt:            None,
+///     signature:                None,
+///     signing_key_fpr:          None,
+/// };
+///
+/// // JSON round-trip: serialize then deserialize produces an equal struct.
+/// let json = serde_json::to_string(&rec).unwrap();
+/// let restored: ProductionRecord = serde_json::from_str(&json).unwrap();
+/// assert_eq!(rec, restored);
+/// assert_eq!(restored.scope_token, "order-to-cash");
+/// assert_eq!(restored.gates_passed, vec!["A1", "A3"]);
+/// ```
+///
+/// Chain two records via `prior_receipt`:
+///
+/// ```
+/// use open_ontologies::production_record::ProductionRecord;
+/// use open_ontologies::receipts::build;
+///
+/// let parent = ProductionRecord {
+///     artifact_hash:            [1u8; 32],
+///     scope_token:              "p2p".into(),
+///     declared_powl_hash:       [0u8; 32],
+///     ocel_canonical_hash:      [0u8; 32],
+///     conformance_run_id:       "run-1".into(),
+///     gate_config_hash:         [0u8; 32],
+///     production_law_version:   "ontostar-1.0.0".into(),
+///     defects_taxonomy_version: "ontostar-defects-4.8.0".into(),
+///     gates_passed:             vec!["A1".into()],
+///     gates_refused:            vec![],
+///     prior_receipt:            None,
+///     signature:                None,
+///     signing_key_fpr:          None,
+/// };
+/// let parent_receipt = build(parent);
+///
+/// // Child record references parent receipt hash as its prior_receipt.
+/// let child = ProductionRecord {
+///     artifact_hash:            [2u8; 32],
+///     scope_token:              "o2c".into(),
+///     declared_powl_hash:       [0u8; 32],
+///     ocel_canonical_hash:      [0u8; 32],
+///     conformance_run_id:       "run-2".into(),
+///     gate_config_hash:         [0u8; 32],
+///     production_law_version:   "ontostar-1.0.0".into(),
+///     defects_taxonomy_version: "ontostar-defects-4.8.0".into(),
+///     gates_passed:             vec!["A1".into(), "A2".into()],
+///     gates_refused:            vec![],
+///     prior_receipt:            Some(parent_receipt.bytes),
+///     signature:                None,
+///     signing_key_fpr:          None,
+/// };
+///
+/// // The child's prior_receipt matches the parent's hash — chain is linked.
+/// assert_eq!(child.prior_receipt, Some(parent_receipt.bytes));
+/// // The child hash is different from the parent hash.
+/// let child_receipt = build(child);
+/// assert_ne!(child_receipt.bytes, parent_receipt.bytes);
+/// ```
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct ProductionRecord {
     /// BLAKE3 of artifact bytes (turtle / wasm / code).
@@ -275,6 +353,26 @@ fn hex32(b: &[u8; 32]) -> String {
 /// assert!(hex.chars().all(|c| c.is_ascii_hexdigit()));
 /// // All bytes are 0xab → each pair is "ab".
 /// assert!(hex.chars().collect::<String>().starts_with("ab"));
+/// ```
+///
+/// All-zero digest encodes as 64 `'0'` characters:
+///
+/// ```
+/// use open_ontologies::production_record::hex32_pub;
+///
+/// let zero = [0u8; 32];
+/// assert_eq!(hex32_pub(&zero), "0".repeat(64));
+/// ```
+///
+/// All-`0xff` digest encodes as 64 `'f'` characters:
+///
+/// ```
+/// use open_ontologies::production_record::hex32_pub;
+///
+/// let ones = [0xffu8; 32];
+/// let s = hex32_pub(&ones);
+/// assert_eq!(s.len(), 64);
+/// assert!(s.chars().all(|c| c == 'f'));
 /// ```
 pub fn hex32_pub(b: &[u8; 32]) -> String {
     hex32(b)
