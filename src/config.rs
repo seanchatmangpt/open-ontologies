@@ -171,6 +171,19 @@ pub struct EmbeddingsConfig {
 ///
 /// Precedence: `OPEN_ONTOLOGIES_EMBEDDINGS_PROVIDER` env var > config field >
 /// default ("local"). Returns a lowercased, trimmed string.
+///
+/// # Examples
+///
+/// ```
+/// # use open_ontologies::config::{EmbeddingsConfig, resolve_embeddings_provider};
+/// // Default when no provider is configured.
+/// let cfg = EmbeddingsConfig::default();
+/// assert_eq!(resolve_embeddings_provider(&cfg), "local");
+///
+/// // Config field is used (lowercased) when env is unset.
+/// let cfg_openai = EmbeddingsConfig { provider: Some("OpenAI".to_string()), ..EmbeddingsConfig::default() };
+/// assert_eq!(resolve_embeddings_provider(&cfg_openai), "openai");
+/// ```
 pub fn resolve_embeddings_provider(cfg: &EmbeddingsConfig) -> String {
     let raw = std::env::var("OPEN_ONTOLOGIES_EMBEDDINGS_PROVIDER")
         .ok()
@@ -184,6 +197,22 @@ pub fn resolve_embeddings_provider(cfg: &EmbeddingsConfig) -> String {
 ///
 /// Precedence: `OPEN_ONTOLOGIES_EMBEDDINGS_API_BASE` env var > config >
 /// `https://api.openai.com/v1`. Trailing slashes are stripped.
+///
+/// # Examples
+///
+/// ```
+/// # use open_ontologies::config::{EmbeddingsConfig, resolve_embeddings_api_base};
+/// // Default URL is returned with no trailing slash.
+/// let cfg = EmbeddingsConfig::default();
+/// assert_eq!(resolve_embeddings_api_base(&cfg), "https://api.openai.com/v1");
+///
+/// // Trailing slashes in config values are stripped.
+/// let cfg_custom = EmbeddingsConfig {
+///     api_base: Some("http://localhost:11434/v1/".to_string()),
+///     ..EmbeddingsConfig::default()
+/// };
+/// assert_eq!(resolve_embeddings_api_base(&cfg_custom), "http://localhost:11434/v1");
+/// ```
 pub fn resolve_embeddings_api_base(cfg: &EmbeddingsConfig) -> String {
     let raw = std::env::var("OPEN_ONTOLOGIES_EMBEDDINGS_API_BASE")
         .ok()
@@ -214,6 +243,22 @@ pub fn resolve_embeddings_api_key(cfg: &EmbeddingsConfig) -> Option<String> {
 ///
 /// Precedence: `OPEN_ONTOLOGIES_EMBEDDINGS_MODEL` env var > config >
 /// `text-embedding-3-small`.
+///
+/// # Examples
+///
+/// ```
+/// # use open_ontologies::config::{EmbeddingsConfig, resolve_embeddings_model};
+/// // Default model when nothing is configured.
+/// let cfg = EmbeddingsConfig::default();
+/// assert_eq!(resolve_embeddings_model(&cfg), "text-embedding-3-small");
+///
+/// // Config field wins when env is unset.
+/// let cfg_large = EmbeddingsConfig {
+///     model: Some("text-embedding-3-large".to_string()),
+///     ..EmbeddingsConfig::default()
+/// };
+/// assert_eq!(resolve_embeddings_model(&cfg_large), "text-embedding-3-large");
+/// ```
 pub fn resolve_embeddings_model(cfg: &EmbeddingsConfig) -> String {
     std::env::var("OPEN_ONTOLOGIES_EMBEDDINGS_MODEL")
         .ok()
@@ -364,6 +409,23 @@ pub fn resolve_llm_provider(cfg: &LlmConfig) -> String {
 /// Resolve the LLM API base URL. Precedence:
 /// `OPEN_ONTOLOGIES_LLM_API_BASE` env > config >
 /// `https://api.groq.com/openai/v1`. Trailing slashes are stripped.
+///
+/// # Examples
+///
+/// ```
+/// # use open_ontologies::config::{LlmConfig, resolve_llm_api_base};
+/// // Default returns the Groq base URL with no trailing slash.
+/// let cfg = LlmConfig::default();
+/// let base = resolve_llm_api_base(&cfg);
+/// assert_eq!(base, "https://api.groq.com/openai/v1");
+///
+/// // A config value with trailing slashes is stripped.
+/// let cfg_slash = LlmConfig {
+///     api_base: Some("https://custom.example.com/v1///".to_string()),
+///     ..LlmConfig::default()
+/// };
+/// assert_eq!(resolve_llm_api_base(&cfg_slash), "https://custom.example.com/v1");
+/// ```
 pub fn resolve_llm_api_base(cfg: &LlmConfig) -> String {
     std::env::var("OPEN_ONTOLOGIES_LLM_API_BASE")
         .ok()
@@ -394,6 +456,19 @@ pub fn resolve_llm_api_key(cfg: &LlmConfig) -> Option<String> {
 
 /// Resolve the LLM model name. Precedence:
 /// `OPEN_ONTOLOGIES_LLM_MODEL` env > config > `llama-3.3-70b-versatile`.
+///
+/// # Examples
+///
+/// ```
+/// # use open_ontologies::config::{LlmConfig, resolve_llm_model};
+/// // Default model when nothing is configured.
+/// let cfg = LlmConfig::default();
+/// assert_eq!(resolve_llm_model(&cfg), "llama-3.3-70b-versatile");
+///
+/// // Config value takes effect when env is unset.
+/// let cfg_custom = LlmConfig { model: Some("mixtral-8x7b-32768".to_string()), ..LlmConfig::default() };
+/// assert_eq!(resolve_llm_model(&cfg_custom), "mixtral-8x7b-32768");
+/// ```
 pub fn resolve_llm_model(cfg: &LlmConfig) -> String {
     std::env::var("OPEN_ONTOLOGIES_LLM_MODEL")
         .ok()
@@ -406,6 +481,15 @@ pub fn resolve_llm_model(cfg: &LlmConfig) -> String {
 ///
 /// `"inproc"`        → in-process `GroqTranslator` (HTTP via reqwest).
 /// `"groq_pm4py"`    → shell out to `scripts/*.py` (dspy / pm4py path).
+///
+/// # Examples
+///
+/// ```
+/// # use open_ontologies::config::VALID_LLM_ENGINES;
+/// assert!(VALID_LLM_ENGINES.contains(&"inproc"));
+/// assert!(VALID_LLM_ENGINES.contains(&"groq_pm4py"));
+/// assert!(!VALID_LLM_ENGINES.contains(&"openai"));
+/// ```
 pub const VALID_LLM_ENGINES: &[&str] = &["inproc", "groq_pm4py"];
 
 /// Resolve the default LLM engine for unparametrised tool calls.
@@ -454,6 +538,22 @@ pub fn resolve_llm_engine(cfg: &LlmConfig) -> String {
 
 /// Resolve the python interpreter for the `groq_pm4py` engine.
 /// Precedence: `OPEN_ONTOLOGIES_LLM_PYTHON` env > config > `"python3"`.
+///
+/// # Examples
+///
+/// ```
+/// # use open_ontologies::config::{LlmConfig, resolve_llm_python};
+/// // Default interpreter when nothing is configured.
+/// let cfg = LlmConfig::default();
+/// assert_eq!(resolve_llm_python(&cfg), "python3");
+///
+/// // Config value is returned when env is unset.
+/// let cfg_custom = LlmConfig {
+///     python_interpreter: Some("/usr/bin/python3.12".to_string()),
+///     ..LlmConfig::default()
+/// };
+/// assert_eq!(resolve_llm_python(&cfg_custom), "/usr/bin/python3.12");
+/// ```
 pub fn resolve_llm_python(cfg: &LlmConfig) -> String {
     std::env::var("OPEN_ONTOLOGIES_LLM_PYTHON")
         .ok()
@@ -468,6 +568,21 @@ pub fn resolve_llm_python(cfg: &LlmConfig) -> String {
 /// then config, then 60s default. The env override lets operators
 /// (and integration tests) tighten the deadline without rewriting
 /// `config.toml`. Returns a `Duration` so call sites skip the cast.
+///
+/// # Examples
+///
+/// ```
+/// # use open_ontologies::config::{LlmConfig, resolve_subprocess_timeout};
+/// use std::time::Duration;
+///
+/// // Default is 60 seconds when nothing is configured.
+/// let cfg = LlmConfig::default();
+/// assert_eq!(resolve_subprocess_timeout(&cfg), Duration::from_secs(60));
+///
+/// // Config value is used when env is unset.
+/// let cfg_custom = LlmConfig { subprocess_timeout_secs: Some(120), ..LlmConfig::default() };
+/// assert_eq!(resolve_subprocess_timeout(&cfg_custom), Duration::from_secs(120));
+/// ```
 pub fn resolve_subprocess_timeout(cfg: &LlmConfig) -> std::time::Duration {
     let secs = std::env::var("OPEN_ONTOLOGIES_SUBPROCESS_TIMEOUT_SECS")
         .ok()
@@ -532,6 +647,18 @@ pub struct ToolsConfig {
 }
 
 /// Expand a leading `~` in a path to the user's home directory.
+///
+/// Paths that do not begin with `~` are returned unchanged.
+///
+/// # Examples
+///
+/// ```
+/// # use open_ontologies::config::expand_tilde;
+/// // Paths without a leading tilde are returned as-is.
+/// assert_eq!(expand_tilde("/absolute/path"), "/absolute/path");
+/// assert_eq!(expand_tilde("relative/path"), "relative/path");
+/// assert_eq!(expand_tilde(""), "");
+/// ```
 pub fn expand_tilde(path: &str) -> String {
     if (path.starts_with("~/") || path == "~")
         && let Some(home) = std::env::var_os("HOME") {
