@@ -2,6 +2,8 @@ use crate::state::StateDb;
 use chrono::Utc;
 use wasm4pm_types::{Attribute, Attributes, Event, EventLog, Trace, AttributeValue};
 
+pub const LINEAGE_EVENTS_TABLE: &str = "lineage_events";
+
 /// Append-only lineage log. Compressed format for AI consumption.
 pub struct LineageLog {
     db: StateDb,
@@ -29,15 +31,15 @@ impl LineageLog {
         // Get next seq for this session
         let seq: i64 = conn
             .query_row(
-                "SELECT COALESCE(MAX(seq), 0) + 1 FROM lineage_events WHERE session_id = ?1",
+                &format!("SELECT COALESCE(MAX(seq), 0) + 1 FROM {LINEAGE_EVENTS_TABLE} WHERE session_id = ?1"),
                 rusqlite::params![session_id],
                 |r| r.get(0),
             )
             .unwrap_or(1);
         let ts = Utc::now().timestamp();
         let _ = conn.execute(
-            "INSERT INTO lineage_events (session_id, seq, timestamp, event_type, operation, details)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            &format!("INSERT INTO {LINEAGE_EVENTS_TABLE} (session_id, seq, timestamp, event_type, operation, details)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6)"),
             rusqlite::params![session_id, seq, ts.to_string(), event_type, operation, details],
         );
 
@@ -99,8 +101,8 @@ impl LineageLog {
         let conn = self.db.conn();
         let mut stmt = conn
             .prepare(
-                "SELECT seq, timestamp, event_type, operation, details
-                 FROM lineage_events WHERE session_id = ?1 ORDER BY seq ASC",
+                &format!("SELECT seq, timestamp, event_type, operation, details
+                 FROM {LINEAGE_EVENTS_TABLE} WHERE session_id = ?1 ORDER BY seq ASC"),
             )
             .unwrap();
         let rows: Vec<String> = stmt
@@ -138,13 +140,13 @@ pub fn lineage_to_event_log(
 ) -> anyhow::Result<EventLog> {
     let mut stmt = if session_id_filter.is_some() {
         conn.prepare(
-            "SELECT session_id, timestamp, event_type, operation, details
-             FROM lineage_events WHERE session_id = ?1 ORDER BY session_id ASC, seq ASC",
+            &format!("SELECT session_id, timestamp, event_type, operation, details
+             FROM {LINEAGE_EVENTS_TABLE} WHERE session_id = ?1 ORDER BY session_id ASC, seq ASC"),
         )?
     } else {
         conn.prepare(
-            "SELECT session_id, timestamp, event_type, operation, details
-             FROM lineage_events ORDER BY session_id ASC, seq ASC",
+            &format!("SELECT session_id, timestamp, event_type, operation, details
+             FROM {LINEAGE_EVENTS_TABLE} ORDER BY session_id ASC, seq ASC"),
         )?
     };
 
