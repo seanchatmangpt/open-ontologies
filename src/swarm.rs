@@ -17,8 +17,14 @@ use crate::manufacturing::{manufacture, SolutionBundle, SolutionSpec};
 use serde::{Deserialize, Serialize};
 use wasm4pm_cognition::breeds::{dispatch_breed_test, BreedInput, BreedOutput};
 
+/// The Hearsay-II breed identifier — the swarm's consensus engine.
+/// Named separately so the fusion step can reference it without a bare
+/// magic string, and so callers can check `breed == HEARSAY_BREED`
+/// without duplicating the spelling.
+pub const HEARSAY_BREED: &str = "hearsay";
+
 pub const SWARM_BREEDS: &[&str] = &[
-    "eliza", "cbr", "dendral", "strips", "prolog", "mycin", "gps", "soar", "hearsay",
+    "eliza", "cbr", "dendral", "strips", "prolog", "mycin", "gps", "soar", HEARSAY_BREED,
 ];
 
 /// One node in the swarm: a breed name + its manufactured artifact bundle.
@@ -327,14 +333,14 @@ pub fn fuse_via_hearsay(
             })
             .collect();
     }
-    let hearsay_out = match dispatch_breed_test("hearsay", &hearsay_input) {
+    let hearsay_out = match dispatch_breed_test(HEARSAY_BREED, &hearsay_input) {
         Ok(o) => o,
         Err(_) => BreedOutput {
             breed: wasm4pm_cognition::breeds::BreedId::Hearsay,
             candidates: hearsay_input.candidates.clone(),
             facts: vec![],
             selected: None,
-            explanation: "hearsay: abstained".into(),
+            explanation: format!("{HEARSAY_BREED}: abstained"),
             inference_trace: vec![],
         },
     };

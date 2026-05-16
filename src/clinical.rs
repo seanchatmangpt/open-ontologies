@@ -1,6 +1,17 @@
 use crate::drift::jaro_winkler;
 use crate::graph::GraphStore;
 
+// Parquet schema column names for the clinical crosswalk table.
+// Used both when reading column data and when serialising JSON output —
+// keeping them in one place prevents silent field-name mismatches.
+pub(crate) const COL_SOURCE_CODE: &str = "source_code";
+pub(crate) const COL_SOURCE_SYSTEM: &str = "source_system";
+pub(crate) const COL_TARGET_CODE: &str = "target_code";
+pub(crate) const COL_TARGET_SYSTEM: &str = "target_system";
+pub(crate) const COL_RELATION: &str = "relation";
+pub(crate) const COL_SOURCE_LABEL: &str = "source_label";
+pub(crate) const COL_TARGET_LABEL: &str = "target_label";
+
 /// A single crosswalk mapping row.
 ///
 /// # Examples
@@ -62,19 +73,19 @@ impl ClinicalCrosswalks {
         let mut rows = Vec::new();
         for batch in reader {
             let batch = batch?;
-            let source_code = batch.column_by_name("source_code")
+            let source_code = batch.column_by_name(COL_SOURCE_CODE)
                 .and_then(|c| c.as_any().downcast_ref::<StringArray>());
-            let source_system = batch.column_by_name("source_system")
+            let source_system = batch.column_by_name(COL_SOURCE_SYSTEM)
                 .and_then(|c| c.as_any().downcast_ref::<StringArray>());
-            let target_code = batch.column_by_name("target_code")
+            let target_code = batch.column_by_name(COL_TARGET_CODE)
                 .and_then(|c| c.as_any().downcast_ref::<StringArray>());
-            let target_system = batch.column_by_name("target_system")
+            let target_system = batch.column_by_name(COL_TARGET_SYSTEM)
                 .and_then(|c| c.as_any().downcast_ref::<StringArray>());
-            let relation = batch.column_by_name("relation")
+            let relation = batch.column_by_name(COL_RELATION)
                 .and_then(|c| c.as_any().downcast_ref::<StringArray>());
-            let source_label = batch.column_by_name("source_label")
+            let source_label = batch.column_by_name(COL_SOURCE_LABEL)
                 .and_then(|c| c.as_any().downcast_ref::<StringArray>());
-            let target_label = batch.column_by_name("target_label")
+            let target_label = batch.column_by_name(COL_TARGET_LABEL)
                 .and_then(|c| c.as_any().downcast_ref::<StringArray>());
 
             if let (Some(sc), Some(ss), Some(tc), Some(ts), Some(rel), Some(sl), Some(tl)) =
@@ -209,12 +220,12 @@ impl ClinicalCrosswalks {
             .iter()
             .map(|(score, r)| {
                 serde_json::json!({
-                    "source_code": r.source_code,
-                    "source_system": r.source_system,
-                    "target_code": r.target_code,
-                    "target_system": r.target_system,
-                    "source_label": r.source_label,
-                    "target_label": r.target_label,
+                    COL_SOURCE_CODE: r.source_code,
+                    COL_SOURCE_SYSTEM: r.source_system,
+                    COL_TARGET_CODE: r.target_code,
+                    COL_TARGET_SYSTEM: r.target_system,
+                    COL_SOURCE_LABEL: r.source_label,
+                    COL_TARGET_LABEL: r.target_label,
                     "similarity": score,
                 })
             })
