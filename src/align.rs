@@ -309,8 +309,31 @@ impl AlignmentEngine {
     #[cfg(feature = "embeddings")]
     const DEFAULT_WEIGHTS: [f64; 7] = [0.20, 0.15, 0.12, 0.12, 0.12, 0.09, 0.20];
 
-    #[cfg(feature = "embeddings")]
     /// Compute embedding similarity score using cosine similarity on text vectors.
+    ///
+    /// Returns a value in [0.0, 1.0] where 1.0 means identical direction and
+    /// 0.0 means orthogonal or zero-length vectors.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # #[cfg(feature = "embeddings")]
+    /// # {
+    /// use open_ontologies::align::AlignmentEngine;
+    /// // Identical vectors yield similarity ≈ 1.0.
+    /// let same = AlignmentEngine::embedding_similarity_score(&[1.0, 0.0], &[1.0, 0.0]);
+    /// assert!((same - 1.0).abs() < 1e-6, "identical vectors: {same}");
+    ///
+    /// // Orthogonal vectors yield similarity ≈ 0.0.
+    /// let orth = AlignmentEngine::embedding_similarity_score(&[1.0, 0.0], &[0.0, 1.0]);
+    /// assert!(orth < 0.01, "orthogonal vectors: {orth}");
+    ///
+    /// // Empty vectors yield 0.0 (below EPS threshold).
+    /// let empty = AlignmentEngine::embedding_similarity_score(&[], &[]);
+    /// assert!((empty - 0.0).abs() < 1e-6, "empty vectors: {empty}");
+    /// # }
+    /// ```
+    #[cfg(feature = "embeddings")]
     pub fn embedding_similarity_score(vec_a: &[f32], vec_b: &[f32]) -> f64 {
         crate::poincare::cosine_similarity(vec_a, vec_b) as f64
     }

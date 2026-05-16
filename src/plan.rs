@@ -217,7 +217,28 @@ impl Planner {
         }).to_string())
     }
 
-    /// Lock an IRI to prevent removal.
+    /// Lock an IRI to prevent removal during `apply`.
+    ///
+    /// Locking is idempotent — calling `lock_iri` twice on the same IRI
+    /// (with the same or a different reason) always results in the IRI
+    /// being locked.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::sync::Arc;
+    /// use open_ontologies::graph::GraphStore;
+    /// use open_ontologies::state::StateDb;
+    /// use open_ontologies::plan::Planner;
+    ///
+    /// let store = Arc::new(GraphStore::new());
+    /// let db = StateDb::open(std::path::Path::new(":memory:")).unwrap();
+    /// let planner = Planner::new(db, store);
+    ///
+    /// planner.lock_iri("http://example.org/CoreConcept", "protected production IRI");
+    /// assert!(planner.is_locked("http://example.org/CoreConcept"));
+    /// assert!(!planner.is_locked("http://example.org/Other"));
+    /// ```
     pub fn lock_iri(&self, iri: &str, reason: &str) {
         let conn = self.db.conn();
         let _ = conn.execute(
@@ -226,7 +247,29 @@ impl Planner {
         );
     }
 
-    /// Check if an IRI is locked.
+    /// Check if an IRI is currently locked.
+    ///
+    /// Returns `true` if the IRI was registered via [`Planner::lock_iri`],
+    /// `false` otherwise.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::sync::Arc;
+    /// use open_ontologies::graph::GraphStore;
+    /// use open_ontologies::state::StateDb;
+    /// use open_ontologies::plan::Planner;
+    ///
+    /// let store = Arc::new(GraphStore::new());
+    /// let db = StateDb::open(std::path::Path::new(":memory:")).unwrap();
+    /// let planner = Planner::new(db, store);
+    ///
+    /// // Fresh planner — nothing is locked yet.
+    /// assert!(!planner.is_locked("http://example.org/Anything"));
+    ///
+    /// planner.lock_iri("http://example.org/Anything", "must keep");
+    /// assert!(planner.is_locked("http://example.org/Anything"));
+    /// ```
     pub fn is_locked(&self, iri: &str) -> bool {
         let conn = self.db.conn();
         conn.query_row(
