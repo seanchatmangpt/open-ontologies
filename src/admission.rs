@@ -362,6 +362,10 @@ pub struct NoopPowlReplay;
 
 pub const STREAM3_STUB_POWL_REPLAY_MARKER: &str = "TODO(stream-2): replace NoopPowlReplay";
 
+/// OCEL event attribute key identifying the production law (governance schema)
+/// version attached to every admission audit record. Consolidated from 6 sites.
+pub const OCEL_KEY_PRODUCTION_LAW_VERSION: &str = "production_law_version";
+
 impl PowlReplay for NoopPowlReplay {
     fn replay(&self, scope_token: &str, _powl_string: &str, _tenant_id: &str) -> ConformanceResult {
         // POWL replay is not yet integrated (stream-2 stub);
@@ -629,7 +633,7 @@ impl OntoStarAdmissionGate {
                 ("op", op.as_str()),
                 ("artifact_kind", artifact.kind),
                 ("artifact_hash", artifact_hash.to_hex().as_ref()),
-                ("production_law_version", "ontostar-1.0.0"),
+                (OCEL_KEY_PRODUCTION_LAW_VERSION, "ontostar-1.0.0"),
                 (
                     "defects_taxonomy_version",
                     crate::defects::DEFECTS_TAXONOMY_VERSION,
@@ -729,7 +733,7 @@ impl OntoStarAdmissionGate {
             &[
                 ("powl_hash", &powl_hash_hex),
                 ("powl_string", powl_string),
-                ("production_law_version", "ontostar-1.0.0"),
+                (OCEL_KEY_PRODUCTION_LAW_VERSION, "ontostar-1.0.0"),
                 ("defects_taxonomy_version", crate::defects::DEFECTS_TAXONOMY_VERSION),
             ],
             &[],
@@ -777,7 +781,7 @@ impl OntoStarAdmissionGate {
                 ("artifact_hash", &artifact_hash_hex),
                 ("scope_token", scope_token),
                 ("session_id", session_id),
-                ("production_law_version", "ontostar-1.0.0"),
+                (OCEL_KEY_PRODUCTION_LAW_VERSION, "ontostar-1.0.0"),
             ],
             &[],
             Some(scope_token),
@@ -1023,7 +1027,7 @@ impl OntoStarAdmissionGate {
                             ("op", op.as_str()),
                             ("receipt_hash", &receipt_hex),
                             ("scope_token", &receipt.record.scope_token),
-                            ("production_law_version", &receipt.record.production_law_version),
+                            (OCEL_KEY_PRODUCTION_LAW_VERSION, &receipt.record.production_law_version),
                             ("defects_taxonomy_version", &receipt.record.defects_taxonomy_version),
                             ("powl_hash", &powl_hash_hex),
                         ],
@@ -1155,7 +1159,7 @@ impl OntoStarAdmissionGate {
             &[
                 ("op", op.as_str()),
                 ("defect", defect.tag()),
-                ("production_law_version", "ontostar-1.0.0"),
+                (OCEL_KEY_PRODUCTION_LAW_VERSION, "ontostar-1.0.0"),
                 ("defects_taxonomy_version", crate::defects::DEFECTS_TAXONOMY_VERSION),
             ],
             &[],
@@ -1651,7 +1655,7 @@ fn persist_conformance_run(
                 // not yet integrated).  External auditors MUST NOT treat
                 // stub-path conformance runs as production evidence.
                 ("powl_stub", powl_stub_s),
-                ("production_law_version", "ontostar-1.0.0"),
+                (OCEL_KEY_PRODUCTION_LAW_VERSION, "ontostar-1.0.0"),
                 ("defects_taxonomy_version", crate::defects::DEFECTS_TAXONOMY_VERSION),
             ],
             &[],
