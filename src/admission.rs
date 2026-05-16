@@ -129,6 +129,28 @@ thread_local! {
 }
 
 /// What kind of mutation is being requested at the gate.
+///
+/// Each variant maps one-to-one with an OCEL event type that appears in the
+/// audit trail. Full-admission variants trigger the POWL-replay + receipt
+/// chain; audit-only variants are logged but never denied.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::admission::AdmissionOp;
+///
+/// // Variants are Copy — no move needed.
+/// let op = AdmissionOp::Apply;
+/// let op2 = op;                 // copy, not move
+/// assert_eq!(op, op2);
+///
+/// // PartialEq lets test code compare ops directly.
+/// assert_ne!(AdmissionOp::Apply, AdmissionOp::Clear);
+///
+/// // Debug is derived — useful in assertion failure messages.
+/// let dbg = format!("{:?}", AdmissionOp::Ingest);
+/// assert!(dbg.contains("Ingest"));
+/// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum AdmissionOp {
     // Full-admission ops (graph or external mutation).
@@ -411,6 +433,23 @@ impl AdmissionOp {
 /// don't yet have artifact bytes (push, save-with-not-yet-serialized),
 /// the gate uses a deterministic stand-in (the current canonical graph
 /// or the SPARQL endpoint URL) so the receipt is still chained.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::admission::ArtifactRef;
+///
+/// // Construct an ArtifactRef from a byte slice and a human-readable kind tag.
+/// let ttl = b"@prefix owl: <http://www.w3.org/2002/07/owl#> .";
+/// let artifact = ArtifactRef { kind: "turtle", bytes: ttl };
+///
+/// assert_eq!(artifact.kind, "turtle");
+/// assert_eq!(artifact.bytes, ttl.as_slice());
+///
+/// // `kind` is a label only — the hash preimage uses `bytes` exclusively.
+/// let same_bytes_different_kind = ArtifactRef { kind: "rdf-xml", bytes: ttl };
+/// assert_eq!(artifact.hash(), same_bytes_different_kind.hash());
+/// ```
 pub struct ArtifactRef<'a> {
     pub kind: &'a str,
     pub bytes: &'a [u8],
@@ -461,6 +500,34 @@ pub trait PowlReplay {
     fn replay(&self, scope_token: &str, powl_string: &str, tenant_id: &str) -> ConformanceResult;
 }
 
+/// A POWL conformance verdict returned by [`PowlReplay::replay`].
+///
+/// Fields reflect the standard pm4py process-mining metrics. The `is_stub`
+/// flag distinguishes placeholder results from production-grade evidence.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::admission::ConformanceResult;
+///
+/// // Construct a conformance result directly (e.g. in test fixtures).
+/// let result = ConformanceResult {
+///     fitness: 0.95,
+///     precision: 0.88,
+///     verdict: "conform".to_string(),
+///     run_id: "run-001".to_string(),
+///     is_stub: false,
+/// };
+///
+/// assert_eq!(result.fitness, 0.95);
+/// assert_eq!(result.precision, 0.88);
+/// assert_eq!(result.verdict, "conform");
+/// assert!(!result.is_stub);
+///
+/// // Clone is derived — two copies are independent.
+/// let cloned = result.clone();
+/// assert_eq!(cloned.run_id, "run-001");
+/// ```
 #[derive(Clone, Debug)]
 pub struct ConformanceResult {
     pub fitness: f64,
@@ -540,30 +607,78 @@ pub const OCEL_KEY_PRODUCTION_LAW_VERSION: &str = "production_law_version";
 /// OCEL event attribute key for the scope token (ULID) that tags all events
 /// belonging to a declared workflow scope. Extracted from 17 sites in
 /// server.rs and 3 sites in admission.rs (20 total).
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::admission::OCEL_KEY_SCOPE_TOKEN;
+///
+/// assert_eq!(OCEL_KEY_SCOPE_TOKEN, "scope_token");
+/// ```
 pub const OCEL_KEY_SCOPE_TOKEN: &str = "scope_token";
 
 /// OCEL event attribute key for the BLAKE3 hex receipt attached to every
 /// admission audit record and tool response. Extracted from 14 sites in
 /// server.rs and 1 site in admission.rs (15 total).
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::admission::OCEL_KEY_RECEIPT_HASH;
+///
+/// assert_eq!(OCEL_KEY_RECEIPT_HASH, "receipt_hash");
+/// ```
 pub const OCEL_KEY_RECEIPT_HASH: &str = "receipt_hash";
 
 /// OCEL event attribute key for the `defects_taxonomy_version` string.
 /// Appears alongside `OCEL_KEY_PRODUCTION_LAW_VERSION` on every admission
 /// event. Extracted from 8 sites in server.rs and 5 sites in admission.rs.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::admission::OCEL_KEY_DEFECTS_TAXONOMY_VERSION;
+///
+/// assert_eq!(OCEL_KEY_DEFECTS_TAXONOMY_VERSION, "defects_taxonomy_version");
+/// ```
 pub const OCEL_KEY_DEFECTS_TAXONOMY_VERSION: &str = "defects_taxonomy_version";
 
 /// OCEL event attribute key for the POWL conformance fitness score.
 /// Extracted from 2 sites in server.rs and 1 site in admission.rs.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::admission::OCEL_KEY_FITNESS;
+///
+/// assert_eq!(OCEL_KEY_FITNESS, "fitness");
+/// ```
 pub const OCEL_KEY_FITNESS: &str = "fitness";
 
 /// OCEL event attribute key for the POWL conformance precision score.
 /// Paired with `OCEL_KEY_FITNESS`. Extracted from 1 site in server.rs and
 /// 1 site in admission.rs.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::admission::OCEL_KEY_PRECISION;
+///
+/// assert_eq!(OCEL_KEY_PRECISION, "precision");
+/// ```
 pub const OCEL_KEY_PRECISION: &str = "precision";
 
 /// OCEL event attribute key indicating the POWL replay used a stub
 /// (`NoopPowlReplay`) rather than the real bridge. Extracted from 2 sites
 /// in server.rs and 2 sites in admission.rs (4 total).
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::admission::OCEL_KEY_POWL_STUB;
+///
+/// assert_eq!(OCEL_KEY_POWL_STUB, "powl_stub");
+/// ```
 pub const OCEL_KEY_POWL_STUB: &str = "powl_stub";
 
 /// The production law version tag written into every admission OCEL event and
@@ -2019,6 +2134,23 @@ fn persist_conformance_run(
 }
 
 /// Convenience: revoke a session by writing to `revoked_sessions`.
+///
+/// The revocation row marks the session as denied for all future
+/// full-admission calls. The `reason` string is surfaced in denial OCEL
+/// events so auditors can correlate revocations with their cause.
+///
+/// # Examples
+///
+/// ```no_run
+/// use open_ontologies::admission::revoke_session;
+/// use open_ontologies::state::StateDb;
+///
+/// # fn example(db: &StateDb) -> anyhow::Result<()> {
+/// // Record a bypass revocation for a session that was compromised.
+/// revoke_session(db, "session-abc-123", "bypass_detected")?;
+/// # Ok(())
+/// # }
+/// ```
 pub fn revoke_session(db: &StateDb, session_id: &str, reason: &str) -> anyhow::Result<()> {
     let conn = db.conn();
     conn.execute_batch(crate::receipts::STREAM3_STUB_MIGRATION)?;
@@ -2031,6 +2163,24 @@ pub fn revoke_session(db: &StateDb, session_id: &str, reason: &str) -> anyhow::R
 }
 
 /// Convenience: clear a revocation (sets `cleared_at`).
+///
+/// After clearing, the session is no longer blocked by the revocation check in
+/// [`OntoStarAdmissionGate::evaluate`]. The `cleared_at` timestamp is written
+/// so the revocation history remains visible to auditors.
+///
+/// # Examples
+///
+/// ```no_run
+/// use open_ontologies::admission::{revoke_session, clear_revocation};
+/// use open_ontologies::state::StateDb;
+///
+/// # fn example(db: &StateDb) -> anyhow::Result<()> {
+/// // Revoke first, then lift the revocation once the incident is resolved.
+/// revoke_session(db, "session-abc-123", "temporary_hold")?;
+/// clear_revocation(db, "session-abc-123")?;
+/// # Ok(())
+/// # }
+/// ```
 pub fn clear_revocation(db: &StateDb, session_id: &str) -> anyhow::Result<()> {
     let conn = db.conn();
     conn.execute_batch(crate::receipts::STREAM3_STUB_MIGRATION)?;

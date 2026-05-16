@@ -1073,7 +1073,7 @@ impl OpenOntologiesServer {
         let out = if input.inline.unwrap_or(false) {
             OntologyService::validate_string(&input.input).unwrap_or_else(|e| {
                 format!(
-                    r#"{{"error":"Turtle parse error: {}. Check that 'input' contains valid Turtle/RDF content (prefixes declared, triples well-formed, IRIs angle-bracketed)."}}"#,
+                    r#"{{"ok":false,"error":"Turtle parse error: {}. Check that 'input' contains valid Turtle/RDF content (prefixes declared, triples well-formed, IRIs angle-bracketed).","hint":"Run onto_validate on the same file/content for a detailed syntax error report."}}"#,
                     e.to_string().replace('"', "'")
                 )
             })
@@ -1136,7 +1136,7 @@ impl OpenOntologiesServer {
             }
             OntologyService::validate_file(path).unwrap_or_else(|e| {
                 format!(
-                    r#"{{"error":"Failed to read '{}': {}. Check file permissions and encoding (UTF-8 required)."}}"#,
+                    r#"{{"ok":false,"error":"Failed to read '{}': {}. Check file permissions and encoding (UTF-8 required).","hint":"Verify your principal is in OPEN_ONTOLOGIES_ADMIN_PRINCIPALS, then retry."}}"#,
                     path,
                     e.to_string().replace('"', "'")
                 )
@@ -1154,7 +1154,7 @@ impl OpenOntologiesServer {
         const KNOWN_FORMATS: &[&str] = &["turtle", "ntriples", "rdfxml", "nquads", "trig"];
         if !KNOWN_FORMATS.contains(&input.to.to_lowercase().as_str()) {
             return format!(
-                r#"{{"error":"Unknown format: '{}'. Supported formats: turtle, ntriples, rdfxml, nquads, trig. Use onto_convert with 'to' set to one of these values."}}"#,
+                r#"{{"ok":false,"error":"Unknown format: '{}'. Supported formats: turtle, ntriples, rdfxml, nquads, trig. Use onto_convert with 'to' set to one of these values.","hint":"Verify the format name is one of: turtle, ntriples, rdfxml, nquads, trig."}}"#,
                 input.to
             );
         }
@@ -1164,7 +1164,7 @@ impl OpenOntologiesServer {
         if !input.path.is_empty() && !std::path::Path::new(&input.path).exists() {
             // Distinguish "nothing to convert" (empty path) from "wrong path".
             return format!(
-                r#"{{"error":"File not found: '{}'. Verify the path exists and the file is readable. Supported input formats: .ttl/.turtle (Turtle), .nt (N-Triples), .rdf/.xml/.owl (RDF/XML), .nq (N-Quads), .trig (TriG). Load an ontology with onto_load first, or pass a valid file path."}}"#,
+                r#"{{"ok":false,"error":"File not found: '{}'. Verify the path exists and the file is readable. Supported input formats: .ttl/.turtle (Turtle), .nt (N-Triples), .rdf/.xml/.owl (RDF/XML), .nq (N-Quads), .trig (TriG). Load an ontology with onto_load first, or pass a valid file path.","hint":"Call onto_load with a valid .ttl file path to load an ontology first."}}"#,
                 input.path
             );
         }
@@ -1172,7 +1172,7 @@ impl OpenOntologiesServer {
         // If path is empty and the in-memory store is also empty, there is
         // nothing to convert.
         if input.path.is_empty() && self.graph.triple_count() == 0 {
-            return r#"{"error":"Nothing to convert — load an ontology with onto_load first, or pass a file path via the 'path' field."}"#.to_string();
+            return r#"{"ok":false,"error":"Nothing to convert — load an ontology with onto_load first, or pass a file path via the 'path' field.","hint":"Call onto_load with a valid .ttl file path to load an ontology first."}"#.to_string();
         }
 
         let store = GraphStore::new();
@@ -1183,16 +1183,16 @@ impl OpenOntologiesServer {
                         if let Some(output) = input.output {
                             match std::fs::write(&output, &content) {
                                 Ok(_) => format!(r#"{{"ok":true,"path":"{}","format":"{}"}}"#, output, input.to),
-                                Err(e) => format!(r#"{{"error":"{}"}}"#, e),
+                                Err(e) => format!(r#"{{"ok":false,"error":"{}","hint":"Check the error details and retry. Consult the tool description for required parameters."}}"#, e),
                             }
                         } else {
                             content
                         }
                     }
-                    Err(e) => format!(r#"{{"error":"{}"}}"#, e),
+                    Err(e) => format!(r#"{{"ok":false,"error":"{}","hint":"Check the error details and retry. Consult the tool description for required parameters."}}"#, e),
                 }
             }
-            Err(e) => format!(r#"{{"error":"{}"}}"#, e),
+            Err(e) => format!(r#"{{"ok":false,"error":"{}","hint":"Check the error details and retry. Consult the tool description for required parameters."}}"#, e),
         }
     }
 
@@ -1204,7 +1204,7 @@ impl OpenOntologiesServer {
             match self.graph.load_turtle(&turtle, None) {
                 Ok(count) => format!(r#"{{"ok":true,"triples_loaded":{},"source":"inline"}}"#, count),
                 Err(e) => format!(
-                    r#"{{"error":"Inline Turtle parse error in 'turtle' field: {}. Ensure prefixes are declared before use, triples end with ' .', and IRIs are angle-bracketed (e.g. <https://example.org/>). Run onto_validate with inline=true to see detailed parse errors."}}"#,
+                    r#"{{"ok":false,"error":"Inline Turtle parse error in 'turtle' field: {}. Ensure prefixes are declared before use, triples end with ' .', and IRIs are angle-bracketed (e.g. <https://example.org/>). Run onto_validate with inline=true to see detailed parse errors.","hint":"Run onto_validate on the same file/content for a detailed syntax error report."}}"#,
                     e.to_string().replace('"', "'")
                 ),
             }
@@ -1214,7 +1214,7 @@ impl OpenOntologiesServer {
             // registry call so the error names the file and suggests a remedy.
             if !std::path::Path::new(&path).exists() {
                 let out = format!(
-                    r#"{{"error":"File not found: '{}'. Verify the path is correct and the file exists. Use onto_repo_list to discover files in configured ontology_dirs, or supply inline Turtle via the 'turtle' field instead."}}"#,
+                    r#"{{"ok":false,"error":"File not found: '{}'. Verify the path is correct and the file exists. Use onto_repo_list to discover files in configured ontology_dirs, or supply inline Turtle via the 'turtle' field instead.","hint":"Verify the file path is correct and the file exists. Use onto_repo_list to discover available ontologies."}}"#,
                     path
                 );
                 self.emit_tool_ocel(TOOL_LOAD, started, false, &[]);
@@ -1243,13 +1243,13 @@ impl OpenOntologiesServer {
                     let raw = e.to_string();
                     if raw.contains("parse source") || raw.contains("ParseError") || raw.contains("invalid") {
                         format!(
-                            r#"{{"error":"RDF parse error loading '{}': {}. Run onto_validate with the same path for a detailed error report. Supported formats: .ttl/.turtle (Turtle), .nt (N-Triples), .rdf/.xml/.owl (RDF/XML), .nq (N-Quads), .trig (TriG)."}}"#,
+                            r#"{{"ok":false,"error":"RDF parse error loading '{}': {}. Run onto_validate with the same path for a detailed error report. Supported formats: .ttl/.turtle (Turtle), .nt (N-Triples), .rdf/.xml/.owl (RDF/XML), .nq (N-Quads), .trig (TriG).","hint":"Run onto_validate on the same file/content for a detailed syntax error report."}}"#,
                             path,
                             raw.replace('"', "'")
                         )
                     } else {
                         format!(
-                            r#"{{"error":"Failed to load '{}': {}"}}"#,
+                            r#"{{"ok":false,"error":"Failed to load '{}': {}","hint":"Try onto_clear to reset the store, then reload the ontology with onto_load."}}"#,
                             path,
                             raw.replace('"', "'")
                         )
@@ -1257,7 +1257,7 @@ impl OpenOntologiesServer {
                 }
             }
         } else {
-            r#"{"error":"Either 'path' or 'turtle' must be provided. Supply a file path via 'path' or inline Turtle/RDF content via 'turtle'."}"#.to_string()
+            r#"{"ok":false,"error":"Either 'path' or 'turtle' must be provided. Supply a file path via 'path' or inline Turtle/RDF content via 'turtle'.","hint":"Check the error details and retry. Consult the tool description for required parameters and formats."}"#.to_string()
         };
         let ok = !out.contains(r#""error""#);
         self.emit_tool_ocel(TOOL_LOAD, started, ok, &[]);
@@ -1268,7 +1268,7 @@ impl OpenOntologiesServer {
     fn onto_repo_list(&self, Parameters(input): Parameters<OntoRepoListInput>) -> String {
         let repos = self.ontology_dirs.as_ref();
         if repos.is_empty() {
-            return r#"{"error":"no ontology_dirs configured; set [general] ontology_dirs in config.toml or OPEN_ONTOLOGIES_ONTOLOGY_DIRS"}"#.to_string();
+            return r#"{"ok":false,"error":"no ontology_dirs configured; set [general] ontology_dirs in config.toml or OPEN_ONTOLOGIES_ONTOLOGY_DIRS","hint":"Check the error details and retry. Consult the tool description for required parameters and formats."}"#.to_string();
         }
         let recursive = input.recursive.unwrap_or(false);
         let limit = input.limit.unwrap_or_else(crate::runtime::repo_default_list_limit);
@@ -1279,7 +1279,7 @@ impl OpenOntologiesServer {
                 Ok((start, repo_root)) => crate::repo::list_one(&repo_root, &start, recursive),
                 Err(e) => {
                     return format!(
-                        r#"{{"error":"{}"}}"#,
+                        r#"{{"ok":false,"error":"{}","hint":"Check the error details and retry. Consult the tool description for required parameters."}}"#,
                         e.to_string().replace('"', "'")
                     );
                 }
@@ -1392,7 +1392,7 @@ impl OpenOntologiesServer {
                 } else {
                     raw
                 };
-                return format!(r#"{{"error":"{}"}}"#, enriched.replace('"', "'"));
+                return format!(r#"{{"ok":false,"error":"{}","hint":"Check the error details and retry. Consult the tool description for required parameters."}}"#, enriched.replace('"', "'"));
             }
         };
         let opts = crate::registry::LoadOptions {
@@ -1415,14 +1415,14 @@ impl OpenOntologiesServer {
                 let raw = e.to_string();
                 if raw.contains("parse source") || raw.contains("ParseError") || raw.contains("invalid") {
                     format!(
-                        r#"{{"error":"RDF parse error loading '{}': {}. Run onto_validate with path='{}' for a detailed error report."}}"#,
+                        r#"{{"ok":false,"error":"RDF parse error loading '{}': {}. Run onto_validate with path='{}' for a detailed error report.","hint":"Check the input syntax and retry. Use onto_validate for detailed error reporting."}}"#,
                         path_str,
                         raw.replace('"', "'"),
                         path_str
                     )
                 } else {
                     format!(
-                        r#"{{"error":"Failed to load '{}': {}"}}"#,
+                        r#"{{"ok":false,"error":"Failed to load '{}': {}","hint":"Try onto_clear to reset the store, then reload the ontology with onto_load."}}"#,
                         path_str,
                         raw.replace('"', "'")
                     )
@@ -1435,7 +1435,7 @@ impl OpenOntologiesServer {
     async fn onto_query(&self, Parameters(input): Parameters<OntoQueryInput>) -> String {
         let started = std::time::Instant::now();
         if let Err(e) = self.registry.ensure_loaded() {
-            let out = format!(r#"{{"error":"Ontology not loaded: {}. Call onto_load first."}}"#, e.to_string().replace('"', "'"));
+            let out = format!(r#"{{"ok":false,"error":"Ontology not loaded: {}. Call onto_load first.","hint":"Call onto_load with a valid .ttl file path to load an ontology first."}}"#, e.to_string().replace('"', "'"));
             self.emit_tool_ocel(TOOL_QUERY, started, false, &[]);
             return out;
         }
@@ -1469,6 +1469,7 @@ impl OpenOntologiesServer {
         let triple_count = self.graph.triple_count();
         if triple_count == 0 {
             let out = serde_json::json!({
+                "ok": false,
                 "error": "Store is empty (0 triples loaded). Load an ontology first with onto_load, then retry the query.",
                 "query_type": query_type,
                 "hint": "Call onto_load with a .ttl/.nt/.rdf file path, or use onto_repo_list to discover available ontologies."
@@ -1496,15 +1497,19 @@ impl OpenOntologiesServer {
                     || raw.contains("ParseError");
                 if is_parse_error {
                     serde_json::json!({
+                        "ok": false,
                         "error": format!("SPARQL parse failed: {}", raw.replace('"', "'")),
                         "query_type": query_type,
                         "hint": "Common issues: missing PREFIX declaration (add PREFIX ex: <http://example.org/>), unclosed braces { }, wrong variable prefix (use ?var not $var), missing dot separator between triple patterns."
                     }).to_string()
                 } else {
                     serde_json::json!({
+                        "ok": false,
                         "error": format!("SPARQL execution error: {}", raw.replace('"', "'")),
                         "query_type": query_type,
-                    }).to_string()
+                    
+                        "hint": "Verify the query references valid predicates and classes in the loaded ontology. Use onto_stats to see what is loaded.",
+                        }).to_string()
                 }
             }
         };
@@ -1517,7 +1522,7 @@ impl OpenOntologiesServer {
     pub async fn onto_save(&self, Parameters(input): Parameters<OntoSaveInput>) -> String {
         let started = std::time::Instant::now();
         if let Err(e) = self.registry.ensure_loaded() {
-            let out = format!(r#"{{"error":"Ontology not loaded: {}. Call onto_load first."}}"#, e.to_string().replace('"', "'"));
+            let out = format!(r#"{{"ok":false,"error":"Ontology not loaded: {}. Call onto_load first.","hint":"Call onto_load with a valid .ttl file path to load an ontology first."}}"#, e.to_string().replace('"', "'"));
             self.emit_tool_ocel(TOOL_SAVE, started, false, &[]);
             return out;
         }
@@ -1565,7 +1570,7 @@ impl OpenOntologiesServer {
                 "defects_taxonomy_version": receipt.record.defects_taxonomy_version,
             })
             .to_string(),
-            Err(e) => format!(r#"{{"error":"{}"}}"#, e.to_string().replace('"', "'")),
+            Err(e) => format!(r#"{{"ok":false,"error":"{}","hint":"Check the error details and retry. Consult the tool description for required parameters."}}"#, e.to_string().replace('"', "'")),
         };
         let ok = !out.contains(r#""error""#);
         self.emit_tool_ocel(TOOL_SAVE, started, ok, &[]);
@@ -1575,9 +1580,9 @@ impl OpenOntologiesServer {
     #[tool(name = "onto_stats", description = "Get statistics about the loaded ontology (triple count, classes, properties, individuals)")]
     fn onto_stats(&self) -> String {
         if let Err(e) = self.registry.ensure_loaded() {
-            return format!(r#"{{"error":"Ontology not loaded: {}. Call onto_load first."}}"#, e.to_string().replace('"', "'"));
+            return format!(r#"{{"ok":false,"error":"Ontology not loaded: {}. Call onto_load first.","hint":"Call onto_load with a valid .ttl file path to load an ontology first."}}"#, e.to_string().replace('"', "'"));
         }
-        self.graph.get_stats().unwrap_or_else(|e| format!(r#"{{"error":"{}"}}"#, e))
+        self.graph.get_stats().unwrap_or_else(|e| format!(r#"{{"ok":false,"error":"{}","hint":"Check the error details and retry. Consult the tool description for required parameters."}}"#, e))
     }
 
     #[tool(name = "onto_diff", description = "Compare two ontology files and show added/removed triples")]
@@ -1610,12 +1615,14 @@ impl OpenOntologiesServer {
             Err(e) => {
                 let hint = versions_hint();
                 return serde_json::json!({
+                    "ok": false,
                     "error": format!(
                         "Cannot read old_path '{}': {}.{} \
                          Tip: export a saved version to a file with onto_save, then pass that path here.",
                         input.old_path, e, hint
-                    )
-                }).to_string();
+                    ),
+                    "hint": "Export saved versions to files with onto_save, then pass the file paths as version_a and version_b.",
+                    }).to_string();
             }
         };
         let new = match std::fs::read_to_string(&input.new_path) {
@@ -1623,21 +1630,25 @@ impl OpenOntologiesServer {
             Err(e) => {
                 let hint = versions_hint();
                 return serde_json::json!({
+                    "ok": false,
                     "error": format!(
                         "Cannot read new_path '{}': {}.{} \
                          Tip: export a saved version to a file with onto_save, then pass that path here.",
                         input.new_path, e, hint
-                    )
-                }).to_string();
+                    ),
+                    "hint": "Export saved versions to files with onto_save, then pass the file paths as version_a and version_b.",
+                    }).to_string();
             }
         };
         OntologyService::diff(&old, &new).unwrap_or_else(|e| {
             serde_json::json!({
+                "ok": false,
                 "error": format!(
                     "Diff failed: {}. Ensure both files contain valid Turtle (use onto_validate to check each file).",
                     e
-                )
-            }).to_string()
+                ),
+                "hint": "Check the error details and retry. Consult the tool description for required parameters and formats.",
+                }).to_string()
         })
     }
 
@@ -1651,13 +1662,13 @@ impl OpenOntologiesServer {
             match std::fs::read_to_string(&input.input) {
                 Ok(c) => c,
                 Err(e) => {
-                    let out = format!(r#"{{"error":"{}"}}"#, e);
+                    let out = format!(r#"{{"ok":false,"error":"{}","hint":"Check the error details and retry. Consult the tool description for required parameters."}}"#, e);
                     self.emit_tool_ocel(TOOL_LINT, started, false, &[]);
                     return out;
                 }
             }
         };
-        let out = OntologyService::lint_with_feedback(&content, Some(&self.db)).unwrap_or_else(|e| format!(r#"{{"error":"{}"}}"#, e));
+        let out = OntologyService::lint_with_feedback(&content, Some(&self.db)).unwrap_or_else(|e| format!(r#"{{"ok":false,"error":"{}","hint":"Check the error details and retry. Consult the tool description for required parameters."}}"#, e));
         let ok = !out.contains(r#""error""#);
         self.emit_tool_ocel(TOOL_LINT, started, ok, &[]);
         out
@@ -1680,7 +1691,7 @@ impl OpenOntologiesServer {
                 let _ = self.db.clear_last_active_path();
                 r#"{"ok":true,"message":"Store cleared","admission":"audit"}"#.to_string()
             },
-            Err(e) => format!(r#"{{"error":"{}"}}"#, e),
+            Err(e) => format!(r#"{{"ok":false,"error":"{}","hint":"Check the error details and retry. Consult the tool description for required parameters."}}"#, e),
         }
     }
 
@@ -1706,13 +1717,13 @@ impl OpenOntologiesServer {
                     "name": name,
                     "message": "entry exists in cache but was not in memory; pass delete_cache=true to remove it",
                 }).to_string(),
-                Err(e) => format!(r#"{{"error":"{}"}}"#, e.to_string().replace('"', "'")),
+                Err(e) => format!(r#"{{"ok":false,"error":"{}","hint":"Check the error details and retry. Consult the tool description for required parameters."}}"#, e.to_string().replace('"', "'")),
             };
         }
         match self.registry.unload(del) {
             Ok(Some(name)) => serde_json::json!({"ok": true, "unloaded": name, "deleted_cache": del}).to_string(),
             Ok(None) => r#"{"ok":true,"unloaded":null,"message":"no active ontology"}"#.to_string(),
-            Err(e) => format!(r#"{{"error":"{}"}}"#, e),
+            Err(e) => format!(r#"{{"ok":false,"error":"{}","hint":"Check the error details and retry. Consult the tool description for required parameters."}}"#, e),
         }
     }
 
@@ -1730,7 +1741,7 @@ impl OpenOntologiesServer {
                 "origin": res.origin,
                 "cache_path": res.cache_path,
             }).to_string(),
-            Err(e) => format!(r#"{{"error":"{}"}}"#, e.to_string().replace('"', "'")),
+            Err(e) => format!(r#"{{"ok":false,"error":"{}","hint":"Check the error details and retry. Consult the tool description for required parameters."}}"#, e.to_string().replace('"', "'")),
         }
     }
 
@@ -1747,7 +1758,7 @@ impl OpenOntologiesServer {
                 "count": entries.len(),
                 "entries": entries,
             }).to_string(),
-            Err(e) => format!(r#"{{"error":"{}"}}"#, e.to_string().replace('"', "'")),
+            Err(e) => format!(r#"{{"ok":false,"error":"{}","hint":"Check the error details and retry. Consult the tool description for required parameters."}}"#, e.to_string().replace('"', "'")),
         }
     }
 
@@ -1772,7 +1783,7 @@ impl OpenOntologiesServer {
                 "name": input.name,
                 "message": "entry was found but delete_file=false and it was not active, so nothing changed",
             }).to_string(),
-            Err(e) => format!(r#"{{"error":"{}"}}"#, e.to_string().replace('"', "'")),
+            Err(e) => format!(r#"{{"ok":false,"error":"{}","hint":"Check the error details and retry. Consult the tool description for required parameters."}}"#, e.to_string().replace('"', "'")),
         }
     }
 
@@ -1790,15 +1801,15 @@ impl OpenOntologiesServer {
                 Ok(content) => {
                     match self.graph.load_turtle(&content, None) {
                         Ok(count) => format!(r#"{{"ok":true,"triples_loaded":{},"source":"{}"}}"#, count, input.url),
-                        Err(e) => format!(r#"{{"error":"Parse error after fetching '{}': {}","hint":"The endpoint may not return RDF/Turtle. Accepted content types: text/turtle, application/n-triples, application/rdf+xml, application/trig."}}"#, input.url, e),
+                        Err(e) => format!(r#"{{"ok":false,"error":"Parse error after fetching '{}': {}","hint":"The endpoint may not return RDF/Turtle. Accepted content types: text/turtle, application/n-triples, application/rdf+xml, application/trig."}}"#, input.url, e),
                     }
                 }
                 Err(e) => {
                     let msg = e.to_string();
                     if msg.contains("404") || msg.contains("Not Found") {
-                        format!(r#"{{"error":"Not found at '{}'. Verify the URL is accessible. For SPARQL endpoints, use onto_pull with sparql=true and a CONSTRUCT query.","url":"{}"}}"#, input.url, input.url)
+                        format!(r#"{{"ok":false,"error":"Not found at '{}'. Verify the URL is accessible. For SPARQL endpoints, use onto_pull with sparql=true and a CONSTRUCT query.","url":"{}","hint":"Check that the URL is correct and the server is reachable. For SPARQL endpoints, set sparql=true and provide a CONSTRUCT query."}}"#, input.url, input.url)
                     } else {
-                        format!(r#"{{"error":"Failed to fetch '{}': {}","hint":"Check that the URL is reachable and the endpoint returns RDF (text/turtle, application/n-triples, application/rdf+xml)."}}"#, input.url, msg.replace('"', "'"))
+                        format!(r#"{{"ok":false,"error":"Failed to fetch '{}': {}","hint":"Check that the URL is reachable and the endpoint returns RDF (text/turtle, application/n-triples, application/rdf+xml)."}}"#, input.url, msg.replace('"', "'"))
                     }
                 }
             }
@@ -1807,15 +1818,15 @@ impl OpenOntologiesServer {
                 Ok(content) => {
                     match self.graph.load_turtle(&content, None) {
                         Ok(count) => format!(r#"{{"ok":true,"triples_loaded":{},"source":"{}"}}"#, count, input.url),
-                        Err(e) => format!(r#"{{"error":"Parse error after fetching '{}': {}","hint":"The server may not be returning RDF. Accepted content types: text/turtle, application/n-triples, application/rdf+xml, application/trig."}}"#, input.url, e),
+                        Err(e) => format!(r#"{{"ok":false,"error":"Parse error after fetching '{}': {}","hint":"The server may not be returning RDF. Accepted content types: text/turtle, application/n-triples, application/rdf+xml, application/trig."}}"#, input.url, e),
                     }
                 }
                 Err(e) => {
                     let msg = e.to_string();
                     if msg.contains("404") || msg.contains("Not Found") {
-                        format!(r#"{{"error":"Not found at '{}'. Verify the URL is accessible. For SPARQL endpoints, use onto_pull with sparql=true and a CONSTRUCT query.","url":"{}"}}"#, input.url, input.url)
+                        format!(r#"{{"ok":false,"error":"Not found at '{}'. Verify the URL is accessible. For SPARQL endpoints, use onto_pull with sparql=true and a CONSTRUCT query.","url":"{}","hint":"Check that the URL is correct and the server is reachable. For SPARQL endpoints, set sparql=true and provide a CONSTRUCT query."}}"#, input.url, input.url)
                     } else {
-                        format!(r#"{{"error":"Failed to fetch '{}': {}","hint":"Check that the URL is reachable and the endpoint returns RDF (text/turtle, application/n-triples, application/rdf+xml)."}}"#, input.url, msg.replace('"', "'"))
+                        format!(r#"{{"ok":false,"error":"Failed to fetch '{}': {}","hint":"Check that the URL is reachable and the endpoint returns RDF (text/turtle, application/n-triples, application/rdf+xml)."}}"#, input.url, msg.replace('"', "'"))
                     }
                 }
             }
@@ -1869,11 +1880,11 @@ impl OpenOntologiesServer {
                     .to_string(),
                     Err(e) => {
                         let msg = e.to_string().replace('"', "'");
-                        format!(r#"{{"error":"Push to '{}' failed: {}","hint":"Verify the endpoint is a SPARQL UPDATE URL (not a query URL) and the server is running."}}"#, input.endpoint, msg)
+                        format!(r#"{{"ok":false,"error":"Push to '{}' failed: {}","hint":"Verify the endpoint is a SPARQL UPDATE URL (not a query URL) and the server is running."}}"#, input.endpoint, msg)
                     }
                 }
             }
-            Err(e) => format!(r#"{{"error":"{}"}}"#, e.to_string().replace('"', "'")),
+            Err(e) => format!(r#"{{"ok":false,"error":"{}","hint":"Check the error details and retry. Consult the tool description for required parameters."}}"#, e.to_string().replace('"', "'")),
         }
     }
 
@@ -2001,6 +2012,7 @@ impl OpenOntologiesServer {
                                 let legacy = format!("FAILED:{}: {}", url, e);
                                 imported.push(legacy);
                                 failed.push(serde_json::json!({
+                                    "ok": false,
                                     "iri": url,
                                     "error": e.to_string(),
                                     "hint": "The IRI resolved successfully but its Turtle content is invalid. \
@@ -2037,6 +2049,7 @@ impl OpenOntologiesServer {
                         let legacy = format!("FAILED:{}: {}", url, err_str);
                         imported.push(legacy);
                         failed.push(serde_json::json!({
+                            "ok": false,
                             "iri": url,
                             "error": err_str,
                             "hint": hint
@@ -2086,16 +2099,19 @@ impl OpenOntologiesServer {
             "install" => {
                 let id = match input.id.as_deref() {
                     Some(id) => id,
-                    None => return r#"{"error":"'id' is required for install action"}"#.to_string(),
+                    None => return r#"{"ok":false,"error":"'id' is required for install action","hint":"Provide a value for the required field."}"#.to_string(),
                 };
                 let entry = match marketplace::find(id) {
                     Some(e) => e,
                     None => {
                         let available: Vec<&str> = marketplace::CATALOGUE.iter().map(|e| e.id).collect();
                         return serde_json::json!({
+                            "ok": false,
                             "error": format!("Unknown ontology ID: '{}'. Use action 'list' to see available IDs.", id),
                             "available": available,
-                        }).to_string();
+                        
+                            "hint": "Call onto_marketplace with action='list' to see available ontology IDs.",
+                            }).to_string();
                     }
                 };
                 match crate::graph::GraphStore::fetch_url(entry.url).await {
@@ -2165,7 +2181,7 @@ impl OpenOntologiesServer {
         );
         use crate::ontology::OntologyService;
         let out = OntologyService::save_version(&self.db, &self.graph, &input.label)
-            .unwrap_or_else(|e| format!(r#"{{"error":"{}"}}"#, e));
+            .unwrap_or_else(|e| format!(r#"{{"ok":false,"error":"{}","hint":"Check the error details and retry. Consult the tool description for required parameters."}}"#, e));
         let ok = !out.contains(r#""error""#);
         self.emit_tool_ocel(TOOL_VERSION, started, ok, &[]);
         out
@@ -2175,7 +2191,7 @@ impl OpenOntologiesServer {
     fn onto_history(&self) -> String {
         use crate::ontology::OntologyService;
         let out = OntologyService::list_versions(&self.db)
-            .unwrap_or_else(|e| format!(r#"{{"error":"{}"}}"#, e));
+            .unwrap_or_else(|e| format!(r#"{{"ok":false,"error":"{}","hint":"Check the error details and retry. Consult the tool description for required parameters."}}"#, e));
         // Surface an actionable hint when the versions list is empty so callers
         // are not left staring at {"versions":[]} with no next step.
         if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&out)
@@ -2211,11 +2227,11 @@ impl OpenOntologiesServer {
                 let msg = e.to_string();
                 if msg.contains("Query returned no rows") || msg.contains("no rows") {
                     format!(
-                        r#"{{"error":"Version '{}' not found. Call onto_history to list available snapshots."}}"#,
+                        r#"{{"ok":false,"error":"Version '{}' not found. Call onto_history to list available snapshots.","hint":"Verify the file path is correct and the file exists. Use onto_repo_list to discover available ontologies."}}"#,
                         input.label
                     )
                 } else {
-                    format!(r#"{{"error":"{}"}}"#, msg)
+                    format!(r#"{{"ok":false,"error":"{}","hint":"Check the error details and retry. Consult the tool description for required parameters."}}"#, msg)
                 }
             });
         let ok = !raw.contains(r#""error""#);
@@ -2277,7 +2293,7 @@ impl OpenOntologiesServer {
         // propagating a raw OS error from the parser.
         if !std::path::Path::new(&input.path).exists() {
             return format!(
-                r#"{{"error":"File not found: '{}'. Verify the path exists. Supported formats: csv, json, ndjson, xml, yaml, xlsx, parquet. Use onto_map to preview the mapping before ingesting."}}"#,
+                r#"{{"ok":false,"error":"File not found: '{}'. Verify the path exists. Supported formats: csv, json, ndjson, xml, yaml, xlsx, parquet. Use onto_map to preview the mapping before ingesting.","hint":"Verify the file path is correct and the file exists. Use onto_repo_list to discover available ontologies."}}"#,
                 input.path
             );
         }
@@ -2285,12 +2301,12 @@ impl OpenOntologiesServer {
         // Parse data file
         let rows = match DataIngester::parse_file_with_format(&input.path, input.format.as_deref()) {
             Ok(r) => r,
-            Err(e) => return format!(r#"{{"error":"Failed to parse '{}': {}. Check the file format or pass 'format' explicitly (csv, json, ndjson, xml, yaml, xlsx, parquet)."}}"#, input.path, e),
+            Err(e) => return format!(r#"{{"ok":false,"error":"Failed to parse '{}': {}. Check the file format or pass 'format' explicitly (csv, json, ndjson, xml, yaml, xlsx, parquet).","hint":"Verify the format name is one of: turtle, ntriples, rdfxml, nquads, trig."}}"#, input.path, e),
         };
 
         if rows.is_empty() {
             return format!(
-                r#"{{"error":"File is empty: '{}'. onto_ingest requires at least one row of data."}}"#,
+                r#"{{"ok":false,"error":"File is empty: '{}'. onto_ingest requires at least one row of data.","hint":"Check the data file format and mapping config, then retry onto_ingest."}}"#,
                 input.path
             );
         }
@@ -2301,14 +2317,14 @@ impl OpenOntologiesServer {
                 match serde_json::from_str::<MappingConfig>(mapping_str) {
                     Ok(m) => m,
                     Err(e) => return format!(
-                        r#"{{"error":"Mapping JSON is malformed: {}. Use onto_map with the same data file to generate a valid mapping, then pass it via 'mapping' with 'inline_mapping: true'."}}"#,
+                        r#"{{"ok":false,"error":"Mapping JSON is malformed: {}. Use onto_map with the same data file to generate a valid mapping, then pass it via 'mapping' with 'inline_mapping: true'.","hint":"Use onto_map to generate a valid mapping, then pass it via the mapping field."}}"#,
                         e
                     ),
                 }
             } else {
                 if !std::path::Path::new(mapping_str.as_str()).exists() {
                     return format!(
-                        r#"{{"error":"Mapping file not found: '{}'. Use onto_map with the same data file to generate a valid mapping, save it, then pass the saved path via 'mapping'."}}"#,
+                        r#"{{"ok":false,"error":"Mapping file not found: '{}'. Use onto_map with the same data file to generate a valid mapping, save it, then pass the saved path via 'mapping'.","hint":"Verify the file path is correct and the file exists. Use onto_repo_list to discover available ontologies."}}"#,
                         mapping_str
                     );
                 }
@@ -2316,11 +2332,11 @@ impl OpenOntologiesServer {
                     Ok(content) => match serde_json::from_str::<MappingConfig>(&content) {
                         Ok(m) => m,
                         Err(e) => return format!(
-                            r#"{{"error":"Mapping file '{}' is not valid JSON: {}. Use onto_map to regenerate a correct mapping."}}"#,
+                            r#"{{"ok":false,"error":"Mapping file '{}' is not valid JSON: {}. Use onto_map to regenerate a correct mapping.","hint":"Use onto_map to generate a valid mapping, then pass it via the mapping field."}}"#,
                             mapping_str, e
                         ),
                     },
-                    Err(e) => return format!(r#"{{"error":"Cannot read mapping file '{}': {}"}}"#, mapping_str, e),
+                    Err(e) => return format!(r#"{{"ok":false,"error":"Cannot read mapping file '{}': {}","hint":"Use onto_map to generate a valid mapping, then pass it via the mapping field."}}"#, mapping_str, e),
                 }
             }
         } else {
@@ -2348,7 +2364,7 @@ impl OpenOntologiesServer {
                     }
                 out.to_string()
             }
-            Err(e) => format!(r#"{{"error":"Failed to load triples: {}"}}"#, e),
+            Err(e) => format!(r#"{{"ok":false,"error":"Failed to load triples: {}","hint":"Try onto_clear to reset the store, then reload the ontology with onto_load."}}"#, e),
         }
     }
 
@@ -2367,7 +2383,7 @@ impl OpenOntologiesServer {
 
         let rows = match DataIngester::parse_file(&input.data_path) {
             Ok(r) => r,
-            Err(e) => return format!(r#"{{"error":"Failed to parse {}: {}"}}"#, input.data_path, e),
+            Err(e) => return format!(r#"{{"ok":false,"error":"Failed to parse {}: {}","hint":"Check the error details and retry. Consult the tool description for required parameters and formats."}}"#, input.data_path, e),
         };
         let headers = DataIngester::extract_headers(&rows);
 
@@ -2417,7 +2433,7 @@ impl OpenOntologiesServer {
         if let Some(ref save_path) = input.save_path
             && let Ok(json) = serde_json::to_string_pretty(&mapping)
                 && let Err(e) = std::fs::write(save_path, &json) {
-                    return format!(r#"{{"error":"Cannot write mapping file: {}"}}"#, e);
+                    return format!(r#"{{"ok":false,"error":"Cannot write mapping file: {}","hint":"Use onto_map to generate a valid mapping, then pass it via the mapping field."}}"#, e);
                 }
 
         result.to_string()
@@ -2430,7 +2446,7 @@ impl OpenOntologiesServer {
 
         // Guard: no data in the store means validation has nothing to check.
         if self.graph.triple_count() == 0 {
-            let out = r#"{"error":"No data loaded. Call onto_load or onto_ingest to load data into the store, then call onto_shacl with a 'shapes' SHACL shapes graph."}"#.to_string();
+            let out = r#"{"ok":false,"error":"No data loaded. Call onto_load or onto_ingest to load data into the store, then call onto_shacl with a 'shapes' SHACL shapes graph.","hint":"Call onto_load with a valid .ttl file path to load an ontology first."}"#.to_string();
             self.emit_tool_ocel(TOOL_SHACL, started, false, &[]);
             return out;
         }
@@ -2438,7 +2454,7 @@ impl OpenOntologiesServer {
         // Guard: a blank shapes value is useless and produces confusing errors
         // from the validator; surface a clear message up front.
         if input.shapes.trim().is_empty() {
-            let out = r#"{"error":"'shapes' is required — provide inline Turtle with sh:NodeShape definitions (and set 'inline: true'), or a file path to a .ttl shapes file."}"#.to_string();
+            let out = r#"{"ok":false,"error":"'shapes' is required — provide inline Turtle with sh:NodeShape definitions (and set 'inline: true'), or a file path to a .ttl shapes file.","hint":"Provide inline Turtle with sh:NodeShape definitions (and set inline: true), or a path to a valid .ttl shapes file."}"#.to_string();
             self.emit_tool_ocel(TOOL_SHACL, started, false, &[]);
             return out;
         }
@@ -2449,7 +2465,7 @@ impl OpenOntologiesServer {
             // Give a targeted "file not found" message instead of a raw IO error.
             if !std::path::Path::new(&input.shapes).exists() {
                 let out = format!(
-                    r#"{{"error":"Shapes file not found: '{}'. Provide inline Turtle via 'shapes' with 'inline: true', or verify the file path points to a valid .ttl shapes file."}}"#,
+                    r#"{{"ok":false,"error":"Shapes file not found: '{}'. Provide inline Turtle via 'shapes' with 'inline: true', or verify the file path points to a valid .ttl shapes file.","hint":"Verify the file path is correct and the file exists. Use onto_repo_list to discover available ontologies."}}"#,
                     input.shapes
                 );
                 self.emit_tool_ocel(TOOL_SHACL, started, false, &[]);
@@ -2458,14 +2474,14 @@ impl OpenOntologiesServer {
             match std::fs::read_to_string(&input.shapes) {
                 Ok(c) => c,
                 Err(e) => {
-                    let out = format!(r#"{{"error":"Cannot read shapes file '{}': {}"}}"#, input.shapes, e);
+                    let out = format!(r#"{{"ok":false,"error":"Cannot read shapes file '{}': {}","hint":"Provide inline Turtle with sh:NodeShape definitions (and set inline: true), or a path to a valid .ttl shapes file."}}"#, input.shapes, e);
                     self.emit_tool_ocel(TOOL_SHACL, started, false, &[]);
                     return out;
                 }
             }
         };
         let out = ShaclValidator::validate(&self.graph, &shapes)
-            .unwrap_or_else(|e| format!(r#"{{"error":"{}"}}"#, e));
+            .unwrap_or_else(|e| format!(r#"{{"ok":false,"error":"{}","hint":"Check the error details and retry. Consult the tool description for required parameters."}}"#, e));
         let ok = !out.contains(r#""error""#);
         self.emit_tool_ocel(TOOL_SHACL, started, ok, &[]);
         out
@@ -2499,7 +2515,7 @@ impl OpenOntologiesServer {
 
         let materialize = input.materialize.unwrap_or(true);
         let out = Reasoner::run(&self.graph, profile, materialize)
-            .unwrap_or_else(|e| format!(r#"{{"error":"{}"}}"#, e));
+            .unwrap_or_else(|e| format!(r#"{{"ok":false,"error":"{}","hint":"Check the error details and retry. Consult the tool description for required parameters."}}"#, e));
         let ok = !out.contains(r#""error""#);
         self.emit_tool_ocel(TOOL_REASON, started, ok, &[]);
         out
@@ -2530,7 +2546,7 @@ impl OpenOntologiesServer {
                         input.class_iri
                     )
                 } else {
-                    format!(r#"{{"error":"{}"}}"#, raw)
+                    format!(r#"{{"ok":false,"error":"{}","hint":"Check the error details and retry. Consult the tool description for required parameters."}}"#, raw)
                 }
             })
     }
@@ -2563,7 +2579,7 @@ impl OpenOntologiesServer {
                         raw.trim_start_matches("Unknown class: ")
                     )
                 } else {
-                    format!(r#"{{"error":"{}"}}"#, raw)
+                    format!(r#"{{"ok":false,"error":"{}","hint":"Check the error details and retry. Consult the tool description for required parameters."}}"#, raw)
                 }
             })
     }
@@ -2617,6 +2633,7 @@ impl OpenOntologiesServer {
                 result
             }
             Err(e) => serde_json::json!({
+                "ok": false,
                 "error": format!("{}", e),
                 "hint": "onto_plan failed to parse or diff the provided Turtle. \
                          Common causes: invalid Turtle syntax (missing prefix declarations, \
@@ -2731,6 +2748,7 @@ impl OpenOntologiesServer {
                      onto_monitor_clear or mode='force' to skip watchers."
                 };
                 serde_json::json!({
+                    "ok": false,
                     "error": msg,
                     "hint": hint,
                 }).to_string()
@@ -2872,7 +2890,7 @@ impl OpenOntologiesServer {
                 self.lineage().record(&self.session_id, "D", "drift", "detected");
                 result
             }
-            Err(e) => format!(r#"{{"error":"{}"}}"#, e),
+            Err(e) => format!(r#"{{"ok":false,"error":"{}","hint":"Check the error details and retry. Consult the tool description for required parameters."}}"#, e),
         }
     }
 
@@ -2920,7 +2938,7 @@ impl OpenOntologiesServer {
                 self.lineage().record(&self.session_id, "E", "enforce", &input.rule_pack);
                 result
             }
-            Err(e) => format!(r#"{{"error":"{}"}}"#, e),
+            Err(e) => format!(r#"{{"ok":false,"error":"{}","hint":"Check the error details and retry. Consult the tool description for required parameters."}}"#, e),
         }
     }
 
@@ -2934,12 +2952,14 @@ impl OpenOntologiesServer {
             match serde_json::from_str::<Vec<crate::monitor::Watcher>>(watchers_json) {
                 Err(parse_err) => {
                     return serde_json::json!({
+                        "ok": false,
                         "error": format!("Invalid watchers JSON: {}", parse_err),
                         "hint": "Provide a JSON array of watcher objects. Each watcher requires: id (string), check_type (\"sparql\" or \"conformance_regression\"), threshold (float), severity (string), action (\"notify\"|\"block_next_apply\"|\"auto_rollback\"|\"log\"). Example: [{\"id\":\"w1\",\"check_type\":\"sparql\",\"threshold\":0,\"severity\":\"warning\",\"action\":\"notify\",\"query\":\"SELECT (COUNT(*) AS ?count) WHERE { ?s ?p ?o }\"}]"
                     }).to_string();
                 }
                 Ok(watchers) if watchers.is_empty() => {
                     return serde_json::json!({
+                        "ok": false,
                         "error": "Empty watcher list provided",
                         "hint": "To register watchers pass a non-empty JSON array, or omit the 'watchers' field entirely to run only the watchers already stored in the session database."
                     }).to_string();
@@ -2982,6 +3002,7 @@ impl OpenOntologiesServer {
                     }
                     if !validation_errors.is_empty() {
                         return serde_json::json!({
+                            "ok": false,
                             "error": "One or more watchers failed validation — no watchers were registered",
                             "validation_errors": validation_errors,
                             "hint": "Fix the reported problems and retry. All watchers in a batch must be valid before any are registered."
@@ -3081,7 +3102,7 @@ impl OpenOntologiesServer {
                     }).to_string()
                 }
             }
-            Err(e) => format!(r#"{{"error":"Crosswalks not loaded: {}. Run scripts/build_crosswalks.py first."}}"#, e),
+            Err(e) => format!(r#"{{"ok":false,"error":"Crosswalks not loaded: {}. Run scripts/build_crosswalks.py first.","hint":"Run scripts/build_crosswalks.py to build the crosswalk database, then retry."}}"#, e),
         }
     }
 
@@ -3116,7 +3137,7 @@ impl OpenOntologiesServer {
                 }
                 cw.enrich(&self.graph, &input.class_iri, &input.code, &input.system)
             }
-            Err(e) => format!(r#"{{"error":"Crosswalks not loaded: {}"}}"#, e),
+            Err(e) => format!(r#"{{"ok":false,"error":"Crosswalks not loaded: {}","hint":"Run scripts/build_crosswalks.py to build the crosswalk database, then retry."}}"#, e),
         }
     }
 
@@ -3147,7 +3168,7 @@ impl OpenOntologiesServer {
                     result
                 }
             }
-            Err(e) => format!(r#"{{"error":"Crosswalks not loaded: {}"}}"#, e),
+            Err(e) => format!(r#"{{"ok":false,"error":"Crosswalks not loaded: {}","hint":"Run scripts/build_crosswalks.py to build the crosswalk database, then retry."}}"#, e),
         }
     }
 
@@ -3168,8 +3189,10 @@ impl OpenOntologiesServer {
                     }
                     Err(e) => {
                         serde_json::json!({
-                            "error": format!("Failed to build OCEL: {}", e)
-                        }).to_string()
+                            "ok": false,
+                            "error": format!("Failed to build OCEL: {}", e),
+                            "hint": "Ensure the event log data is in valid OCEL 1.0 or 2.0 JSON format.",
+                            }).to_string()
                     }
                 }
             }
@@ -3186,8 +3209,10 @@ impl OpenOntologiesServer {
                     }
                     Err(e) => {
                         serde_json::json!({
-                            "error": format!("Failed to convert to EventLog: {}", e)
-                        }).to_string()
+                            "ok": false,
+                            "error": format!("Failed to convert to EventLog: {}", e),
+                            "hint": "Ensure the event log data is in valid OCEL 1.0 or 2.0 JSON format and contains at least one event."
+                            }).to_string()
                     }
                 }
             }
@@ -3235,22 +3260,22 @@ impl OpenOntologiesServer {
         // 1. Ingest
         let rows = match DataIngester::parse_file(&input.data_path) {
             Ok(r) => r,
-            Err(e) => return format!(r#"{{"error":"Ingest failed: {}"}}"#, e),
+            Err(e) => return format!(r#"{{"ok":false,"error":"Ingest failed: {}","hint":"Check the data file format and mapping config, then retry onto_ingest."}}"#, e),
         };
 
         let mapping = if let Some(ref mapping_str) = input.mapping {
             if input.inline_mapping.unwrap_or(false) {
                 match serde_json::from_str::<MappingConfig>(mapping_str) {
                     Ok(m) => m,
-                    Err(e) => return format!(r#"{{"error":"Invalid mapping: {}"}}"#, e),
+                    Err(e) => return format!(r#"{{"ok":false,"error":"Invalid mapping: {}","hint":"Use onto_map to generate a valid mapping, then pass it via the mapping field."}}"#, e),
                 }
             } else {
                 match std::fs::read_to_string(mapping_str) {
                     Ok(content) => match serde_json::from_str::<MappingConfig>(&content) {
                         Ok(m) => m,
-                        Err(e) => return format!(r#"{{"error":"Invalid mapping file: {}"}}"#, e),
+                        Err(e) => return format!(r#"{{"ok":false,"error":"Invalid mapping file: {}","hint":"Use onto_map to generate a valid mapping, then pass it via the mapping field."}}"#, e),
                     },
-                    Err(e) => return format!(r#"{{"error":"Cannot read mapping: {}"}}"#, e),
+                    Err(e) => return format!(r#"{{"ok":false,"error":"Cannot read mapping: {}","hint":"Use onto_map to generate a valid mapping, then pass it via the mapping field."}}"#, e),
                 }
             }
         } else {
@@ -3261,7 +3286,7 @@ impl OpenOntologiesServer {
         let ntriples = mapping.rows_to_ntriples(&rows);
         let triples_loaded = match self.graph.load_ntriples(&ntriples) {
             Ok(c) => c,
-            Err(e) => return format!(r#"{{"error":"Failed to load triples: {}"}}"#, e),
+            Err(e) => return format!(r#"{{"ok":false,"error":"Failed to load triples: {}","hint":"Try onto_clear to reset the store, then reload the ontology with onto_load."}}"#, e),
         };
 
         // 2. SHACL (optional)
@@ -3272,7 +3297,7 @@ impl OpenOntologiesServer {
             } else {
                 match std::fs::read_to_string(shapes_input) {
                     Ok(c) => c,
-                    Err(e) => return format!(r#"{{"error":"Cannot read shapes: {}"}}"#, e),
+                    Err(e) => return format!(r#"{{"ok":false,"error":"Cannot read shapes: {}","hint":"Provide inline Turtle with sh:NodeShape definitions (and set inline: true), or a path to a valid .ttl shapes file."}}"#, e),
                 }
             };
             match ShaclValidator::validate(&self.graph, &shapes) {
@@ -3291,7 +3316,7 @@ impl OpenOntologiesServer {
                         shacl_result = parsed;
                     }
                 }
-                Err(e) => return format!(r#"{{"error":"SHACL validation failed: {}"}}"#, e),
+                Err(e) => return format!(r#"{{"ok":false,"error":"SHACL validation failed: {}","hint":"Provide inline Turtle with sh:NodeShape definitions (and set inline: true), or a path to a valid .ttl shapes file."}}"#, e),
             }
         }
 
@@ -3304,7 +3329,7 @@ impl OpenOntologiesServer {
                         reason_result = parsed;
                     }
                 }
-                Err(e) => return format!(r#"{{"error":"Reasoning failed: {}"}}"#, e),
+                Err(e) => return format!(r#"{{"ok":false,"error":"Reasoning failed: {}","hint":"Check the error details and retry. Consult the tool description for required parameters and formats."}}"#, e),
             }
         }
 
@@ -3395,7 +3420,7 @@ impl OpenOntologiesServer {
 
         // Validate + load
         if let Err(e) = GraphStore::validate_turtle(&turtle) {
-            return format!(r#"{{"error":"Generated Turtle invalid: {}"}}"#, e);
+            return format!(r#"{{"ok":false,"error":"Generated Turtle invalid: {}","hint":"This is an internal generation error — check the schema has standard column types. File a bug with the schema DDL if it persists."}}"#, e);
         }
 
         match self.graph.load_turtle(&turtle, Some(base_iri)) {
@@ -3418,7 +3443,7 @@ impl OpenOntologiesServer {
                     }
                 out.to_string()
             }
-            Err(e) => format!(r#"{{"error":"Failed to load: {}"}}"#, e),
+            Err(e) => format!(r#"{{"ok":false,"error":"Failed to load generated schema OWL into store: {}","hint":"Try onto_clear first to reset the store, then retry onto_import_schema."}}"#, e),
         }
     }
 
@@ -3455,7 +3480,7 @@ impl OpenOntologiesServer {
         // Validate connection scheme up front so we fail fast with a clear error.
         let driver = match sqlsource::detect_driver(&input.connection) {
             Ok(d) => d,
-            Err(e) => return format!(r#"{{"error":"{}"}}"#, e),
+            Err(e) => return format!(r#"{{"ok":false,"error":"Unsupported connection string: {}","hint":"Supported forms: 'postgres://user:pass@host:5432/dbname', 'duckdb:///path/to/file.duckdb', ':memory:', or a bare '*.duckdb' file path."}}"#, e),
         };
 
         let rows = match sqlsource::query_rows(&input.connection, &input.sql).await {
@@ -3463,7 +3488,7 @@ impl OpenOntologiesServer {
             Err(e) => {
                 let driver_name = driver.as_str();
                 return format!(
-                    r#"{{"error":"SQL query failed ({} driver): {}","hint":"Verify the {} connection string is correct and the server is reachable."}}"#,
+                    r#"{{"ok":false,"error":"SQL query failed ({} driver): {}","hint":"Verify the {} connection string is correct and the server is reachable."}}"#,
                     driver_name,
                     e.to_string().replace('"', "'"),
                     driver_name
@@ -3487,15 +3512,15 @@ impl OpenOntologiesServer {
             if input.inline_mapping.unwrap_or(false) {
                 match serde_json::from_str::<MappingConfig>(mapping_str) {
                     Ok(m) => m,
-                    Err(e) => return format!(r#"{{"error":"Invalid mapping JSON: {}"}}"#, e),
+                    Err(e) => return format!(r#"{{"ok":false,"error":"Invalid mapping JSON: {}","hint":"Use onto_map with the same SQL query results to generate a valid mapping, then pass it via 'mapping' with 'inline_mapping: true'."}}"#, e),
                 }
             } else {
                 match std::fs::read_to_string(mapping_str) {
                     Ok(content) => match serde_json::from_str::<MappingConfig>(&content) {
                         Ok(m) => m,
-                        Err(e) => return format!(r#"{{"error":"Invalid mapping file: {}"}}"#, e),
+                        Err(e) => return format!(r#"{{"ok":false,"error":"Invalid mapping file: {}","hint":"Use onto_map to regenerate a correct mapping, save it, then pass the saved path via 'mapping'."}}"#, e),
                     },
-                    Err(e) => return format!(r#"{{"error":"Cannot read mapping file: {}"}}"#, e),
+                    Err(e) => return format!(r#"{{"ok":false,"error":"Cannot read mapping file: {}","hint":"Verify the mapping file path is correct and the file is readable."}}"#, e),
                 }
             }
         } else {
@@ -3513,7 +3538,7 @@ impl OpenOntologiesServer {
                 "mapping_fields": mapping.mappings.len(),
             })
             .to_string(),
-            Err(e) => format!(r#"{{"error":"Failed to load triples: {}"}}"#, e),
+            Err(e) => format!(r#"{{"ok":false,"error":"Failed to load triples into store: {}","hint":"Try onto_clear to reset the store, then retry onto_sql_ingest."}}"#, e),
         }
     }
 
@@ -3544,14 +3569,14 @@ impl OpenOntologiesServer {
         // store. Catch the case where no ontology has been loaded yet so the
         // user knows what to do rather than receiving an empty candidates list.
         if input.target.is_none() && self.graph.triple_count() == 0 {
-            return r#"{"error":"No ontology loaded. Call onto_load first, then call onto_align with 'target' pointing to the second ontology (as a file path or inline Turtle). The source ontology is the one supplied in the 'source' field; the target defaults to the currently loaded store."}"#.to_string();
+            return r#"{"ok":false,"error":"No ontology loaded. Call onto_load first, then call onto_align with 'target' pointing to the second ontology (as a file path or inline Turtle). The source ontology is the one supplied in the 'source' field; the target defaults to the currently loaded store.","hint":"Call onto_load with the target ontology file path, then retry onto_align with the source ontology in the 'source' field."}"#.to_string();
         }
 
         // Read source (file path or inline)
         let source = if std::path::Path::new(&input.source).exists() {
             match std::fs::read_to_string(&input.source) {
                 Ok(s) => s,
-                Err(e) => return format!(r#"{{"error":"Failed to read source: {}"}}"#, e),
+                Err(e) => return format!(r#"{{"ok":false,"error":"Failed to read source ontology file: {}","hint":"Verify the file path is correct and the file is readable (UTF-8 encoded). Pass inline Turtle via the 'source' field instead of a file path."}}"#, e),
             }
         } else {
             input.source
@@ -3570,14 +3595,14 @@ impl OpenOntologiesServer {
                     || t.ends_with(".nq") || t.ends_with(".trig");
                 if looks_like_path && !std::path::Path::new(&t).exists() {
                     return format!(
-                        r#"{{"error":"Target ontology not found: '{}'. The source ontology is supplied via 'source'; the target must be a valid file path or inline Turtle content. Verify the path or pass inline Turtle directly."}}"#,
+                        r#"{{"ok":false,"error":"Target ontology not found: '{}'. The source ontology is supplied via 'source'; the target must be a valid file path or inline Turtle content. Verify the path or pass inline Turtle directly.","hint":"Use onto_repo_list to discover ontologies in configured ontology_dirs, or pass inline Turtle as the 'target' value."}}"#,
                         t
                     );
                 }
                 if std::path::Path::new(&t).exists() {
                     match std::fs::read_to_string(&t) {
                         Ok(s) => Some(s),
-                        Err(e) => return format!(r#"{{"error":"Failed to read target: {}"}}"#, e),
+                        Err(e) => return format!(r#"{{"ok":false,"error":"Failed to read target ontology file: {}","hint":"Verify the file path is correct and the file is readable (UTF-8 encoded). Pass inline Turtle via the 'target' field instead."}}"#, e),
                     }
                 } else {
                     Some(t)
@@ -3646,7 +3671,7 @@ impl OpenOntologiesServer {
                     result
                 }
             }
-            Err(e) => format!(r#"{{"error":"{}"}}"#, e),
+            Err(e) => format!(r#"{{"ok":false,"error":"Alignment failed: {}","hint":"Ensure both ontologies are valid Turtle/RDF and contain owl:Class declarations. Run onto_validate on each ontology file first."}}"#, e),
         }
     }
 
@@ -3655,13 +3680,15 @@ impl OpenOntologiesServer {
         if input.source_iri.trim().is_empty() {
             return serde_json::json!({
                 "ok": false,
-                "error": "'source_iri' is required — use the source_iri field from an onto_align response."
+                "error": "'source_iri' is required — use the source_iri field from an onto_align response.",
+                "hint": "Copy the source_iri value from an onto_align candidates response, then call onto_align_feedback with that IRI."
             }).to_string();
         }
         if input.target_iri.trim().is_empty() {
             return serde_json::json!({
                 "ok": false,
-                "error": "'target_iri' is required — use the target_iri field from an onto_align response."
+                "error": "'target_iri' is required — use the target_iri field from an onto_align response.",
+                "hint": "Copy the target_iri value from an onto_align candidates response, then call onto_align_feedback with that IRI."
             }).to_string();
         }
         self.evaluate_admission_audit(
@@ -3683,9 +3710,10 @@ impl OpenOntologiesServer {
                     serde_json::json!({
                         "ok": false,
                         "error": format!("Alignment candidate ('{}' → '{}') not found. Run onto_align first to generate candidates.", input.source_iri, input.target_iri),
+                        "hint": "Run onto_align with both ontologies to generate candidates, then use the source_iri and target_iri values from the response."
                     }).to_string()
                 } else {
-                    format!(r#"{{"error":"{}"}}"#, msg)
+                    format!(r#"{{"ok":false,"error":"Alignment feedback failed: {}","hint":"Retry after verifying the alignment candidate was created by onto_align in this session."}}"#, msg)
                 }
             }
         }
@@ -3699,7 +3727,7 @@ impl OpenOntologiesServer {
         let limit = input.limit.unwrap_or(10);
         match self.ocel_store().exemplars_for_domain(&input.domain, min_fitness, limit) {
             Ok(rows) => serde_json::json!({"ok": true, "domain": input.domain, "count": rows.len(), "exemplars": rows}).to_string(),
-            Err(e) => format!(r#"{{"error":"{}"}}"#, e),
+            Err(e) => format!(r#"{{"ok":false,"error":"{}","hint":"Check the error details and retry. Consult the tool description for required parameters."}}"#, e),
         }
     }
 
@@ -3809,7 +3837,7 @@ impl OpenOntologiesServer {
                 self.lineage().record(&self.session_id, "LF", "lint_feedback", if input.accepted { "accepted" } else { "dismissed" });
                 result
             }
-            Err(e) => format!(r#"{{"error":"{}"}}"#, e),
+            Err(e) => format!(r#"{{"ok":false,"error":"{}","hint":"Check the error details and retry. Consult the tool description for required parameters."}}"#, e),
         }
     }
 
@@ -3820,7 +3848,7 @@ impl OpenOntologiesServer {
                 self.lineage().record(&self.session_id, "EF", "enforce_feedback", if input.accepted { "accepted" } else { "dismissed" });
                 result
             }
-            Err(e) => format!(r#"{{"error":"{}"}}"#, e),
+            Err(e) => format!(r#"{{"ok":false,"error":"{}","hint":"Check the error details and retry. Consult the tool description for required parameters."}}"#, e),
         }
     }
 
@@ -3835,7 +3863,7 @@ impl OpenOntologiesServer {
 
     async fn onto_embed_inner(&self, _input_embed: OntoEmbedInput) -> String {
         #[cfg(not(feature = "embeddings"))]
-        { r#"{"error":"Compiled without embeddings feature. Rebuild with --features embeddings"}"#.to_string() }
+        { r#"{"ok":false,"error":"Compiled without embeddings feature. Rebuild with --features embeddings","hint":"Run: cargo build --features embeddings (or cargo make build --features embeddings) to enable semantic search."}"#.to_string() }
         #[cfg(feature = "embeddings")]
         let input = _input_embed;
         #[cfg(feature = "embeddings")]
@@ -3850,7 +3878,7 @@ impl OpenOntologiesServer {
 
         let embedder = match &self.text_embedder {
             Some(e) => e,
-            None => return r#"{"error":"Embedding model not loaded. Run `open-ontologies init` to download."}"#.to_string(),
+            None => return r#"{"ok":false,"error":"Embedding model not loaded. Run `open-ontologies init` to download.","hint":"Run `open-ontologies init` in your terminal to download the embedding model, then retry onto_embed."}"#.to_string(),
         };
 
         let struct_dim = input.struct_dim.unwrap_or(32);
@@ -3866,12 +3894,12 @@ impl OpenOntologiesServer {
 
         let result = match self.graph.sparql_select(classes_query) {
             Ok(r) => r,
-            Err(e) => return format!(r#"{{"error":"{}"}}"#, e),
+            Err(e) => return format!(r#"{{"ok":false,"error":"SPARQL query failed while listing classes: {}","hint":"Verify the ontology loaded correctly with onto_stats, then retry onto_embed."}}"#, e),
         };
 
         let parsed: serde_json::Value = match serde_json::from_str(&result) {
             Ok(v) => v,
-            Err(e) => return format!(r#"{{"error":"{}"}}"#, e),
+            Err(e) => return format!(r#"{{"ok":false,"error":"Failed to parse SPARQL result: {}","hint":"This is an internal error — try reloading the ontology with onto_load and retrying onto_embed."}}"#, e),
         };
 
         let mut class_labels: std::collections::HashMap<String, String> = std::collections::HashMap::new();
@@ -3892,13 +3920,13 @@ impl OpenOntologiesServer {
         }
 
         if class_labels.is_empty() {
-            return r#"{"error":"No ontology loaded. Call onto_load first, then onto_embed to generate embeddings."}"#.to_string();
+            return r#"{"ok":false,"error":"No OWL classes found in the loaded ontology. onto_embed requires at least one owl:Class.","hint":"Load an ontology with owl:Class declarations using onto_load, then retry onto_embed."}"#.to_string();
         }
 
         let trainer = crate::structembed::StructuralTrainer::new(struct_dim, struct_epochs, 0.01);
         let struct_embeddings = match trainer.train(&self.graph) {
             Ok(e) => e,
-            Err(e) => return format!(r#"{{"error":"structural training failed: {}"}}"#, e),
+            Err(e) => return format!(r#"{{"ok":false,"error":"Structural embedding training failed: {}","hint":"Try reducing struct_epochs (default 100) or struct_dim (default 32) to decrease memory pressure, then retry onto_embed."}}"#, e),
         };
 
         let mut embedded_count = 0;
@@ -3937,7 +3965,7 @@ impl OpenOntologiesServer {
         {
             let vecstore = self.vecstore.lock().unwrap();
             if let Err(e) = vecstore.persist() {
-                return format!(r#"{{"error":"failed to persist embeddings: {}"}}"#, e);
+                return format!(r#"{{"ok":false,"error":"Failed to persist embeddings to disk: {}","hint":"Ensure the data directory is writable, then retry onto_embed. Embeddings are in-memory until persisted."}}"#, e);
             }
         }
 
@@ -3955,7 +3983,7 @@ impl OpenOntologiesServer {
     #[tool(name = "onto_search", description = "Semantic search over the loaded ontology using natural language. Returns the most similar classes by text meaning, structural position, or both. Requires onto_embed to have been run first.")]
     async fn onto_search(&self, Parameters(_input): Parameters<OntoSearchInput>) -> String {
         #[cfg(not(feature = "embeddings"))]
-        { return r#"{"error":"Compiled without embeddings feature. Rebuild with --features embeddings"}"#.to_string(); }
+        { return r#"{"ok":false,"error":"Compiled without embeddings feature. Rebuild with --features embeddings","hint":"Run: cargo build --features embeddings (or cargo make build --features embeddings) to enable semantic search."}"#.to_string(); }
         #[cfg(feature = "embeddings")]
         {
         let input = _input;
@@ -3981,7 +4009,7 @@ impl OpenOntologiesServer {
 
         let embedder = match &self.text_embedder {
             Some(e) => e,
-            None => return r#"{"error":"Embedding model not loaded."}"#.to_string(),
+            None => return r#"{"ok":false,"error":"Embedding model not loaded.","hint":"Run `open-ontologies init` to download the embedding model, then retry onto_search."}"#.to_string(),
         };
 
         // R7 WD-1 — sanitize the search query through the embed-query
@@ -3994,19 +4022,19 @@ impl OpenOntologiesServer {
             Ok(v) => v,
             Err(e) => {
                 return format!(
-                    r#"{{"error":"LlmInput sanitize failed: {}"}}"#,
+                    r#"{{"ok":false,"error":"Query sanitization failed: {}","hint":"Ensure the query is plain text under 256 bytes with no special control characters, then retry onto_search."}}"#,
                     e.to_string().replace('"', "'")
                 )
             }
         };
         let query_vec = match embedder.embed_input(&query_input).await {
             Ok(v) => v,
-            Err(e) => return format!(r#"{{"error":"{}"}}"#, e),
+            Err(e) => return format!(r#"{{"ok":false,"error":"Embedding query failed: {}","hint":"Check your embedding provider configuration (local model path or OPEN_ONTOLOGIES_EMBEDDINGS_* env vars), then retry onto_search."}}"#, e),
         };
 
         let vecstore = self.vecstore.lock().unwrap();
         if vecstore.is_empty() {
-            return r#"{"error":"No embeddings loaded. Call onto_embed first to generate embeddings for the loaded ontology, then retry onto_search."}"#.to_string();
+            return r#"{"ok":false,"error":"No embeddings loaded. Call onto_embed first to generate embeddings for the loaded ontology, then retry onto_search.","hint":"Call onto_embed after onto_load to generate embeddings, then retry onto_search."}"#.to_string();
         }
 
         let results: Vec<serde_json::Value> = match mode {
@@ -4056,7 +4084,7 @@ impl OpenOntologiesServer {
     #[tool(name = "onto_similarity", description = "Compute embedding similarity between two IRIs — returns cosine similarity (text), Poincaré distance (structural), and product score.")]
     async fn onto_similarity(&self, Parameters(_input): Parameters<OntoSimilarityInput>) -> String {
         #[cfg(not(feature = "embeddings"))]
-        { return r#"{"error":"Compiled without embeddings feature. Rebuild with --features embeddings"}"#.to_string(); }
+        { return r#"{"ok":false,"error":"Compiled without embeddings feature. Rebuild with --features embeddings","hint":"Run: cargo build --features embeddings (or cargo make build --features embeddings) to enable semantic similarity."}"#.to_string(); }
         #[cfg(feature = "embeddings")]
         {
         let input = _input;
@@ -4099,7 +4127,7 @@ impl OpenOntologiesServer {
                 (false, false) => unreachable!(),
             };
             return format!(
-                r#"{{"error":"IRI not found in embeddings. Call onto_embed first to generate embeddings for the loaded ontology. Missing: {}"}}"#,
+                r#"{{"ok":false,"error":"IRI not found in embeddings. Call onto_embed first to generate embeddings for the loaded ontology. Missing: {}","hint":"Run onto_embed after onto_load, then verify the IRI exists with onto_query (SELECT ?s WHERE {{ ?s a owl:Class }})."}}"#,
                 missing
             );
         }
@@ -4323,12 +4351,12 @@ impl OpenOntologiesServer {
 
         // Ensure loaded
         if let Err(e) = self.registry.ensure_loaded() {
-            return format!(r#"{{"error":"Ontology not loaded: {}. Call onto_load first."}}"#, e.to_string().replace('"', "'"));
+            return format!(r#"{{"ok":false,"error":"Ontology not loaded: {}. Call onto_load first.","hint":"Call onto_load with a valid .ttl file path to load an ontology first."}}"#, e.to_string().replace('"', "'"));
         }
 
         // Guard: empty graph
         if self.graph.triple_count() == 0 {
-            return r#"{"error":"No triples loaded. Call onto_load first."}"#.to_string();
+            return r#"{"ok":false,"error":"No triples loaded. Call onto_load first.","hint":"Call onto_load with a valid .ttl file path to load an ontology first."}"#.to_string();
         }
 
         // OntoStar Stream 3: admission gate fires BEFORE invoking ggen.
@@ -4347,7 +4375,7 @@ impl OpenOntologiesServer {
 
         // Check: manifest_path or queries_dir required
         if input.manifest_path.is_none() && input.queries_dir.is_none() {
-            return r#"{"error":"onto_codegen requires either manifest_path (path to a ggen.toml with generation.rules) or queries_dir (directory of SPARQL .rq files). The generator field maps to ggen --language (accepted: python, rust, typescript, go, elixir). See ~/ggen for examples."}"#.to_string();
+            return r#"{"ok":false,"error":"onto_codegen requires either manifest_path (path to a ggen.toml with generation.rules) or queries_dir (directory of SPARQL .rq files). The generator field maps to ggen --language (accepted: python, rust, typescript, go, elixir). See ~/ggen for examples.","hint":"Verify the SPARQL query syntax, then retry. Use onto_query with a simple SELECT * WHERE { ?s ?p ?o } LIMIT 1 to test connectivity."}"#.to_string();
         }
 
         // Map generator name → ggen language
@@ -4373,13 +4401,13 @@ impl OpenOntologiesServer {
             .unwrap_or(0);
         let tmp_dir = std::env::temp_dir().join(format!("onto_codegen_{}", unique_id));
         if let Err(e) = std::fs::create_dir_all(&tmp_dir) {
-            return format!(r#"{{"error":"Failed to create temp dir: {}"}}"#, e);
+            return format!(r#"{{"ok":false,"error":"Failed to create temp dir: {}","hint":"Check the error details and retry. Consult the tool description for required parameters and formats."}}"#, e);
         }
 
         let temp_path = tmp_dir.join("ontology.ttl").to_string_lossy().to_string();
         if let Err(e) = self.graph.save_file(&temp_path, TURTLE_FORMAT) {
             let _ = std::fs::remove_dir_all(&tmp_dir);
-            return format!(r#"{{"error":"Failed to serialize graph: {}"}}"#, e);
+            return format!(r#"{{"ok":false,"error":"Failed to serialize graph: {}","hint":"Verify the format name is one of: turtle, ntriples, rdfxml, nquads, trig."}}"#, e);
         }
 
         // Build ggen sync command
@@ -4471,11 +4499,11 @@ impl OpenOntologiesServer {
                         "receipt_files_stamped": stamped,
                     }).to_string()
                 } else {
-                    format!(r#"{{"error":"ggen sync failed: {}"}}"#, stderr)
+                    format!(r#"{{"ok":false,"error":"ggen sync failed: {}","hint":"Check the error details and retry. Consult the tool description for required parameters and formats."}}"#, stderr)
                 }
             }
             Err(crate::subprocess::SubprocessError::LlmTimeout { elapsed_ms, limit_ms, .. }) => {
-                format!(r#"{{"error":"ggen sync timed out after {}ms (limit {}ms)"}}"#, elapsed_ms, limit_ms)
+                format!(r#"{{"ok":false,"error":"ggen sync timed out after {}ms (limit {}ms)","hint":"Check the error details and retry. Consult the tool description for required parameters and formats."}}"#, elapsed_ms, limit_ms)
             }
             Err(crate::subprocess::SubprocessError::SpawnFailed(e)) => {
                 let msg = if e.kind() == std::io::ErrorKind::NotFound {
@@ -4483,7 +4511,7 @@ impl OpenOntologiesServer {
                 } else {
                     "Failed to invoke ggen"
                 };
-                format!(r#"{{"error":"{}: {}"}}"#, msg, e)
+                format!(r#"{{"ok":false,"error":"{}: {}","hint":"Check the error details and retry. Consult the tool description for required parameters and formats."}}"#, msg, e)
             }
         };
 
@@ -5112,13 +5140,13 @@ impl OpenOntologiesServer {
             Ok(timed) => timed.output,
             Err(crate::subprocess::SubprocessError::LlmTimeout { elapsed_ms, limit_ms, .. }) => {
                 return format!(
-                    r#"{{"error":"ontostar_planner.py timed out after {}ms (limit {}ms)"}}"#,
+                    r#"{{"ok":false,"error":"ontostar_planner.py timed out after {}ms (limit {}ms)","hint":"Check the error details and retry. Consult the tool description for required parameters and formats."}}"#,
                     elapsed_ms, limit_ms
                 );
             }
             Err(crate::subprocess::SubprocessError::SpawnFailed(e)) => {
                 return format!(
-                    r#"{{"error":"Failed to spawn ontostar_planner.py: {}"}}"#,
+                    r#"{{"ok":false,"error":"Failed to spawn ontostar_planner.py: {}","hint":"Ensure the required Python script is present and Python is installed. Check script path configuration."}}"#,
                     e.to_string().replace('"', "'")
                 );
             }
@@ -5127,7 +5155,7 @@ impl OpenOntologiesServer {
         if !out.status.success() {
             let stderr = String::from_utf8_lossy(&out.stderr);
             return format!(
-                r#"{{"error":"planner exit nonzero: {}"}}"#,
+                r#"{{"ok":false,"error":"planner exit nonzero: {}","hint":"Check the error details and retry. Consult the tool description for required parameters and formats."}}"#,
                 stderr.replace('"', "'").replace('\n', " ")
             );
         }
@@ -5137,7 +5165,7 @@ impl OpenOntologiesServer {
             Ok(v) => v,
             Err(e) => {
                 return format!(
-                    r#"{{"error":"planner produced non-JSON output: {} (raw={})"}}"#,
+                    r#"{{"ok":false,"error":"planner produced non-JSON output: {} (raw={})","hint":"Check the error details and retry. Consult the tool description for required parameters and formats."}}"#,
                     e,
                     stdout.replace('"', "'").replace('\n', " ")
                 )
@@ -5154,7 +5182,7 @@ impl OpenOntologiesServer {
             .unwrap_or("")
             .to_string();
         if powl_string.trim().is_empty() {
-            return r#"{"error":"planner returned empty powl_string"}"#.to_string();
+            return r#"{"ok":false,"error":"planner returned empty powl_string","hint":"Provide a non-empty value for the required field."}"#.to_string();
         }
 
         // Synthetic onto_declare_workflow — Stream 1 is not yet merged on
@@ -5878,7 +5906,7 @@ impl OpenOntologiesServer {
             Ok(t) => t,
             Err(e) => {
                 self.emit_tool_ocel(TOOL_TRANSLATE_CANDIDATE, started, false, &[]);
-                return format!(r#"{{"error":"failed to build translator: {}"}}"#, e.to_string().replace('"', "'"));
+                return format!(r#"{{"ok":false,"error":"failed to build translator: {}","hint":"Check the error details and retry. Consult the tool description for required parameters and formats."}}"#, e.to_string().replace('"', "'"));
             }
         };
         if !translator.is_configured() {
@@ -5938,7 +5966,7 @@ impl OpenOntologiesServer {
             Ok(p) => p,
             Err(e) => {
                 self.emit_tool_ocel(TOOL_TRANSLATE_CANDIDATE, started, false, &[]);
-                return format!(r#"{{"error":"shaped translation failed: {}"}}"#, e.to_string().replace('"', "'"));
+                return format!(r#"{{"ok":false,"error":"shaped translation failed: {}","hint":"Check the error details and retry. Consult the tool description for required parameters and formats."}}"#, e.to_string().replace('"', "'"));
             }
         };
         // §7 LLMAuthority: the gauge surfaced an LLM authority claim
@@ -6423,7 +6451,7 @@ impl OpenOntologiesServer {
                 Ok(b) => b,
                 Err(e) => {
                     self.emit_tool_ocel(TOOL_OLD_AI_STATION, started, false, &[]);
-                    return format!(r#"{{"error":"invalid input_json: {}"}}"#, e.to_string().replace('"', "'"));
+                    return format!(r#"{{"ok":false,"error":"invalid input_json: {}","hint":"Check the input format and retry with a valid value."}}"#, e.to_string().replace('"', "'"));
                 }
             };
         let dispatched =
@@ -6432,7 +6460,7 @@ impl OpenOntologiesServer {
             Ok(o) => o,
             Err(e) => {
                 self.emit_tool_ocel(TOOL_OLD_AI_STATION, started, false, &[]);
-                return format!(r#"{{"error":"breed run failed: {}"}}"#, e.replace('"', "'"));
+                return format!(r#"{{"ok":false,"error":"breed run failed: {}","hint":"Check the error details and retry. Consult the tool description for required parameters and formats."}}"#, e.replace('"', "'"));
             }
         };
         let trace_len = breed_output.inference_trace.len();
@@ -6738,7 +6766,7 @@ impl OpenOntologiesServer {
             Ok(t) => t,
             Err(e) => {
                 self.emit_tool_ocel(TOOL_EXECUTIVE_PROJECTION, started, false, &[]);
-                return format!(r#"{{"error":"failed to build translator: {}"}}"#, e.to_string().replace('"', "'"));
+                return format!(r#"{{"ok":false,"error":"failed to build translator: {}","hint":"Check the error details and retry. Consult the tool description for required parameters and formats."}}"#, e.to_string().replace('"', "'"));
             }
         };
         if !translator.is_configured() {
@@ -6792,7 +6820,7 @@ impl OpenOntologiesServer {
             Ok(c) => c,
             Err(e) => {
                 self.emit_tool_ocel(TOOL_EXECUTIVE_PROJECTION, started, false, &[]);
-                return format!(r#"{{"error":"projection failed: {}"}}"#, e.to_string().replace('"', "'"));
+                return format!(r#"{{"ok":false,"error":"projection failed: {}","hint":"Check the error details and retry. Consult the tool description for required parameters and formats."}}"#, e.to_string().replace('"', "'"));
             }
         };
         // Token-overlap check: every alphabetic word (length ≥ 4, lowercase)
