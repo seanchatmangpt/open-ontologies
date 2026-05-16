@@ -30,6 +30,42 @@ use crate::state::StateDb;
 /// occurrences in server.rs — a typo here causes silent event-log gaps.
 pub(crate) const OCEL_EVENT_LLM_INVOKED: &str = "llm_invoked";
 
+/// OCEL event type emitted when the in-process or Groq translator detects
+/// that the LLM's reply claimed authority it is not authorised to claim
+/// (provisional=false or authoritative=true in the reply JSON). The gate
+/// forces `provisional = true` regardless; this event records the claim
+/// independently for audit. 2 emit_event occurrences + 2 defect_class value
+/// occurrences in server.rs (4 total); also appears in defects.rs.
+pub(crate) const OCEL_EVENT_LLM_AUTHORITY_CLAIMED: &str = "llm_authority_claimed";
+
+/// OCEL event type emitted after the LLM translator (Groq or in-process)
+/// produces a `CandidateCtq` from the source voice. 2 occurrences in
+/// server.rs; also appears in workflows/builtin.rs alphabet.
+pub(crate) const OCEL_EVENT_LLM_CANDIDATE_TRANSLATED: &str = "llm_candidate_translated";
+
+/// OCEL event type emitted when the admission gate rejects an operation.
+/// 1 occurrence in server.rs (scope_unclosed path); also emitted in
+/// admission.rs on gate failure. Shared constant prevents silent divergence
+/// between the two emit sites.
+pub(crate) const OCEL_EVENT_ADMISSION_DENIED: &str = "admission_denied";
+
+/// OCEL event type emitted when admission is bypassed (bypass_admission flag
+/// set by an authorised operator). 1 occurrence in server.rs; also recorded
+/// in lineage.rs `record_admission_bypass`. Centralised here to guard against
+/// bypass-path event-name drift.
+pub(crate) const OCEL_EVENT_ADMISSION_BYPASS: &str = "admission_bypass";
+
+/// OCEL event type emitted when a natural-language requirement is accepted
+/// and a canonical CTQ ID is minted. 1 server.rs emit_event occurrence;
+/// also the stage name in AdmissionOp::RequirementProposed (admission.rs)
+/// and in workflows/builtin.rs alphabet strings.
+pub(crate) const OCEL_EVENT_REQUIREMENT_PROPOSED: &str = "requirement_proposed";
+
+/// OCEL event type emitted when a work-order is fully validated and admitted.
+/// 1 server.rs emit_event occurrence; canonical stage name in
+/// AdmissionOp::WorkOrderAdmitted (admission.rs) and in workflows/builtin.rs.
+pub(crate) const OCEL_EVENT_WORK_ORDER_ADMITTED: &str = "work_order_admitted";
+
 /// OCEL event attribute key for the measured LLM call latency in milliseconds.
 /// 6 occurrences in server.rs.
 pub(crate) const OCEL_KEY_LATENCY_MS: &str = "latency_ms";
@@ -607,7 +643,7 @@ impl OpenOntologiesServer {
             );
             let _ = self.ocel_store().emit_event(
                 &event_id,
-                "admission_bypass",
+                OCEL_EVENT_ADMISSION_BYPASS,
                 &now,
                 &self.session_id,
                 &[("op", op.as_str()), ("reason", reason)],
@@ -662,7 +698,7 @@ impl OpenOntologiesServer {
                 );
                 let _ = self.ocel_store().emit_event(
                     &event_id,
-                    "admission_denied",
+                    OCEL_EVENT_ADMISSION_DENIED,
                     &chrono::Utc::now().to_rfc3339(),
                     &self.session_id,
                     &[("op", op.as_str()), ("defect", "scope_unclosed")],
@@ -4855,7 +4891,7 @@ impl OpenOntologiesServer {
         );
         let _ = self.ocel_store().emit_event(
             &event_id,
-            "requirement_proposed",
+            OCEL_EVENT_REQUIREMENT_PROPOSED,
             &now,
             &self.session_id,
             &[
@@ -5011,12 +5047,12 @@ impl OpenOntologiesServer {
                 let ts_pre = chrono::Utc::now().timestamp_millis();
                 let _ = self.ocel_store().emit_event(
                     &format!("{}:llm_authority_claimed:{}", self.session_id, ts_pre),
-                    "llm_authority_claimed",
+                    OCEL_EVENT_LLM_AUTHORITY_CLAIMED,
                     &now_pre,
                     &self.session_id,
                     &[
                         ("engine", ENGINE_GROQ_PM4PY),
-                        ("defect_class", "llm_authority_claimed"),
+                        ("defect_class", OCEL_EVENT_LLM_AUTHORITY_CLAIMED),
                         ("provisional_forced_to", "true"),
                     ],
                     &[],
@@ -5045,7 +5081,7 @@ impl OpenOntologiesServer {
             let ts_ms = chrono::Utc::now().timestamp_millis();
             let _ = self.ocel_store().emit_event(
                 &format!("{}:llm_candidate_translated:{}", self.session_id, ts_ms),
-                "llm_candidate_translated",
+                OCEL_EVENT_LLM_CANDIDATE_TRANSLATED,
                 &now,
                 &self.session_id,
                 &[
@@ -5399,12 +5435,12 @@ impl OpenOntologiesServer {
             let ts_pre = chrono::Utc::now().timestamp_millis();
             let _ = self.ocel_store().emit_event(
                 &format!("{}:llm_authority_claimed:{}", self.session_id, ts_pre),
-                "llm_authority_claimed",
+                OCEL_EVENT_LLM_AUTHORITY_CLAIMED,
                 &now_pre,
                 &self.session_id,
                 &[
                     ("engine", ENGINE_INPROC),
-                    ("defect_class", "llm_authority_claimed"),
+                    ("defect_class", OCEL_EVENT_LLM_AUTHORITY_CLAIMED),
                     ("provisional_forced_to", "true"),
                 ],
                 &[],
@@ -5437,7 +5473,7 @@ impl OpenOntologiesServer {
         let ts_ms = chrono::Utc::now().timestamp_millis();
         let _ = self.ocel_store().emit_event(
             &format!("{}:llm_candidate_translated:{}", self.session_id, ts_ms),
-            "llm_candidate_translated",
+            OCEL_EVENT_LLM_CANDIDATE_TRANSLATED,
             &now,
             &self.session_id,
             &[
@@ -5681,7 +5717,7 @@ impl OpenOntologiesServer {
         );
         let _ = self.ocel_store().emit_event(
             &event_id,
-            "work_order_admitted",
+            OCEL_EVENT_WORK_ORDER_ADMITTED,
             &now,
             &self.session_id,
             &[
