@@ -125,7 +125,7 @@ impl BatchRunner {
     /// # Examples
     ///
     /// ```no_run
-    /// # tokio_test::block_on(async {
+    /// # async fn example() -> anyhow::Result<()> {
     /// use std::sync::Arc;
     /// use open_ontologies::batch::BatchRunner;
     /// use open_ontologies::graph::GraphStore;
@@ -138,7 +138,7 @@ impl BatchRunner {
     /// // "status" is a built-in command that always succeeds.
     /// let code = runner.run("status", false).await;
     /// assert_eq!(code, 0);
-    /// # });
+    /// # Ok(()) }
     /// ```
     pub async fn run(&self, input: &str, bail: bool) -> i32 {
         let commands = match parse_input(input) {
