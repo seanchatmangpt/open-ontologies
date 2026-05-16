@@ -3133,6 +3133,7 @@ impl OpenOntologiesServer {
                     return serde_json::json!({
                         "ok": false,
                         "error": format!("IRI not found in loaded ontology: '{}'. Call onto_query with 'SELECT ?s WHERE {{ ?s a owl:Class }}' to list available classes.", input.class_iri),
+                        "hint": "Use onto_query with 'SELECT ?s WHERE { ?s a owl:Class }' to list valid class IRIs, then pass the correct IRI to onto_enrich.",
                     }).to_string();
                 }
                 cw.enrich(&self.graph, &input.class_iri, &input.code, &input.system)
@@ -3146,7 +3147,8 @@ impl OpenOntologiesServer {
         if self.graph.triple_count() == 0 {
             return serde_json::json!({
                 "ok": false,
-                "error": "No ontology loaded. Call onto_load first."
+                "error": "No ontology loaded. Call onto_load first.",
+                "hint": "Call onto_load with a TTL file first, then call onto_validate_clinical to check class labels against clinical crosswalk terminology."
             }).to_string();
         }
         match crate::clinical::ClinicalCrosswalks::load("data/crosswalks.parquet") {
@@ -4576,12 +4578,14 @@ impl OpenOntologiesServer {
             Err(crate::workflows::scope::ScopeError::Defect(d)) => serde_json::json!({
                 "ok": false,
                 "defect": d,
+                "hint": "Inspect defect.kind: 'ScopeAlreadyOpen' means a scope with this token is already open — use onto_close_workflow first; 'InvalidPowl' means the POWL expression is not valid pm4py syntax.",
             })
             .to_string(),
             Err(crate::workflows::scope::ScopeError::Storage(e)) => serde_json::json!({
                 "ok": false,
                 "defect": { "kind": "OcelIncomplete" },
                 "storage_error": e,
+                "hint": "The session database could not be written. Check that the data directory is writable and not locked by another process.",
             })
             .to_string(),
         }
