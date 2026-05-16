@@ -9,6 +9,42 @@
 //! All `tracing::debug!(target: "ontostar.*", ...)` spans emitted by the
 //! admission gate (`src/admission.rs`) and the verifier worker
 //! (`src/verifier_worker.rs`) are captured by this subscriber.
+//!
+//! # Configuration examples
+//!
+//! Construct a default config and verify field values:
+//!
+//! ```
+//! use open_ontologies::config::TelemetryConfig;
+//!
+//! let cfg = TelemetryConfig::default();
+//! assert_eq!(cfg.service_name, "open-ontologies");
+//! assert!(cfg.otlp_endpoint.is_none());
+//! ```
+//!
+//! Construct a config with an OTLP endpoint:
+//!
+//! ```
+//! use open_ontologies::config::TelemetryConfig;
+//!
+//! let cfg = TelemetryConfig {
+//!     otlp_endpoint: Some("http://otel-collector:4317".to_string()),
+//!     service_name: "my-service".to_string(),
+//! };
+//! assert_eq!(cfg.service_name, "my-service");
+//! assert_eq!(cfg.otlp_endpoint.as_deref(), Some("http://otel-collector:4317"));
+//! ```
+//!
+//! Clone and compare configs:
+//!
+//! ```
+//! use open_ontologies::config::TelemetryConfig;
+//!
+//! let a = TelemetryConfig::default();
+//! let b = a.clone();
+//! assert_eq!(a.service_name, b.service_name);
+//! assert_eq!(a.otlp_endpoint, b.otlp_endpoint);
+//! ```
 
 use crate::config::TelemetryConfig;
 

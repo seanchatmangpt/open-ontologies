@@ -92,4 +92,48 @@ pub enum OntologyError {
 /// let err = always_fails().unwrap_err();
 /// assert_eq!(err.to_string(), "not found: demo");
 /// ```
+///
+/// Propagating errors with `?`:
+///
+/// ```
+/// use open_ontologies::error::{OntologyError, Result};
+///
+/// fn parse_iri(s: &str) -> Result<String> {
+///     if s.starts_with("urn:") || s.starts_with("http") {
+///         Ok(s.to_string())
+///     } else {
+///         Err(OntologyError::Parse(format!("not a valid IRI: {s}")))
+///     }
+/// }
+///
+/// fn load(s: &str) -> Result<String> {
+///     let iri = parse_iri(s)?;
+///     Ok(format!("loaded <{iri}>"))
+/// }
+///
+/// assert!(load("urn:ex:Foo").is_ok());
+/// assert!(load("not-an-iri").is_err());
+/// ```
+///
+/// Converting `std::io::Error` via the `From` impl:
+///
+/// ```
+/// use open_ontologies::error::OntologyError;
+///
+/// let io_err = std::io::Error::new(std::io::ErrorKind::NotFound, "file missing");
+/// let onto_err = OntologyError::from(io_err);
+/// assert!(onto_err.to_string().contains("IO error"));
+/// ```
+///
+/// Matching on variant to recover:
+///
+/// ```
+/// use open_ontologies::error::OntologyError;
+///
+/// let err = OntologyError::FeatureDisabled("embeddings".into());
+/// match &err {
+///     OntologyError::FeatureDisabled(feat) => assert_eq!(feat, "embeddings"),
+///     other => panic!("unexpected variant: {other}"),
+/// }
+/// ```
 pub type Result<T> = std::result::Result<T, OntologyError>;
