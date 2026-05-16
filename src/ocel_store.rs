@@ -38,6 +38,11 @@ thread_local! {
         = const { std::cell::RefCell::new(None) };
 }
 
+/// SQL table that stores OCEL events. Used in every INSERT and SELECT that
+/// touches the event log; centralised here so a schema rename is a one-line
+/// change rather than a grep-and-pray.
+pub const OCEL_EVENTS_TABLE: &str = "ocel_events";
+
 /// Insert OCEL event + attrs + relationships through a `Connection` (which
 /// transparently accepts a `&Transaction` via deref). Shared by the legacy
 /// `emit_event_in_tenant` (acquires its own conn) and the Phase 7 Task C.fix
@@ -65,8 +70,8 @@ fn emit_event_rows(
         }
     }
     conn.execute(
-        "INSERT INTO ocel_events (event_id, event_type, time, session_id, scope_token, tenant_id)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+        &format!("INSERT INTO {OCEL_EVENTS_TABLE} (event_id, event_type, time, session_id, scope_token, tenant_id)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6)"),
         rusqlite::params![event_id, event_type, time_iso, session_id, scope_token, tenant_id],
     )?;
     for (name, value) in attrs {
@@ -223,9 +228,9 @@ impl OcelStore {
         // Project event_type values for scope_token in time order.
         let trace: Vec<String> = {
             let mut stmt = conn.prepare(
-                "SELECT event_type FROM ocel_events
+                &format!("SELECT event_type FROM {OCEL_EVENTS_TABLE}
                  WHERE scope_token = ?1 AND tenant_id = ?2
-                 ORDER BY time ASC, event_id ASC",
+                 ORDER BY time ASC, event_id ASC"),
             )?;
             let rows = stmt.query_map(rusqlite::params![scope_token, tenant_id], |r| r.get::<_, String>(0))?;
             let mut out = Vec::new();
@@ -292,9 +297,9 @@ impl OcelStore {
             let conn = self.db.conn();
             let anchor_event_id: String = conn
                 .query_row(
-                    "SELECT event_id FROM ocel_events
+                    &format!("SELECT event_id FROM {OCEL_EVENTS_TABLE}
                      WHERE scope_token = ?1 AND event_type = 'workflow_declared'
-                     ORDER BY time ASC LIMIT 1",
+                     ORDER BY time ASC LIMIT 1"),
                     rusqlite::params![scope_token],
                     |r| r.get(0),
                 )
@@ -328,7 +333,7 @@ impl OcelStore {
     pub fn observed_event_types_for_session(&self, session_id: &str) -> Result<Vec<String>> {
         let conn = self.db.conn();
         let mut stmt = conn.prepare(
-            "SELECT DISTINCT event_type FROM ocel_events WHERE session_id = ?1 ORDER BY event_type ASC"
+            &format!("SELECT DISTINCT event_type FROM {OCEL_EVENTS_TABLE} WHERE session_id = ?1 ORDER BY event_type ASC")
         )?;
         let rows = stmt.query_map(rusqlite::params![session_id], |r| r.get::<_, String>(0))?;
         let mut out = Vec::new();
@@ -477,8 +482,8 @@ impl OcelStore {
 
         let event_rows: Vec<(String, String, String, String)> = if let Some(sid) = session_id_filter {
             let mut stmt = conn.prepare(
-                "SELECT event_id, event_type, time, session_id FROM ocel_events
-                 WHERE session_id = ?1 ORDER BY event_id ASC",
+                &format!("SELECT event_id, event_type, time, session_id FROM {OCEL_EVENTS_TABLE}
+                 WHERE session_id = ?1 ORDER BY event_id ASC"),
             )?;
             stmt.query_map(rusqlite::params![sid], |row| {
                 let eid: String = row.get(0)?;
@@ -490,7 +495,7 @@ impl OcelStore {
             .collect::<std::result::Result<Vec<_>, _>>()?
         } else {
             let mut stmt = conn.prepare(
-                "SELECT event_id, event_type, time, session_id FROM ocel_events ORDER BY event_id ASC",
+                &format!("SELECT event_id, event_type, time, session_id FROM {OCEL_EVENTS_TABLE} ORDER BY event_id ASC"),
             )?;
             stmt.query_map(rusqlite::params![], |row| {
                 let eid: String = row.get(0)?;
