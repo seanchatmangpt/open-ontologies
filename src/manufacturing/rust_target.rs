@@ -7,6 +7,47 @@
 
 use super::{with_header, ManufacturedFile, SolutionSpec};
 
+/// Generate the Rust crate skeleton (`Cargo.toml`, `lib.rs`, `main.rs`).
+///
+/// Always returns exactly three files. Every file carries an OntoStar
+/// receipt header so external verifiers can strip-and-rehash to prove
+/// provenance.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::manufacturing::{rust_target, SolutionSpec};
+///
+/// let spec = SolutionSpec {
+///     name: "analytics_svc".into(),
+///     description: "Analytics micro-service".into(),
+///     iac_target: "aws".into(),
+///     region: "ap-southeast-1".into(),
+///     supervisor_children: 2,
+///     mcu_target: "rp2040".into(),
+///     work_order_receipt_hash: "f".repeat(64),
+/// };
+/// let files = rust_target::generate(&spec);
+/// assert_eq!(files.len(), 3);
+///
+/// // Cargo.toml contains the expected package name.
+/// let cargo = files.iter().find(|f| f.path.ends_with("Cargo.toml")).unwrap();
+/// assert!(cargo.contents.contains("analytics_svc"));
+/// assert!(cargo.contents.contains("[package]"));
+///
+/// // lib.rs exposes the verifier function.
+/// let lib = files.iter().find(|f| f.path.ends_with("lib.rs")).unwrap();
+/// assert!(lib.contents.contains("pub fn manufactured_solution_name"));
+/// assert!(lib.contents.contains("analytics_svc"));
+///
+/// // main.rs contains an async entry point.
+/// let main = files.iter().find(|f| f.path.ends_with("main.rs")).unwrap();
+/// assert!(main.contents.contains("fn main"));
+///
+/// // All files are bound to the work-order receipt via the inline header.
+/// assert!(files.iter().all(|f| f.contents.contains("ostar-artifact-hash:")));
+/// assert!(files.iter().all(|f| f.target == "rust"));
+/// ```
 pub fn generate(spec: &SolutionSpec) -> Vec<ManufacturedFile> {
     vec![
         file("rust/Cargo.toml", &generate_cargo_toml(spec), spec),

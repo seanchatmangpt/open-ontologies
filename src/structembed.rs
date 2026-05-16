@@ -1,6 +1,36 @@
 //! Learn Poincaré embeddings from the ontology class hierarchy.
 //! Uses Riemannian SGD to push parent-child pairs closer and
 //! negative samples apart in the Poincaré ball.
+//!
+//! # Overview
+//!
+//! [`StructuralTrainer`] derives positional embeddings that encode the
+//! *topology* of an ontology hierarchy.  After training, classes closer to
+//! the origin are more general (nearer the root), while leaf classes sit
+//! further from the origin.  The embeddings complement text-based embeddings
+//! and are used as the structural channel in [`crate::vecstore::VecStore`].
+//!
+//! # Quick-start
+//!
+//! ```no_run
+//! // Requires `embeddings` feature
+//! use open_ontologies::structembed::StructuralTrainer;
+//! use open_ontologies::graph::GraphStore;
+//!
+//! let store = GraphStore::new().unwrap();
+//! // load_str / load_file would populate `store` with OWL classes here.
+//!
+//! let trainer = StructuralTrainer::new(
+//!     16,   // embedding dimension
+//!     20,   // training epochs
+//!     0.01, // initial learning rate
+//! );
+//! let embeddings = trainer.train(&store).unwrap();
+//! // `embeddings` maps class IRI → Vec<f32> of length 16.
+//! for (iri, vec) in &embeddings {
+//!     assert_eq!(vec.len(), 16, "wrong dim for {iri}");
+//! }
+//! ```
 
 use crate::graph::GraphStore;
 use crate::poincare::{poincare_distance, project_to_ball, rsgd_step};
@@ -8,6 +38,21 @@ use anyhow::Result;
 use std::collections::HashMap;
 use std::collections::HashSet;
 
+/// Trainer that learns Poincaré embeddings from the ontology class hierarchy.
+///
+/// Each class is assigned an embedding in the Poincaré ball. After training,
+/// parent classes lie closer to the origin than their children, and semantically
+/// unrelated classes are pushed apart via negative sampling.
+///
+/// # Example
+///
+/// ```no_run
+/// // Requires `embeddings` feature
+/// use open_ontologies::structembed::StructuralTrainer;
+///
+/// // Create a trainer with 64-dimensional embeddings, 50 epochs, learning rate 0.01
+/// let trainer = StructuralTrainer::new(64, 50, 0.01);
+/// ```
 pub struct StructuralTrainer {
     dim: usize,
     epochs: usize,
@@ -15,6 +60,26 @@ pub struct StructuralTrainer {
 }
 
 impl StructuralTrainer {
+    /// Creates a new [`StructuralTrainer`] with the given hyperparameters.
+    ///
+    /// # Parameters
+    ///
+    /// - `dim` — Dimensionality of the Poincaré ball embedding space.
+    /// - `epochs` — Number of training passes over the hierarchy edges.
+    /// - `lr` — Initial learning rate (decays linearly to 0 over training).
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// // Requires `embeddings` feature
+    /// use open_ontologies::structembed::StructuralTrainer;
+    ///
+    /// // Minimal trainer: 2-D embeddings, 1 epoch, large learning rate
+    /// let small = StructuralTrainer::new(2, 1, 0.1);
+    ///
+    /// // Production-scale trainer
+    /// let prod = StructuralTrainer::new(128, 200, 0.005);
+    /// ```
     pub fn new(dim: usize, epochs: usize, lr: f32) -> Self {
         Self { dim, epochs, lr }
     }
@@ -82,6 +147,42 @@ impl StructuralTrainer {
     }
 
     /// Train Poincaré embeddings from the ontology hierarchy.
+    ///
+    /// Queries the `store` for `owl:Class` nodes and `rdfs:subClassOf` edges,
+    /// then runs Riemannian SGD to place classes in the Poincaré ball.
+    /// Returns a map from class IRI to its embedding vector.
+    ///
+    /// Returns an empty map when the store contains no `owl:Class` individuals.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// // Requires `embeddings` feature
+    /// use open_ontologies::structembed::StructuralTrainer;
+    /// use open_ontologies::graph::GraphStore;
+    ///
+    /// // An empty store produces an empty embedding map.
+    /// let store = GraphStore::new().unwrap();
+    /// let trainer = StructuralTrainer::new(8, 5, 0.01);
+    /// let embeddings = trainer.train(&store).unwrap();
+    /// assert!(embeddings.is_empty());
+    /// ```
+    ///
+    /// ```no_run
+    /// // Requires `embeddings` feature
+    /// use open_ontologies::structembed::StructuralTrainer;
+    /// use open_ontologies::graph::GraphStore;
+    ///
+    /// // After loading an ontology the map contains one entry per class.
+    /// let store = GraphStore::new().unwrap();
+    /// // store.load_str(SOME_TURTLE, "text/turtle").unwrap();
+    /// let trainer = StructuralTrainer::new(4, 10, 0.01);
+    /// let embeddings = trainer.train(&store).unwrap();
+    /// // Each embedding has exactly `dim` components.
+    /// for (_iri, vec) in &embeddings {
+    ///     assert_eq!(vec.len(), 4);
+    /// }
+    /// ```
     pub fn train(&self, store: &GraphStore) -> Result<HashMap<String, Vec<f32>>> {
         let edges = Self::extract_edges(store);
         let classes = Self::extract_all_classes(store);

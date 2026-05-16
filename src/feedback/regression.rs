@@ -14,7 +14,22 @@ use crate::ocel_store::OcelStore;
 use anyhow::Result;
 use chrono::Utc;
 
+/// Default rolling-window size used by [`check_after_insert`].
+///
+/// # Example
+///
+/// ```
+/// assert_eq!(open_ontologies::feedback::regression::DEFAULT_WINDOW_K, 10);
+/// ```
 pub const DEFAULT_WINDOW_K: usize = 10;
+
+/// Minimum drop in rolling-mean fitness that triggers a regression event.
+///
+/// # Example
+///
+/// ```
+/// assert!((open_ontologies::feedback::regression::REGRESSION_DELTA - 0.10).abs() < f64::EPSILON);
+/// ```
 pub const REGRESSION_DELTA: f64 = 0.10;
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -30,6 +45,23 @@ pub struct RegressionVerdict {
 /// Hook invoked after a `conformance_runs` row is inserted. Computes the
 /// rolling-vs-baseline diff for the given workflow class and emits a
 /// `conformance_regression_detected` event if the regression delta is breached.
+///
+/// # Example
+///
+/// ```
+/// use open_ontologies::state::StateDb;
+/// use open_ontologies::ocel_store::OcelStore;
+/// use open_ontologies::feedback::regression::check_after_insert;
+///
+/// let db = StateDb::open(std::path::Path::new(":memory:")).unwrap();
+/// let store = OcelStore::new(db);
+///
+/// // Fewer than 2*K rows — verdict is emitted=false, deltas are zero.
+/// let verdict = check_after_insert(&store, "billing").unwrap();
+/// assert!(!verdict.emitted);
+/// assert_eq!(verdict.workflow_class, "billing");
+/// assert!((verdict.delta - 0.0).abs() < f64::EPSILON);
+/// ```
 pub fn check_after_insert(
     store: &OcelStore,
     workflow_class: &str,
@@ -37,6 +69,23 @@ pub fn check_after_insert(
     check_after_insert_with(store, workflow_class, DEFAULT_WINDOW_K)
 }
 
+/// Like [`check_after_insert`] but with an explicit window size.
+///
+/// # Example
+///
+/// ```
+/// use open_ontologies::state::StateDb;
+/// use open_ontologies::ocel_store::OcelStore;
+/// use open_ontologies::feedback::regression::check_after_insert_with;
+///
+/// let db = StateDb::open(std::path::Path::new(":memory:")).unwrap();
+/// let store = OcelStore::new(db);
+///
+/// // With a window of 2, we need at least 4 rows; an empty DB returns early.
+/// let verdict = check_after_insert_with(&store, "shipping", 2).unwrap();
+/// assert!(!verdict.emitted);
+/// assert_eq!(verdict.window_k, 2);
+/// ```
 pub fn check_after_insert_with(
     store: &OcelStore,
     workflow_class: &str,
@@ -150,6 +199,21 @@ fn mean(xs: &[f64]) -> f64 {
 /// Built-in `onto_monitor` watcher kind `conformance_regression`. Returns the
 /// count of regression events whose `time >= since_iso`. Watchers compare
 /// this count against the watcher's `threshold` to decide notify/block/rollback.
+///
+/// # Example
+///
+/// ```
+/// use open_ontologies::state::StateDb;
+/// use open_ontologies::ocel_store::OcelStore;
+/// use open_ontologies::feedback::regression::count_regressions_since;
+///
+/// let db = StateDb::open(std::path::Path::new(":memory:")).unwrap();
+/// let store = OcelStore::new(db);
+///
+/// // A fresh store has no regression events.
+/// let count = count_regressions_since(&store, "2020-01-01T00:00:00Z").unwrap();
+/// assert_eq!(count, 0);
+/// ```
 pub fn count_regressions_since(store: &OcelStore, since_iso: &str) -> Result<i64> {
     let conn = store.db().conn();
     let n: i64 = conn

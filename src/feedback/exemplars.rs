@@ -14,6 +14,13 @@ use crate::ocel_store::OcelStore;
 use anyhow::Result;
 use rusqlite::OptionalExtension;
 
+/// Minimum fitness score required to mine an exemplar from a conformance run.
+///
+/// # Example
+///
+/// ```
+/// assert!((open_ontologies::feedback::exemplars::EXEMPLAR_FITNESS_FLOOR - 0.95).abs() < f64::EPSILON);
+/// ```
 pub const EXEMPLAR_FITNESS_FLOOR: f64 = 0.95;
 
 #[derive(Debug, Clone)]
@@ -38,6 +45,45 @@ pub struct MinedExemplar {
 /// The hard rule "no receipt ⇒ no exemplar" is enforced at the SQL layer:
 /// the `receipt_hash` column is NOT NULL and joined to `receipts` on the
 /// retrieval side (see `OcelStore::exemplars_for_domain`).
+///
+/// # Example
+///
+/// ```
+/// use open_ontologies::state::StateDb;
+/// use open_ontologies::ocel_store::OcelStore;
+/// use open_ontologies::feedback::exemplars::maybe_mine_exemplar;
+///
+/// let db = StateDb::open(std::path::Path::new(":memory:")).unwrap();
+/// let store = OcelStore::new(db);
+///
+/// // No admission event, no receipt, no conformance run — returns None.
+/// let result = maybe_mine_exemplar("scope-abc", &store).unwrap();
+/// assert!(result.is_none());
+/// ```
+///
+/// # Example: without a receipt the gate always blocks
+///
+/// ```
+/// use open_ontologies::state::StateDb;
+/// use open_ontologies::ocel_store::OcelStore;
+/// use open_ontologies::feedback::exemplars::{maybe_mine_exemplar, EXEMPLAR_FITNESS_FLOOR};
+///
+/// let db = StateDb::open(std::path::Path::new(":memory:")).unwrap();
+/// // Insert an admission_granted event but no receipt row.
+/// {
+///     let conn = db.conn();
+///     conn.execute_batch(
+///         "INSERT INTO ocel_events (event_id, event_type, time, session_id)
+///          VALUES ('ev1', 'admission_granted', '2026-01-01T00:00:00Z', 's1');
+///          INSERT INTO ocel_event_attrs (event_id, name, value, value_type)
+///          VALUES ('ev1', 'scope_token', 'scope-no-receipt', 'string');"
+///     ).unwrap();
+/// }
+/// let store = OcelStore::new(db);
+/// // Hard gate: no receipt row means no exemplar.
+/// let result = maybe_mine_exemplar("scope-no-receipt", &store).unwrap();
+/// assert!(result.is_none());
+/// ```
 pub fn maybe_mine_exemplar(
     scope_token: &str,
     store: &OcelStore,

@@ -6,6 +6,49 @@
 
 use super::{with_header, ManufacturedFile, SolutionSpec};
 
+/// Generate AtomVM files (`.erl` module + `Makefile`) for supported MCU targets.
+///
+/// Returns an empty `Vec` when `mcu_target` is not one of the three supported
+/// values; the admission gate treats that as [`DefectClass::GeneratorEmpty`].
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::manufacturing::{atomvm, SolutionSpec};
+///
+/// let spec = SolutionSpec {
+///     name: "blinky".into(),
+///     description: "LED blinker".into(),
+///     iac_target: "aws".into(),
+///     region: "us-east-1".into(),
+///     supervisor_children: 1,
+///     mcu_target: "esp32".into(),
+///     work_order_receipt_hash: "a".repeat(64),
+/// };
+/// let files = atomvm::generate(&spec);
+/// assert_eq!(files.len(), 2);
+/// assert!(files.iter().any(|f| f.path.ends_with(".erl")));
+/// assert!(files.iter().any(|f| f.path.ends_with("Makefile")));
+/// // Every file carries the receipt header.
+/// assert!(files.iter().all(|f| f.contents.contains("ostar-artifact-hash:")));
+/// ```
+///
+/// Unsupported MCU targets return an empty list:
+///
+/// ```
+/// use open_ontologies::manufacturing::{atomvm, SolutionSpec};
+///
+/// let spec = SolutionSpec {
+///     name: "blinky".into(),
+///     description: "LED blinker".into(),
+///     iac_target: "aws".into(),
+///     region: "us-east-1".into(),
+///     supervisor_children: 1,
+///     mcu_target: "msp430".into(),
+///     work_order_receipt_hash: "b".repeat(64),
+/// };
+/// assert!(atomvm::generate(&spec).is_empty());
+/// ```
 pub fn generate(spec: &SolutionSpec) -> Vec<ManufacturedFile> {
     if !matches!(spec.mcu_target.as_str(), "esp32" | "stm32" | "rp2040") {
         return Vec::new();

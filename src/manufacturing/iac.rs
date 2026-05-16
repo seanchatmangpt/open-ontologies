@@ -8,6 +8,66 @@
 
 use super::{ManufacturedFile, SolutionSpec};
 
+/// Generate Terraform JSON files for AWS plus the OntoStar sidecar receipt.
+///
+/// Returns `main.tf.json`, `variables.tf.json`, `outputs.tf.json`, and
+/// `iac/.ontostar-receipt.json` when `iac_target == "aws"`. Returns an
+/// empty list for any other target; the admission gate treats that as
+/// [`DefectClass::GeneratorEmpty`].
+///
+/// The three `.tf.json` files contain **no** `_ontostar_receipt` key —
+/// Terraform's top-level schema is closed and any extra key fails
+/// `terraform validate`. The work-order binding lives exclusively in the
+/// sidecar.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::manufacturing::{iac, SolutionSpec};
+///
+/// let spec = SolutionSpec {
+///     name: "infra_prod".into(),
+///     description: "Production infrastructure".into(),
+///     iac_target: "aws".into(),
+///     region: "us-west-2".into(),
+///     supervisor_children: 2,
+///     mcu_target: "esp32".into(),
+///     work_order_receipt_hash: "d".repeat(64),
+/// };
+/// let files = iac::generate(&spec);
+/// assert_eq!(files.len(), 4);
+///
+/// // Three Terraform JSON files are syntactically valid JSON.
+/// let tf_files: Vec<_> = files.iter().filter(|f| f.path.ends_with(".tf.json")).collect();
+/// assert_eq!(tf_files.len(), 3);
+/// for f in &tf_files {
+///     assert!(serde_json::from_str::<serde_json::Value>(&f.contents).is_ok());
+///     // No inline receipt key — Terraform schema is closed.
+///     assert!(!f.contents.contains("_ontostar_receipt"));
+/// }
+///
+/// // Sidecar receipt carries the work-order hash.
+/// let sidecar = files.iter().find(|f| f.path == "iac/.ontostar-receipt.json").unwrap();
+/// let v: serde_json::Value = serde_json::from_str(&sidecar.contents).unwrap();
+/// assert_eq!(v["work_order_receipt"].as_str(), Some("d".repeat(64).as_str()));
+/// ```
+///
+/// Non-AWS targets yield no files:
+///
+/// ```
+/// use open_ontologies::manufacturing::{iac, SolutionSpec};
+///
+/// let spec = SolutionSpec {
+///     name: "infra_gcp".into(),
+///     description: "GCP infra".into(),
+///     iac_target: "gcp".into(),
+///     region: "us-central1".into(),
+///     supervisor_children: 1,
+///     mcu_target: "esp32".into(),
+///     work_order_receipt_hash: "e".repeat(64),
+/// };
+/// assert!(iac::generate(&spec).is_empty());
+/// ```
 pub fn generate(spec: &SolutionSpec) -> Vec<ManufacturedFile> {
     if spec.iac_target != "aws" {
         return Vec::new();

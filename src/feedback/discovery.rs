@@ -26,7 +26,23 @@ use std::collections::HashMap;
 use wasm4pm_algos::conformance::check_conformance_alignment;
 use wasm4pm_types::{Attribute, AttributeValue, Event, EventLog, Trace};
 
+/// Minimum number of admitted scopes per domain before discovery runs.
+///
+/// # Example
+///
+/// ```
+/// assert_eq!(open_ontologies::feedback::discovery::ADMITTED_SCOPES_THRESHOLD, 20);
+/// ```
 pub const ADMITTED_SCOPES_THRESHOLD: i64 = 20;
+
+/// Minimum fitness improvement required over declared fitness to emit a
+/// discovery suggestion.
+///
+/// # Example
+///
+/// ```
+/// assert!((open_ontologies::feedback::discovery::FITNESS_LIFT - 0.05).abs() < f64::EPSILON);
+/// ```
 pub const FITNESS_LIFT: f64 = 0.05;
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -42,6 +58,21 @@ pub struct DiscoveredWorkflow {
 
 /// Run the discovery loop for a domain. Returns `Ok(None)` when no
 /// statistically-better workflow is found (or threshold not met).
+///
+/// # Example
+///
+/// ```
+/// use open_ontologies::state::StateDb;
+/// use open_ontologies::ocel_store::OcelStore;
+/// use open_ontologies::feedback::discovery::discover_for_domain;
+///
+/// let db = StateDb::open(std::path::Path::new(":memory:")).unwrap();
+/// let store = OcelStore::new(db);
+///
+/// // An empty store has no admitted scopes, so discovery returns None.
+/// let result = discover_for_domain("billing", &store).unwrap();
+/// assert!(result.is_none());
+/// ```
 pub fn discover_for_domain(
     domain: &str,
     store: &OcelStore,
@@ -150,6 +181,25 @@ pub fn discover_for_domain(
 
 /// Flip `discovered_workflows.status` based on user feedback.
 /// Returns the final status string ("accepted" or "rejected").
+///
+/// # Example
+///
+/// ```
+/// use open_ontologies::state::StateDb;
+/// use open_ontologies::ocel_store::OcelStore;
+/// use open_ontologies::feedback::discovery::record_feedback;
+///
+/// let db = StateDb::open(std::path::Path::new(":memory:")).unwrap();
+/// let store = OcelStore::new(db);
+///
+/// // Accepting a non-existent id is a no-op UPDATE — still returns "accepted".
+/// let status = record_feedback(&store, "dw_nonexistent", true).unwrap();
+/// assert_eq!(status, "accepted");
+///
+/// // Rejecting a non-existent id likewise returns "rejected".
+/// let status = record_feedback(&store, "dw_nonexistent", false).unwrap();
+/// assert_eq!(status, "rejected");
+/// ```
 pub fn record_feedback(store: &OcelStore, id: &str, accepted: bool) -> Result<String> {
     let conn = store.db().conn();
     let status = if accepted { "accepted" } else { "rejected" };

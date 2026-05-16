@@ -10,6 +10,59 @@ use crate::defects::DefectClass;
 
 /// Validate the bundle. Returns the first defect found, or Ok(()) if
 /// every file in every target passes.
+///
+/// # Examples
+///
+/// A fully-manufactured bundle always passes validation:
+///
+/// ```
+/// use open_ontologies::manufacturing::{manufacture, SolutionSpec, validators};
+///
+/// let spec = SolutionSpec {
+///     name: "validator_demo".into(),
+///     description: "Validator smoke test".into(),
+///     iac_target: "aws".into(),
+///     region: "us-east-1".into(),
+///     supervisor_children: 1,
+///     mcu_target: "esp32".into(),
+///     work_order_receipt_hash: "0".repeat(64),
+/// };
+/// let bundle = manufacture(&spec).expect("manufacture succeeds");
+/// assert!(validators::validate_bundle(&bundle).is_ok());
+/// ```
+///
+/// A bundle with a file that has no receipt binding fails with
+/// [`DefectClass::ManufacturingChainBroken`]:
+///
+/// ```
+/// use open_ontologies::manufacturing::{
+///     SolutionSpec, SolutionBundle, ManufacturedFile, validators,
+/// };
+/// use open_ontologies::defects::DefectClass;
+///
+/// let spec = SolutionSpec {
+///     name: "bad_bundle".into(),
+///     description: "Bundle missing receipt".into(),
+///     iac_target: "aws".into(),
+///     region: "us-east-1".into(),
+///     supervisor_children: 1,
+///     mcu_target: "esp32".into(),
+///     work_order_receipt_hash: "0".repeat(64),
+/// };
+/// let bundle = SolutionBundle {
+///     spec,
+///     files: vec![ManufacturedFile {
+///         path: "rust/src/lib.rs".into(),
+///         // No "ostar-artifact-hash:" line — receipt binding absent.
+///         contents: "pub fn foo() {}".into(),
+///         target: "rust".into(),
+///     }],
+/// };
+/// assert!(matches!(
+///     validators::validate_bundle(&bundle),
+///     Err(DefectClass::ManufacturingChainBroken { .. })
+/// ));
+/// ```
 pub fn validate_bundle(bundle: &SolutionBundle) -> Result<(), DefectClass> {
     // Two binding forms are accepted:
     //   - comment-prefixed `ostar-artifact-hash:` header (Rust / Erlang
@@ -294,6 +347,28 @@ fn require_erlang_decl(file: &ManufacturedFile, needle: &str) -> Result<(), Defe
 /// file. (Not used internally by the validators — they check the
 /// header is present, not absent. This helper exists for tests and
 /// for external auditors.)
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::manufacturing::validators::strip_header;
+///
+/// // Rust/Terraform comment prefix `//`.
+/// let src = "// ostar-production-law: ontostar-1.0.0\n// ostar-artifact-hash: deadbeef\npub fn foo() {}\n";
+/// assert_eq!(strip_header(src, "//"), "pub fn foo() {}\n");
+///
+/// // Erlang comment prefix `%%`.
+/// let erl = "%% ostar-production-law: ontostar-1.0.0\n%% ostar-artifact-hash: cafebabe\n-module(foo).\n";
+/// assert_eq!(strip_header(erl, "%%"), "-module(foo).\n");
+///
+/// // No header lines — input returned unchanged.
+/// let plain = "fn main() {}\n";
+/// assert_eq!(strip_header(plain, "//"), plain);
+///
+/// // Shell/Makefile comment prefix `#`.
+/// let makefile = "# ostar-production-law: ontostar-1.0.0\n# ostar-target: atomvm\n.PHONY: build\n";
+/// assert_eq!(strip_header(makefile, "#"), ".PHONY: build\n");
+/// ```
 pub fn strip_header(contents: &str, prefix: &str) -> String {
     let header_marker = format!("{prefix} ostar-");
     let mut body_start = 0usize;

@@ -566,6 +566,31 @@ pub const OCEL_KEY_PRECISION: &str = "precision";
 /// in server.rs and 2 sites in admission.rs (4 total).
 pub const OCEL_KEY_POWL_STUB: &str = "powl_stub";
 
+/// The production law version tag written into every admission OCEL event and
+/// `ProductionRecord`. Appears 7 times across admission.rs. Centralised here
+/// so a single edit updates all emission sites.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::admission::PRODUCTION_LAW_VERSION;
+///
+/// assert_eq!(PRODUCTION_LAW_VERSION, "ontostar-1.0.0");
+/// ```
+pub const PRODUCTION_LAW_VERSION: &str = "ontostar-1.0.0";
+
+/// OCEL event attribute key for the admission/audit operation name (the
+/// `AdmissionOp` discriminant string). Appears 3 times in admission.rs.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::admission::OCEL_KEY_OP;
+///
+/// assert_eq!(OCEL_KEY_OP, "op");
+/// ```
+pub const OCEL_KEY_OP: &str = "op";
+
 impl PowlReplay for NoopPowlReplay {
     fn replay(&self, scope_token: &str, _powl_string: &str, _tenant_id: &str) -> ConformanceResult {
         // POWL replay is not yet integrated (stream-2 stub);
@@ -919,10 +944,10 @@ impl OntoStarAdmissionGate {
             &ts,
             session_id,
             &[
-                ("op", op.as_str()),
+                (OCEL_KEY_OP, op.as_str()),
                 ("artifact_kind", artifact.kind),
                 ("artifact_hash", artifact_hash.to_hex().as_ref()),
-                (OCEL_KEY_PRODUCTION_LAW_VERSION, "ontostar-1.0.0"),
+                (OCEL_KEY_PRODUCTION_LAW_VERSION, PRODUCTION_LAW_VERSION),
                 (
                     OCEL_KEY_DEFECTS_TAXONOMY_VERSION,
                     crate::defects::DEFECTS_TAXONOMY_VERSION,
@@ -1022,7 +1047,7 @@ impl OntoStarAdmissionGate {
             &[
                 ("powl_hash", &powl_hash_hex),
                 ("powl_string", powl_string),
-                (OCEL_KEY_PRODUCTION_LAW_VERSION, "ontostar-1.0.0"),
+                (OCEL_KEY_PRODUCTION_LAW_VERSION, PRODUCTION_LAW_VERSION),
                 (OCEL_KEY_DEFECTS_TAXONOMY_VERSION, crate::defects::DEFECTS_TAXONOMY_VERSION),
             ],
             &[],
@@ -1070,7 +1095,7 @@ impl OntoStarAdmissionGate {
                 ("artifact_hash", &artifact_hash_hex),
                 (OCEL_KEY_SCOPE_TOKEN, scope_token),
                 ("session_id", session_id),
-                (OCEL_KEY_PRODUCTION_LAW_VERSION, "ontostar-1.0.0"),
+                (OCEL_KEY_PRODUCTION_LAW_VERSION, PRODUCTION_LAW_VERSION),
             ],
             &[],
             Some(scope_token),
@@ -1188,7 +1213,7 @@ impl OntoStarAdmissionGate {
                 ocel_canonical_hash: ocel_canonical_hash_bytes,
                 conformance_run_id: conf.run_id.clone(),
                 gate_config_hash: self.gate_config_hash,
-                production_law_version: "ontostar-1.0.0".into(),
+                production_law_version: PRODUCTION_LAW_VERSION.into(),
                 defects_taxonomy_version: crate::defects::DEFECTS_TAXONOMY_VERSION
                     .to_string(),
                 gates_passed: vec![
@@ -1251,7 +1276,7 @@ impl OntoStarAdmissionGate {
             required_stages: &self.required_stages,
             observed_stages,
             conformance_run_id: &conf.run_id,
-            production_law_version: "ontostar-1.0.0",
+            production_law_version: PRODUCTION_LAW_VERSION,
             prior_receipt,
             session_id,
             provenance_evidence: &provenance_evidence,
@@ -1450,7 +1475,7 @@ impl OntoStarAdmissionGate {
                 ("op", op.as_str()),
                 ("op_class", op.op_class()),
                 ("defect", defect.tag()),
-                (OCEL_KEY_PRODUCTION_LAW_VERSION, "ontostar-1.0.0"),
+                (OCEL_KEY_PRODUCTION_LAW_VERSION, PRODUCTION_LAW_VERSION),
                 (OCEL_KEY_DEFECTS_TAXONOMY_VERSION, crate::defects::DEFECTS_TAXONOMY_VERSION),
             ],
             &[],
@@ -1946,7 +1971,7 @@ fn persist_conformance_run(
                 // not yet integrated).  External auditors MUST NOT treat
                 // stub-path conformance runs as production evidence.
                 (OCEL_KEY_POWL_STUB, powl_stub_s),
-                (OCEL_KEY_PRODUCTION_LAW_VERSION, "ontostar-1.0.0"),
+                (OCEL_KEY_PRODUCTION_LAW_VERSION, PRODUCTION_LAW_VERSION),
                 (OCEL_KEY_DEFECTS_TAXONOMY_VERSION, crate::defects::DEFECTS_TAXONOMY_VERSION),
             ],
             &[],

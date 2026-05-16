@@ -483,7 +483,7 @@ pub fn resolve_llm_model(cfg: &LlmConfig) -> String {
 /// assert!(open_ontologies::config::VALID_LLM_ENGINES.contains(&"inproc"));
 /// assert!(!open_ontologies::config::VALID_LLM_ENGINES.contains(&"unknown_engine"));
 /// ```
-pub const VALID_LLM_ENGINES: &[&str] = &["inproc", "groq_pm4py", "gemini"];
+pub const VALID_LLM_ENGINES: &[&str] = &[ENGINE_INPROC, ENGINE_GROQ_PM4PY, ENGINE_GEMINI];
 
 /// LLM engine identifier: in-process `GroqTranslator` (HTTP via reqwest).
 /// Appears in OCEL `"engine"` attribute positions and engine-dispatch
@@ -541,9 +541,9 @@ pub fn resolve_llm_engine(cfg: &LlmConfig) -> String {
         return v;
     }
     if resolve_llm_api_key(cfg).is_some() {
-        "groq_pm4py".to_string()
+        ENGINE_GROQ_PM4PY.to_string()
     } else {
-        "inproc".to_string()
+        ENGINE_INPROC.to_string()
     }
 }
 
