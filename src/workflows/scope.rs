@@ -1,4 +1,26 @@
 //! Workflow scope: open / close persisted to `declared_workflows`.
+//!
+//! # Examples
+//!
+//! Open a scope from the built-in catalog, then close it:
+//!
+//! ```
+//! use open_ontologies::state::StateDb;
+//! use open_ontologies::workflows::scope::WorkflowScope;
+//!
+//! let db = StateDb::open(std::path::Path::new(":memory:")).unwrap();
+//! let scope = WorkflowScope::new(&db, "doc-session");
+//!
+//! let token = scope.open(Some("OntologyAuthoring"), None, None).unwrap();
+//! assert!(!token.is_empty());
+//!
+//! let row = scope.get(&token).unwrap().unwrap();
+//! assert_eq!(row.status, "open");
+//!
+//! scope.close(&token).unwrap();
+//! let row = scope.get(&token).unwrap().unwrap();
+//! assert_eq!(row.status, "closed");
+//! ```
 
 use crate::defects::DefectClass;
 use crate::state::StateDb;
@@ -47,6 +69,34 @@ impl<'a> WorkflowScope<'a> {
     /// - If `name` resolves to a built-in catalog entry, its POWL string is used.
     /// - If `powl` is provided, it is used directly (and `name` defaults to "custom").
     /// - At least one of `name` or `powl` must be supplied.
+    ///
+    /// # Examples
+    ///
+    /// Open by catalog name:
+    ///
+    /// ```
+    /// use open_ontologies::state::StateDb;
+    /// use open_ontologies::workflows::scope::WorkflowScope;
+    ///
+    /// let db = StateDb::open(std::path::Path::new(":memory:")).unwrap();
+    /// let scope = WorkflowScope::new(&db, "sess-open");
+    /// let token = scope.open(Some("Codegen"), None, None).unwrap();
+    /// assert!(!token.is_empty());
+    /// ```
+    ///
+    /// Open with an inline POWL string (name defaults to "custom"):
+    ///
+    /// ```
+    /// use open_ontologies::state::StateDb;
+    /// use open_ontologies::workflows::scope::WorkflowScope;
+    ///
+    /// let db = StateDb::open(std::path::Path::new(":memory:")).unwrap();
+    /// let scope = WorkflowScope::new(&db, "sess-inline");
+    /// let token = scope.open(None, Some("SEQ(a, b, c)"), None).unwrap();
+    /// let row = scope.get(&token).unwrap().unwrap();
+    /// assert_eq!(row.name, "custom");
+    /// assert_eq!(row.powl_string, "SEQ(a, b, c)");
+    /// ```
     pub fn open(
         &self,
         name: Option<&str>,
@@ -118,6 +168,27 @@ impl<'a> WorkflowScope<'a> {
 
     /// Close a scope by writing `closed_at` and flipping status to `closed`.
     /// Returns `Err(ScopeUnclosed)` if the token is not found.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use open_ontologies::state::StateDb;
+    /// use open_ontologies::workflows::scope::{WorkflowScope, ScopeError};
+    /// use open_ontologies::defects::DefectClass;
+    ///
+    /// let db = StateDb::open(std::path::Path::new(":memory:")).unwrap();
+    /// let scope = WorkflowScope::new(&db, "sess-close");
+    /// let token = scope.open(Some("Alignment"), None, None).unwrap();
+    ///
+    /// // First close succeeds.
+    /// scope.close(&token).unwrap();
+    ///
+    /// // Closing again yields ScopeUnclosed.
+    /// match scope.close(&token) {
+    ///     Err(ScopeError::Defect(DefectClass::ScopeUnclosed)) => {}
+    ///     other => panic!("expected ScopeUnclosed, got {:?}", other),
+    /// }
+    /// ```
     pub fn close(&self, scope_token: &str) -> Result<(), ScopeError> {
         let now = chrono::Utc::now().to_rfc3339();
         let conn = self.db.conn();
@@ -136,6 +207,29 @@ impl<'a> WorkflowScope<'a> {
     /// Return the most recently declared (and not-yet-closed) scope row for
     /// this session, if any. Used by Stream 3 admission gates that operate
     /// on the implicit "current scope".
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use open_ontologies::state::StateDb;
+    /// use open_ontologies::workflows::scope::WorkflowScope;
+    ///
+    /// let db = StateDb::open(std::path::Path::new(":memory:")).unwrap();
+    /// let scope = WorkflowScope::new(&db, "sess-latest");
+    ///
+    /// // No open scope yet.
+    /// assert!(scope.latest_open().unwrap().is_none());
+    ///
+    /// // After opening one, latest_open returns it.
+    /// let token = scope.open(Some("DataExtension"), None, None).unwrap();
+    /// let row = scope.latest_open().unwrap().unwrap();
+    /// assert_eq!(row.scope_token, token);
+    /// assert_eq!(row.status, "open");
+    ///
+    /// // After closing, latest_open returns None again.
+    /// scope.close(&token).unwrap();
+    /// assert!(scope.latest_open().unwrap().is_none());
+    /// ```
     pub fn latest_open(&self) -> Result<Option<ScopeRow>, ScopeError> {
         let conn = self.db.conn();
         let mut stmt = conn.prepare(
