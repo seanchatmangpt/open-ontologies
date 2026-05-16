@@ -3655,6 +3655,16 @@ impl OpenOntologiesServer {
 
     #[tool(name = "onto_workflow_discover", description = "Loop 3 (workflow discovery). Pull OCEL traces for the domain and run wasm4pm discovery; if the discovered fitness exceeds declared by 0.05, insert a `discovered_workflows` row with status=pending.")]
     pub async fn onto_workflow_discover(&self, Parameters(input): Parameters<OntoWorkflowDiscoverInput>) -> String {
+        // Guard: blank domain
+        if input.domain.trim().is_empty() {
+            return serde_json::json!({
+                "ok": false,
+                "error": "'domain' is required and must not be blank",
+                "hint": "Provide the workflow class name as 'domain', e.g. 'RevOps' or 'ManufacturingPipeline'. Then retry onto_workflow_discover."
+            }).to_string();
+        }
+
+
         self.evaluate_admission_audit(
             crate::admission::AdmissionOp::Discovery,
             Some(&input.domain),
@@ -3667,12 +3677,26 @@ impl OpenOntologiesServer {
                 serde_json::json!({"ok": true, "discovered": dw}).to_string()
             }
             Ok(None) => serde_json::json!({"ok": true, "discovered": null, "reason": "no_better_workflow_found_or_threshold_not_met"}).to_string(),
-            Err(e) => format!(r#"{{"error":"{}"}}"#, e),
+            Err(e) => serde_json::json!({
+                "ok": false,
+                "error": format!("Workflow discovery failed for domain '{}': {}", input.domain, e),
+                "hint": "Ensure OCEL traces exist for this domain (run onto_workflow_discover after admitting events via onto_admit_ctq). If no traces exist yet, the discovery engine has nothing to mine."
+            }).to_string(),
         }
     }
 
     #[tool(name = "onto_workflow_feedback", description = "Loop 3 surface. Accept or reject a discovered workflow candidate; flips `discovered_workflows.status`. Mirrors the JSON shape of `onto_align_feedback`.")]
     pub async fn onto_workflow_feedback(&self, Parameters(input): Parameters<OntoWorkflowFeedbackInput>) -> String {
+        // Guard: blank id
+        if input.id.trim().is_empty() {
+            return serde_json::json!({
+                "ok": false,
+                "error": "'id' is required and must not be blank",
+                "hint": "Provide the discovered_workflows row ID returned by onto_workflow_discover. Run onto_workflow_discover first to obtain a candidate ID."
+            }).to_string();
+        }
+
+
         self.evaluate_admission_audit(
             crate::admission::AdmissionOp::Feedback,
             Some(&input.id),
@@ -3684,7 +3708,11 @@ impl OpenOntologiesServer {
                 self.lineage().record(&self.session_id, "WF", "workflow_feedback", if input.accepted { "accepted" } else { "rejected" });
                 serde_json::json!({"ok": true, "id": input.id, "accepted": input.accepted, "status": status}).to_string()
             }
-            Err(e) => format!(r#"{{"error":"{}"}}"#, e),
+            Err(e) => serde_json::json!({
+                "ok": false,
+                "error": format!("Workflow feedback failed for id '{}': {}", input.id, e),
+                "hint": "Verify the workflow candidate ID exists by running onto_workflow_discover. The ID must match a pending row in discovered_workflows."
+            }).to_string(),
         }
     }
 
@@ -4015,6 +4043,24 @@ impl OpenOntologiesServer {
 
     #[tool(name = "onto_process_validate_claim", description = "Validate a process mining claim using real event-log evidence from OTel traces. Uses pm4py for process discovery and conformance checking. Requires at least 3 of 5 surfaces to pass: execution, observability, state, process, causality.")]
     async fn onto_process_validate_claim(&self, Parameters(input): Parameters<OntoProcessValidateClaimInput>) -> String {
+        // Guard: empty store
+        if self.graph.triple_count() == 0 {
+            return serde_json::json!({
+                "ok": false,
+                "error": "No ontology loaded",
+                "hint": "Call onto_load with a TTL file first, then retry onto_process_validate_claim. The process model must be present in the store to validate claims against."
+            }).to_string();
+        }
+
+        // Guard: blank claim
+        if input.claim.trim().is_empty() {
+            return serde_json::json!({
+                "ok": false,
+                "error": "'claim' is required and must not be blank",
+                "hint": "Provide a non-empty claim string, e.g. 'manufacturing pipeline executed lawfully'. The claim is matched against OTel trace evidence."
+            }).to_string();
+        }
+
         let script = "/Users/sac/chatmangpt/ostar/src/ostar/process/wvda_agent.py";
         let mut cmd = std::process::Command::new("/Users/sac/chatmangpt/ostar/.venv/bin/python");
         cmd.arg(script);
@@ -4038,18 +4084,50 @@ impl OpenOntologiesServer {
                     String::from_utf8_lossy(&out.stdout).into_owned()
                 } else {
                     let err = String::from_utf8_lossy(&out.stderr);
-                    format!(r#"{{"error": "Process mining failed: {}"}}"#, err.replace('"', "\\\"").replace('\n', " "))
+                    serde_json::json!({
+                        "ok": false,
+                        "error": format!("Process mining failed: {}", err.replace('"', "\\\"").replace('\n', " ")),
+                        "hint": "Check that OTel traces exist for the claimed artifact. If no traces are present, run the manufacturing pipeline first so that event-log evidence is available for pm4py to mine."
+                    }).to_string()
                 }
             },
             Err(crate::subprocess::SubprocessError::LlmTimeout { elapsed_ms, limit_ms, .. }) => {
-                format!(r#"{{"error": "Process mining subprocess timed out after {}ms (limit {}ms)"}}"#, elapsed_ms, limit_ms)
+                serde_json::json!({
+                    "ok": false,
+                    "error": format!("Process mining subprocess timed out after {}ms (limit {}ms)", elapsed_ms, limit_ms),
+                    "hint": "The OTel trace corpus may be too large. Narrow the time window by setting 'time_range_hours' to a smaller value (e.g. 1 or 6) and retry."
+                }).to_string()
             },
-            Err(crate::subprocess::SubprocessError::SpawnFailed(e)) => format!(r#"{{"error": "Failed to spawn Python process: {}"}}"#, e)
+            Err(crate::subprocess::SubprocessError::SpawnFailed(e)) => {
+                serde_json::json!({
+                    "ok": false,
+                    "error": format!("Failed to spawn Python process: {}", e),
+                    "hint": "Ensure the Python environment at /Users/sac/chatmangpt/ostar/.venv is healthy. Run 'pip install pm4py' inside that venv if the package is missing."
+                }).to_string()
+            }
         }
     }
 
     #[tool(name = "onto_process_check_soundness", description = "Check process soundness properties: deadlock-free, liveness, and boundedness. Uses Petri net analysis on discovered process model.")]
     async fn onto_process_check_soundness(&self, Parameters(input): Parameters<OntoProcessCheckSoundnessInput>) -> String {
+        // Guard: blank event_log_path
+        if input.event_log_path.trim().is_empty() {
+            return serde_json::json!({
+                "ok": false,
+                "error": "'event_log_path' is required and must not be blank",
+                "hint": "Provide the path to an OCEL event log file (e.g. '/tmp/ocel.jsonocel'). Generate one by running onto_process_validate_claim first, which emits an OCEL log as a side-effect."
+            }).to_string();
+        }
+
+        // Guard: file does not exist
+        if !std::path::Path::new(&input.event_log_path).exists() {
+            return serde_json::json!({
+                "ok": false,
+                "error": format!("Event log file not found: {}", input.event_log_path),
+                "hint": "Check that the path is correct and the file exists. Run onto_process_validate_claim to generate an OCEL event log, then pass the output path to onto_process_check_soundness."
+            }).to_string();
+        }
+
         let script = "/Users/sac/chatmangpt/ostar/src/ostar/process/wvda_agent.py";
         let mut cmd = std::process::Command::new("/Users/sac/chatmangpt/ostar/.venv/bin/python");
         cmd.arg(script);
@@ -4065,13 +4143,27 @@ impl OpenOntologiesServer {
                     String::from_utf8_lossy(&out.stdout).into_owned()
                 } else {
                     let err = String::from_utf8_lossy(&out.stderr);
-                    format!(r#"{{"error": "Soundness check failed: {}"}}"#, err.replace('"', "\\\"").replace('\n', " "))
+                    serde_json::json!({
+                        "ok": false,
+                        "error": format!("Soundness check failed: {}", err.replace('"', "\\\"").replace('\n', " ")),
+                        "hint": "The event log may be malformed or contain too few traces for Petri net discovery. Verify the log is a valid OCEL file with at least 3 complete case traces before retrying."
+                    }).to_string()
                 }
             },
             Err(crate::subprocess::SubprocessError::LlmTimeout { elapsed_ms, limit_ms, .. }) => {
-                format!(r#"{{"error": "Soundness check subprocess timed out after {}ms (limit {}ms)"}}"#, elapsed_ms, limit_ms)
+                serde_json::json!({
+                    "ok": false,
+                    "error": format!("Soundness check subprocess timed out after {}ms (limit {}ms)", elapsed_ms, limit_ms),
+                    "hint": "The event log may be too large for the Petri net solver. Try filtering the log to a smaller time window and retry onto_process_check_soundness."
+                }).to_string()
             },
-            Err(crate::subprocess::SubprocessError::SpawnFailed(e)) => format!(r#"{{"error": "Failed to spawn Python process: {}"}}"#, e)
+            Err(crate::subprocess::SubprocessError::SpawnFailed(e)) => {
+                serde_json::json!({
+                    "ok": false,
+                    "error": format!("Failed to spawn Python process: {}", e),
+                    "hint": "Ensure the Python environment at /Users/sac/chatmangpt/ostar/.venv is healthy and pm4py is installed. Run 'pip install pm4py' inside that venv if the package is missing."
+                }).to_string()
+            }
         }
     }
 
