@@ -2281,13 +2281,72 @@ impl OpenOntologiesServer {
     async fn onto_monitor(&self, Parameters(input): Parameters<OntoMonitorInput>) -> String {
         let monitor = self.monitor();
 
-        // Add watchers if provided
-        if let Some(ref watchers_json) = input.watchers
-            && let Ok(watchers) = serde_json::from_str::<Vec<crate::monitor::Watcher>>(watchers_json) {
-                for w in watchers {
-                    monitor.add_watcher(w);
+        // Add watchers if provided — surface parse errors and per-watcher validation problems
+        // rather than silently discarding invalid input.
+        if let Some(ref watchers_json) = input.watchers {
+            match serde_json::from_str::<Vec<crate::monitor::Watcher>>(watchers_json) {
+                Err(parse_err) => {
+                    return serde_json::json!({
+                        "error": format!("Invalid watchers JSON: {}", parse_err),
+                        "hint": "Provide a JSON array of watcher objects. Each watcher requires: id (string), check_type (\"sparql\" or \"conformance_regression\"), threshold (float), severity (string), action (\"notify\"|\"block_next_apply\"|\"auto_rollback\"|\"log\"). Example: [{\"id\":\"w1\",\"check_type\":\"sparql\",\"threshold\":0,\"severity\":\"warning\",\"action\":\"notify\",\"query\":\"SELECT (COUNT(*) AS ?count) WHERE { ?s ?p ?o }\"}]"
+                    }).to_string();
+                }
+                Ok(watchers) if watchers.is_empty() => {
+                    return serde_json::json!({
+                        "error": "Empty watcher list provided",
+                        "hint": "To register watchers pass a non-empty JSON array, or omit the 'watchers' field entirely to run only the watchers already stored in the session database."
+                    }).to_string();
+                }
+                Ok(watchers) => {
+                    // Validate each watcher before registering it.
+                    let mut validation_errors: Vec<String> = Vec::new();
+                    for w in &watchers {
+                        // Check SPARQL query syntax by running a dry parse against the store.
+                        if w.check_type == "sparql" {
+                            match &w.query {
+                                None => {
+                                    validation_errors.push(format!(
+                                        "Watcher '{}': check_type is 'sparql' but no 'query' field was provided. Supply a SELECT query returning a ?count binding.",
+                                        w.id
+                                    ));
+                                }
+                                Some(q) => {
+                                    // Use sparql_select with an empty-result expectation to validate
+                                    // parse-time errors without side effects on the real store.
+                                    if let Err(sparql_err) = self.graph.sparql_select(q) {
+                                        validation_errors.push(format!(
+                                            "Watcher '{}': SPARQL query failed to parse — {}. Ensure the query is a valid SELECT returning a ?count binding.",
+                                            w.id, sparql_err
+                                        ));
+                                    }
+                                }
+                            }
+                        }
+                        // Validate webhook URL scheme for notify-action watchers.
+                        if matches!(w.action, crate::monitor::WatcherAction::Notify) {
+                            if let Some(ref url) = w.webhook_url {
+                                if !url.starts_with("http://") && !url.starts_with("https://") {
+                                    validation_errors.push(format!(
+                                        "Watcher '{}': webhook_url '{}' is not a valid HTTP/HTTPS URL. Use 'https://...' for production endpoints (e.g. Slack incoming webhooks, PagerDuty).",
+                                        w.id, url
+                                    ));
+                                }
+                            }
+                        }
+                    }
+                    if !validation_errors.is_empty() {
+                        return serde_json::json!({
+                            "error": "One or more watchers failed validation — no watchers were registered",
+                            "validation_errors": validation_errors,
+                            "hint": "Fix the reported problems and retry. All watchers in a batch must be valid before any are registered."
+                        }).to_string();
+                    }
+                    for w in watchers {
+                        monitor.add_watcher(w);
+                    }
                 }
             }
+        }
 
         let result = monitor.run_watchers();
 
@@ -2308,7 +2367,22 @@ impl OpenOntologiesServer {
         );
 
         self.lineage().record(&self.session_id, "M", "monitor", &result.status);
-        serde_json::to_string(&result).unwrap_or_else(|e| format!(r#"{{"error":"{}"}}"#, e))
+
+        // Augment the result with an actionable hint when no watchers are registered.
+        // This distinguishes "healthy with watchers" from "nothing to check".
+        let mut out = serde_json::to_value(&result)
+            .unwrap_or_else(|_| serde_json::json!({"status": "ok", "alerts": [], "passed": []}));
+        if result.alerts.is_empty() && result.passed.is_empty() {
+            if let Some(obj) = out.as_object_mut() {
+                obj.insert(
+                    "hint".to_string(),
+                    serde_json::Value::String(
+                        "No watchers are registered in this session. Pass a 'watchers' JSON array to register new ones, or call onto_apply first to trigger automatic watcher seeding.".to_string()
+                    ),
+                );
+            }
+        }
+        out.to_string()
     }
 
     #[tool(name = "onto_monitor_clear", description = "Clear the monitor blocked flag, allowing apply operations to proceed. Audit-only admission.")]
@@ -2320,7 +2394,7 @@ impl OpenOntologiesServer {
             b"",
         );
         self.monitor().clear_blocked();
-        r#"{"ok":true,"message":"Monitor block cleared","admission":"audit"}"#.to_string()
+        r#"{"ok":true,"unblocked":"monitor_block","message":"Monitor block cleared — onto_apply is now permitted","next":"Call onto_apply to resume the lifecycle, or onto_monitor to verify watcher status before proceeding","admission":"audit"}"#.to_string()
     }
 
     #[tool(name = "onto_crosswalk", description = "Look up clinical crosswalk mappings for a code and system (ICD10, SNOMED, MeSH). Uses data/crosswalks.parquet (93-row sample included; run scripts/build_crosswalks.py to extend).")]
@@ -2846,8 +2920,17 @@ impl OpenOntologiesServer {
     #[tool(name = "onto_threshold_status", description = "Loop 2 (threshold calibration). Read all rows from `workflow_thresholds`.")]
     pub async fn onto_threshold_status(&self) -> String {
         match crate::feedback::thresholds::list_all(self.ocel_store()) {
+            Ok(rows) if rows.is_empty() => serde_json::json!({
+                "ok": true,
+                "count": 0,
+                "thresholds": [],
+                "hint": "No threshold rows exist yet. Thresholds are created automatically when bypass_admission events age out during onto_monitor or onto_threshold_sweep. Trigger a bypass admission event first, then wait for the configured age window (default 7 days) or force a sweep with onto_threshold_sweep."
+            }).to_string(),
             Ok(rows) => serde_json::json!({"ok": true, "count": rows.len(), "thresholds": rows}).to_string(),
-            Err(e) => format!(r#"{{"error":"{}"}}"#, e),
+            Err(e) => serde_json::json!({
+                "error": format!("Failed to read workflow_thresholds table: {}", e),
+                "hint": "This usually means the session database has not been initialised or is corrupted. Restart the server to recreate the schema, or check that the data directory is writable."
+            }).to_string(),
         }
     }
 
@@ -2861,7 +2944,10 @@ impl OpenOntologiesServer {
         );
         match crate::feedback::thresholds::sweep(self.ocel_store()) {
             Ok(result) => serde_json::json!({"ok": true, "result": result}).to_string(),
-            Err(e) => format!(r#"{{"error":"{}"}}"#, e),
+            Err(e) => serde_json::json!({
+                "error": format!("Threshold calibration sweep failed: {}", e),
+                "hint": "Check that the ocel_events and workflow_thresholds tables are accessible (the session database may be locked or corrupted). If this is the first sweep in a new session, ensure at least one bypass_admission event has been recorded by running onto_admit_ctq before sweeping."
+            }).to_string(),
         }
     }
 
