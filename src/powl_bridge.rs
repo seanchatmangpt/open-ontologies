@@ -47,6 +47,20 @@ struct ParsedRoot {
 /// One `PowlBridge` per server instance. Each successful `parse` adds a row
 /// to the arena and caches the converted Petri-net so replay does not re-walk
 /// the arena.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::powl_bridge::PowlBridge;
+///
+/// // Construction is pure and requires no I/O
+/// let bridge = PowlBridge::new();
+/// // Default produces the same empty bridge
+/// let bridge2 = PowlBridge::default();
+/// // Both are freshly initialised — no roots parsed yet
+/// drop(bridge);
+/// drop(bridge2);
+/// ```
 pub struct PowlBridge {
     arena: PowlArena,
     parsed: std::collections::HashMap<u32, ParsedRoot>,
@@ -178,6 +192,69 @@ fn build_trace(case_id: &str, activities: &[String]) -> Trace {
 /// score fields (`fitness`, `precision`, `generalization`, `simplicity`)
 /// are read off wasm4pm's `TraceReplayResult` / `FitnessResult` — none are
 /// computed here.
+///
+/// # Examples — direct construction of score types
+///
+/// ```
+/// use open_ontologies::powl_bridge::{ConformanceResult, TraceReplayResult};
+///
+/// // Construct a perfect ConformanceResult directly (no I/O, no DB)
+/// let result = ConformanceResult {
+///     fitness: 1.0,
+///     precision: Some(1.0),
+///     generalization: None,
+///     simplicity: None,
+///     verdict: "conform",
+///     defects: vec![],
+///     trace_canonical_hash: "abc123".to_string(),
+///     run_id: "run-abc123".to_string(),
+/// };
+/// assert!(result.is_conform());
+/// assert_eq!(result.verdict, "conform");
+/// assert!(result.defects.is_empty());
+///
+/// // A deviant result is not conform
+/// let deviant = ConformanceResult {
+///     fitness: 0.5,
+///     precision: Some(0.6),
+///     generalization: None,
+///     simplicity: None,
+///     verdict: "deviate",
+///     defects: vec![],
+///     trace_canonical_hash: "def456".to_string(),
+///     run_id: "run-def456".to_string(),
+/// };
+/// assert!(!deviant.is_conform());
+/// ```
+///
+/// ```
+/// use open_ontologies::powl_bridge::TraceReplayResult;
+///
+/// // TraceReplayResult construction — replay/fitness score types
+/// let tr = TraceReplayResult {
+///     case_id: "case-1".to_string(),
+///     fitness: 1.0,
+///     precision: 1.0,
+///     produced_tokens: 4,
+///     consumed_tokens: 4,
+///     missing_tokens: 0,
+///     remaining_tokens: 0,
+/// };
+/// assert!(tr.is_perfect(), "zero missing and remaining tokens means perfect");
+/// assert_eq!(tr.fitness, 1.0);
+///
+/// // An imperfect result is not perfect
+/// let imperfect = TraceReplayResult {
+///     case_id: "case-2".to_string(),
+///     fitness: 0.75,
+///     precision: 0.8,
+///     produced_tokens: 4,
+///     consumed_tokens: 3,
+///     missing_tokens: 1,
+///     remaining_tokens: 0,
+/// };
+/// assert!(!imperfect.is_perfect());
+/// ```
 #[derive(Clone, Debug)]
 pub struct ConformanceResult {
     pub fitness: f64,
@@ -191,6 +268,37 @@ pub struct ConformanceResult {
 }
 
 impl ConformanceResult {
+    /// Returns `true` when the trace's verdict is `"conform"`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use open_ontologies::powl_bridge::ConformanceResult;
+    ///
+    /// let conform = ConformanceResult {
+    ///     fitness: 1.0,
+    ///     precision: Some(1.0),
+    ///     generalization: None,
+    ///     simplicity: None,
+    ///     verdict: "conform",
+    ///     defects: vec![],
+    ///     trace_canonical_hash: "hash".to_string(),
+    ///     run_id: "run-hash".to_string(),
+    /// };
+    /// assert!(conform.is_conform());
+    ///
+    /// let impossible = ConformanceResult {
+    ///     fitness: 0.0,
+    ///     precision: None,
+    ///     generalization: None,
+    ///     simplicity: None,
+    ///     verdict: "impossible",
+    ///     defects: vec![],
+    ///     trace_canonical_hash: "hash2".to_string(),
+    ///     run_id: "run-hash2".to_string(),
+    /// };
+    /// assert!(!impossible.is_conform());
+    /// ```
     pub fn is_conform(&self) -> bool {
         self.verdict == "conform"
     }

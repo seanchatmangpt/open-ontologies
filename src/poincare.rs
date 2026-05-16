@@ -1,7 +1,59 @@
 //! Poincaré ball model — distance, exponential map, and Riemannian SGD.
 //! Curvature c = 1.0 (unit ball).
+//!
+//! # Examples — basic norm and ball invariants
+//!
+//! ```
+//! use open_ontologies::poincare::{norm, poincare_distance, project_to_ball};
+//!
+//! // The origin has norm 0.0
+//! assert!((norm(&[0.0_f32, 0.0]) - 0.0).abs() < 1e-6);
+//!
+//! // A unit vector has norm 1.0
+//! assert!((norm(&[1.0_f32, 0.0]) - 1.0).abs() < 1e-6);
+//!
+//! // Any valid Poincaré point must lie strictly inside the unit ball
+//! let p = [0.3_f32, 0.4];
+//! assert!(norm(&p) < 1.0, "valid point must be inside the ball");
+//!
+//! // Projecting an outside point brings it inside
+//! let outside = [0.8_f32, 0.8];
+//! let inside = project_to_ball(&outside, 1e-5);
+//! assert!(norm(&inside) < 1.0, "projected point must be inside the ball");
+//!
+//! // Distance from any point to itself is 0
+//! let u = [0.1_f32, 0.2];
+//! assert!((poincare_distance(&u, &u) - 0.0).abs() < 1e-5);
+//! ```
 
 const EPS: f32 = 1e-5;
+
+/// Euclidean L2 norm of a vector (pre-check before Poincaré operations).
+///
+/// A point is inside the unit Poincaré ball if and only if `norm(p) < 1.0`.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::poincare::norm;
+///
+/// // Origin has norm 0.0
+/// assert!((norm(&[0.0_f32, 0.0]) - 0.0).abs() < 1e-6);
+///
+/// // 3-4-5 right triangle: norm of [3, 4] is 5
+/// assert!((norm(&[3.0_f32, 4.0]) - 5.0).abs() < 1e-5);
+///
+/// // Boundary condition: any valid Poincaré point has norm < 1.0
+/// let valid = [0.3_f32, 0.4]; // norm = 0.5 < 1
+/// assert!(norm(&valid) < 1.0);
+///
+/// // A point on or beyond the boundary has norm >= 1.0
+/// let boundary = [1.0_f32, 0.0];
+/// assert!(norm(&boundary) >= 1.0 - 1e-5);
+/// ```
+pub fn norm(v: &[f32]) -> f32 {
+    v.iter().map(|x| x * x).sum::<f32>().sqrt()
+}
 
 /// Poincaré ball distance: d(u,v) = arcosh(1 + 2||u-v||² / ((1-||u||²)(1-||v||²)))
 ///
