@@ -495,6 +495,35 @@ pub const STREAM3_STUB_POWL_REPLAY_MARKER: &str = "TODO(stream-2): replace NoopP
 /// ```
 pub const OCEL_KEY_PRODUCTION_LAW_VERSION: &str = "production_law_version";
 
+/// OCEL event attribute key for the scope token (ULID) that tags all events
+/// belonging to a declared workflow scope. Extracted from 17 sites in
+/// server.rs and 3 sites in admission.rs (20 total).
+pub const OCEL_KEY_SCOPE_TOKEN: &str = "scope_token";
+
+/// OCEL event attribute key for the BLAKE3 hex receipt attached to every
+/// admission audit record and tool response. Extracted from 14 sites in
+/// server.rs and 1 site in admission.rs (15 total).
+pub const OCEL_KEY_RECEIPT_HASH: &str = "receipt_hash";
+
+/// OCEL event attribute key for the `defects_taxonomy_version` string.
+/// Appears alongside `OCEL_KEY_PRODUCTION_LAW_VERSION` on every admission
+/// event. Extracted from 8 sites in server.rs and 5 sites in admission.rs.
+pub const OCEL_KEY_DEFECTS_TAXONOMY_VERSION: &str = "defects_taxonomy_version";
+
+/// OCEL event attribute key for the POWL conformance fitness score.
+/// Extracted from 2 sites in server.rs and 1 site in admission.rs.
+pub const OCEL_KEY_FITNESS: &str = "fitness";
+
+/// OCEL event attribute key for the POWL conformance precision score.
+/// Paired with `OCEL_KEY_FITNESS`. Extracted from 1 site in server.rs and
+/// 1 site in admission.rs.
+pub const OCEL_KEY_PRECISION: &str = "precision";
+
+/// OCEL event attribute key indicating the POWL replay used a stub
+/// (`NoopPowlReplay`) rather than the real bridge. Extracted from 2 sites
+/// in server.rs and 2 sites in admission.rs (4 total).
+pub const OCEL_KEY_POWL_STUB: &str = "powl_stub";
+
 impl PowlReplay for NoopPowlReplay {
     fn replay(&self, scope_token: &str, _powl_string: &str, _tenant_id: &str) -> ConformanceResult {
         // POWL replay is not yet integrated (stream-2 stub);
@@ -853,7 +882,7 @@ impl OntoStarAdmissionGate {
                 ("artifact_hash", artifact_hash.to_hex().as_ref()),
                 (OCEL_KEY_PRODUCTION_LAW_VERSION, "ontostar-1.0.0"),
                 (
-                    "defects_taxonomy_version",
+                    OCEL_KEY_DEFECTS_TAXONOMY_VERSION,
                     crate::defects::DEFECTS_TAXONOMY_VERSION,
                 ),
                 ("caller_tenant", caller_tenant),
@@ -952,7 +981,7 @@ impl OntoStarAdmissionGate {
                 ("powl_hash", &powl_hash_hex),
                 ("powl_string", powl_string),
                 (OCEL_KEY_PRODUCTION_LAW_VERSION, "ontostar-1.0.0"),
-                ("defects_taxonomy_version", crate::defects::DEFECTS_TAXONOMY_VERSION),
+                (OCEL_KEY_DEFECTS_TAXONOMY_VERSION, crate::defects::DEFECTS_TAXONOMY_VERSION),
             ],
             &[],
             Some(scope_token),
@@ -997,7 +1026,7 @@ impl OntoStarAdmissionGate {
             session_id,
             &[
                 ("artifact_hash", &artifact_hash_hex),
-                ("scope_token", scope_token),
+                (OCEL_KEY_SCOPE_TOKEN, scope_token),
                 ("session_id", session_id),
                 (OCEL_KEY_PRODUCTION_LAW_VERSION, "ontostar-1.0.0"),
             ],
@@ -1243,10 +1272,10 @@ impl OntoStarAdmissionGate {
                         session_id,
                         &[
                             ("op", op.as_str()),
-                            ("receipt_hash", &receipt_hex),
-                            ("scope_token", &receipt.record.scope_token),
+                            (OCEL_KEY_RECEIPT_HASH, &receipt_hex),
+                            (OCEL_KEY_SCOPE_TOKEN, &receipt.record.scope_token),
                             (OCEL_KEY_PRODUCTION_LAW_VERSION, &receipt.record.production_law_version),
-                            ("defects_taxonomy_version", &receipt.record.defects_taxonomy_version),
+                            (OCEL_KEY_DEFECTS_TAXONOMY_VERSION, &receipt.record.defects_taxonomy_version),
                             ("powl_hash", &powl_hash_hex),
                         ],
                         &[],
@@ -1378,7 +1407,7 @@ impl OntoStarAdmissionGate {
                 ("op", op.as_str()),
                 ("defect", defect.tag()),
                 (OCEL_KEY_PRODUCTION_LAW_VERSION, "ontostar-1.0.0"),
-                ("defects_taxonomy_version", crate::defects::DEFECTS_TAXONOMY_VERSION),
+                (OCEL_KEY_DEFECTS_TAXONOMY_VERSION, crate::defects::DEFECTS_TAXONOMY_VERSION),
             ],
             &[],
             scope_token,
@@ -1864,17 +1893,17 @@ fn persist_conformance_run(
             &[
                 ("run_id", &conf.run_id),
                 ("verdict", &conf.verdict),
-                ("fitness", &fitness_s),
-                ("precision", &precision_s),
-                ("scope_token", scope_token),
+                (OCEL_KEY_FITNESS, &fitness_s),
+                (OCEL_KEY_PRECISION, &precision_s),
+                (OCEL_KEY_SCOPE_TOKEN, scope_token),
                 ("trace_canonical_hash", trace_hash_hex),
                 // `powl_stub = true` marks that fitness/precision are
                 // placeholder values from NoopPowlReplay (stream-2 stub
                 // not yet integrated).  External auditors MUST NOT treat
                 // stub-path conformance runs as production evidence.
-                ("powl_stub", powl_stub_s),
+                (OCEL_KEY_POWL_STUB, powl_stub_s),
                 (OCEL_KEY_PRODUCTION_LAW_VERSION, "ontostar-1.0.0"),
-                ("defects_taxonomy_version", crate::defects::DEFECTS_TAXONOMY_VERSION),
+                (OCEL_KEY_DEFECTS_TAXONOMY_VERSION, crate::defects::DEFECTS_TAXONOMY_VERSION),
             ],
             &[],
             Some(scope_token),
