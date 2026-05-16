@@ -35,6 +35,30 @@ pub const FIELD_CONFIDENCE: &str = "confidence";
 ///
 /// [`StateDb`]: crate::state::StateDb
 /// [`GraphStore`]: crate::graph::GraphStore
+///
+/// # Examples
+///
+/// The engine exposes a stable set of structural signals:
+/// ```
+/// use open_ontologies::align::AlignmentEngine;
+///
+/// // Signal count is always at least 6 (structural signals).
+/// assert!(AlignmentEngine::signal_count() >= 6);
+///
+/// // The weights slice has exactly signal_count() elements.
+/// assert_eq!(AlignmentEngine::default_weights().len(), AlignmentEngine::signal_count());
+/// ```
+///
+/// The first weight (label similarity) is always the largest structural signal:
+/// ```
+/// use open_ontologies::align::AlignmentEngine;
+///
+/// let weights = AlignmentEngine::default_weights();
+/// let label_weight = weights[0];
+/// // Label similarity carries the highest weight of all signals.
+/// assert!(weights.iter().all(|w| label_weight >= *w),
+///     "label_similarity must have the highest weight");
+/// ```
 pub struct AlignmentEngine {
     db: StateDb,
     graph: Arc<GraphStore>,
@@ -746,6 +770,43 @@ impl AlignmentEngine {
     }
 
     /// Record user feedback on an alignment candidate.
+    ///
+    /// Feedback is persisted to the SQLite state database and used to
+    /// self-calibrate signal weights once at least 10 labeled examples are
+    /// available. Until then the engine reports `"weights_learning": "collecting"`.
+    ///
+    /// # Examples
+    ///
+    /// Recording accepted feedback returns `ok: true` and the echoed IRIs:
+    /// ```
+    /// use open_ontologies::align::AlignmentEngine;
+    /// use open_ontologies::graph::GraphStore;
+    /// use open_ontologies::state::StateDb;
+    /// use std::path::Path;
+    /// use std::sync::Arc;
+    ///
+    /// let db = StateDb::open(Path::new(":memory:")).unwrap();
+    /// let graph = Arc::new(GraphStore::new());
+    /// let engine = AlignmentEngine::new(db, graph);
+    ///
+    /// let result = engine
+    ///     .record_feedback(
+    ///         "http://ex.org/Dog",
+    ///         "http://other.org/Canine",
+    ///         "owl:equivalentClass",
+    ///         true,
+    ///         None,
+    ///     )
+    ///     .unwrap();
+    ///
+    /// let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+    /// assert!(parsed["ok"].as_bool().unwrap());
+    /// assert_eq!(parsed["source_iri"].as_str().unwrap(), "http://ex.org/Dog");
+    /// assert_eq!(parsed["target_iri"].as_str().unwrap(), "http://other.org/Canine");
+    /// assert_eq!(parsed["accepted"].as_bool().unwrap(), true);
+    /// // With fewer than 10 labeled examples, weight learning is still collecting data.
+    /// assert_eq!(parsed["weights_learning"].as_str().unwrap(), "collecting");
+    /// ```
     pub fn record_feedback(
         &self,
         source_iri: &str,
@@ -814,6 +875,37 @@ fn jaccard_similarity(a: &[String], b: &[String]) -> f64 {
 /// // ClassInfo implements Clone, so it can be duplicated cheaply.
 /// let cloned = info.clone();
 /// assert_eq!(cloned.iri, info.iri);
+/// ```
+///
+/// A class without any RDF label annotations is represented by an empty `labels` vec.
+/// The alignment engine falls back to the IRI local name in this case.
+///
+/// ```
+/// use open_ontologies::align::ClassInfo;
+///
+/// let unlabelled = ClassInfo {
+///     iri: "http://example.org/Vehicle".to_string(),
+///     labels: vec![],
+/// };
+///
+/// assert!(unlabelled.labels.is_empty(), "no RDF label annotations");
+/// assert!(unlabelled.iri.ends_with("Vehicle"));
+/// ```
+///
+/// The `iri` field is always a non-empty string (full absolute IRI):
+///
+/// ```
+/// use open_ontologies::align::ClassInfo;
+///
+/// let info = ClassInfo {
+///     iri: "https://schema.org/Person".to_string(),
+///     labels: vec!["Person".to_string()],
+/// };
+///
+/// assert!(!info.iri.is_empty());
+/// // IRI must be an absolute URI.
+/// assert!(info.iri.starts_with("http://") || info.iri.starts_with("https://"),
+///     "IRI should be absolute: {}", info.iri);
 /// ```
 #[derive(Debug, Clone)]
 pub struct ClassInfo {

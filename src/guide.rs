@@ -8,6 +8,34 @@
 use serde::Serialize;
 
 /// One step in a workflow plan.
+///
+/// # Examples
+///
+/// Step numbers are 1-indexed positive integers:
+/// ```
+/// # use open_ontologies::guide::plan_for_intent;
+/// let plan = plan_for_intent("load and validate", false);
+/// let first = &plan.plan[0];
+/// assert!(first.step >= 1, "step must be 1-indexed");
+/// ```
+///
+/// Every step carries a non-empty tool name and reason:
+/// ```
+/// # use open_ontologies::guide::plan_for_intent;
+/// let plan = plan_for_intent("load and validate", false);
+/// for step in &plan.plan {
+///     assert!(!step.tool.is_empty(), "tool name must not be empty");
+///     assert!(!step.reason.is_empty(), "reason must not be empty");
+/// }
+/// ```
+///
+/// Scope-requiring steps exist only in admission workflows:
+/// ```
+/// # use open_ontologies::guide::plan_for_intent;
+/// let plan = plan_for_intent("ctq gate", false);
+/// let scoped = plan.plan.iter().filter(|s| s.requires_scope).count();
+/// assert!(scoped > 0, "CTQ workflow must have scope-requiring steps");
+/// ```
 #[derive(Debug, Clone, Serialize)]
 pub struct PlanStep {
     pub step: u32,
@@ -19,6 +47,39 @@ pub struct PlanStep {
 }
 
 /// A complete workflow plan returned by `onto_guide`.
+///
+/// # Examples
+///
+/// A matched plan always has `ok: true` and a non-`None` `workflow_name`:
+/// ```
+/// # use open_ontologies::guide::plan_for_intent;
+/// let plan = plan_for_intent("semantic search", false);
+/// assert!(plan.ok);
+/// assert!(plan.workflow_name.is_some());
+/// assert!(!plan.workflow_name.unwrap().is_empty(), "workflow name must be non-empty");
+/// ```
+///
+/// `estimated_steps` is always consistent with the plan length:
+/// ```
+/// # use open_ontologies::guide::plan_for_intent;
+/// for intent in &["load and validate", "ingest", "align", "codegen", "manufacture solution"] {
+///     let plan = plan_for_intent(intent, false);
+///     assert_eq!(
+///         plan.estimated_steps, plan.plan.len(),
+///         "estimated_steps must equal plan.len() for intent '{intent}'"
+///     );
+/// }
+/// ```
+///
+/// For an unknown intent `known_intents` is populated and `workflow_name` is `None`:
+/// ```
+/// # use open_ontologies::guide::plan_for_intent;
+/// let plan = plan_for_intent("completely unknown xyz123", false);
+/// assert!(plan.workflow_name.is_none());
+/// assert!(plan.known_intents.is_some());
+/// let intents = plan.known_intents.unwrap();
+/// assert!(intents.iter().all(|n| !n.is_empty()), "all known intent names must be non-empty");
+/// ```
 #[derive(Debug, Clone, Serialize)]
 pub struct WorkflowPlan {
     pub ok: bool,
