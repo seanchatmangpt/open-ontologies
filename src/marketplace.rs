@@ -1,6 +1,20 @@
 use oxigraph::io::RdfFormat;
 
 /// A standard ontology available in the marketplace catalogue.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::marketplace::{MarketplaceEntry, find};
+/// use oxigraph::io::RdfFormat;
+///
+/// // All catalogue entries can be retrieved by id.
+/// let owl_entry = find("owl").expect("owl must be in catalogue");
+/// assert_eq!(owl_entry.id,     "owl");
+/// assert_eq!(owl_entry.name,   "OWL 2");
+/// assert_eq!(owl_entry.domain, "foundational");
+/// assert!(matches!(owl_entry.format, RdfFormat::Turtle));
+/// ```
 pub struct MarketplaceEntry {
     pub id: &'static str,
     pub name: &'static str,
@@ -11,6 +25,43 @@ pub struct MarketplaceEntry {
 }
 
 /// Curated catalogue of 32 standard W3C/ISO/industry ontologies.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::marketplace::CATALOGUE;
+///
+/// // The catalogue holds at least 29 entries (was extended from 29 to 32).
+/// assert!(CATALOGUE.len() >= 29, "expected at least 29 catalogue entries, got {}", CATALOGUE.len());
+///
+/// // Every entry must have a non-empty id and url.
+/// for entry in CATALOGUE {
+///     assert!(!entry.id.is_empty(),  "entry id is empty");
+///     assert!(!entry.url.is_empty(), "entry url is empty for {}", entry.id);
+/// }
+/// ```
+///
+/// ## Known well-anchored entries
+///
+/// ```
+/// use open_ontologies::marketplace::{CATALOGUE, find};
+///
+/// // W3C foundational trio is always present.
+/// assert!(find("owl").is_some(),  "OWL 2 must be in catalogue");
+/// assert!(find("rdfs").is_some(), "RDF Schema must be in catalogue");
+/// assert!(find("rdf").is_some(),  "RDF Concepts must be in catalogue");
+///
+/// // Provenance / SHACL / temporal are core W3C/ISO entries.
+/// assert!(find("prov-o").is_some(),   "PROV-O must be in catalogue");
+/// assert!(find("shacl").is_some(),    "SHACL must be in catalogue");
+/// assert!(find("owl-time").is_some(), "OWL-Time must be in catalogue");
+///
+/// // Domains covered in the catalogue.
+/// let domains: Vec<&str> = CATALOGUE.iter().map(|e| e.domain).collect();
+/// assert!(domains.contains(&"foundational"), "foundational domain missing");
+/// assert!(domains.contains(&"provenance"),   "provenance domain missing");
+/// assert!(domains.contains(&"validation"),   "validation domain missing");
+/// ```
 pub static CATALOGUE: &[MarketplaceEntry] = &[
     // ── Foundational ──────────────────────────────────────────────
     MarketplaceEntry {

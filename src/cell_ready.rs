@@ -44,6 +44,23 @@ use crate::state::StateDb;
 /// assert_eq!(op.powl_string, "→(A, B, C)");
 /// assert_eq!(op.powl_hash, [0u8; 32]);
 /// ```
+///
+/// The `powl_hash` field holds a 32-byte BLAKE3 digest:
+///
+/// ```
+/// use open_ontologies::cell_ready::PowlOpRef;
+///
+/// // Construct a sentinel hash (all-zeros) for testing / bootstrapping.
+/// let zero_hash = [0u8; 32];
+/// let op = PowlOpRef { powl_string: "→(seed, breed)", powl_hash: zero_hash };
+///
+/// // The hash array length is always exactly 32 bytes.
+/// assert_eq!(op.powl_hash.len(), 32);
+/// // Sentinel value: all bytes are zero.
+/// assert!(op.powl_hash.iter().all(|&b| b == 0));
+/// // The POWL string is stored as-is.
+/// assert!(op.powl_string.contains("seed"));
+/// ```
 pub struct PowlOpRef<'a> {
     pub powl_string: &'a str,
     pub powl_hash: [u8; 32],
@@ -51,7 +68,43 @@ pub struct PowlOpRef<'a> {
 
 /// All inputs required to evaluate the full 13-gate `CellReady` predicate.
 ///
-/// # Examples
+/// ## Gate status helpers
+///
+/// The threshold conjunct (Gate A5) compares observed vs required metrics:
+///
+/// ```
+/// // Pure threshold comparison — mirrors A5_ThresholdPass logic.
+/// let fitness_observed  = 0.95_f64;
+/// let fitness_required  = 0.80_f64;
+/// let precision_observed = 0.88_f64;
+/// let precision_required = 0.80_f64;
+///
+/// // Both thresholds satisfied → gate passes.
+/// assert!(fitness_observed  >= fitness_required);
+/// assert!(precision_observed >= precision_required);
+///
+/// // A single failing threshold short-circuits to denial.
+/// let low_precision = 0.70_f64;
+/// assert!(low_precision < precision_required);
+/// ```
+///
+/// ## Stage-presence gate (A6)
+///
+/// ```
+/// // Required stages must be a subset of observed stages.
+/// let required: &[&str] = &["seed", "breed", "validate"];
+/// let observed: &[&str] = &["seed", "breed", "validate", "emit"];
+///
+/// let all_present = required.iter().all(|r| observed.contains(r));
+/// assert!(all_present, "all required stages must be observed");
+///
+/// // Missing a required stage → gate fails.
+/// let observed_missing: &[&str] = &["seed", "breed"];
+/// let missing = required.iter().any(|r| !observed_missing.contains(r));
+/// assert!(missing, "validate stage is absent");
+/// ```
+///
+/// # Full struct construction
 ///
 /// ```
 /// use open_ontologies::cell_ready::{CellReadyInputs, PowlOpRef};
