@@ -11,7 +11,7 @@ use rmcp::{
     },
     service::RequestContext,
 };
-use crate::config::{expand_tilde, ENGINE_INPROC, ENGINE_GROQ_PM4PY};
+use crate::config::{expand_tilde, ENGINE_INPROC, ENGINE_GROQ_PM4PY, ENGINE_GEMINI};
 use crate::admission::{OCEL_KEY_PRODUCTION_LAW_VERSION, OCEL_KEY_RECEIPT_HASH, OCEL_KEY_DEFECTS_TAXONOMY_VERSION};
 use crate::registry::{NTRIPLES_FORMAT, TURTLE_FORMAT};
 use crate::graph::GraphStore;
@@ -129,6 +129,8 @@ pub(crate) const TOOL_RETENTION_PAUSE: &str = "onto_retention_pause";
 pub(crate) const TOOL_BOOTSTRAP_UNLOCK: &str = "onto_bootstrap_unlock";
 /// Tool name / OCEL event type for `onto_groq_status` (3 call sites).
 pub(crate) const TOOL_GROQ_STATUS: &str = "onto_groq_status";
+/// Tool name / OCEL event type for `onto_gemini_status` (3 call sites).
+pub(crate) const TOOL_GEMINI_STATUS: &str = "onto_gemini_status";
 /// Tool name / OCEL event type for `onto_old_ai_station` (3 call sites).
 pub(crate) const TOOL_OLD_AI_STATION: &str = "onto_old_ai_station";
 
