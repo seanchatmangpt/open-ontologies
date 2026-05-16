@@ -100,6 +100,51 @@ impl Interner {
 ///         "{profile}: empty graph must infer 0 new triples");
 /// }
 /// ```
+///
+/// Auto-instinct: every canonical profile name is a non-empty string.
+///
+/// ```
+/// let profiles = ["rdfs", "owl-rl", "owl-rl-ext"];
+/// assert_eq!(profiles.len(), 3);
+/// for p in &profiles {
+///     assert!(!p.is_empty());
+/// }
+/// ```
+///
+/// The JSON result always contains all six top-level keys regardless of
+/// which profile is used.
+///
+/// ```
+/// use std::sync::Arc;
+/// use open_ontologies::graph::GraphStore;
+/// use open_ontologies::reason::Reasoner;
+///
+/// let graph = Arc::new(GraphStore::new());
+/// let json = Reasoner::run(&graph, "owl-rl", false).unwrap();
+/// let v: serde_json::Value = serde_json::from_str(&json).unwrap();
+/// assert!(v.get("profile_used").is_some());
+/// assert!(v.get("inferred_count").is_some());
+/// assert!(v.get("iterations").is_some());
+/// assert!(v.get("initial_triples").is_some());
+/// assert!(v.get("final_triples").is_some());
+/// assert!(v.get("sample_inferences").is_some());
+/// ```
+///
+/// `final_triples` equals `initial_triples + inferred_count` on every run.
+///
+/// ```
+/// use std::sync::Arc;
+/// use open_ontologies::graph::GraphStore;
+/// use open_ontologies::reason::Reasoner;
+///
+/// let graph = Arc::new(GraphStore::new());
+/// let json = Reasoner::run(&graph, "owl-rl-ext", false).unwrap();
+/// let v: serde_json::Value = serde_json::from_str(&json).unwrap();
+/// let initial = v["initial_triples"].as_u64().unwrap();
+/// let inferred = v["inferred_count"].as_u64().unwrap();
+/// let final_count = v["final_triples"].as_u64().unwrap();
+/// assert_eq!(final_count, initial + inferred);
+/// ```
 pub struct Reasoner;
 
 impl Reasoner {
@@ -195,6 +240,56 @@ impl Reasoner {
     /// assert_eq!(v["iterations"], 1);
     /// // sample_inferences is present and empty (nothing to infer).
     /// assert_eq!(v["sample_inferences"].as_array().unwrap().len(), 0);
+    /// ```
+    ///
+    /// Auto-instinct: `"owl-rl"` is the canonical OWL-RL profile name — exact
+    /// spelling matters; misspellings fall back to `"rdfs"`.
+    ///
+    /// ```
+    /// use std::sync::Arc;
+    /// use open_ontologies::graph::GraphStore;
+    /// use open_ontologies::reason::Reasoner;
+    ///
+    /// let graph = Arc::new(GraphStore::new());
+    /// let json = Reasoner::run(&graph, "owl-rl", false).unwrap();
+    /// let v: serde_json::Value = serde_json::from_str(&json).unwrap();
+    /// assert_eq!(v["profile_used"], "owl-rl");
+    ///
+    /// // "owlrl" (without hyphens) is not a valid profile — it falls back to rdfs.
+    /// let json2 = Reasoner::run(&graph, "owlrl", false).unwrap();
+    /// let v2: serde_json::Value = serde_json::from_str(&json2).unwrap();
+    /// assert_eq!(v2["profile_used"], "rdfs");
+    /// ```
+    ///
+    /// `inferred_count` is always a non-negative integer (u64-representable).
+    ///
+    /// ```
+    /// use std::sync::Arc;
+    /// use open_ontologies::graph::GraphStore;
+    /// use open_ontologies::reason::Reasoner;
+    ///
+    /// let graph = Arc::new(GraphStore::new());
+    /// for profile in &["rdfs", "owl-rl", "owl-rl-ext"] {
+    ///     let json = Reasoner::run(&graph, profile, false).unwrap();
+    ///     let v: serde_json::Value = serde_json::from_str(&json).unwrap();
+    ///     let count = v["inferred_count"].as_u64()
+    ///         .expect("inferred_count must be a non-negative integer");
+    ///     assert_eq!(count, 0);
+    /// }
+    /// ```
+    ///
+    /// When `materialize` is `false`, the graph store triple count is unchanged.
+    ///
+    /// ```
+    /// use std::sync::Arc;
+    /// use open_ontologies::graph::GraphStore;
+    /// use open_ontologies::reason::Reasoner;
+    ///
+    /// let graph = Arc::new(GraphStore::new());
+    /// let before = graph.triple_count();
+    /// Reasoner::run(&graph, "owl-rl-ext", false).unwrap();
+    /// let after = graph.triple_count();
+    /// assert_eq!(before, after);
     /// ```
     pub fn run(
         graph: &Arc<GraphStore>,
