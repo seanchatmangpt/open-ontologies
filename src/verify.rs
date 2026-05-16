@@ -107,11 +107,53 @@ pub enum VerifierError {
 impl VerifierError {
     /// Whether this verdict warrants pausing retention. Failures pause;
     /// expired-key warnings do not.
+    ///
+    /// ```
+    /// # use open_ontologies::verify::VerifierError;
+    /// // SignatureExpiredKey is a warning — retention is NOT paused.
+    /// let warn = VerifierError::SignatureExpiredKey {
+    ///     granted_at: "2026-01-02T00:00:00Z".into(),
+    ///     removed_at: "2026-01-01T00:00:00Z".into(),
+    /// };
+    /// assert!(!warn.is_failure());
+    ///
+    /// // All other variants are failures — retention IS paused.
+    /// let fail = VerifierError::UnknownKey { key_valid_at: "2026-01-01T00:00:00Z".into() };
+    /// assert!(fail.is_failure());
+    /// ```
     pub fn is_failure(&self) -> bool {
         !matches!(self, VerifierError::SignatureExpiredKey { .. })
     }
 
     /// Human-readable kind tag, used for OCEL attribute and log fields.
+    ///
+    /// ```
+    /// # use open_ontologies::verify::VerifierError;
+    /// assert_eq!(
+    ///     VerifierError::SignatureExpiredKey {
+    ///         granted_at: "2026-01-02T00:00:00Z".into(),
+    ///         removed_at: "2026-01-01T00:00:00Z".into(),
+    ///     }.kind(),
+    ///     "signature_expired_key"
+    /// );
+    /// assert_eq!(
+    ///     VerifierError::UnknownKey { key_valid_at: "2026-01-01T00:00:00Z".into() }.kind(),
+    ///     "unknown_key"
+    /// );
+    /// assert_eq!(
+    ///     VerifierError::SignatureCorrupted {
+    ///         reason: "test",
+    ///         granted_at: "2026-01-01T00:00:00Z".into(),
+    ///         key_valid_at: "2026-01-01T00:00:00Z".into(),
+    ///         removed_at: None,
+    ///     }.kind(),
+    ///     "signature_corrupted"
+    /// );
+    /// assert_eq!(
+    ///     VerifierError::BodyHashMismatch { receipt_hash: "abc".into() }.kind(),
+    ///     "body_hash_mismatch"
+    /// );
+    /// ```
     pub fn kind(&self) -> &'static str {
         match self {
             VerifierError::SignatureExpiredKey { .. } => "signature_expired_key",
@@ -265,6 +307,25 @@ pub enum Verdict {
 }
 
 impl Verdict {
+    /// Returns `true` only for the [`Verdict::Admitted`] variant.
+    ///
+    /// ```
+    /// # use open_ontologies::verify::Verdict;
+    /// let admitted = Verdict::Admitted {
+    ///     receipt_hash: "abc".into(),
+    ///     scope_token: "tok".into(),
+    ///     source: String::new(),
+    /// };
+    /// assert!(admitted.is_admitted());
+    ///
+    /// let tampered = Verdict::Tampered {
+    ///     mismatch_at: "file.rs".into(),
+    ///     expected: "aaa".into(),
+    ///     actual: "bbb".into(),
+    ///     reason: "body_hash_mismatch".into(),
+    /// };
+    /// assert!(!tampered.is_admitted());
+    /// ```
     pub fn is_admitted(&self) -> bool {
         matches!(self, Verdict::Admitted { .. })
     }
@@ -399,6 +460,27 @@ pub fn walk_receipt_chain(db: &StateDb, receipt_hash: &[u8; 32]) -> Vec<ChainLin
 /// Render a receipt chain as a vertical ASCII tree with `↓` arrows
 /// linking each step to its prior receipt. Returns a human-readable
 /// multi-line string. Empty chain produces a single explanatory line.
+///
+/// ```
+/// # use open_ontologies::verify::{render_chain_ascii, ChainLink};
+/// // Empty chain.
+/// let empty = render_chain_ascii(&[]);
+/// assert!(empty.contains("(no receipts in chain)"));
+///
+/// // Single origin link (no prior).
+/// let origin = ChainLink {
+///     receipt_hash: "a".repeat(64),
+///     scope_token: "tok".into(),
+///     session_id: "sess".into(),
+///     sequence: 1,
+///     granted_at: "2026-01-01T00:00:00Z".into(),
+///     prior: None,
+/// };
+/// let s = render_chain_ascii(&[origin]);
+/// assert!(s.contains("receipt chain"));
+/// assert!(s.contains("origin"));
+/// assert!(!s.contains('↓'));
+/// ```
 pub fn render_chain_ascii(chain: &[ChainLink]) -> String {
     if chain.is_empty() {
         return "(no receipts in chain)\n".to_string();
