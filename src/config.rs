@@ -488,9 +488,10 @@ pub fn resolve_llm_model(cfg: &LlmConfig) -> String {
 /// # use open_ontologies::config::VALID_LLM_ENGINES;
 /// assert!(VALID_LLM_ENGINES.contains(&"inproc"));
 /// assert!(VALID_LLM_ENGINES.contains(&"groq_pm4py"));
+/// assert!(VALID_LLM_ENGINES.contains(&"gemini"));
 /// assert!(!VALID_LLM_ENGINES.contains(&"openai"));
 /// ```
-pub const VALID_LLM_ENGINES: &[&str] = &["inproc", "groq_pm4py"];
+pub const VALID_LLM_ENGINES: &[&str] = &["inproc", "groq_pm4py", "gemini"];
 
 /// LLM engine identifier: in-process `GroqTranslator` (HTTP via reqwest).
 /// Appears in OCEL `"engine"` attribute positions and engine-dispatch
@@ -570,6 +571,25 @@ pub fn resolve_llm_python(cfg: &LlmConfig) -> String {
         .filter(|v| !v.trim().is_empty())
         .or_else(|| cfg.python_interpreter.clone().filter(|v| !v.trim().is_empty()))
         .unwrap_or_else(|| "python3".to_string())
+}
+
+/// Resolve the Gemini CLI binary path.
+/// Precedence: `GEMINI_BIN` env var > `"gemini"` default.
+///
+/// # Examples
+///
+/// ```
+/// # use open_ontologies::config::resolve_gemini_bin;
+/// // Without GEMINI_BIN set, returns "gemini".
+/// // (env var may be set in CI; test is illustrative)
+/// let bin = resolve_gemini_bin();
+/// assert!(!bin.is_empty());
+/// ```
+pub fn resolve_gemini_bin() -> String {
+    std::env::var("GEMINI_BIN")
+        .ok()
+        .filter(|v| !v.trim().is_empty())
+        .unwrap_or_else(|| "gemini".to_string())
 }
 
 /// R7 WB-1 — resolve the subprocess wall-clock timeout in seconds.
