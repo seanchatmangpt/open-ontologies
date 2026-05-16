@@ -19,6 +19,19 @@ pub struct TenantContext {
 
 impl TenantContext {
     /// Read tenant from env, defaulting to `"default"`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use open_ontologies::tenant::TenantContext;
+    ///
+    /// // Env var set — from_env reads it directly.
+    /// // SAFETY: test-only env mutation; no other threads touch this var.
+    /// unsafe { std::env::set_var("OPEN_ONTOLOGIES_TENANT_ID", "doctest-tenant") };
+    /// let ctx = TenantContext::from_env();
+    /// assert_eq!(ctx.current(), "doctest-tenant");
+    /// unsafe { std::env::remove_var("OPEN_ONTOLOGIES_TENANT_ID") };
+    /// ```
     pub fn from_env() -> Self {
         let raw = std::env::var("OPEN_ONTOLOGIES_TENANT_ID")
             .unwrap_or_else(|_| "default".to_string());
@@ -32,12 +45,32 @@ impl TenantContext {
         }
     }
 
+    /// Construct a `TenantContext` from an explicit tenant identifier.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use open_ontologies::tenant::TenantContext;
+    ///
+    /// let ctx = TenantContext::new("acme");
+    /// assert_eq!(ctx.current(), "acme");
+    /// ```
     pub fn new(tenant_id: impl Into<String>) -> Self {
         Self {
             tenant_id: tenant_id.into(),
         }
     }
 
+    /// Return the tenant identifier as a string slice.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use open_ontologies::tenant::TenantContext;
+    ///
+    /// let ctx = TenantContext::new("beta-corp");
+    /// assert_eq!(ctx.current(), "beta-corp");
+    /// ```
     pub fn current(&self) -> &str {
         &self.tenant_id
     }
@@ -51,18 +84,52 @@ pub struct TenantHandle {
 }
 
 impl TenantHandle {
+    /// Create a `TenantHandle` with the given initial tenant identifier.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use open_ontologies::tenant::TenantHandle;
+    ///
+    /// let handle = TenantHandle::new("alpha");
+    /// assert_eq!(handle.current().current(), "alpha");
+    /// ```
     pub fn new(initial: impl Into<String>) -> Self {
         Self {
             inner: Arc::new(RwLock::new(initial.into())),
         }
     }
 
+    /// Build a `TenantHandle` by reading `OPEN_ONTOLOGIES_TENANT_ID` from the
+    /// environment, defaulting to `"default"` when unset.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use open_ontologies::tenant::TenantHandle;
+    ///
+    /// // SAFETY: test-only env mutation; no other threads touch this var.
+    /// unsafe { std::env::set_var("OPEN_ONTOLOGIES_TENANT_ID", "handle-tenant") };
+    /// let handle = TenantHandle::from_env();
+    /// assert_eq!(handle.current().current(), "handle-tenant");
+    /// unsafe { std::env::remove_var("OPEN_ONTOLOGIES_TENANT_ID") };
+    /// ```
     pub fn from_env() -> Self {
         let ctx = TenantContext::from_env();
         Self::new(ctx.tenant_id)
     }
 
-    /// Snapshot the current tenant.
+    /// Snapshot the current tenant as a [`TenantContext`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use open_ontologies::tenant::TenantHandle;
+    ///
+    /// let handle = TenantHandle::new("gamma");
+    /// let ctx = handle.current();
+    /// assert_eq!(ctx.current(), "gamma");
+    /// ```
     pub fn current(&self) -> TenantContext {
         TenantContext::new(self.inner.read().unwrap().clone())
     }

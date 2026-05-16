@@ -45,6 +45,28 @@ pub struct ProductionRecord {
     pub signing_key_fpr: Option<[u8; 8]>,
 }
 
+/// Build a minimal `ProductionRecord` with zero hashes and no optional fields.
+///
+/// Used in doctests to avoid repeating the full struct literal.
+#[cfg(doctest)]
+fn minimal_record() -> ProductionRecord {
+    ProductionRecord {
+        artifact_hash: [0u8; 32],
+        scope_token: "scope-1".into(),
+        declared_powl_hash: [0u8; 32],
+        ocel_canonical_hash: [0u8; 32],
+        conformance_run_id: "run-1".into(),
+        gate_config_hash: [0u8; 32],
+        production_law_version: "ontostar-1.0.0".into(),
+        defects_taxonomy_version: "ontostar-defects-4.8.0".into(),
+        gates_passed: vec!["A1".into(), "A2".into()],
+        gates_refused: vec![],
+        prior_receipt: None,
+        signature: None,
+        signing_key_fpr: None,
+    }
+}
+
 impl ProductionRecord {
     /// Deterministic canonical serialization. Uses `serde_json::to_vec` against
     /// a `BTreeMap`-backed JSON value so map keys are sorted lexicographically.
@@ -54,6 +76,34 @@ impl ProductionRecord {
     /// The output INCLUDES `signature` and `signing_key_fpr` so the receipt
     /// hash binds them. To produce the bytes that get signed, use
     /// [`ProductionRecord::canonical_bytes_for_signing`] instead.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use open_ontologies::production_record::ProductionRecord;
+    ///
+    /// let rec = ProductionRecord {
+    ///     artifact_hash: [0u8; 32],
+    ///     scope_token: "scope-1".into(),
+    ///     declared_powl_hash: [0u8; 32],
+    ///     ocel_canonical_hash: [0u8; 32],
+    ///     conformance_run_id: "run-1".into(),
+    ///     gate_config_hash: [0u8; 32],
+    ///     production_law_version: "ontostar-1.0.0".into(),
+    ///     defects_taxonomy_version: "ontostar-defects-4.8.0".into(),
+    ///     gates_passed: vec!["A1".into(), "A2".into()],
+    ///     gates_refused: vec![],
+    ///     prior_receipt: None,
+    ///     signature: None,
+    ///     signing_key_fpr: None,
+    /// };
+    /// let bytes = rec.canonical_bytes();
+    /// assert!(!bytes.is_empty());
+    /// // Output is valid JSON.
+    /// let parsed: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+    /// assert_eq!(parsed["scope_token"], "scope-1");
+    /// assert_eq!(parsed["production_law_version"], "ontostar-1.0.0");
+    /// ```
     pub fn canonical_bytes(&self) -> Vec<u8> {
         let v = serde_json::json!({
             "artifact_hash": hex32(&self.artifact_hash),
@@ -81,6 +131,35 @@ impl ProductionRecord {
     /// This is the receipt-replay defence: the same `signature` value
     /// pasted onto a record with a different `artifact_hash` produces a
     /// different signing-input, and `verify_strict` returns `Err(_)`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use open_ontologies::production_record::ProductionRecord;
+    ///
+    /// let rec = ProductionRecord {
+    ///     artifact_hash: [1u8; 32],
+    ///     scope_token: "scope-x".into(),
+    ///     declared_powl_hash: [0u8; 32],
+    ///     ocel_canonical_hash: [0u8; 32],
+    ///     conformance_run_id: "run-x".into(),
+    ///     gate_config_hash: [0u8; 32],
+    ///     production_law_version: "ontostar-1.0.0".into(),
+    ///     defects_taxonomy_version: "ontostar-defects-4.8.0".into(),
+    ///     gates_passed: vec!["A1".into()],
+    ///     gates_refused: vec![],
+    ///     prior_receipt: None,
+    ///     signature: None,
+    ///     signing_key_fpr: None,
+    /// };
+    /// let signing_bytes = rec.canonical_bytes_for_signing();
+    /// let full_bytes = rec.canonical_bytes();
+    /// // Signing bytes are a strict subset — they omit signature/signing_key_fpr.
+    /// assert!(signing_bytes.len() < full_bytes.len());
+    /// let parsed: serde_json::Value = serde_json::from_slice(&signing_bytes).unwrap();
+    /// assert!(parsed.get("signature").is_none());
+    /// assert!(parsed.get("signing_key_fpr").is_none());
+    /// ```
     pub fn canonical_bytes_for_signing(&self) -> Vec<u8> {
         let v = serde_json::json!({
             "artifact_hash": hex32(&self.artifact_hash),
@@ -181,6 +260,22 @@ fn hex32(b: &[u8; 32]) -> String {
 }
 
 /// Helper: hex-encode a 32-byte hash.
+///
+/// Returns a 64-character lowercase hex string. Useful for embedding
+/// BLAKE3 digests into OCEL event attributes or SPARQL literals.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::production_record::hex32_pub;
+///
+/// let digest = [0xabu8; 32];
+/// let hex = hex32_pub(&digest);
+/// assert_eq!(hex.len(), 64);
+/// assert!(hex.chars().all(|c| c.is_ascii_hexdigit()));
+/// // All bytes are 0xab → each pair is "ab".
+/// assert!(hex.chars().collect::<String>().starts_with("ab"));
+/// ```
 pub fn hex32_pub(b: &[u8; 32]) -> String {
     hex32(b)
 }
