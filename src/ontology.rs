@@ -322,7 +322,7 @@ impl OntologyService {
     ///
     /// # Examples
     ///
-    /// ```no_run
+    /// ```
     /// # use open_ontologies::ontology::OntologyService;
     /// # use open_ontologies::state::StateDb;
     /// # use open_ontologies::graph::GraphStore;
@@ -338,6 +338,28 @@ impl OntologyService {
     /// let v: serde_json::Value = serde_json::from_str(&json).unwrap();
     /// assert_eq!(v["ok"], true);
     /// assert_eq!(v["label"], "v1");
+    /// assert!(v["triple_count"].as_u64().unwrap() >= 1);
+    /// ```
+    ///
+    /// Multiple saves accumulate independently — each label is stored:
+    ///
+    /// ```
+    /// # use open_ontologies::ontology::OntologyService;
+    /// # use open_ontologies::state::StateDb;
+    /// # use open_ontologies::graph::GraphStore;
+    /// # use std::sync::Arc;
+    /// # use std::path::Path;
+    /// let db = StateDb::open(Path::new(":memory:")).unwrap();
+    /// let store = Arc::new(GraphStore::new());
+    /// store.load_turtle(
+    ///     "@prefix owl: <http://www.w3.org/2002/07/owl#> .\n<urn:ex:C> a owl:Class .",
+    ///     None,
+    /// ).unwrap();
+    /// OntologyService::save_version(&db, &store, "alpha").unwrap();
+    /// OntologyService::save_version(&db, &store, "beta").unwrap();
+    /// let json = OntologyService::list_versions(&db).unwrap();
+    /// let v: serde_json::Value = serde_json::from_str(&json).unwrap();
+    /// assert_eq!(v["versions"].as_array().unwrap().len(), 2);
     /// ```
     pub fn save_version(db: &StateDb, store: &Arc<GraphStore>, label: &str) -> anyhow::Result<String> {
         let content = store.snapshot("ntriples")?;
@@ -360,7 +382,9 @@ impl OntologyService {
     ///
     /// # Examples
     ///
-    /// ```no_run
+    /// Fresh database has an empty versions list:
+    ///
+    /// ```
     /// # use open_ontologies::ontology::OntologyService;
     /// # use open_ontologies::state::StateDb;
     /// # use std::path::Path;
@@ -368,6 +392,29 @@ impl OntologyService {
     /// let json = OntologyService::list_versions(&db).unwrap();
     /// let v: serde_json::Value = serde_json::from_str(&json).unwrap();
     /// assert!(v["versions"].is_array());
+    /// assert_eq!(v["versions"].as_array().unwrap().len(), 0);
+    /// ```
+    ///
+    /// After saving a version, `list_versions` returns it:
+    ///
+    /// ```
+    /// # use open_ontologies::ontology::OntologyService;
+    /// # use open_ontologies::state::StateDb;
+    /// # use open_ontologies::graph::GraphStore;
+    /// # use std::sync::Arc;
+    /// # use std::path::Path;
+    /// let db = StateDb::open(Path::new(":memory:")).unwrap();
+    /// let store = Arc::new(GraphStore::new());
+    /// store.load_turtle(
+    ///     "@prefix owl: <http://www.w3.org/2002/07/owl#> .\n<urn:ex:B> a owl:Class .",
+    ///     None,
+    /// ).unwrap();
+    /// OntologyService::save_version(&db, &store, "snap-a").unwrap();
+    /// let json = OntologyService::list_versions(&db).unwrap();
+    /// let v: serde_json::Value = serde_json::from_str(&json).unwrap();
+    /// let versions = v["versions"].as_array().unwrap();
+    /// assert_eq!(versions.len(), 1);
+    /// assert_eq!(versions[0]["label"], "snap-a");
     /// ```
     pub fn list_versions(db: &StateDb) -> anyhow::Result<String> {
         let conn = db.conn();
@@ -393,7 +440,9 @@ impl OntologyService {
     ///
     /// # Examples
     ///
-    /// ```no_run
+    /// Save, clear, rollback — the store is restored:
+    ///
+    /// ```
     /// # use open_ontologies::ontology::OntologyService;
     /// # use open_ontologies::state::StateDb;
     /// # use open_ontologies::graph::GraphStore;
@@ -407,10 +456,13 @@ impl OntologyService {
     /// ).unwrap();
     /// OntologyService::save_version(&db, &store, "snap1").unwrap();
     /// store.clear().unwrap();
+    /// assert_eq!(store.triple_count(), 0);
     /// let json = OntologyService::rollback_version(&db, &store, "snap1").unwrap();
     /// let v: serde_json::Value = serde_json::from_str(&json).unwrap();
     /// assert_eq!(v["ok"], true);
     /// assert_eq!(v["label"], "snap1");
+    /// assert!(v["triples_restored"].as_u64().unwrap() >= 1);
+    /// assert!(store.triple_count() >= 1);
     /// ```
     pub fn rollback_version(db: &StateDb, store: &Arc<GraphStore>, label: &str) -> anyhow::Result<String> {
         let conn = db.conn();
