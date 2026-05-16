@@ -4,6 +4,23 @@
 const EPS: f32 = 1e-5;
 
 /// Poincaré ball distance: d(u,v) = arcosh(1 + 2||u-v||² / ((1-||u||²)(1-||v||²)))
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::poincare::poincare_distance;
+///
+/// // Distance from a point to itself is 0
+/// let u = [0.1_f32, 0.2];
+/// assert!((poincare_distance(&u, &u) - 0.0).abs() < 1e-5);
+///
+/// // Distance is symmetric
+/// let v = [0.3_f32, 0.1];
+/// assert!((poincare_distance(&u, &v) - poincare_distance(&v, &u)).abs() < 1e-5);
+///
+/// // Distance is non-negative
+/// assert!(poincare_distance(&u, &v) >= 0.0);
+/// ```
 pub fn poincare_distance(u: &[f32], v: &[f32]) -> f32 {
     let diff_sq: f32 = u.iter().zip(v.iter()).map(|(a, b)| (a - b).powi(2)).sum();
     let norm_u_sq: f32 = u.iter().map(|x| x * x).sum();
@@ -15,6 +32,24 @@ pub fn poincare_distance(u: &[f32], v: &[f32]) -> f32 {
 }
 
 /// Cosine similarity between two vectors.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::poincare::cosine_similarity;
+///
+/// // A vector has cosine similarity 1.0 with itself
+/// let a = [1.0_f32, 0.0, 0.0];
+/// assert!((cosine_similarity(&a, &a) - 1.0).abs() < 1e-5);
+///
+/// // Orthogonal vectors have cosine similarity 0.0
+/// let b = [0.0_f32, 1.0, 0.0];
+/// assert!((cosine_similarity(&a, &b) - 0.0).abs() < 1e-5);
+///
+/// // Zero vector returns 0.0 (guarded against division by zero)
+/// let zero = [0.0_f32, 0.0, 0.0];
+/// assert_eq!(cosine_similarity(&zero, &a), 0.0);
+/// ```
 pub fn cosine_similarity(a: &[f32], b: &[f32]) -> f32 {
     let dot: f32 = a.iter().zip(b.iter()).map(|(x, y)| x * y).sum();
     let norm_a: f32 = a.iter().map(|x| x * x).sum::<f32>().sqrt();
@@ -32,6 +67,25 @@ fn conformal_factor(x: &[f32]) -> f32 {
 }
 
 /// Exponential map: maps a tangent vector at x to a point on the Poincaré ball.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::poincare::exp_map;
+///
+/// // Zero tangent vector returns the base point unchanged
+/// let x = [0.1_f32, 0.2];
+/// let zero = [0.0_f32, 0.0];
+/// let result = exp_map(&x, &zero);
+/// assert!((result[0] - x[0]).abs() < 1e-5);
+/// assert!((result[1] - x[1]).abs() < 1e-5);
+///
+/// // Result stays inside the unit ball (norm < 1)
+/// let v = [0.5_f32, 0.5];
+/// let mapped = exp_map(&x, &v);
+/// let norm: f32 = mapped.iter().map(|c| c * c).sum::<f32>().sqrt();
+/// assert!(norm < 1.0);
+/// ```
 pub fn exp_map(x: &[f32], v: &[f32]) -> Vec<f32> {
     let norm_v: f32 = v.iter().map(|a| a * a).sum::<f32>().sqrt();
     if norm_v < EPS {
@@ -60,6 +114,24 @@ fn mobius_add(x: &[f32], y: &[f32]) -> Vec<f32> {
 }
 
 /// Project point back into the Poincaré ball (clamp norm < 1 - eps).
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::poincare::project_to_ball;
+///
+/// // A point outside the ball is projected inside
+/// let outside = [1.0_f32, 1.0, 1.0];
+/// let projected = project_to_ball(&outside, 1e-5);
+/// let norm: f32 = projected.iter().map(|x| x * x).sum::<f32>().sqrt();
+/// assert!(norm < 1.0, "projected norm {norm} must be inside the ball");
+///
+/// // A point already inside the ball is returned unchanged
+/// let inside = [0.1_f32, 0.2, 0.0];
+/// let unchanged = project_to_ball(&inside, 1e-5);
+/// assert!((unchanged[0] - inside[0]).abs() < 1e-6);
+/// assert!((unchanged[1] - inside[1]).abs() < 1e-6);
+/// ```
 pub fn project_to_ball(p: &[f32], eps: f32) -> Vec<f32> {
     let norm: f32 = p.iter().map(|x| x * x).sum::<f32>().sqrt();
     let max_norm = 1.0 - eps;
@@ -73,6 +145,24 @@ pub fn project_to_ball(p: &[f32], eps: f32) -> Vec<f32> {
 
 /// Riemannian SGD step on the Poincaré ball.
 /// Rescales Euclidean gradient by (1 - ||x||²)² / 4, then applies exp_map.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::poincare::rsgd_step;
+///
+/// // Result of an RSGD step stays inside the unit ball
+/// let point = [0.1_f32, 0.2];
+/// let grad = [1.0_f32, 0.5];
+/// let updated = rsgd_step(&point, &grad, 0.01);
+/// let norm: f32 = updated.iter().map(|x| x * x).sum::<f32>().sqrt();
+/// assert!(norm < 1.0, "RSGD result must remain in the ball, got norm {norm}");
+///
+/// // Zero learning rate leaves the point unchanged
+/// let same = rsgd_step(&point, &grad, 0.0);
+/// assert!((same[0] - point[0]).abs() < 1e-5);
+/// assert!((same[1] - point[1]).abs() < 1e-5);
+/// ```
 pub fn rsgd_step(point: &[f32], euclidean_grad: &[f32], lr: f32) -> Vec<f32> {
     let norm_sq: f32 = point.iter().map(|x| x * x).sum();
     let scale = ((1.0 - norm_sq).max(EPS)).powi(2) / 4.0;
@@ -81,6 +171,27 @@ pub fn rsgd_step(point: &[f32], euclidean_grad: &[f32], lr: f32) -> Vec<f32> {
 }
 
 /// L2-normalize a vector (project onto unit sphere for cosine space).
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::poincare::l2_normalize;
+///
+/// // Normalized vector has unit length
+/// let v = [3.0_f32, 4.0];
+/// let normed = l2_normalize(&v);
+/// let norm: f32 = normed.iter().map(|x| x * x).sum::<f32>().sqrt();
+/// assert!((norm - 1.0).abs() < 1e-5);
+///
+/// // Direction is preserved: normed = v / ||v||
+/// assert!((normed[0] - 0.6).abs() < 1e-5); // 3/5
+/// assert!((normed[1] - 0.8).abs() < 1e-5); // 4/5
+///
+/// // Zero vector is returned as-is (no division by zero)
+/// let zero = [0.0_f32, 0.0];
+/// let normed_zero = l2_normalize(&zero);
+/// assert_eq!(normed_zero, vec![0.0_f32, 0.0]);
+/// ```
 pub fn l2_normalize(v: &[f32]) -> Vec<f32> {
     let norm: f32 = v.iter().map(|x| x * x).sum::<f32>().sqrt();
     if norm < EPS {
