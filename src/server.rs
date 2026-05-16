@@ -2699,6 +2699,14 @@ impl OpenOntologiesServer {
 
     #[tool(name = "onto_lock", description = "Lock IRIs to prevent removal during plan/apply. Locked IRIs will show as violations in plan output.")]
     async fn onto_lock(&self, Parameters(input): Parameters<OntoLockInput>) -> String {
+        let blank_iris: Vec<&String> = input.iris.iter().filter(|iri| iri.trim().is_empty()).collect();
+        if !blank_iris.is_empty() {
+            return serde_json::json!({
+                "ok": false,
+                "error": "One or more IRIs in the lock list are blank",
+                "hint": "Provide fully-qualified IRIs, e.g. 'https://example.org/ontology/MyClass'. Use onto_query to discover IRIs present in the store."
+            }).to_string();
+        }
         let planner = crate::plan::Planner::new(self.db.clone(), self.graph.clone());
         let reason = input.reason.as_deref().unwrap_or("locked");
 
@@ -2771,6 +2779,20 @@ impl OpenOntologiesServer {
 
     #[tool(name = "onto_drift", description = "Detect drift between two ontology versions. Returns added/removed terms, likely renames with confidence scores, and drift velocity.")]
     async fn onto_drift(&self, Parameters(input): Parameters<OntoDriftInput>) -> String {
+        if input.version_a.trim().is_empty() {
+            return serde_json::json!({
+                "ok": false,
+                "error": "version_a is empty — cannot run drift analysis on an empty ontology string",
+                "hint": "Provide inline Turtle for version_a, or call onto_version to save a snapshot and pass its Turtle content here"
+            }).to_string();
+        }
+        if input.version_b.trim().is_empty() {
+            return serde_json::json!({
+                "ok": false,
+                "error": "version_b is empty — cannot run drift analysis on an empty ontology string",
+                "hint": "Provide inline Turtle for version_b, or call onto_version to save a snapshot and pass its Turtle content here"
+            }).to_string();
+        }
         let detector = crate::drift::DriftDetector::new(self.db.clone());
         match detector.detect(&input.version_a, &input.version_b) {
             Ok(result) => {
@@ -2815,6 +2837,21 @@ impl OpenOntologiesServer {
 
     #[tool(name = "onto_enforce", description = "Enforce design patterns on the loaded ontology. Built-in packs: 'generic' (orphan classes, missing domain/range/label), 'boro' (BORO 4D patterns), 'value_partition' (disjoint/covering checks). Also runs any custom rules stored for the pack.")]
     async fn onto_enforce(&self, Parameters(input): Parameters<OntoEnforceInput>) -> String {
+        if self.graph.triple_count() == 0 {
+            return serde_json::json!({
+                "ok": false,
+                "error": "No ontology loaded — cannot enforce design patterns on an empty store",
+                "hint": "Call onto_load with a TTL file first, then call onto_enforce with a rule pack such as 'generic'"
+            }).to_string();
+        }
+        let valid_packs = ["generic", "boro", "value_partition", "hierarchy"];
+        if !valid_packs.contains(&input.rule_pack.as_str()) {
+            return serde_json::json!({
+                "ok": false,
+                "error": format!("Unknown rule pack '{}'", input.rule_pack),
+                "hint": "Valid built-in packs: generic, boro, value_partition, hierarchy. Use 'generic' for standard OWL design-pattern checks (orphan classes, missing domain/range/label)."
+            }).to_string();
+        }
         let enforcer = crate::enforce::Enforcer::new(self.db.clone(), self.graph.clone());
         match enforcer.enforce_with_feedback(&input.rule_pack, Some(&self.db)) {
             Ok(result) => {
@@ -3632,6 +3669,7 @@ impl OpenOntologiesServer {
             }).to_string(),
             Ok(rows) => serde_json::json!({"ok": true, "count": rows.len(), "thresholds": rows}).to_string(),
             Err(e) => serde_json::json!({
+                "ok": false,
                 "error": format!("Failed to read workflow_thresholds table: {}", e),
                 "hint": "This usually means the session database has not been initialised or is corrupted. Restart the server to recreate the schema, or check that the data directory is writable."
             }).to_string(),
@@ -3649,6 +3687,7 @@ impl OpenOntologiesServer {
         match crate::feedback::thresholds::sweep(self.ocel_store()) {
             Ok(result) => serde_json::json!({"ok": true, "result": result}).to_string(),
             Err(e) => serde_json::json!({
+                "ok": false,
                 "error": format!("Threshold calibration sweep failed: {}", e),
                 "hint": "Check that the ocel_events and workflow_thresholds tables are accessible (the session database may be locked or corrupted). If this is the first sweep in a new session, ensure at least one bypass_admission event has been recorded by running onto_admit_ctq before sweeping."
             }).to_string(),
@@ -5152,11 +5191,11 @@ impl OpenOntologiesServer {
         let bytes = match std::fs::read(&path) {
             Ok(b) => b,
             Err(e) => {
-                return format!(
-                    r#"{{"error":"failed to read seed OCEL: {} ({})"}}"#,
-                    path,
-                    e
-                )
+                return serde_json::json!({
+                    "ok": false,
+                    "error": format!("Failed to read seed OCEL file at '{}': {}", path, e),
+                    "hint": "Check that the path exists and is readable. The default path is ~/chatmangpt/ostar/artifacts/ocel/mu_star/ONTOLOGY.oceljson. Pass a custom 'path' argument to override."
+                }).to_string();
             }
         };
         // R4 WE — §14: audit-only emission BEFORE the seed mutation.
@@ -5173,7 +5212,11 @@ impl OpenOntologiesServer {
         let inserted = match store.seed_from_ocel_bytes(&bytes, &default_domain) {
             Ok(n) => n,
             Err(e) => {
-                return format!(r#"{{"error":"seed ingestion failed: {}"}}"#, e)
+                return serde_json::json!({
+                    "ok": false,
+                    "error": format!("Seed ingestion failed: {}", e),
+                    "hint": "Verify the OCEL JSON file is valid and contains 'build_order_generated' events. Ensure the session database is writable and not locked by another process."
+                }).to_string();
             }
         };
 
