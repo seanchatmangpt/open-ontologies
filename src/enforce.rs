@@ -9,17 +9,97 @@ pub struct Enforcer {
 }
 
 impl Enforcer {
+    /// Create a new `Enforcer` backed by an in-memory SQLite database and an
+    /// in-memory Oxigraph graph store.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::sync::Arc;
+    /// use open_ontologies::enforce::Enforcer;
+    /// use open_ontologies::graph::GraphStore;
+    /// use open_ontologies::state::StateDb;
+    ///
+    /// let db = StateDb::open(std::path::Path::new(":memory:")).unwrap();
+    /// let graph = Arc::new(GraphStore::new());
+    /// let enforcer = Enforcer::new(db, graph);
+    /// // Enforcer is ready; the empty graph will produce zero violations.
+    /// drop(enforcer);
+    /// ```
     pub fn new(db: StateDb, graph: Arc<GraphStore>) -> Self {
         Self { db, graph }
     }
 
     /// Run enforcement for a rule pack. Built-in packs: "generic", "boro", "value_partition".
     /// Custom rules stored in SQLite are also checked for the given pack name.
+    ///
+    /// An empty graph has no classes or properties, so every generic rule
+    /// passes (nothing to violate).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::sync::Arc;
+    /// use open_ontologies::enforce::Enforcer;
+    /// use open_ontologies::graph::GraphStore;
+    /// use open_ontologies::state::StateDb;
+    ///
+    /// let db = StateDb::open(std::path::Path::new(":memory:")).unwrap();
+    /// let graph = Arc::new(GraphStore::new());
+    /// let enforcer = Enforcer::new(db, graph);
+    ///
+    /// let json = enforcer.enforce("generic").unwrap();
+    /// let v: serde_json::Value = serde_json::from_str(&json).unwrap();
+    /// assert_eq!(v["violations"].as_array().unwrap().len(), 0);
+    /// assert_eq!(v["rule_pack"].as_str().unwrap(), "generic");
+    /// ```
     pub fn enforce(&self, rule_pack: &str) -> anyhow::Result<String> {
         self.enforce_with_feedback(rule_pack, None)
     }
 
     /// Run enforcement with optional feedback-based suppression.
+    ///
+    /// Passing `None` for `feedback_db` is equivalent to calling [`enforce`](Self::enforce).
+    /// On an empty graph every rule in any built-in pack passes, so `violations`
+    /// will be an empty array and `compliance` will be `1.0`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::sync::Arc;
+    /// use open_ontologies::enforce::Enforcer;
+    /// use open_ontologies::graph::GraphStore;
+    /// use open_ontologies::state::StateDb;
+    ///
+    /// let db = StateDb::open(std::path::Path::new(":memory:")).unwrap();
+    /// let graph = Arc::new(GraphStore::new());
+    /// let enforcer = Enforcer::new(db, graph);
+    ///
+    /// // No feedback db — identical to enforce().
+    /// let json = enforcer.enforce_with_feedback("boro", None).unwrap();
+    /// let v: serde_json::Value = serde_json::from_str(&json).unwrap();
+    /// assert_eq!(v["violations"].as_array().unwrap().len(), 0);
+    /// assert_eq!(v["suppressed_count"].as_u64().unwrap(), 0);
+    /// assert!((v["compliance"].as_f64().unwrap() - 1.0).abs() < f64::EPSILON);
+    /// ```
+    ///
+    /// # With a feedback database
+    ///
+    /// ```
+    /// use std::sync::Arc;
+    /// use open_ontologies::enforce::Enforcer;
+    /// use open_ontologies::graph::GraphStore;
+    /// use open_ontologies::state::StateDb;
+    ///
+    /// let db = StateDb::open(std::path::Path::new(":memory:")).unwrap();
+    /// let graph = Arc::new(GraphStore::new());
+    /// let enforcer = Enforcer::new(db.clone(), graph);
+    ///
+    /// let json = enforcer.enforce_with_feedback("generic", Some(&db)).unwrap();
+    /// let v: serde_json::Value = serde_json::from_str(&json).unwrap();
+    /// // Empty graph, empty feedback table — still zero violations.
+    /// assert_eq!(v["violations"].as_array().unwrap().len(), 0);
+    /// ```
     pub fn enforce_with_feedback(&self, rule_pack: &str, feedback_db: Option<&StateDb>) -> anyhow::Result<String> {
         let mut violations = Vec::new();
         let mut total_rules = 0u32;
@@ -86,6 +166,38 @@ impl Enforcer {
     }
 
     /// Add a custom SPARQL rule to the database.
+    ///
+    /// Rules are stored in the `enforce_rules` SQLite table and executed by
+    /// [`enforce`](Self::enforce) whenever the matching `rule_pack` is run.
+    /// An ASK query that returns `true` is treated as a violation.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::sync::Arc;
+    /// use open_ontologies::enforce::Enforcer;
+    /// use open_ontologies::graph::GraphStore;
+    /// use open_ontologies::state::StateDb;
+    ///
+    /// let db = StateDb::open(std::path::Path::new(":memory:")).unwrap();
+    /// let graph = Arc::new(GraphStore::new());
+    /// let enforcer = Enforcer::new(db, graph);
+    ///
+    /// // Add a custom rule that fires when the graph contains any triple.
+    /// enforcer.add_custom_rule(
+    ///     "no_triples",
+    ///     "custom",
+    ///     "ASK { ?s ?p ?o }",
+    ///     "warning",
+    ///     "Graph must be empty",
+    /// );
+    ///
+    /// // Run the custom pack — empty graph means no triples, so ASK returns
+    /// // false and the rule passes (0 violations).
+    /// let json = enforcer.enforce("custom").unwrap();
+    /// let v: serde_json::Value = serde_json::from_str(&json).unwrap();
+    /// assert_eq!(v["violations"].as_array().unwrap().len(), 0);
+    /// ```
     pub fn add_custom_rule(&self, id: &str, rule_pack: &str, query: &str, severity: &str, message: &str) {
         let conn = self.db.conn();
         let _ = conn.execute(
