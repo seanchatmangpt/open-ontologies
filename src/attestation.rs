@@ -356,6 +356,28 @@ impl TrustedKeys {
 
 /// One row of the `trusted_keys_history` table. `removed_at = None`
 /// means the key is still active.
+///
+/// ```
+/// use open_ontologies::attestation::KeyHistoryRow;
+///
+/// // Active key — no removal timestamp.
+/// let row = KeyHistoryRow {
+///     added_at: "2026-01-01T00:00:00Z".to_string(),
+///     removed_at: None,
+///     status: "active".to_string(),
+/// };
+/// assert_eq!(row.status, "active");
+/// assert!(row.removed_at.is_none());
+///
+/// // Retired key — removal timestamp present.
+/// let retired = KeyHistoryRow {
+///     added_at: "2025-06-01T00:00:00Z".to_string(),
+///     removed_at: Some("2026-01-01T00:00:00Z".to_string()),
+///     status: "retired".to_string(),
+/// };
+/// assert_eq!(retired.status, "retired");
+/// assert!(retired.removed_at.is_some());
+/// ```
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct KeyHistoryRow {
     pub added_at: String,
@@ -377,6 +399,20 @@ pub fn into_swap(trust: TrustedKeys) -> Arc<ArcSwap<TrustedKeys>> {
 }
 
 /// Verdict from verifying a signed message against a trust set.
+///
+/// ```
+/// use open_ontologies::attestation::VerifyOutcome;
+///
+/// // Each variant is comparable and clonable — useful in tests.
+/// let a = VerifyOutcome::UnknownKey;
+/// let b = VerifyOutcome::UnknownKey;
+/// assert_eq!(a, b);
+/// assert_ne!(VerifyOutcome::Valid, VerifyOutcome::SignatureInvalid);
+///
+/// // Clone works as expected.
+/// let v = VerifyOutcome::Valid;
+/// assert_eq!(v.clone(), VerifyOutcome::Valid);
+/// ```
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum VerifyOutcome {
     /// Strict verification succeeded.
@@ -417,6 +453,19 @@ pub fn verify_strict(
 ///
 /// When `_endpoint` is `Some`, an external HTTP POST is planned for R9-3 OTLP
 /// wiring. The local comparison must pass first in all cases.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::attestation::verify_replay_hash;
+///
+/// // Matching hashes → Ok(()).
+/// assert!(verify_replay_hash("abc123", "abc123", None).is_ok());
+///
+/// // Mismatched hashes → Err(DefectClass::ReplayDivergence { .. }).
+/// let err = verify_replay_hash("observed_hash", "expected_hash", None);
+/// assert!(err.is_err());
+/// ```
 pub fn verify_replay_hash(
     replay_hash: &str,
     ocel_hash: &str,
