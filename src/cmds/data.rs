@@ -1,4 +1,27 @@
 //! Data Commands — ingestion, mapping, remote pull/push, schema import
+//!
+//! Provides CLI verbs for pulling ontologies from URLs, ingesting structured
+//! data (CSV, JSON, Parquet, …) into RDF, generating mapping configs, running
+//! SQL queries against PostgreSQL/DuckDB, and resolving `owl:imports` chains.
+//!
+//! # CLI usage
+//!
+//! ```no_run
+//! // Pull an ontology from a remote HTTP URL into the local store:
+//! //   open-ontologies data pull https://example.org/onto.ttl
+//! //
+//! // Ingest a CSV file using an auto-generated mapping:
+//! //   open-ontologies data ingest path/to/data.csv
+//! //
+//! // Ingest a CSV with an explicit JSON mapping and custom base IRI:
+//! //   open-ontologies data ingest path/to/data.csv \
+//! //     --mapping mapping.json \
+//! //     --base-iri http://myorg.example/data/
+//! //
+//! // Run the full pipeline (ingest → SHACL validate → OWL-RL reason):
+//! //   open-ontologies data extend path/to/data.csv \
+//! //     --shapes shapes.ttl --profile owl-rl
+//! ```
 
 use clap_noun_verb::Result as NounVerbResult;
 use clap_noun_verb_macros::verb;
@@ -11,6 +34,21 @@ use open_ontologies::mapping::MappingConfig;
 
 // ── output types ─────────────────────────────────────────────────────────
 
+/// Result returned after `data pull` successfully loads an ontology from a URL.
+///
+/// `triples_loaded` is the count of triples added to the active store;
+/// `source` echoes the URL that was fetched.
+///
+/// # Examples
+///
+/// ```no_run
+/// // CLI: open-ontologies data pull https://www.w3.org/2004/02/skos/core
+/// // Returns PullOutput {
+/// //   ok: true,
+/// //   triples_loaded: 252,
+/// //   source: "https://www.w3.org/2004/02/skos/core",
+/// // }
+/// ```
 #[derive(Serialize)]
 pub struct PullOutput {
     pub ok: bool,
@@ -18,6 +56,27 @@ pub struct PullOutput {
     pub source: String,
 }
 
+/// Result returned after `data import-owl` resolves an `owl:imports` chain.
+///
+/// `imported` is the number of unique URLs that were fetched and loaded
+/// (duplicates are skipped); `urls` lists those URLs in resolution order.
+/// The chain is walked up to `max_depth` hops (default 10).
+///
+/// # Examples
+///
+/// ```no_run
+/// // CLI: open-ontologies data import-owl --max-depth 3
+/// //
+/// // When two transitive imports are resolved:
+/// // Returns ImportOwlOutput {
+/// //   ok: true,
+/// //   imported: 2,
+/// //   urls: ["https://example.org/a.ttl", "https://example.org/b.ttl"],
+/// // }
+/// //
+/// // When the store has no owl:imports triples:
+/// // Returns ImportOwlOutput { ok: true, imported: 0, urls: [] }
+/// ```
 #[derive(Serialize)]
 pub struct ImportOwlOutput {
     pub ok: bool,
@@ -269,7 +328,29 @@ fn fetch_schema_tables(connection: &str, driver: &open_ontologies::sqlsource::Sq
     }
 }
 
-/// Run a SQL query and ingest result rows into RDF
+/// Run a SQL query and ingest result rows into RDF.
+///
+/// `connection` is a connection string:
+/// - PostgreSQL: `postgres://user:pass@host/db`
+/// - DuckDB in-memory: `:memory:` or `duckdb:///:memory:`
+/// - DuckDB file: `duckdb:///path/to/file.duckdb`
+///
+/// Pass `sql = "-"` to read the query from stdin.
+/// Set `inline_mapping = true` to interpret `mapping` as a JSON string
+/// rather than a file path.
+///
+/// # Examples
+///
+/// ```no_run
+/// // CLI: open-ontologies data sql-ingest \
+/// //   --connection postgres://readonly@localhost/analytics \
+/// //   --sql "SELECT id, name, created_at FROM products LIMIT 100" \
+/// //   --base-iri http://myorg.example/products/
+/// //
+/// // Returns JSON:
+/// // { "ok": true, "driver": "postgres", "triples_loaded": 300,
+/// //   "rows_processed": 100, "mapping_fields": 3 }
+/// ```
 #[verb]
 fn sql_ingest(connection: String, sql: String, mapping: Option<String>, inline_mapping: Option<bool>, base_iri: Option<String>, data_dir: Option<String>) -> NounVerbResult<serde_json::Value> {
     let sql_str = if sql == "-" {
@@ -285,7 +366,29 @@ fn sql_ingest(connection: String, sql: String, mapping: Option<String>, inline_m
     do_sql_ingest(&connection, &sql_str, mapping.as_deref(), inline_mapping.unwrap_or(false), &base, dir)
 }
 
-/// Full pipeline: ingest → SHACL → reason
+/// Full pipeline: ingest → SHACL validate → OWL reason in a single call.
+///
+/// Combines `data ingest`, `onto_shacl`, and `onto_reason` into one verb.
+/// `shapes` is an optional path to a SHACL shapes file; `profile` is an
+/// optional reasoning profile (`"rdfs"` or `"owl-rl"`).  Both can be omitted
+/// to run ingest-only.
+///
+/// # Examples
+///
+/// ```no_run
+/// // CLI: open-ontologies data extend data.csv \
+/// //   --shapes ontology/shapes.ttl \
+/// //   --profile rdfs
+/// //
+/// // Returns JSON:
+/// // {
+/// //   "ok": true,
+/// //   "triples_loaded": 480,
+/// //   "rows": 160,
+/// //   "shacl": { "conforms": true, "violations": [] },
+/// //   "reason": { "inferred": 32 }
+/// // }
+/// ```
 #[verb]
 fn extend(data_path: String, format: Option<String>, mapping: Option<String>, shapes: Option<String>, profile: Option<String>, data_dir: Option<String>) -> NounVerbResult<serde_json::Value> {
     let dir = data_dir.as_deref().unwrap_or(DEFAULT_DATA_DIR);
