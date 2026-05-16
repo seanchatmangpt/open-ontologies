@@ -1408,15 +1408,63 @@ impl OpenOntologiesServer {
     #[tool(name = "onto_diff", description = "Compare two ontology files and show added/removed triples")]
     async fn onto_diff(&self, Parameters(input): Parameters<OntoDiffInput>) -> String {
         use crate::ontology::OntologyService;
+
+        // Helper: build an actionable file-not-found message that lists saved
+        // version labels the user can export with `onto_save` before diffing.
+        let versions_hint = || -> String {
+            if let Ok(raw) = OntologyService::list_versions(&self.db) {
+                if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&raw) {
+                    if let Some(arr) = parsed["versions"].as_array() {
+                        let labels: Vec<&str> = arr
+                            .iter()
+                            .filter_map(|v| v["label"].as_str())
+                            .collect();
+                        if !labels.is_empty() {
+                            return format!(
+                                " Saved versions you can export first with onto_save: [{}].",
+                                labels.join(", ")
+                            );
+                        }
+                    }
+                }
+            }
+            " No saved versions found — call onto_load then onto_version to create one.".to_string()
+        };
+
         let old = match std::fs::read_to_string(&input.old_path) {
             Ok(c) => c,
-            Err(e) => return format!(r#"{{"error":"Cannot read {}: {}"}}"#, input.old_path, e),
+            Err(e) => {
+                let hint = versions_hint();
+                return serde_json::json!({
+                    "error": format!(
+                        "Cannot read old_path '{}': {}.{} \
+                         Tip: export a saved version to a file with onto_save, then pass that path here.",
+                        input.old_path, e, hint
+                    )
+                }).to_string();
+            }
         };
         let new = match std::fs::read_to_string(&input.new_path) {
             Ok(c) => c,
-            Err(e) => return format!(r#"{{"error":"Cannot read {}: {}"}}"#, input.new_path, e),
+            Err(e) => {
+                let hint = versions_hint();
+                return serde_json::json!({
+                    "error": format!(
+                        "Cannot read new_path '{}': {}.{} \
+                         Tip: export a saved version to a file with onto_save, then pass that path here.",
+                        input.new_path, e, hint
+                    )
+                }).to_string();
+            }
         };
-        OntologyService::diff(&old, &new).unwrap_or_else(|e| format!(r#"{{"error":"{}"}}"#, e))
+        OntologyService::diff(&old, &new).unwrap_or_else(|e| {
+            serde_json::json!({
+                "error": format!(
+                    "Diff failed: {}. Ensure both files contain valid Turtle (use onto_validate to check each file).",
+                    e
+                )
+            }).to_string()
+        })
     }
 
     #[tool(name = "onto_lint", description = "Check an ontology for quality issues: missing labels, comments, domains, ranges")]
@@ -1632,7 +1680,15 @@ impl OpenOntologiesServer {
             .unwrap_or_else(crate::runtime::imports_max_depth);
         let timeout_secs = crate::runtime::imports_request_timeout_secs();
         let follow_remote = crate::runtime::imports_follow_remote();
-        let mut imported = Vec::new();
+
+        // Track outcomes in typed buckets so the response is unambiguous.
+        let mut succeeded: Vec<String> = Vec::new();
+        let mut failed: Vec<serde_json::Value> = Vec::new();
+        let mut skipped: Vec<serde_json::Value> = Vec::new();
+
+        // Legacy flat list kept for backward-compat callers that scan it.
+        let mut imported: Vec<String> = Vec::new();
+
         let mut to_import: Vec<String> = Vec::new();
 
         // Build a per-call HTTP client honouring the configured timeout.
@@ -1673,23 +1729,47 @@ impl OpenOntologiesServer {
                     }
                 }
 
+        if to_import.is_empty() {
+            return serde_json::json!({
+                "ok": true,
+                "imported": [],
+                "succeeded": [],
+                "failed": [],
+                "skipped": [],
+                "total": 0,
+                "depth": 0,
+                "hint": "No owl:imports declarations found in the currently loaded ontology. \
+                         Call onto_load first if no ontology is loaded, or verify the ontology \
+                         contains owl:imports triples."
+            }).to_string();
+        }
+
         let mut depth = 0;
         while !to_import.is_empty() && depth < max_depth {
             let batch = std::mem::take(&mut to_import);
             for url in batch {
-                if imported.contains(&url) { continue; }
+                // Duplicate guard (covers cycles — the loop cannot revisit a URL
+                // already present in `succeeded`).
+                if succeeded.contains(&url) { continue; }
                 // Honour the `[imports] follow_remote` policy: in
                 // air-gapped or sandboxed deployments, refuse to fetch
                 // http(s):// imports rather than attempting them.
                 let is_remote = url.starts_with("http://") || url.starts_with("https://");
                 if is_remote && !follow_remote {
-                    imported.push(format!("SKIPPED:{}: remote imports disabled by [imports] follow_remote=false", url));
+                    let legacy = format!("SKIPPED:{}: remote imports disabled by [imports] follow_remote=false", url);
+                    imported.push(legacy);
+                    skipped.push(serde_json::json!({
+                        "iri": url,
+                        "reason": "remote imports disabled",
+                        "hint": "Set follow_remote=true in [imports] config, or download the ontology locally and load it with onto_load."
+                    }));
                     continue;
                 }
                 match fetch(url.clone()).await {
                     Ok(content) => {
                         match self.graph.load_turtle(&content, None) {
                             Ok(_count) => {
+                                succeeded.push(url.clone());
                                 imported.push(url.clone());
                                 if let Ok(result) = self.graph.sparql_select(query)
                                     && let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&result)
@@ -1697,26 +1777,71 @@ impl OpenOntologiesServer {
                                             for row in results {
                                                 if let Some(uri) = row["import"].as_str() {
                                                     let uri = uri.trim_matches(|c| c == '<' || c == '>').to_string();
-                                                    if !imported.contains(&uri) && !to_import.contains(&uri) {
+                                                    if !succeeded.contains(&uri) && !to_import.contains(&uri) {
                                                         to_import.push(uri);
                                                     }
                                                 }
                                             }
                                         }
                             }
-                            Err(e) => { imported.push(format!("FAILED:{}: {}", url, e)); }
+                            Err(e) => {
+                                let legacy = format!("FAILED:{}: {}", url, e);
+                                imported.push(legacy);
+                                failed.push(serde_json::json!({
+                                    "iri": url,
+                                    "error": e.to_string(),
+                                    "hint": "The IRI resolved successfully but its Turtle content is invalid. \
+                                             Use onto_validate on the content to identify the syntax error."
+                                }));
+                            }
                         }
                     }
-                    Err(e) => { imported.push(format!("FAILED:{}: {}", url, e)); }
+                    Err(e) => {
+                        let err_str = e.to_string();
+                        // Provide a targeted hint based on the error kind.
+                        let hint = if err_str.contains("timed out") || err_str.contains("timeout") {
+                            format!(
+                                "Network request to '{}' timed out (timeout={}s). \
+                                 Check network connectivity, increase [imports] request_timeout_secs, \
+                                 or download the ontology locally and load it with onto_load.",
+                                url, timeout_secs
+                            )
+                        } else if err_str.contains("HTTP 4") || err_str.contains("HTTP 5") {
+                            format!(
+                                "Server returned an error for '{}'. \
+                                 Verify the IRI is publicly accessible, or download the ontology \
+                                 locally and load it with onto_load.",
+                                url
+                            )
+                        } else {
+                            format!(
+                                "Could not fetch '{}': {}. \
+                                 Check network connectivity or download the ontology locally and \
+                                 load it with onto_load.",
+                                url, err_str
+                            )
+                        };
+                        let legacy = format!("FAILED:{}: {}", url, err_str);
+                        imported.push(legacy);
+                        failed.push(serde_json::json!({
+                            "iri": url,
+                            "error": err_str,
+                            "hint": hint
+                        }));
+                    }
                 }
             }
             depth += 1;
         }
 
+        let has_failures = !failed.is_empty();
         serde_json::json!({
-            "ok": true,
+            "ok": !has_failures,
             "imported": imported,
-            "total": imported.len(),
+            "succeeded": succeeded,
+            "failed": failed,
+            "skipped": skipped,
+            "total": succeeded.len(),
             "depth": depth,
         }).to_string()
     }
@@ -1790,6 +1915,18 @@ impl OpenOntologiesServer {
     #[tool(name = "onto_version", description = "Save a named snapshot of the current ontology store. Audit-only admission (snapshots are non-destructive metadata).")]
     async fn onto_version(&self, Parameters(input): Parameters<OntoVersionInput>) -> String {
         let started = std::time::Instant::now();
+        // Guard: reject empty label before touching the store.
+        if input.label.trim().is_empty() {
+            let out = r#"{"error":"Version label must not be empty. Provide a name such as \"v1.0\" or \"pre-refactor-2026-05-16\"."}"#.to_string();
+            self.emit_tool_ocel("onto_version", started, false, &[]);
+            return out;
+        }
+        // Guard: saving a snapshot of an empty store is almost certainly a mistake.
+        if self.graph.triple_count() == 0 {
+            let out = r#"{"error":"No ontology loaded. Call onto_load first, then onto_version to save a snapshot."}"#.to_string();
+            self.emit_tool_ocel("onto_version", started, false, &[]);
+            return out;
+        }
         // Audit-only: snapshot creation produces tamper-evident OCEL trail
         // but does not block — taking a snapshot is always safe.
         self.evaluate_admission_audit(
@@ -1809,8 +1946,16 @@ impl OpenOntologiesServer {
     #[tool(name = "onto_history", description = "List all saved ontology version snapshots")]
     fn onto_history(&self) -> String {
         use crate::ontology::OntologyService;
-        OntologyService::list_versions(&self.db)
-            .unwrap_or_else(|e| format!(r#"{{"error":"{}"}}"#, e))
+        let out = OntologyService::list_versions(&self.db)
+            .unwrap_or_else(|e| format!(r#"{{"error":"{}"}}"#, e));
+        // Surface an actionable hint when the versions list is empty so callers
+        // are not left staring at {"versions":[]} with no next step.
+        if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&out) {
+            if parsed.get("versions").and_then(|v| v.as_array()).map(|a| a.is_empty()).unwrap_or(false) {
+                return r#"{"versions":[],"hint":"No saved versions. Call onto_version with a label to save a snapshot."}"#.to_string();
+            }
+        }
+        out
     }
 
     #[tool(name = "onto_rollback", description = "Restore the ontology store to a previously saved version. Gated by OntoStar admission (rollback is a destructive un-apply).")]
@@ -1832,7 +1977,19 @@ impl OpenOntologiesServer {
             }
         };
         let raw = OntologyService::rollback_version(&self.db, &self.graph, &input.label)
-            .unwrap_or_else(|e| format!(r#"{{"error":"{}"}}"#, e));
+            .unwrap_or_else(|e| {
+                // rusqlite surfaces a missing row as "Query returned no rows" — translate
+                // that into an actionable message that names the missing label.
+                let msg = e.to_string();
+                if msg.contains("Query returned no rows") || msg.contains("no rows") {
+                    format!(
+                        r#"{{"error":"Version '{}' not found. Call onto_history to list available snapshots."}}"#,
+                        input.label
+                    )
+                } else {
+                    format!(r#"{{"error":"{}"}}"#, msg)
+                }
+            });
         let ok = !raw.contains(r#""error""#);
         let out = if ok {
             let mut parsed: serde_json::Value =
