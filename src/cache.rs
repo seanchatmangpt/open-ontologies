@@ -21,6 +21,57 @@ use crate::state::StateDb;
 // Number of head-bytes hashed for the cache fingerprint — overridable via
 // `[cache] hash_prefix_bytes` in config.toml. See `crate::runtime`.
 
+/// Fallback ontology name returned by [`derive_name`] when the path has no
+/// file stem (e.g. an empty string or a bare `/`).
+///
+/// ```
+/// use open_ontologies::cache::{derive_name, CACHE_DEFAULT_NAME};
+/// assert_eq!(derive_name(""), CACHE_DEFAULT_NAME);
+/// assert_eq!(CACHE_DEFAULT_NAME, "default");
+/// ```
+pub const CACHE_DEFAULT_NAME: &str = "default";
+
+/// File extension used for all N-Triples cache files written by
+/// [`CacheManager::atomic_write`].
+///
+/// ```
+/// use open_ontologies::cache::CACHE_NT_EXT;
+/// assert!(CACHE_NT_EXT.starts_with('.'));
+/// assert_eq!(CACHE_NT_EXT, ".nt");
+/// ```
+pub const CACHE_NT_EXT: &str = ".nt";
+
+/// Canonical ontology name used in doctests and unit tests.
+///
+/// Matches the stem of [`CACHE_TEST_FILE`]:
+/// `derive_name(CACHE_TEST_FILE) == CACHE_TEST_NAME`.
+///
+/// ```
+/// use open_ontologies::cache::{derive_name, CACHE_TEST_FILE, CACHE_TEST_NAME};
+/// assert_eq!(derive_name(CACHE_TEST_FILE), CACHE_TEST_NAME);
+/// ```
+pub const CACHE_TEST_NAME: &str = "pizza";
+
+/// Canonical source filename used in doctests and unit tests.
+///
+/// ```
+/// use open_ontologies::cache::{derive_name, CACHE_TEST_FILE, CACHE_TEST_NAME};
+/// assert_eq!(derive_name(CACHE_TEST_FILE), CACHE_TEST_NAME);
+/// ```
+pub const CACHE_TEST_FILE: &str = "pizza.ttl";
+
+/// Canonical 8-character SHA prefix sentinel used in fingerprint doctests.
+///
+/// Not a real hash — used only to illustrate the naming scheme in examples.
+///
+/// ```
+/// use open_ontologies::cache::CACHE_TEST_SHA_PREFIX;
+/// // SHA prefix is always lowercase hex.
+/// assert!(CACHE_TEST_SHA_PREFIX.chars().all(|c| c.is_ascii_hexdigit()));
+/// assert_eq!(CACHE_TEST_SHA_PREFIX.len(), 8);
+/// ```
+pub const CACHE_TEST_SHA_PREFIX: &str = "deadbeef";
+
 /// Information about a source ontology file used as the cache validity key.
 ///
 /// The triple `(mtime_secs, size, sha_prefix)` uniquely identifies a version
@@ -469,7 +520,7 @@ pub fn derive_name(path: &str) -> String {
         .file_stem()
         .and_then(|s| s.to_str())
         .map(|s| s.to_string())
-        .unwrap_or_else(|| "default".to_string())
+        .unwrap_or_else(|| CACHE_DEFAULT_NAME.to_string())
 }
 
 /// Validate a shape used by tests and the registry.

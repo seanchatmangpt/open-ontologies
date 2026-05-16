@@ -1525,6 +1525,22 @@ pub struct OntoGroqStatusInput {
 /// let inp = OntoGeminiStatusInput::default();
 /// assert!(inp.gemini_bin.is_none());
 /// ```
+///
+/// # Auto-instinct: `gemini_bin` override is stored verbatim — no path normalization
+///
+/// When supplied, the binary path is forwarded as-is to the subprocess.
+/// `None` signals that the handler should fall back to the `GEMINI_BIN`
+/// environment variable or the bare `"gemini"` name on `$PATH`.
+///
+/// ```
+/// use open_ontologies::inputs::OntoGeminiStatusInput;
+/// let inp = OntoGeminiStatusInput {
+///     gemini_bin: Some("/usr/local/bin/gemini-cli".to_string()),
+/// };
+/// assert_eq!(inp.gemini_bin.as_deref(), Some("/usr/local/bin/gemini-cli"));
+/// // Field is Option<String>; None means "use default resolution".
+/// assert!(OntoGeminiStatusInput::default().gemini_bin.is_none());
+/// ```
 #[derive(Deserialize, JsonSchema, Default)]
 pub struct OntoGeminiStatusInput {
     /// Override the Gemini binary path (default: `GEMINI_BIN` env or `"gemini"`).
@@ -1687,6 +1703,24 @@ pub struct OntoSessionRevokeByPrincipalInput {
 /// assert_eq!(inp.minutes, 30);
 /// assert!(inp.minutes <= 60 * 24 * 7, "bounded to one week");
 /// ```
+///
+/// # Auto-instinct: one-week ceiling must be validated by the caller
+///
+/// The struct is a plain `u64` carrier — the handler enforces the upper bound
+/// at invocation time. Construction with any value succeeds.
+///
+/// ```
+/// use open_ontologies::inputs::OntoRetentionPauseInput;
+/// const ONE_WEEK_MINUTES: u64 = 60 * 24 * 7; // 10 080
+///
+/// // At-ceiling value is a valid pause duration.
+/// let at_limit = OntoRetentionPauseInput { minutes: ONE_WEEK_MINUTES };
+/// assert_eq!(at_limit.minutes, 10_080);
+///
+/// // Zero is constructible but semantically a no-op pause.
+/// let noop = OntoRetentionPauseInput { minutes: 0 };
+/// assert_eq!(noop.minutes, 0);
+/// ```
 #[derive(Deserialize, JsonSchema)]
 pub struct OntoRetentionPauseInput {
     /// Number of minutes to suspend retention pruning. The pause
@@ -1723,6 +1757,30 @@ pub struct OntoGuideInput {
 /// };
 /// assert_eq!(inp.key_fpr.len(), 16);
 /// assert_eq!(inp.payload_hash.len(), 64);
+/// ```
+///
+/// # Auto-instinct: `key_fpr` encodes 8 bytes as exactly 16 lowercase hex chars
+///
+/// The handler rejects any `key_fpr` that is not exactly 16 characters long.
+/// Callers must zero-pad short fingerprints before submitting.
+///
+/// ```
+/// use open_ontologies::inputs::OntoOntostarAttestInput;
+///
+/// // 16-char hex string = 8 bytes — the canonical fingerprint width.
+/// let fpr = "deadbeefcafebabe";
+/// assert_eq!(fpr.len(), 16);
+/// assert!(fpr.chars().all(|c| c.is_ascii_hexdigit()));
+///
+/// // payload_hash must be 64 hex chars (BLAKE3 / SHA-256 output length).
+/// let hash = "a".repeat(64);
+/// let inp = OntoOntostarAttestInput {
+///     signature: "sig".to_string(),
+///     payload_hash: hash,
+///     key_fpr: fpr.to_string(),
+/// };
+/// assert_eq!(inp.key_fpr.len(), 16, "key_fpr must be exactly 16 hex chars");
+/// assert_eq!(inp.payload_hash.len(), 64, "payload_hash must be 64 hex chars");
 /// ```
 #[derive(Deserialize, JsonSchema)]
 pub struct OntoOntostarAttestInput {
