@@ -5475,7 +5475,7 @@ impl OpenOntologiesServer {
     /// `llm_authority_claimed` OCEL **before** lifting the fields into
     /// `CandidateCtq`, so the audit trail records the adversarial
     /// claim independently of any downstream defect classification.
-    #[tool(name = "onto_translate_candidate", description = "Requirements Andon: invoke the Groq LLM boundary translator on a previously-proposed requirement. AUDIT-ONLY — output is provisional and must pass through onto_admit_ctq before any work order is admitted. Response is projection-only (`_projection_only: true`); admission flows through `onto_admit_ctq`. Emits `llm_candidate_translated` + `llm_invoked` OCEL events with candidate_ctq_id (BLAKE3 of the candidate JSON) but never the API key. `engine` selects `inproc` (default) or `groq_pm4py` (shells to scripts/ctq_from_voice.py).")]
+    #[tool(name = "onto_translate_candidate", description = "Requirements Andon: invoke the LLM boundary translator on a previously-proposed requirement. AUDIT-ONLY — output is provisional and must pass through onto_admit_ctq before any work order is admitted. Response is projection-only (`_projection_only: true`); admission flows through `onto_admit_ctq`. Emits `llm_candidate_translated` + `llm_invoked` OCEL events with candidate_ctq_id (BLAKE3 of the candidate JSON) but never the API key. `engine` selects `inproc` (default), `groq_pm4py` (shells to scripts/ctq_from_voice.py), or `gemini` (Gemini CLI; no API key required).")]
     pub async fn onto_translate_candidate(&self, Parameters(input): Parameters<OntoTranslateCandidateInput>) -> String {
         let started = std::time::Instant::now();
 
@@ -6281,7 +6281,7 @@ impl OpenOntologiesServer {
         response.to_string()
     }
 
-    #[tool(name = "onto_executive_projection", description = "Requirements Andon: project admitted evidence into an executive-readable summary via the Groq translator. READ-ONLY (allowlisted). `engine` selects `inproc` (default) or `groq_pm4py` (shells to scripts/executive_projection.py). The summary must only cite tokens that already appear in admitted_evidence — token-overlap check rejects invented tokens.")]
+    #[tool(name = "onto_executive_projection", description = "Requirements Andon: project admitted evidence into an executive-readable summary via the LLM translator. READ-ONLY (allowlisted). `engine` selects `inproc` (default), `groq_pm4py` (shells to scripts/executive_projection.py), or `gemini` (Gemini CLI; no API key required). The summary must only cite tokens that already appear in admitted_evidence — token-overlap check rejects invented tokens.")]
     pub async fn onto_executive_projection(&self, Parameters(input): Parameters<OntoExecutiveProjectionInput>) -> String {
         let started = std::time::Instant::now();
         let evidence = input.admitted_evidence.trim();
@@ -6657,7 +6657,7 @@ impl OpenOntologiesServer {
         out
     }
 
-    #[tool(name = "onto_groq_status", description = "Read-only liveness probe for the real-Groq subprocess engine. Spawns scripts/groq_status.py which (1) imports dspy, (2) checks GROQ_API_KEY is non-empty, (3) constructs a dspy.LM SDK handle. NEVER makes a real Groq HTTP request and NEVER logs the API key. Returns {ok, model_reachable, key_present, model, error}.")]
+    #[tool(name = "onto_groq_status", description = "Read-only liveness probe for the groq_pm4py subprocess engine. Spawns scripts/groq_status.py which (1) imports dspy, (2) checks GROQ_API_KEY is non-empty, (3) constructs a dspy.LM SDK handle. NEVER makes a real Groq HTTP request and NEVER logs the API key. Returns {ok, model_reachable, key_present, model, error}. Companion tool for the Gemini CLI engine: onto_gemini_status (no API key required).")]
     pub async fn onto_groq_status(&self, Parameters(input): Parameters<OntoGroqStatusInput>) -> String {
         let started = std::time::Instant::now();
         // Engine resolution: per-call (n/a here) > header > server default.
