@@ -26,6 +26,23 @@ impl SchemaIntrospector {
     /// Recognises common Postgres and DuckDB type names. Parameterised types
     /// like `DECIMAL(18,2)` or `VARCHAR(255)` are normalised by stripping the
     /// `(...)` suffix before matching.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use open_ontologies::schema::SchemaIntrospector;
+    ///
+    /// assert_eq!(SchemaIntrospector::sql_to_xsd("integer"),        "xsd:integer");
+    /// assert_eq!(SchemaIntrospector::sql_to_xsd("BIGINT"),         "xsd:integer");
+    /// assert_eq!(SchemaIntrospector::sql_to_xsd("DECIMAL(18,2)"),  "xsd:decimal");
+    /// assert_eq!(SchemaIntrospector::sql_to_xsd("VARCHAR(255)"),   "xsd:string");
+    /// assert_eq!(SchemaIntrospector::sql_to_xsd("boolean"),        "xsd:boolean");
+    /// assert_eq!(SchemaIntrospector::sql_to_xsd("date"),           "xsd:date");
+    /// assert_eq!(SchemaIntrospector::sql_to_xsd("timestamp"),      "xsd:dateTime");
+    /// assert_eq!(SchemaIntrospector::sql_to_xsd("bytea"),          "xsd:hexBinary");
+    /// assert_eq!(SchemaIntrospector::sql_to_xsd("uuid"),           "xsd:string");
+    /// assert_eq!(SchemaIntrospector::sql_to_xsd("jsonb"),          "xsd:string");
+    /// ```
     pub fn sql_to_xsd(sql_type: &str) -> &'static str {
         let lower = sql_type.to_lowercase();
         // Strip parameters: "decimal(18,2)" → "decimal", "varchar(255)" → "varchar".
@@ -51,6 +68,19 @@ impl SchemaIntrospector {
     }
 
     /// Convert snake_case table name to PascalCase class name.
+    ///
+    /// Splits on underscores and capitalises the first letter of each segment.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use open_ontologies::schema::SchemaIntrospector;
+    ///
+    /// assert_eq!(SchemaIntrospector::table_to_class("user"),              "User");
+    /// assert_eq!(SchemaIntrospector::table_to_class("user_profile"),      "UserProfile");
+    /// assert_eq!(SchemaIntrospector::table_to_class("order_line_item"),   "OrderLineItem");
+    /// assert_eq!(SchemaIntrospector::table_to_class("alreadyCamel"),      "AlreadyCamel");
+    /// ```
     pub fn table_to_class(name: &str) -> String {
         name.split('_')
             .map(|part| {
@@ -64,6 +94,47 @@ impl SchemaIntrospector {
     }
 
     /// Generate OWL Turtle from introspected schema.
+    ///
+    /// Emits `@prefix` declarations followed by one `owl:Class` block per table
+    /// and one property block per column. Foreign-key columns become
+    /// `owl:ObjectProperty`; all other columns become `owl:DatatypeProperty`.
+    /// Non-nullable columns additionally emit an `owl:minCardinality 1`
+    /// restriction on the owning class.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use open_ontologies::schema::{SchemaIntrospector, TableInfo, ColumnInfo};
+    ///
+    /// let tables = vec![TableInfo {
+    ///     name: "person".into(),
+    ///     columns: vec![
+    ///         ColumnInfo { name: "id".into(),   data_type: "integer".into(), is_nullable: false, is_primary_key: true  },
+    ///         ColumnInfo { name: "name".into(), data_type: "text".into(),    is_nullable: true,  is_primary_key: false },
+    ///     ],
+    ///     foreign_keys: vec![],
+    /// }];
+    ///
+    /// let ttl = SchemaIntrospector::generate_turtle(&tables, "https://example.org/db/");
+    ///
+    /// assert!(ttl.contains("@prefix owl:"));
+    /// assert!(ttl.contains("db:Person a owl:Class"));
+    /// assert!(ttl.contains("db:person_id a owl:DatatypeProperty , owl:FunctionalProperty"));
+    /// assert!(ttl.contains("db:person_name a owl:DatatypeProperty"));
+    /// // id is NOT NULL → cardinality restriction
+    /// assert!(ttl.contains("owl:minCardinality 1"));
+    /// ```
+    ///
+    /// An empty table slice produces only the prefix header:
+    ///
+    /// ```
+    /// use open_ontologies::schema::SchemaIntrospector;
+    ///
+    /// let ttl = SchemaIntrospector::generate_turtle(&[], "https://example.org/db/");
+    /// assert!(ttl.starts_with("@prefix owl:"));
+    /// // No class declarations for an empty schema
+    /// assert!(!ttl.contains("owl:Class"));
+    /// ```
     pub fn generate_turtle(tables: &[TableInfo], base_iri: &str) -> String {
         let mut ttl = String::new();
         ttl.push_str("@prefix owl: <http://www.w3.org/2002/07/owl#> .\n");
