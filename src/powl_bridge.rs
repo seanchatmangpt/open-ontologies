@@ -29,6 +29,13 @@
 
 use crate::defects::{DefectClass, Deviation};
 
+/// Verdict string emitted when a trace replays without missing or remaining tokens.
+pub const VERDICT_CONFORM: &str = "conform";
+/// Verdict string emitted when a trace replays with partial fitness (fitness > 0).
+pub const VERDICT_DEVIATE: &str = "deviate";
+/// Verdict string emitted when a trace cannot be replayed at all (fitness == 0).
+pub const VERDICT_IMPOSSIBLE: &str = "impossible";
+
 // Re-exports: callers can use these without depending on wasm4pm directly.
 pub use wasm4pm::powl::conformance::token_replay::{FitnessResult, TraceReplayResult};
 pub use wasm4pm::powl_arena::PowlArena;
@@ -300,7 +307,7 @@ impl ConformanceResult {
     /// assert!(!impossible.is_conform());
     /// ```
     pub fn is_conform(&self) -> bool {
-        self.verdict == "conform"
+        self.verdict == VERDICT_CONFORM
     }
 }
 
@@ -463,11 +470,11 @@ pub fn classify_replay(
     }
 
     let verdict = if replay.is_perfect() {
-        "conform"
+        VERDICT_CONFORM
     } else if replay.fitness > 0.0 {
-        "deviate"
+        VERDICT_DEVIATE
     } else {
-        "impossible"
+        VERDICT_IMPOSSIBLE
     };
 
     let trace_canonical_hash = canonical_hash_of_trace(observed_trace);
