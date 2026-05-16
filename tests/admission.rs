@@ -261,6 +261,7 @@ fn replay_enforcement_after_corruption() {
                 precision: 1.0,
                 verdict: "deviate".to_string(), // not 'conform'
                 run_id: format!("non-conform-{}", scope_token),
+                is_stub: false,
             }
         }
     }
