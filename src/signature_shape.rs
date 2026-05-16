@@ -61,14 +61,32 @@ impl FieldSpec {
         }
     }
 
+    /// Override the minimum character length for this field.
+    ///
+    /// # Examples
+    /// ```
+    /// # use open_ontologies::signature_shape::FieldSpec;
+    /// let f = FieldSpec::required("summary", "a brief summary").with_min_len(20);
+    /// assert_eq!(f.min_len, 20);
+    /// ```
     pub fn with_min_len(mut self, n: usize) -> Self {
         self.min_len = n;
         self
     }
+
+    /// Cap the field at `n` characters (after `.trim()`). None disables the cap.
+    ///
+    /// # Examples
+    /// ```
+    /// # use open_ontologies::signature_shape::FieldSpec;
+    /// let f = FieldSpec::required("tag", "short tag").with_max_len(32);
+    /// assert_eq!(f.max_len, Some(32));
+    /// ```
     pub fn with_max_len(mut self, n: usize) -> Self {
         self.max_len = Some(n);
         self
     }
+
     /// Restrict the field to a closed vocabulary, mirroring SHACL `sh:in`.
     ///
     /// The admission gate rejects any LLM reply whose trimmed value is not in
@@ -189,6 +207,25 @@ impl SignatureShape {
     /// The system prompt names the contract, lists the field semantics,
     /// embeds demos, and mandates JSON output.
     /// The user prompt is the structured input the LLM must fill.
+    ///
+    /// # Examples
+    /// ```
+    /// # use open_ontologies::signature_shape::{SignatureShape, FieldSpec};
+    /// # use std::collections::BTreeMap;
+    /// let shape = SignatureShape {
+    ///     name: "MyShape".into(),
+    ///     instructions: "Do the thing.".into(),
+    ///     input_fields: vec![FieldSpec::required("voice", "the voice")],
+    ///     output_fields: vec![FieldSpec::required("result", "the result").with_min_len(5)],
+    ///     demos: vec![],
+    /// };
+    /// let mut inputs = BTreeMap::new();
+    /// inputs.insert("voice".into(), "customer complaint".into());
+    /// let (sys, user) = shape.compile_prompt(&inputs);
+    /// assert!(sys.contains("# Signature: MyShape"));
+    /// assert!(sys.contains("min_len=5"));
+    /// assert!(user.contains("customer complaint"));
+    /// ```
     pub fn compile_prompt(&self, inputs: &BTreeMap<String, String>) -> (String, String) {
         let mut sys = String::new();
         sys.push_str(&format!("# Signature: {}\n\n", self.name));
@@ -250,6 +287,24 @@ impl SignatureShape {
 
     /// Append a refine hint to the system prompt. Used by the refine
     /// loop after a validation failure.
+    ///
+    /// # Examples
+    /// ```
+    /// # use open_ontologies::signature_shape::{SignatureShape, FieldSpec, ValidationFailure};
+    /// # use std::collections::BTreeMap;
+    /// let shape = SignatureShape {
+    ///     name: "S".into(),
+    ///     instructions: "I".into(),
+    ///     input_fields: vec![],
+    ///     output_fields: vec![FieldSpec::required("ctq", "the CTQ")],
+    ///     demos: vec![],
+    /// };
+    /// let inputs = BTreeMap::new();
+    /// let failures = vec![ValidationFailure::MissingField { field: "ctq".into() }];
+    /// let (sys, _user) = shape.compile_prompt_with_hints(&inputs, &failures);
+    /// assert!(sys.contains("Previous attempt failed"));
+    /// assert!(sys.contains("ctq"));
+    /// ```
     pub fn compile_prompt_with_hints(
         &self,
         inputs: &BTreeMap<String, String>,
@@ -275,6 +330,33 @@ impl SignatureShape {
     /// The authority flag is **diagnostic, not enforcement**: the
     /// validator never accepts the LLM's authority claim. Downstream
     /// (`onto_translate_candidate`) emits the OCEL audit event.
+    ///
+    /// # Examples
+    /// ```
+    /// # use open_ontologies::signature_shape::{SignatureShape, FieldSpec, ValidationFailure};
+    /// let shape = SignatureShape {
+    ///     name: "T".into(),
+    ///     instructions: "I".into(),
+    ///     input_fields: vec![],
+    ///     output_fields: vec![
+    ///         FieldSpec::required("result", "the result").with_min_len(5),
+    ///     ],
+    ///     demos: vec![],
+    /// };
+    ///
+    /// // Valid response — fields admitted.
+    /// let parsed = shape.parse_and_validate(r#"{"result": "long enough value"}"#).unwrap();
+    /// assert_eq!(parsed.fields["result"], "long enough value");
+    /// assert!(!parsed.llm_claimed_authority);
+    ///
+    /// // Too short — validation failure returned.
+    /// let errs = shape.parse_and_validate(r#"{"result": "hi"}"#).unwrap_err();
+    /// assert!(matches!(errs[0], ValidationFailure::TooShort { .. }));
+    ///
+    /// // Non-JSON — NonJsonResponse failure.
+    /// let errs = shape.parse_and_validate("not json at all").unwrap_err();
+    /// assert!(matches!(errs[0], ValidationFailure::NonJsonResponse { .. }));
+    /// ```
     pub fn parse_and_validate(
         &self,
         raw: &str,
@@ -431,6 +513,19 @@ fn extract_first_json_object(s: &str) -> Option<String> {
 
 /// The CTQ-Forge signature: messy `source_voice` + `voice_kind` →
 /// 5-field provisional CTQ (matches `OntoAdmitCtqInput`'s fields).
+///
+/// # Examples
+/// ```
+/// # use open_ontologies::signature_shape::ctq_signature;
+/// let sig = ctq_signature();
+/// assert_eq!(sig.name, "CtqProposal");
+/// assert_eq!(sig.output_fields.len(), 6);
+/// // Two demos are embedded to constrain the LLM's output space.
+/// assert_eq!(sig.demos.len(), 2);
+/// // voice_kind is restricted to a closed vocabulary.
+/// let voice_kind = sig.input_fields.iter().find(|f| f.name == "voice_kind").unwrap();
+/// assert!(voice_kind.allowed_values.is_some());
+/// ```
 pub fn ctq_signature() -> SignatureShape {
     let demos = vec![
         Demo {

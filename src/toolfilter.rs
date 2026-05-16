@@ -58,10 +58,30 @@ pub struct ToolFilter {
 }
 
 impl ToolFilter {
+    /// Create a filter that exposes all registered tools (the default).
+    ///
+    /// # Examples
+    /// ```
+    /// # use open_ontologies::toolfilter::{ToolFilter, Mode};
+    /// let f = ToolFilter::all();
+    /// assert_eq!(f.mode, Mode::All);
+    /// assert!(f.allows("onto_status"));
+    /// assert!(f.allows("onto_clear"));
+    /// ```
     pub fn all() -> Self {
         Self::default()
     }
 
+    /// Create an allow-list filter: only the named tools are exposed.
+    ///
+    /// # Examples
+    /// ```
+    /// # use open_ontologies::toolfilter::{ToolFilter, Mode};
+    /// let f = ToolFilter::allow_only(["onto_status".into(), "onto_query".into()]);
+    /// assert_eq!(f.mode, Mode::Allow);
+    /// assert!(f.allows("onto_status"));
+    /// assert!(!f.allows("onto_load"));
+    /// ```
     pub fn allow_only(names: impl IntoIterator<Item = String>) -> Self {
         Self {
             mode: Mode::Allow,
@@ -70,6 +90,17 @@ impl ToolFilter {
         }
     }
 
+    /// Create a deny-list filter: all tools except the named ones are exposed.
+    ///
+    /// # Examples
+    /// ```
+    /// # use open_ontologies::toolfilter::{ToolFilter, Mode};
+    /// let f = ToolFilter::deny(["onto_clear".into(), "onto_apply".into()]);
+    /// assert_eq!(f.mode, Mode::Deny);
+    /// assert!(f.allows("onto_status"));
+    /// assert!(!f.allows("onto_clear"));
+    /// assert!(!f.allows("onto_apply"));
+    /// ```
     pub fn deny(names: impl IntoIterator<Item = String>) -> Self {
         Self {
             mode: Mode::Deny,
@@ -115,6 +146,20 @@ impl ToolFilter {
 
     /// Apply the filter to a `ToolRouter` by removing disallowed routes.
     /// Returns the list of removed tool names (for logging/inspection).
+    ///
+    /// `Mode::All` is a no-op and returns an empty vec without inspecting the router.
+    ///
+    /// # Examples
+    /// ```no_run
+    /// # use open_ontologies::toolfilter::ToolFilter;
+    /// # use rmcp::handler::server::tool::ToolRouter;
+    /// // In Mode::All the filter is a no-op — nothing is removed.
+    /// struct MyState;
+    /// let filter = ToolFilter::all();
+    /// let mut router: ToolRouter<MyState> = ToolRouter::new();
+    /// let removed = filter.apply(&mut router);
+    /// assert!(removed.is_empty());
+    /// ```
     pub fn apply<S>(&self, router: &mut ToolRouter<S>) -> Vec<String>
     where
         S: Send + Sync + 'static,
