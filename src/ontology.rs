@@ -9,6 +9,9 @@ use crate::graph::GraphStore;
 use crate::state::StateDb;
 use std::sync::Arc;
 
+/// JSON field key for the RDF triple count reported in API responses.
+pub const TRIPLE_COUNT_KEY: &str = "triple_count";
+
 pub struct OntologyService;
 
 impl OntologyService {
@@ -17,13 +20,13 @@ impl OntologyService {
         match GraphStore::validate_turtle(content) {
             Ok(count) => Ok(serde_json::json!({
                 "valid": true,
-                "triple_count": count,
+                TRIPLE_COUNT_KEY: count,
                 "errors": []
             })
             .to_string()),
             Err(e) => Ok(serde_json::json!({
                 "valid": false,
-                "triple_count": 0,
+                TRIPLE_COUNT_KEY: 0,
                 "errors": [e.to_string()]
             })
             .to_string()),
@@ -36,14 +39,14 @@ impl OntologyService {
             Ok(count) => Ok(serde_json::json!({
                 "valid": true,
                 "path": path,
-                "triple_count": count,
+                TRIPLE_COUNT_KEY: count,
                 "errors": []
             })
             .to_string()),
             Err(e) => Ok(serde_json::json!({
                 "valid": false,
                 "path": path,
-                "triple_count": 0,
+                TRIPLE_COUNT_KEY: 0,
                 "errors": [e.to_string()]
             })
             .to_string()),
@@ -233,7 +236,7 @@ impl OntologyService {
         Ok(serde_json::json!({
             "ok": true,
             "label": label,
-            "triple_count": count,
+            TRIPLE_COUNT_KEY: count,
         }).to_string())
     }
 
@@ -247,7 +250,7 @@ impl OntologyService {
             Ok(serde_json::json!({
                 "id": row.get::<_, i64>(0)?,
                 "label": row.get::<_, String>(1)?,
-                "triple_count": row.get::<_, i64>(2)?,
+                TRIPLE_COUNT_KEY: row.get::<_, i64>(2)?,
                 "format": row.get::<_, String>(3)?,
                 "created_at": row.get::<_, String>(4)?,
             }))
