@@ -6891,7 +6891,7 @@ impl OpenOntologiesServer {
         out
     }
 
-    #[tool(name = "onto_groq_status", description = "Read-only liveness probe for the real-Groq subprocess engine. Spawns scripts/groq_status.py which (1) imports dspy, (2) checks GROQ_API_KEY is non-empty, (3) constructs a dspy.LM SDK handle. NEVER makes a real Groq HTTP request and NEVER logs the API key. Returns {ok, model_reachable, key_present, model, error}.")]
+    #[tool(name = "onto_groq_status", description = "Read-only liveness probe for the groq_pm4py subprocess engine. Spawns scripts/groq_status.py which (1) imports dspy, (2) checks GROQ_API_KEY is non-empty, (3) constructs a dspy.LM SDK handle. NEVER makes a real Groq HTTP request and NEVER logs the API key. Returns {ok, model_reachable, key_present, model, error}. Companion tool for the Gemini CLI engine: onto_gemini_status (no API key required).")]
     pub async fn onto_groq_status(&self, Parameters(input): Parameters<OntoGroqStatusInput>) -> String {
         let started = std::time::Instant::now();
         // Engine resolution: per-call (n/a here) > header > server default.
