@@ -1512,20 +1512,19 @@ impl OpenOntologiesServer {
         // Helper: build an actionable file-not-found message that lists saved
         // version labels the user can export with `onto_save` before diffing.
         let versions_hint = || -> String {
-            if let Ok(raw) = OntologyService::list_versions(&self.db) {
-                if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&raw) {
-                    if let Some(arr) = parsed["versions"].as_array() {
-                        let labels: Vec<&str> = arr
-                            .iter()
-                            .filter_map(|v| v["label"].as_str())
-                            .collect();
-                        if !labels.is_empty() {
-                            return format!(
-                                " Saved versions you can export first with onto_save: [{}].",
-                                labels.join(", ")
-                            );
-                        }
-                    }
+            if let Ok(raw) = OntologyService::list_versions(&self.db)
+                && let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&raw)
+                && let Some(arr) = parsed["versions"].as_array()
+            {
+                let labels: Vec<&str> = arr
+                    .iter()
+                    .filter_map(|v| v["label"].as_str())
+                    .collect();
+                if !labels.is_empty() {
+                    return format!(
+                        " Saved versions you can export first with onto_save: [{}].",
+                        labels.join(", ")
+                    );
                 }
             }
             " No saved versions found — call onto_load then onto_version to create one.".to_string()
@@ -2081,10 +2080,10 @@ impl OpenOntologiesServer {
             .unwrap_or_else(|e| format!(r#"{{"error":"{}"}}"#, e));
         // Surface an actionable hint when the versions list is empty so callers
         // are not left staring at {"versions":[]} with no next step.
-        if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&out) {
-            if parsed.get("versions").and_then(|v| v.as_array()).map(|a| a.is_empty()).unwrap_or(false) {
-                return r#"{"versions":[],"hint":"No saved versions. Call onto_version with a label to save a snapshot."}"#.to_string();
-            }
+        if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&out)
+            && parsed.get("versions").and_then(|v| v.as_array()).map(|a| a.is_empty()).unwrap_or(false)
+        {
+            return r#"{"versions":[],"hint":"No saved versions. Call onto_version with a label to save a snapshot."}"#.to_string();
         }
         out
     }
@@ -2827,15 +2826,14 @@ impl OpenOntologiesServer {
                             }
                         }
                         // Validate webhook URL scheme for notify-action watchers.
-                        if matches!(w.action, crate::monitor::WatcherAction::Notify) {
-                            if let Some(ref url) = w.webhook_url {
-                                if !url.starts_with("http://") && !url.starts_with("https://") {
-                                    validation_errors.push(format!(
-                                        "Watcher '{}': webhook_url '{}' is not a valid HTTP/HTTPS URL. Use 'https://...' for production endpoints (e.g. Slack incoming webhooks, PagerDuty).",
-                                        w.id, url
-                                    ));
-                                }
-                            }
+                        if matches!(w.action, crate::monitor::WatcherAction::Notify)
+                            && let Some(ref url) = w.webhook_url
+                            && !url.starts_with("http://") && !url.starts_with("https://")
+                        {
+                            validation_errors.push(format!(
+                                "Watcher '{}': webhook_url '{}' is not a valid HTTP/HTTPS URL. Use 'https://...' for production endpoints (e.g. Slack incoming webhooks, PagerDuty).",
+                                w.id, url
+                            ));
                         }
                     }
                     if !validation_errors.is_empty() {
@@ -2876,15 +2874,15 @@ impl OpenOntologiesServer {
         // This distinguishes "healthy with watchers" from "nothing to check".
         let mut out = serde_json::to_value(&result)
             .unwrap_or_else(|_| serde_json::json!({"status": "ok", "alerts": [], "passed": []}));
-        if result.alerts.is_empty() && result.passed.is_empty() {
-            if let Some(obj) = out.as_object_mut() {
-                obj.insert(
-                    "hint".to_string(),
-                    serde_json::Value::String(
-                        "No watchers are registered in this session. Pass a 'watchers' JSON array to register new ones, or call onto_apply first to trigger automatic watcher seeding.".to_string()
-                    ),
-                );
-            }
+        if result.alerts.is_empty() && result.passed.is_empty()
+            && let Some(obj) = out.as_object_mut()
+        {
+            obj.insert(
+                "hint".to_string(),
+                serde_json::Value::String(
+                    "No watchers are registered in this session. Pass a 'watchers' JSON array to register new ones, or call onto_apply first to trigger automatic watcher seeding.".to_string()
+                ),
+            );
         }
         out.to_string()
     }
