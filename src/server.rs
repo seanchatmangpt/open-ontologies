@@ -11,7 +11,7 @@ use rmcp::{
     },
     service::RequestContext,
 };
-use crate::config::{expand_tilde, ENGINE_INPROC, ENGINE_GROQ_PM4PY, ENGINE_GEMINI};
+use crate::config::{expand_tilde, ENGINE_INPROC, ENGINE_GROQ_PM4PY, ENGINE_GEMINI, GEMINI_DEFAULT_MODEL};
 use crate::admission::{OCEL_KEY_PRODUCTION_LAW_VERSION, OCEL_KEY_RECEIPT_HASH, OCEL_KEY_DEFECTS_TAXONOMY_VERSION};
 use crate::registry::{NTRIPLES_FORMAT, TURTLE_FORMAT};
 use crate::graph::GraphStore;
@@ -4844,6 +4844,7 @@ impl OpenOntologiesServer {
                 "ok": false,
                 "session_id": input.session_id,
                 "error": e.to_string(),
+                "hint": "Confirm the session_id exists in revoked_sessions. Use onto_session_revoke_by_principal to check active revocations.",
             })
             .to_string(),
         }
@@ -6427,7 +6428,7 @@ impl OpenOntologiesServer {
             let started_gemini = std::time::Instant::now();
             let mut cmd = std::process::Command::new(&gemini_bin);
             cmd.arg("-p").arg(&prompt)
-               .arg("--model").arg("gemini-2.0-flash-lite")
+               .arg("--model").arg(GEMINI_DEFAULT_MODEL)
                .arg("--approval-mode").arg("yolo");
             let out = match self.run_subprocess_with_timeout(&mut cmd, ENGINE_GEMINI, &gemini_bin) {
                 Ok(timed) => timed.output,
@@ -6497,7 +6498,7 @@ impl OpenOntologiesServer {
                 &now,
                 &self.session_id,
                 &[
-                    (OCEL_KEY_MODEL, "gemini-2.0-flash-lite"),
+                    (OCEL_KEY_MODEL, GEMINI_DEFAULT_MODEL),
                     (OCEL_KEY_LATENCY_MS, &latency_str),
                     (OCEL_KEY_REFINEMENTS, "0"),
                     (OCEL_KEY_ENGINE, ENGINE_GEMINI),
@@ -6510,8 +6511,8 @@ impl OpenOntologiesServer {
                 "LM",
                 OCEL_EVENT_LLM_INVOKED,
                 &format!(
-                    "engine=gemini op=executive_projection model=gemini-2.0-flash-lite latency_ms={}",
-                    latency_ms
+                    "engine=gemini op=executive_projection model={} latency_ms={}",
+                    GEMINI_DEFAULT_MODEL, latency_ms
                 ),
             );
             self.emit_tool_ocel(TOOL_EXECUTIVE_PROJECTION, started, true, &[]);
@@ -6746,7 +6747,7 @@ impl OpenOntologiesServer {
         // Check 2: OAuth active (ping prompt exits 0)
         let oauth_active = std::process::Command::new(&gemini_bin)
             .arg("-p").arg("ping")
-            .arg("--model").arg("gemini-2.0-flash-lite")
+            .arg("--model").arg(GEMINI_DEFAULT_MODEL)
             .arg("--approval-mode").arg("yolo")
             .output()
             .map(|o| o.status.success())
@@ -6758,7 +6759,7 @@ impl OpenOntologiesServer {
             "ok": ok,
             "binary_found": binary_found,
             "oauth_active": oauth_active,
-            "model": "gemini-2.0-flash-lite"
+            "model": GEMINI_DEFAULT_MODEL
         }).to_string()
     }
 
@@ -6792,6 +6793,7 @@ impl OpenOntologiesServer {
                 "ok": false,
                 "defect": { "kind": "FalsePass", "reason": DEFECT_REASON_NOT_ADMIN },
                 "error": "caller is not in OPEN_ONTOLOGIES_ADMIN_PRINCIPALS",
+                "hint": "Set OPEN_ONTOLOGIES_ADMIN_PRINCIPALS to include the current principal, or use an admin-provisioned session.",
             })
             .to_string();
         }
@@ -6807,6 +6809,7 @@ impl OpenOntologiesServer {
                 return serde_json::json!({
                     "ok": false,
                     "error": "OPEN_ONTOLOGIES_TRUSTED_KEYS_DIR is unset; rotation requires a configured directory",
+                    "hint": "Set the OPEN_ONTOLOGIES_TRUSTED_KEYS_DIR environment variable to a directory containing trusted Ed25519 public keys (.pub files).",
                 })
                 .to_string();
             }
@@ -6829,6 +6832,7 @@ impl OpenOntologiesServer {
                 return serde_json::json!({
                     "ok": false,
                     "error": format!("failed to load trust dir: {}", e.to_string().replace('"', "'")),
+                    "hint": "Verify OPEN_ONTOLOGIES_TRUSTED_KEYS_DIR points to a readable directory containing valid Ed25519 .pub key files.",
                 })
                 .to_string();
             }
@@ -7078,6 +7082,7 @@ impl OpenOntologiesServer {
                 "ok": false,
                 "defect": { "kind": "FalsePass", "reason": DEFECT_REASON_NOT_ADMIN },
                 "error": "caller is not in admin_principals",
+                "hint": "Set OPEN_ONTOLOGIES_ADMIN_PRINCIPALS to include the current principal, or use an admin-provisioned session.",
             })
             .to_string();
         }
@@ -7094,6 +7099,7 @@ impl OpenOntologiesServer {
             return serde_json::json!({
                 "ok": false,
                 "error": "tenant_id, principal_id, and reason are all required (non-empty)",
+                "hint": "Provide all three fields: tenant_id (the tenant scope), principal_id (the identity to revoke), and reason (audit trail explanation).",
             })
             .to_string();
         }
@@ -7142,6 +7148,7 @@ impl OpenOntologiesServer {
                     return serde_json::json!({
                         "ok": false,
                         "error": format!("INSERT failed: {}", e.to_string().replace('"', "'")),
+                        "hint": "Check for schema mismatches in the revoked_sessions table. Verify the database is writable and the session is not already revoked.",
                     })
                     .to_string();
                 }
@@ -7196,6 +7203,7 @@ impl OpenOntologiesServer {
                 "ok": false,
                 "defect": { "kind": "FalsePass", "reason": DEFECT_REASON_NOT_ADMIN },
                 "error": "caller is not in admin_principals",
+                "hint": "Set OPEN_ONTOLOGIES_ADMIN_PRINCIPALS to include the current principal, or use an admin-provisioned session.",
             })
             .to_string();
         }
@@ -7205,6 +7213,7 @@ impl OpenOntologiesServer {
             return serde_json::json!({
                 "ok": false,
                 "error": "minutes must be in 1..=10080 (max 1 week)",
+                "hint": "Pass a positive integer between 1 and 10080 (10080 minutes = 1 week). Use onto_retention_resume to clear the pause early.",
             })
             .to_string();
         }
@@ -7250,6 +7259,7 @@ impl OpenOntologiesServer {
                 "ok": false,
                 "defect": { "kind": "FalsePass", "reason": DEFECT_REASON_NOT_ADMIN },
                 "error": "caller is not in admin_principals",
+                "hint": "Set OPEN_ONTOLOGIES_ADMIN_PRINCIPALS to include the current principal, or use an admin-provisioned session.",
             })
             .to_string();
         }
