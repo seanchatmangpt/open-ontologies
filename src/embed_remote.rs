@@ -130,6 +130,46 @@ impl OpenAIEmbedder {
     /// ).unwrap();
     /// assert_eq!(no_auth.dim(), 256);
     /// ```
+    ///
+    /// Multiple trailing slashes are all stripped — the endpoint URL is
+    /// always `<base>/embeddings` regardless of how many slashes trail:
+    ///
+    /// ```
+    /// use open_ontologies::embed_remote::OpenAIEmbedder;
+    /// use std::time::Duration;
+    ///
+    /// // Two trailing slashes — both stripped before /embeddings is appended.
+    /// let e = OpenAIEmbedder::new(
+    ///     "https://api.openai.com/v1//",
+    ///     None,
+    ///     "text-embedding-3-small",
+    ///     Some(512),
+    ///     Duration::from_secs(30),
+    /// ).unwrap();
+    /// // dim() reflects the configured dimension, not the slash count.
+    /// assert_eq!(e.dim(), 512);
+    /// // model() is unaffected by URL normalization.
+    /// assert_eq!(e.model(), "text-embedding-3-small");
+    /// ```
+    ///
+    /// An empty string key (zero-length, not just whitespace) is also
+    /// filtered out — the behavior matches a `None` api_key:
+    ///
+    /// ```
+    /// use open_ontologies::embed_remote::OpenAIEmbedder;
+    /// use std::time::Duration;
+    ///
+    /// // Empty string key → treated as absent (trim().is_empty() == true).
+    /// let e = OpenAIEmbedder::new(
+    ///     "http://localhost:11434/v1",
+    ///     Some(String::new()),   // zero-length → no Authorization header
+    ///     "nomic-embed-text",
+    ///     None,
+    ///     Duration::from_secs(10),
+    /// ).unwrap();
+    /// // Fallback dim because dimensions=None and no embed() call yet.
+    /// assert_eq!(e.dim(), 1536);
+    /// ```
     pub fn new(
         api_base: &str,
         api_key: Option<String>,
@@ -274,6 +314,27 @@ impl OpenAIEmbedder {
     /// ).unwrap();
     /// assert_eq!(e2.dim(), 1536);
     /// ```
+    ///
+    /// The FALLBACK_DIM constant is 1536: a fresh embedder with no
+    /// `dimensions` argument and no completed `embed()` calls always
+    /// returns exactly that value, regardless of model name:
+    ///
+    /// ```
+    /// use open_ontologies::embed_remote::OpenAIEmbedder;
+    /// use std::time::Duration;
+    ///
+    /// for model in &["text-embedding-ada-002", "nomic-embed-text", "all-minilm"] {
+    ///     let e = OpenAIEmbedder::new(
+    ///         "https://api.openai.com/v1",
+    ///         None,
+    ///         *model,
+    ///         None,
+    ///         Duration::from_secs(10),
+    ///     ).unwrap();
+    ///     // All return the 1536 fallback before any embed() succeeds.
+    ///     assert_eq!(e.dim(), 1536, "model={model} should fall back to 1536");
+    /// }
+    /// ```
     pub fn dim(&self) -> usize {
         if let Some(d) = self.dimensions {
             return d;
@@ -302,6 +363,25 @@ impl OpenAIEmbedder {
     ///     Duration::from_secs(30),
     /// ).unwrap();
     /// assert_eq!(e.model(), "text-embedding-3-small");
+    /// ```
+    ///
+    /// Model names containing hyphens, digits, and slashes (e.g. Azure
+    /// deployment names) are preserved verbatim — no normalization occurs:
+    ///
+    /// ```
+    /// use open_ontologies::embed_remote::OpenAIEmbedder;
+    /// use std::time::Duration;
+    ///
+    /// // Azure-style deployment name with path separator.
+    /// let azure = OpenAIEmbedder::new(
+    ///     "https://my-resource.openai.azure.com/openai/deployments/my-embed",
+    ///     Some("azure-api-key".to_string()),
+    ///     "my-embed-deployment/2024-02-01",
+    ///     Some(1536),
+    ///     Duration::from_secs(30),
+    /// ).unwrap();
+    /// assert_eq!(azure.model(), "my-embed-deployment/2024-02-01");
+    /// assert_eq!(azure.dim(), 1536);
     /// ```
     pub fn model(&self) -> &str {
         &self.model
