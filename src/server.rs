@@ -2102,13 +2102,13 @@ impl OpenOntologiesServer {
         let started = std::time::Instant::now();
         // Guard: reject empty label before touching the store.
         if input.label.trim().is_empty() {
-            let out = r#"{"error":"Version label must not be empty. Provide a name such as \"v1.0\" or \"pre-refactor-2026-05-16\"."}"#.to_string();
+            let out = r#"{"ok":false,"error":"Version label must not be empty.","hint":"Provide a descriptive label, e.g. onto_version({\"label\":\"v1.0\"}) or \"pre-refactor-2026-05-16\"."}"#.to_string();
             self.emit_tool_ocel(TOOL_VERSION, started, false, &[]);
             return out;
         }
         // Guard: saving a snapshot of an empty store is almost certainly a mistake.
         if self.graph.triple_count() == 0 {
-            let out = r#"{"error":"No ontology loaded. Call onto_load first, then onto_version to save a snapshot."}"#.to_string();
+            let out = r#"{"ok":false,"error":"No ontology loaded — nothing to snapshot.","hint":"Call onto_load first, then onto_version to save a snapshot."}"#.to_string();
             self.emit_tool_ocel(TOOL_VERSION, started, false, &[]);
             return out;
         }
@@ -2529,6 +2529,14 @@ impl OpenOntologiesServer {
 
     #[tool(name = "onto_plan", description = "Terraform-style plan: diff current store against proposed Turtle. Shows added/removed classes/properties, blast radius, risk score, and locked IRI violations.")]
     async fn onto_plan(&self, Parameters(input): Parameters<OntoPlanInput>) -> String {
+        // Guard: diffing against an empty store produces a meaningless plan.
+        if self.graph.triple_count() == 0 {
+            return r#"{"ok":false,"error":"No ontology loaded — cannot compute a plan against an empty store.","hint":"Call onto_load first to establish the baseline, then onto_plan with your proposed Turtle."}"#.to_string();
+        }
+        // Guard: empty new_turtle means there is nothing to diff.
+        if input.new_turtle.trim().is_empty() {
+            return r#"{"ok":false,"error":"'new_turtle' is required and must not be blank.","hint":"Pass the full proposed Turtle content, e.g. onto_plan({\"new_turtle\":\"@prefix owl: ... <MyClass> a owl:Class .\"})."}"#.to_string();
+        }
         let planner = crate::plan::Planner::new(self.db.clone(), self.graph.clone());
         match planner.plan(&input.new_turtle) {
             Ok(result) => {
@@ -2583,18 +2591,19 @@ impl OpenOntologiesServer {
         const VALID_MODES: &[&str] = &["safe", "force", "migrate"];
         if !VALID_MODES.contains(&mode) {
             return serde_json::json!({
-                "error": format!("Invalid apply mode '{}'.", mode),
+                "ok": false,
+                "error": format!("Unknown mode '{}'. Valid modes: safe, migrate, force.", mode),
                 "hint": format!(
-                    "Valid modes are: {}. \
-                     'safe' clears the store and reloads from the plan (default). \
-                     'force' is the same as 'safe' but skips monitor watchers — \
-                     it does NOT bypass the admission gate. \
-                     'migrate' retains removed IRIs by adding owl:equivalentClass or \
-                     owl:equivalentProperty bridges to their replacements instead of \
-                     deleting them — use this when locked IRIs appear in the plan.",
+                    "Use 'safe' to clear-and-reload (default), 'migrate' to add owl:equivalentClass bridges, \
+                     or 'force' to skip monitor watchers (does NOT bypass admission). \
+                     Valid modes: {}.",
                     VALID_MODES.join(", ")
                 ),
             }).to_string();
+        }
+        // Guard: applying a plan against an empty store is almost certainly a mistake.
+        if self.graph.triple_count() == 0 {
+            return r#"{"ok":false,"error":"No ontology loaded — cannot apply a plan against an empty store.","hint":"Call onto_load first, then onto_plan with your proposed Turtle, then onto_apply."}"#.to_string();
         }
         // OntoStar Stream 3: admission gate fires BEFORE any state mutation.
         let artifact_bytes = self.graph.serialize(NTRIPLES_FORMAT).unwrap_or_default();
