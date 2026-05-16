@@ -156,6 +156,80 @@ impl Planner {
         Ok(result.to_string())
     }
 
+    /// Plan with no changes at all — empty store, empty Turtle — produces risk `"low"`
+    /// and a `blast_radius` of zero.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::sync::Arc;
+    /// use open_ontologies::graph::GraphStore;
+    /// use open_ontologies::state::StateDb;
+    /// use open_ontologies::plan::Planner;
+    ///
+    /// let store = Arc::new(GraphStore::new());
+    /// let db = StateDb::open(std::path::Path::new(":memory:")).unwrap();
+    /// let planner = Planner::new(db, store);
+    ///
+    /// // Both store and proposed Turtle are empty — nothing added, nothing removed.
+    /// let json_str = planner.plan("").unwrap();
+    /// let v: serde_json::Value = serde_json::from_str(&json_str).unwrap();
+    /// assert_eq!(v["risk_score"], "low");
+    /// assert_eq!(v["blast_radius"]["triples_affected"], 0);
+    /// assert_eq!(v["added_classes"].as_array().unwrap().len(), 0);
+    /// assert_eq!(v["removed_classes"].as_array().unwrap().len(), 0);
+    /// ```
+    ///
+    /// Proposing a new Turtle that removes classes already in the store raises
+    /// risk above `"low"`.  The `removed_classes` list is non-empty, and the
+    /// `blast_radius.triples_affected` count reflects how many triples in the
+    /// live store reference the removed class IRI.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::sync::Arc;
+    /// use open_ontologies::graph::GraphStore;
+    /// use open_ontologies::state::StateDb;
+    /// use open_ontologies::plan::Planner;
+    ///
+    /// let store = Arc::new(GraphStore::new());
+    /// // Seed the store with one class.
+    /// store.load_turtle(r#"
+    ///     @prefix owl: <http://www.w3.org/2002/07/owl#> .
+    ///     <http://example.org/Topping> a owl:Class .
+    /// "#, None).unwrap();
+    ///
+    /// let db = StateDb::open(std::path::Path::new(":memory:")).unwrap();
+    /// let planner = Planner::new(db, store);
+    ///
+    /// // New Turtle that omits the class → removal detected.
+    /// let json_str = planner.plan("").unwrap();
+    /// let v: serde_json::Value = serde_json::from_str(&json_str).unwrap();
+    /// // Risk is elevated beyond "low" because a class was removed.
+    /// assert_ne!(v["risk_score"], "low");
+    /// assert!(v["removed_classes"].as_array().unwrap().len() > 0);
+    /// ```
+    ///
+    /// Apply without a prior `plan` call returns an error rather than panicking.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::sync::Arc;
+    /// use open_ontologies::graph::GraphStore;
+    /// use open_ontologies::state::StateDb;
+    /// use open_ontologies::plan::Planner;
+    ///
+    /// let store = Arc::new(GraphStore::new());
+    /// let db = StateDb::open(std::path::Path::new(":memory:")).unwrap();
+    /// let planner = Planner::new(db, store);
+    ///
+    /// // No plan has been computed — apply must fail with a clear message.
+    /// let err = planner.apply("safe").unwrap_err();
+    /// assert!(err.to_string().contains("No plan found"));
+    /// ```
+
     /// Apply the last planned changes.
     /// Modes: "safe" (clear + reload), "force" (same but ignores monitor), "migrate" (adds bridges)
     pub fn apply(&self, mode: &str) -> anyhow::Result<String> {

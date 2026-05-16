@@ -81,6 +81,28 @@ impl StructuralTrainer {
     /// // Production-scale trainer — larger dim, more epochs, smaller lr
     /// let prod = StructuralTrainer::new(128, 200, 0.005);
     /// ```
+    ///
+    /// The trainer can be used immediately after construction — it carries no
+    /// mutable state between `train` calls, so the same `StructuralTrainer`
+    /// can be applied to different stores with different results each time:
+    ///
+    /// ```
+    /// use open_ontologies::structembed::StructuralTrainer;
+    /// use open_ontologies::graph::GraphStore;
+    ///
+    /// let trainer = StructuralTrainer::new(4, 2, 0.05);
+    ///
+    /// // Two independent stores — both can use the same trainer.
+    /// let store_a = GraphStore::new();
+    /// let store_b = GraphStore::new();
+    ///
+    /// let emb_a = trainer.train(&store_a).unwrap();
+    /// let emb_b = trainer.train(&store_b).unwrap();
+    ///
+    /// // Both empty stores produce empty maps.
+    /// assert!(emb_a.is_empty());
+    /// assert!(emb_b.is_empty());
+    /// ```
     pub fn new(dim: usize, epochs: usize, lr: f32) -> Self {
         Self { dim, epochs, lr }
     }
@@ -196,6 +218,61 @@ impl StructuralTrainer {
     /// // Every embedding vector has exactly `dim` components.
     /// for (_iri, vec) in &embeddings {
     ///     assert_eq!(vec.len(), dim);
+    /// }
+    /// ```
+    ///
+    /// Isolated classes — present in the store but with no `rdfs:subClassOf`
+    /// edges — still receive an initialised embedding of the correct dimension:
+    ///
+    /// ```
+    /// use open_ontologies::structembed::StructuralTrainer;
+    /// use open_ontologies::graph::GraphStore;
+    ///
+    /// let store = GraphStore::new();
+    /// // Three sibling classes with no subclass relationships.
+    /// store.load_turtle(r#"
+    ///     @prefix owl: <http://www.w3.org/2002/07/owl#> .
+    ///     <urn:ex:Red>   a owl:Class .
+    ///     <urn:ex:Green> a owl:Class .
+    ///     <urn:ex:Blue>  a owl:Class .
+    /// "#, None).unwrap();
+    ///
+    /// let dim = 6;
+    /// let trainer = StructuralTrainer::new(dim, 1, 0.1);
+    /// let embeddings = trainer.train(&store).unwrap();
+    ///
+    /// // All three isolated classes are present.
+    /// assert_eq!(embeddings.len(), 3);
+    ///
+    /// // Each vector has the requested dimension even without any training edges.
+    /// for (_iri, vec) in &embeddings {
+    ///     assert_eq!(vec.len(), dim);
+    /// }
+    /// ```
+    ///
+    /// All embedding vectors produced by `train` lie strictly inside the unit
+    /// Poincaré ball (norm < 1):
+    ///
+    /// ```
+    /// use open_ontologies::structembed::StructuralTrainer;
+    /// use open_ontologies::graph::GraphStore;
+    ///
+    /// let store = GraphStore::new();
+    /// store.load_turtle(r#"
+    ///     @prefix owl: <http://www.w3.org/2002/07/owl#> .
+    ///     @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+    ///     <urn:ex:Vehicle> a owl:Class .
+    ///     <urn:ex:Car>     a owl:Class ; rdfs:subClassOf <urn:ex:Vehicle> .
+    ///     <urn:ex:Truck>   a owl:Class ; rdfs:subClassOf <urn:ex:Vehicle> .
+    /// "#, None).unwrap();
+    ///
+    /// let trainer = StructuralTrainer::new(8, 10, 0.01);
+    /// let embeddings = trainer.train(&store).unwrap();
+    ///
+    /// // Poincaré ball invariant: every point must have norm strictly less than 1.
+    /// for (_iri, vec) in &embeddings {
+    ///     let norm: f32 = vec.iter().map(|x| x * x).sum::<f32>().sqrt();
+    ///     assert!(norm < 1.0, "embedding escaped the Poincaré ball: norm={norm}");
     /// }
     /// ```
     pub fn train(&self, store: &GraphStore) -> Result<HashMap<String, Vec<f32>>> {
