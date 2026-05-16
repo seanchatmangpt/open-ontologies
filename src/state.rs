@@ -575,6 +575,34 @@ impl StateDb {
     /// assert!((sum_f - 0.95).abs() < 1e-9, "fitness must be stored exactly");
     /// assert!((sum_p - 0.88).abs() < 1e-9, "precision must be stored exactly");
     /// ```
+    ///
+    /// Recording the same workflow twice accumulates the metrics (idempotent
+    /// UPSERT — the second call increments counters rather than replacing them):
+    ///
+    /// ```
+    /// use open_ontologies::state::StateDb;
+    /// use std::path::Path;
+    ///
+    /// let db = StateDb::open(Path::new(":memory:")).unwrap();
+    ///
+    /// // First admission — success.
+    /// db.record_capability("invoice-processing", true, 0.90, 0.85, "v1").unwrap();
+    /// // Second admission of the same workflow — also success.
+    /// db.record_capability("invoice-processing", true, 0.80, 0.75, "v1").unwrap();
+    ///
+    /// let conn = db.conn();
+    /// let (count, success, sum_f): (i64, i64, f64) = conn.query_row(
+    ///     "SELECT admission_count, success_count, sum_fitness \
+    ///      FROM workflow_capability WHERE workflow_name = 'invoice-processing'",
+    ///     [],
+    ///     |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+    /// ).unwrap();
+    ///
+    /// // Both calls accumulated into the single row.
+    /// assert_eq!(count, 2, "two admissions must accumulate to count=2");
+    /// assert_eq!(success, 2, "both admitted=true → success_count=2");
+    /// assert!((sum_f - 1.70).abs() < 1e-9, "sum_fitness = 0.90 + 0.80 = 1.70");
+    /// ```
     pub fn record_capability(
         &self,
         workflow_name: &str,
