@@ -117,3 +117,11 @@ pub mod verifier_worker;
 // R8-3 — Telemetry initialisation. Reads TelemetryConfig from Config and
 // wires tracing-subscriber; OTLP layer extension point for R9-3.
 pub mod telemetry;
+
+// mcpp proof-gating middleware — transparent wrapper; proof gate active only
+// when the `mcpp` feature is enabled and MCPP_SIGNING_KEY_PATH is set.
+pub mod mcpp_gate;
+
+// Background health guardian — periodic scope-leak and receipt-chain checks.
+// ZERO LLM; pure SQL against StateDb. Runs on a 60-second tick.
+pub mod health_guardian;
