@@ -230,6 +230,28 @@ pub enum AdmissionOp {
 }
 
 impl AdmissionOp {
+    /// Return the canonical OCEL event-type string for this op.
+    ///
+    /// The returned string is the value written to `ocel_events.event_type` and
+    /// to the `op` attribute of every `admission_granted` / `admission_denied`
+    /// OCEL event. Downstream process miners that consume the OCEL log depend on
+    /// these strings being stable across releases.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use open_ontologies::admission::AdmissionOp;
+    ///
+    /// // Full-admission ops map to descriptive kebab-case strings.
+    /// assert_eq!(AdmissionOp::Apply.as_str(), "apply");
+    /// assert_eq!(AdmissionOp::Codegen.as_str(), "codegen");
+    /// assert_eq!(AdmissionOp::SolutionManufactured.as_str(), "solution_manufactured");
+    ///
+    /// // Audit-only ops are equally represented.
+    /// assert_eq!(AdmissionOp::Clear.as_str(), "clear");
+    /// assert_eq!(AdmissionOp::LlmTranslate.as_str(), "llm_translate");
+    /// assert_eq!(AdmissionOp::TenantSwitch.as_str(), "tenant_switch");
+    /// ```
     pub fn as_str(&self) -> &'static str {
         match self {
             AdmissionOp::Apply => "apply",
@@ -322,6 +344,38 @@ impl AdmissionOp {
     /// False for audit-only ops (logged, never denied). `Version` is audit-only
     /// because snapshot creation is non-destructive metadata — taking a
     /// snapshot can never make the system worse, only more recoverable.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use open_ontologies::admission::AdmissionOp;
+    ///
+    /// // Graph-mutating ops require full admission (POWL replay + receipt chain).
+    /// assert!(AdmissionOp::Apply.is_full_admission());
+    /// assert!(AdmissionOp::Codegen.is_full_admission());
+    /// assert!(AdmissionOp::Ingest.is_full_admission());
+    /// assert!(AdmissionOp::AlignApplied.is_full_admission());
+    /// assert!(AdmissionOp::SolutionManufactured.is_full_admission());
+    ///
+    /// // Audit-only ops are logged but never denied by the gate.
+    /// assert!(!AdmissionOp::Clear.is_full_admission());
+    /// assert!(!AdmissionOp::Feedback.is_full_admission());
+    /// assert!(!AdmissionOp::Version.is_full_admission());
+    /// assert!(!AdmissionOp::LlmTranslate.is_full_admission());
+    /// assert!(!AdmissionOp::Discovery.is_full_admission());
+    /// assert!(!AdmissionOp::TenantSwitch.is_full_admission());
+    /// assert!(!AdmissionOp::ExemplarSeeded.is_full_admission());
+    /// assert!(!AdmissionOp::Bypass.is_full_admission());
+    ///
+    /// // Admin recovery tools are audit-only to avoid deadlocking bootstrap_unlock.
+    /// assert!(!AdmissionOp::BootstrapUnlock.is_full_admission());
+    /// assert!(!AdmissionOp::ReceiptsBatchRevoke.is_full_admission());
+    /// assert!(!AdmissionOp::SessionRevoke.is_full_admission());
+    ///
+    /// // R7 WD-3: proposals are audit-only; only AlignApplied mutates the graph.
+    /// assert!(!AdmissionOp::AlignProposed.is_full_admission());
+    /// assert!(!AdmissionOp::OntostarAttest.is_full_admission());
+    /// ```
     pub fn is_full_admission(&self) -> bool {
         !matches!(
             self,
@@ -363,6 +417,35 @@ pub struct ArtifactRef<'a> {
 }
 
 impl<'a> ArtifactRef<'a> {
+    /// Compute the BLAKE3 hash of the artifact bytes.
+    ///
+    /// The returned `[u8; 32]` is written into the `ProductionRecord` and
+    /// chained through the receipt. Two `ArtifactRef`s with identical `bytes`
+    /// must produce identical hashes regardless of the `kind` field — `kind`
+    /// is a human-readable label, not part of the hash preimage.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use open_ontologies::admission::ArtifactRef;
+    ///
+    /// let artifact = ArtifactRef { kind: "turtle", bytes: b"@prefix owl: <...> ." };
+    ///
+    /// // Hash is deterministic: same bytes always produce the same 32-byte digest.
+    /// let h1 = artifact.hash();
+    /// let h2 = artifact.hash();
+    /// assert_eq!(h1, h2);
+    /// assert_eq!(h1.len(), 32);
+    ///
+    /// // Different bytes produce a different digest.
+    /// let other = ArtifactRef { kind: "turtle", bytes: b"different content" };
+    /// assert_ne!(h1, other.hash());
+    ///
+    /// // Empty bytes still produce a valid 32-byte digest (BLAKE3 is defined on
+    /// // any input length including zero).
+    /// let empty = ArtifactRef { kind: "empty", bytes: b"" };
+    /// assert_eq!(empty.hash().len(), 32);
+    /// ```
     pub fn hash(&self) -> [u8; 32] {
         *blake3::hash(self.bytes).as_bytes()
     }
@@ -400,12 +483,58 @@ pub struct ConformanceResult {
 /// admission unit tests (`tests/admission.rs`) need a deterministic
 /// pass-through to exercise the gate's other defect classes in isolation
 /// from the wasm4pm parser. Production code uses [`PowlBridgeReplay`].
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::admission::{NoopPowlReplay, PowlReplay};
+///
+/// let replay = NoopPowlReplay;
+/// let result = replay.replay("scope-abc", "SEQ(A,B,C)", "default");
+///
+/// // Stub always reports perfect fitness and precision — these are
+/// // placeholders, not real conformance evidence.
+/// assert_eq!(result.fitness, 1.0);
+/// assert_eq!(result.precision, 1.0);
+/// assert_eq!(result.verdict, "conform");
+///
+/// // is_stub = true signals to downstream auditors that this run must not
+/// // be treated as production conformance evidence.
+/// assert!(result.is_stub);
+///
+/// // run_id encodes the scope_token so concurrent scopes get disjoint keys.
+/// assert!(result.run_id.contains("scope-abc"));
+/// ```
 pub struct NoopPowlReplay;
 
+/// Marker string placed in the codebase to locate every stream-2 stub site.
+///
+/// Grep for this constant before promoting a release to production — any
+/// remaining match indicates a stub that was not replaced with the real
+/// wasm4pm-backed bridge.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::admission::STREAM3_STUB_POWL_REPLAY_MARKER;
+///
+/// // The value is a recognisable TODO tag, not a semver.
+/// assert!(STREAM3_STUB_POWL_REPLAY_MARKER.starts_with("TODO"));
+/// assert!(STREAM3_STUB_POWL_REPLAY_MARKER.contains("NoopPowlReplay"));
+/// ```
 pub const STREAM3_STUB_POWL_REPLAY_MARKER: &str = "TODO(stream-2): replace NoopPowlReplay";
 
 /// OCEL event attribute key identifying the production law (governance schema)
 /// version attached to every admission audit record. Consolidated from 6 sites.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::admission::OCEL_KEY_PRODUCTION_LAW_VERSION;
+///
+/// // The key is stable; downstream OCEL consumers depend on it.
+/// assert_eq!(OCEL_KEY_PRODUCTION_LAW_VERSION, "production_law_version");
+/// ```
 pub const OCEL_KEY_PRODUCTION_LAW_VERSION: &str = "production_law_version";
 
 impl PowlReplay for NoopPowlReplay {
@@ -514,6 +643,56 @@ pub struct OntoStarAdmissionGate {
 
 impl OntoStarAdmissionGate {
     /// Construct a gate and compute its config hash from inputs.
+    ///
+    /// The `gate_config_hash` field is a BLAKE3 digest of `f_min`, `p_min`,
+    /// `required_stages`, and `taxonomy_version` in that order. Its purpose is
+    /// to make the gate's configuration tamper-evident: if any threshold or
+    /// required stage changes between two runs, the config hash changes, which
+    /// is recorded in the `ProductionRecord` and therefore in the receipt chain.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use open_ontologies::admission::OntoStarAdmissionGate;
+    ///
+    /// let gate = OntoStarAdmissionGate::new(
+    ///     0.8,                                     // minimum fitness
+    ///     0.7,                                     // minimum precision
+    ///     vec!["seed".into(), "breed".into()],     // required OCEL stages
+    ///     "ontostar-1.0.0",                        // taxonomy version
+    /// );
+    ///
+    /// assert_eq!(gate.f_min, 0.8);
+    /// assert_eq!(gate.p_min, 0.7);
+    /// assert_eq!(gate.required_stages, vec!["seed", "breed"]);
+    /// assert_eq!(gate.taxonomy_version, "ontostar-1.0.0");
+    ///
+    /// // gate_config_hash is 32 bytes and non-zero for any non-trivial config.
+    /// assert_eq!(gate.gate_config_hash.len(), 32);
+    /// assert_ne!(gate.gate_config_hash, [0u8; 32]);
+    ///
+    /// // Two gates with identical parameters produce identical config hashes.
+    /// let gate2 = OntoStarAdmissionGate::new(
+    ///     0.8,
+    ///     0.7,
+    ///     vec!["seed".into(), "breed".into()],
+    ///     "ontostar-1.0.0",
+    /// );
+    /// assert_eq!(gate.gate_config_hash, gate2.gate_config_hash);
+    ///
+    /// // Changing f_min produces a different config hash.
+    /// let gate3 = OntoStarAdmissionGate::new(
+    ///     0.9,
+    ///     0.7,
+    ///     vec!["seed".into(), "breed".into()],
+    ///     "ontostar-1.0.0",
+    /// );
+    /// assert_ne!(gate.gate_config_hash, gate3.gate_config_hash);
+    ///
+    /// // No signer or trusted_keys attached by default — those are opt-in.
+    /// assert!(gate.signer.is_none());
+    /// assert!(gate.trusted_keys.is_none());
+    /// ```
     pub fn new(
         f_min: f64,
         p_min: f64,
@@ -571,6 +750,31 @@ impl OntoStarAdmissionGate {
 
     /// Set the `require_attestation` flag. When `true`, admission refuses
     /// to run unless a signer is configured.
+    ///
+    /// This is a builder method — it consumes `self` and returns a new
+    /// `OntoStarAdmissionGate` with the flag updated. Chain with other
+    /// builder methods before storing the gate.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use open_ontologies::admission::OntoStarAdmissionGate;
+    ///
+    /// // Default: require_attestation = false (signer is optional).
+    /// let gate = OntoStarAdmissionGate::new(0.8, 0.7, vec![], "v1");
+    /// assert!(!gate.require_attestation);
+    ///
+    /// // After calling the builder, the flag is updated.
+    /// let strict = gate.require_attestation(true);
+    /// assert!(strict.require_attestation);
+    ///
+    /// // Builder is composable.
+    /// let composed = OntoStarAdmissionGate::new(0.8, 0.7, vec![], "v1")
+    ///     .require_attestation(true)
+    ///     .verify_legacy_receipts(false);
+    /// assert!(composed.require_attestation);
+    /// assert!(!composed.verify_legacy_receipts);
+    /// ```
     pub fn require_attestation(mut self, v: bool) -> Self {
         self.require_attestation = v;
         self
@@ -578,6 +782,20 @@ impl OntoStarAdmissionGate {
 
     /// Set the `verify_legacy_receipts` flag. When `true`, A10 admits
     /// receipts that lack a signature.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use open_ontologies::admission::OntoStarAdmissionGate;
+    ///
+    /// // Default: verify_legacy_receipts = true (unsigned receipts are admitted).
+    /// let gate = OntoStarAdmissionGate::new(0.8, 0.7, vec![], "v1");
+    /// assert!(gate.verify_legacy_receipts);
+    ///
+    /// // Strict mode: unsigned receipts fail A10 with AttestationMissing.
+    /// let strict = gate.verify_legacy_receipts(false);
+    /// assert!(!strict.verify_legacy_receipts);
+    /// ```
     pub fn verify_legacy_receipts(mut self, v: bool) -> Self {
         self.verify_legacy_receipts = v;
         self
