@@ -495,6 +495,16 @@ pub const ENGINE_GROQ_PM4PY: &str = "groq_pm4py";
 /// Override via the `--model` flag or a future config key.
 pub const GEMINI_DEFAULT_MODEL: &str = "gemini-3.1-flash-lite-preview";
 
+/// LLM engine identifier: in-process `GroqTranslator` (HTTP via reqwest).
+/// Appears in OCEL `"engine"` attribute positions and engine-dispatch
+/// branches. Extracted from 7 sites in server.rs.
+pub const ENGINE_INPROC: &str = "inproc";
+
+/// LLM engine identifier: shell out to `scripts/*.py` (dspy / pm4py path).
+/// Appears in OCEL `"engine"` attribute positions and engine-dispatch
+/// branches. Extracted from 14 sites in server.rs.
+pub const ENGINE_GROQ_PM4PY: &str = "groq_pm4py";
+
 /// Resolve the default LLM engine for unparametrised tool calls.
 ///
 /// Precedence:

@@ -12,10 +12,7 @@ use rmcp::{
     service::RequestContext,
 };
 use crate::config::{expand_tilde, ENGINE_INPROC, ENGINE_GROQ_PM4PY};
-use crate::admission::{
-    OCEL_KEY_SCOPE_TOKEN, OCEL_KEY_RECEIPT_HASH, OCEL_KEY_DEFECTS_TAXONOMY_VERSION,
-    OCEL_KEY_FITNESS, OCEL_KEY_PRECISION, OCEL_KEY_POWL_STUB,
-};
+use crate::admission::{OCEL_KEY_PRODUCTION_LAW_VERSION, OCEL_KEY_RECEIPT_HASH, OCEL_KEY_DEFECTS_TAXONOMY_VERSION};
 use crate::graph::GraphStore;
 use crate::inputs::*;
 use crate::state::StateDb;
@@ -28,9 +25,10 @@ use crate::state::StateDb;
 // Engine-name constants (`inproc`, `groq_pm4py`) live in `config.rs` because
 // that is where `VALID_LLM_ENGINES` is already defined.
 
-/// OCEL event attribute key for the LLM-invoked flag set after every
-/// translate_candidate / manufacture_solution call. 8 occurrences in server.rs.
-pub(crate) const OCEL_KEY_LLM_INVOKED: &str = "llm_invoked";
+/// OCEL event type name emitted after every translate_candidate /
+/// manufacture_solution / executive_projection LLM call. Consolidates 8
+/// occurrences in server.rs — a typo here causes silent event-log gaps.
+pub(crate) const OCEL_EVENT_LLM_INVOKED: &str = "llm_invoked";
 
 /// OCEL event attribute key for the measured LLM call latency in milliseconds.
 /// 6 occurrences in server.rs.
@@ -39,10 +37,6 @@ pub(crate) const OCEL_KEY_LATENCY_MS: &str = "latency_ms";
 /// OCEL event attribute key indicating the admission result is provisional
 /// (Stream-2 stub path; not backed by real POWL replay). 6 occurrences.
 pub(crate) const OCEL_KEY_PROVISIONAL: &str = "provisional";
-
-/// OCEL event attribute key for the triple count returned by load / import
-/// operations. 12 occurrences in server.rs.
-pub(crate) const OCEL_KEY_TRIPLES_LOADED: &str = "triples_loaded";
 
 /// OCEL event attribute key for the number of swarm refinement cycles run
 /// during manufacture_solution / executive_projection. 12 occurrences.
@@ -2053,9 +2047,9 @@ impl OpenOntologiesServer {
             let mut parsed: serde_json::Value =
                 serde_json::from_str(&raw).unwrap_or_else(|_| serde_json::json!({}));
             if let (Some(obj), Some(r)) = (parsed.as_object_mut(), &receipt) {
-                obj.insert("receipt_hash".into(), r.hex().into());
+                obj.insert(OCEL_KEY_RECEIPT_HASH.into(), r.hex().into());
                 obj.insert(
-                    "production_law_version".into(),
+                    OCEL_KEY_PRODUCTION_LAW_VERSION.into(),
                     r.record.production_law_version.clone().into(),
                 );
             }
@@ -2170,9 +2164,9 @@ impl OpenOntologiesServer {
                 });
                 if let Some(r) = &receipt
                     && let Some(obj) = out.as_object_mut() {
-                        obj.insert("receipt_hash".into(), r.hex().into());
+                        obj.insert(OCEL_KEY_RECEIPT_HASH.into(), r.hex().into());
                         obj.insert(
-                            "production_law_version".into(),
+                            OCEL_KEY_PRODUCTION_LAW_VERSION.into(),
                             r.record.production_law_version.clone().into(),
                         );
                     }
@@ -2451,13 +2445,13 @@ impl OpenOntologiesServer {
                 let mut parsed: serde_json::Value =
                     serde_json::from_str(&result).unwrap_or_else(|_| serde_json::json!({}));
                 if let Some(obj) = parsed.as_object_mut() {
-                    obj.insert("receipt_hash".into(), receipt.hex().into());
+                    obj.insert(OCEL_KEY_RECEIPT_HASH.into(), receipt.hex().into());
                     obj.insert(
-                        "production_law_version".into(),
+                        OCEL_KEY_PRODUCTION_LAW_VERSION.into(),
                         receipt.record.production_law_version.clone().into(),
                     );
                     obj.insert(
-                        "defects_taxonomy_version".into(),
+                        OCEL_KEY_DEFECTS_TAXONOMY_VERSION.into(),
                         receipt.record.defects_taxonomy_version.clone().into(),
                     );
                 }
@@ -3053,9 +3047,9 @@ impl OpenOntologiesServer {
                 });
                 if let Some(r) = &receipt
                     && let Some(obj) = out.as_object_mut() {
-                        obj.insert("receipt_hash".into(), r.hex().into());
+                        obj.insert(OCEL_KEY_RECEIPT_HASH.into(), r.hex().into());
                         obj.insert(
-                            "production_law_version".into(),
+                            OCEL_KEY_PRODUCTION_LAW_VERSION.into(),
                             r.record.production_law_version.clone().into(),
                         );
                     }
@@ -3262,9 +3256,9 @@ impl OpenOntologiesServer {
                     let mut parsed: serde_json::Value =
                         serde_json::from_str(&result).unwrap_or_else(|_| serde_json::json!({}));
                     if let Some(obj) = parsed.as_object_mut() {
-                        obj.insert("receipt_hash".into(), r.hex().into());
+                        obj.insert(OCEL_KEY_RECEIPT_HASH.into(), r.hex().into());
                         obj.insert(
-                            "production_law_version".into(),
+                            OCEL_KEY_PRODUCTION_LAW_VERSION.into(),
                             r.record.production_law_version.clone().into(),
                         );
                     }
@@ -3886,7 +3880,7 @@ impl OpenOntologiesServer {
                             ("language", language),
                             ("output_dir", output_dir),
                             ("receipt_files_stamped", stamped_str.as_str()),
-                            ("receipt_hash", &receipt.hex()),
+                            (OCEL_KEY_RECEIPT_HASH, &receipt.hex()),
                         ],
                         &[(&obj_id, "generated_from")],
                         None,
@@ -4421,7 +4415,7 @@ impl OpenOntologiesServer {
                 .and_then(|v| v.as_bool())
                 .unwrap_or(false);
             let refinements = result
-                .get("refinements")
+                .get(OCEL_KEY_REFINEMENTS)
                 .cloned()
                 .unwrap_or(serde_json::Value::Null);
 
@@ -4874,7 +4868,7 @@ impl OpenOntologiesServer {
         // matches scripts/ctq_from_voice.py's contract.
         let header_engine = current_llm_engine_override();
         let engine = self.resolve_engine(input.engine.as_deref(), header_engine.as_deref());
-        if engine == "groq_pm4py" {
+        if engine == ENGINE_GROQ_PM4PY {
             let script = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
                 .join("scripts/ctq_from_voice.py");
             let python = input
@@ -4888,7 +4882,7 @@ impl OpenOntologiesServer {
 
             let sub_started = std::time::Instant::now();
             let script_str = script.to_string_lossy().into_owned();
-            let out = match self.run_subprocess_with_timeout(&mut cmd, "groq_pm4py", &script_str) {
+            let out = match self.run_subprocess_with_timeout(&mut cmd, ENGINE_GROQ_PM4PY, &script_str) {
                 Ok(timed) => timed.output,
                 Err(crate::subprocess::SubprocessError::LlmTimeout { elapsed_ms, limit_ms, .. }) => {
                     self.emit_tool_ocel("onto_translate_candidate", started, false, &[]);
@@ -4952,7 +4946,7 @@ impl OpenOntologiesServer {
             // lifting the data into a `CandidateCtq`, so the audit
             // trail records the claim independently.
             let llm_claimed_authority_pm4py = result
-                .get("provisional")
+                .get(OCEL_KEY_PROVISIONAL)
                 .and_then(|v| v.as_bool())
                 .map(|b| !b)
                 .unwrap_or(false)
@@ -4969,7 +4963,7 @@ impl OpenOntologiesServer {
                     &now_pre,
                     &self.session_id,
                     &[
-                        ("engine", "groq_pm4py"),
+                        ("engine", ENGINE_GROQ_PM4PY),
                         ("defect_class", "llm_authority_claimed"),
                         ("provisional_forced_to", "true"),
                     ],
@@ -4988,7 +4982,7 @@ impl OpenOntologiesServer {
                 provisional: true,
             };
             let verdict = result.get("verdict").and_then(|v| v.as_bool()).unwrap_or(false);
-            let refinements = result.get("refinements").and_then(|v| v.as_u64()).unwrap_or(0);
+            let refinements = result.get(OCEL_KEY_REFINEMENTS).and_then(|v| v.as_u64()).unwrap_or(0);
 
             let candidate_json = serde_json::to_string(&candidate).unwrap_or_else(|_| "{}".into());
             let candidate_id_hex = blake3::hash(candidate_json.as_bytes()).to_hex().to_string();
@@ -5005,8 +4999,8 @@ impl OpenOntologiesServer {
                 &[
                     ("candidate_ctq_id", &candidate_id_hex[..16]),
                     ("model", &model),
-                    ("provisional", "true"),
-                    ("engine", "groq_pm4py"),
+                    (OCEL_KEY_PROVISIONAL, "true"),
+                    ("engine", ENGINE_GROQ_PM4PY),
                 ],
                 &[],
                 Some(&input.scope_token),
@@ -5015,14 +5009,14 @@ impl OpenOntologiesServer {
             let refinements_str = refinements.to_string();
             let _ = self.ocel_store().emit_event(
                 &format!("{}:llm_invoked:{}", self.session_id, ts_ms),
-                "llm_invoked",
+                OCEL_EVENT_LLM_INVOKED,
                 &now,
                 &self.session_id,
                 &[
                     ("model", &model),
-                    ("latency_ms", &latency_str),
-                    ("refinements", &refinements_str),
-                    ("engine", "groq_pm4py"),
+                    (OCEL_KEY_LATENCY_MS, &latency_str),
+                    (OCEL_KEY_REFINEMENTS, &refinements_str),
+                    ("engine", ENGINE_GROQ_PM4PY),
                 ],
                 &[],
                 Some(&input.scope_token),
@@ -5030,7 +5024,7 @@ impl OpenOntologiesServer {
             self.lineage().record(
                 &self.session_id,
                 "LM",
-                "llm_invoked",
+                OCEL_EVENT_LLM_INVOKED,
                 &format!(
                     "engine=groq_pm4py model={} latency_ms={} refinements={} verdict={}",
                     model, latency_ms, refinements, verdict
@@ -5050,7 +5044,7 @@ impl OpenOntologiesServer {
                 // of an LLM proposal, not authority. Admission flows
                 // through `onto_admit_ctq`.
                 "_projection_only": true,
-                "engine": "groq_pm4py",
+                "engine": ENGINE_GROQ_PM4PY,
                 "candidate_ctq_id": &candidate_id_hex[..16],
                 "candidate": candidate,
                 "ctq_text": ctq_text_top,
@@ -5357,7 +5351,7 @@ impl OpenOntologiesServer {
                 &now_pre,
                 &self.session_id,
                 &[
-                    ("engine", "inproc"),
+                    ("engine", ENGINE_INPROC),
                     ("defect_class", "llm_authority_claimed"),
                     ("provisional_forced_to", "true"),
                 ],
@@ -5397,8 +5391,8 @@ impl OpenOntologiesServer {
             &[
                 ("candidate_ctq_id", &candidate_id_hex[..16]),
                 ("model", translator.model()),
-                ("provisional", "true"),
-                ("engine", "inproc"),
+                (OCEL_KEY_PROVISIONAL, "true"),
+                ("engine", ENGINE_INPROC),
             ],
             &[],
             Some(&input.scope_token),
@@ -5406,14 +5400,14 @@ impl OpenOntologiesServer {
         let latency_str = inproc_latency_ms.to_string();
         let _ = self.ocel_store().emit_event(
             &format!("{}:llm_invoked:{}", self.session_id, ts_ms),
-            "llm_invoked",
+            OCEL_EVENT_LLM_INVOKED,
             &now,
             &self.session_id,
             &[
                 ("model", translator.model()),
-                ("latency_ms", &latency_str),
-                ("refinements", "0"),
-                ("engine", "inproc"),
+                (OCEL_KEY_LATENCY_MS, &latency_str),
+                (OCEL_KEY_REFINEMENTS, "0"),
+                ("engine", ENGINE_INPROC),
             ],
             &[],
             Some(&input.scope_token),
@@ -5421,7 +5415,7 @@ impl OpenOntologiesServer {
         self.lineage().record(
             &self.session_id,
             "LM",
-            "llm_invoked",
+            OCEL_EVENT_LLM_INVOKED,
             &format!(
                 "engine=inproc model={} latency_ms={}",
                 translator.model(),
@@ -5442,7 +5436,7 @@ impl OpenOntologiesServer {
             // an LLM proposal, not authority. Admission flows through
             // `onto_admit_ctq`.
             "_projection_only": true,
-            "engine": "inproc",
+            "engine": ENGINE_INPROC,
             "candidate_ctq_id": &candidate_id_hex[..16],
             "candidate": candidate,
             "llm_claimed_authority": parsed.llm_claimed_authority,
@@ -5894,7 +5888,7 @@ impl OpenOntologiesServer {
         // ── Alternative engine: real-Groq subprocess ─────────────────────
         let header_engine = current_llm_engine_override();
         let engine = self.resolve_engine(input.engine.as_deref(), header_engine.as_deref());
-        if engine == "groq_pm4py" {
+        if engine == ENGINE_GROQ_PM4PY {
             let script = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
                 .join("scripts/executive_projection.py");
             let python = input.python.clone().unwrap_or_else(|| "python3".to_string());
@@ -5902,7 +5896,7 @@ impl OpenOntologiesServer {
             cmd.arg(&script).arg(evidence);
             let sub_started = std::time::Instant::now();
             let script_str = script.to_string_lossy().into_owned();
-            let out = match self.run_subprocess_with_timeout(&mut cmd, "groq_pm4py", &script_str) {
+            let out = match self.run_subprocess_with_timeout(&mut cmd, ENGINE_GROQ_PM4PY, &script_str) {
                 Ok(timed) => timed.output,
                 Err(crate::subprocess::SubprocessError::LlmTimeout { elapsed_ms, limit_ms, .. }) => {
                     self.emit_tool_ocel("onto_executive_projection", started, false, &[]);
@@ -5955,7 +5949,7 @@ impl OpenOntologiesServer {
             let latency_ms = sub_started.elapsed().as_millis() as u64;
             let summary_str = result.get("summary").and_then(|v| v.as_str()).unwrap_or("").to_string();
             let verdict = result.get("verdict").and_then(|v| v.as_bool()).unwrap_or(false);
-            let refinements = result.get("refinements").and_then(|v| v.as_u64()).unwrap_or(0);
+            let refinements = result.get(OCEL_KEY_REFINEMENTS).and_then(|v| v.as_u64()).unwrap_or(0);
             let invented = result.get("tokens_invented").cloned().unwrap_or(serde_json::Value::Array(vec![]));
             let model = std::env::var("POWL_MODEL")
                 .unwrap_or_else(|_| "groq/openai/gpt-oss-20b".to_string());
@@ -5966,14 +5960,14 @@ impl OpenOntologiesServer {
             let refinements_str = refinements.to_string();
             let _ = self.ocel_store().emit_event(
                 &format!("{}:llm_invoked:{}", self.session_id, ts_ms),
-                "llm_invoked",
+                OCEL_EVENT_LLM_INVOKED,
                 &now,
                 &self.session_id,
                 &[
                     ("model", &model),
-                    ("latency_ms", &latency_str),
-                    ("refinements", &refinements_str),
-                    ("engine", "groq_pm4py"),
+                    (OCEL_KEY_LATENCY_MS, &latency_str),
+                    (OCEL_KEY_REFINEMENTS, &refinements_str),
+                    ("engine", ENGINE_GROQ_PM4PY),
                 ],
                 &[],
                 Some(&input.scope_token),
@@ -5981,7 +5975,7 @@ impl OpenOntologiesServer {
             self.lineage().record(
                 &self.session_id,
                 "LM",
-                "llm_invoked",
+                OCEL_EVENT_LLM_INVOKED,
                 &format!(
                     "engine=groq_pm4py op=executive_projection model={} latency_ms={} refinements={} verdict={}",
                     model, latency_ms, refinements, verdict
@@ -5991,7 +5985,7 @@ impl OpenOntologiesServer {
                 self.emit_tool_ocel("onto_executive_projection", started, false, &[]);
                 return serde_json::json!({
                     "ok": false,
-                    "engine": "groq_pm4py",
+                    "engine": ENGINE_GROQ_PM4PY,
                     "defect": { "kind": "FalsePass" },
                     "reason": "executive projection introduced tokens not present in admitted evidence",
                     "invented_tokens": invented,
@@ -6002,7 +5996,7 @@ impl OpenOntologiesServer {
             self.emit_tool_ocel("onto_executive_projection", started, true, &[]);
             return serde_json::json!({
                 "ok": true,
-                "engine": "groq_pm4py",
+                "engine": ENGINE_GROQ_PM4PY,
                 "scope_token": input.scope_token,
                 "summary": summary_str,
                 "refinements": refinements,
@@ -6225,14 +6219,14 @@ impl OpenOntologiesServer {
         let latency_str = inproc_latency_ms.to_string();
         let _ = self.ocel_store().emit_event(
             &format!("{}:llm_invoked:{}", self.session_id, ts_ms),
-            "llm_invoked",
+            OCEL_EVENT_LLM_INVOKED,
             &now,
             &self.session_id,
             &[
                 ("model", translator.model()),
-                ("latency_ms", &latency_str),
-                ("refinements", "0"),
-                ("engine", "inproc"),
+                (OCEL_KEY_LATENCY_MS, &latency_str),
+                (OCEL_KEY_REFINEMENTS, "0"),
+                ("engine", ENGINE_INPROC),
             ],
             &[],
             Some(&input.scope_token),
@@ -6240,7 +6234,7 @@ impl OpenOntologiesServer {
         self.lineage().record(
             &self.session_id,
             "LM",
-            "llm_invoked",
+            OCEL_EVENT_LLM_INVOKED,
             &format!(
                 "engine=inproc op=executive_projection model={} latency_ms={}",
                 translator.model(),
@@ -6249,7 +6243,7 @@ impl OpenOntologiesServer {
         );
         let out = serde_json::json!({
             "ok": true,
-            "engine": "inproc",
+            "engine": ENGINE_INPROC,
             "scope_token": input.scope_token,
             "summary": {
                 "ctq_text": candidate.ctq_text,
@@ -6273,7 +6267,7 @@ impl OpenOntologiesServer {
         // so callers can decide whether to switch the engine).
         let header_engine = current_llm_engine_override();
         let engine = self.resolve_engine(None, header_engine.as_deref());
-        if engine != "groq_pm4py" {
+        if engine != ENGINE_GROQ_PM4PY {
             self.emit_tool_ocel("onto_groq_status", started, true, &[]);
             let key_present =
                 crate::config::resolve_llm_api_key(&crate::config::LlmConfig::default()).is_some();
