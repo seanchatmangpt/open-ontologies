@@ -17,6 +17,54 @@ use std::collections::HashSet;
 
 use rmcp::handler::server::tool::ToolRouter;
 
+/// Tool name constant: server health and active ontology status.
+///
+/// ```
+/// use open_ontologies::toolfilter::TOOL_ONTO_STATUS;
+/// assert_eq!(TOOL_ONTO_STATUS, "onto_status");
+/// ```
+pub const TOOL_ONTO_STATUS: &str = "onto_status";
+
+/// Tool name constant: SPARQL query execution.
+///
+/// ```
+/// use open_ontologies::toolfilter::TOOL_ONTO_QUERY;
+/// assert_eq!(TOOL_ONTO_QUERY, "onto_query");
+/// ```
+pub const TOOL_ONTO_QUERY: &str = "onto_query";
+
+/// Tool name constant: clear/reset the in-memory triple store.
+///
+/// ```
+/// use open_ontologies::toolfilter::TOOL_ONTO_CLEAR;
+/// assert_eq!(TOOL_ONTO_CLEAR, "onto_clear");
+/// ```
+pub const TOOL_ONTO_CLEAR: &str = "onto_clear";
+
+/// Tool name constant: load a TTL/RDF file into the triple store.
+///
+/// ```
+/// use open_ontologies::toolfilter::TOOL_ONTO_LOAD;
+/// assert_eq!(TOOL_ONTO_LOAD, "onto_load");
+/// ```
+pub const TOOL_ONTO_LOAD: &str = "onto_load";
+
+/// Tool name constant: apply proposed ontology changes.
+///
+/// ```
+/// use open_ontologies::toolfilter::TOOL_ONTO_APPLY;
+/// assert_eq!(TOOL_ONTO_APPLY, "onto_apply");
+/// ```
+pub const TOOL_ONTO_APPLY: &str = "onto_apply";
+
+/// Group name constant for the read-only inspection tool set.
+///
+/// ```
+/// use open_ontologies::toolfilter::GROUP_READ_ONLY;
+/// assert_eq!(GROUP_READ_ONLY, "read_only");
+/// ```
+pub const GROUP_READ_ONLY: &str = "read_only";
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum Mode {
@@ -194,17 +242,17 @@ impl ToolFilter {
 ///
 /// # Examples
 /// ```
-/// # use open_ontologies::toolfilter::expand_group;
-/// assert!(expand_group("read_only").contains(&"onto_status"));
+/// # use open_ontologies::toolfilter::{expand_group, GROUP_READ_ONLY, TOOL_ONTO_STATUS};
+/// assert!(expand_group(GROUP_READ_ONLY).contains(&TOOL_ONTO_STATUS));
 /// assert!(expand_group("does-not-exist").is_empty());
 /// ```
 pub fn expand_group(name: &str) -> &'static [&'static str] {
     match name {
         // Read-only inspection tools (safe to expose to untrusted callers).
         "read_only" | "read" => &[
-            "onto_status",
+            TOOL_ONTO_STATUS,
             "onto_validate",
-            "onto_query",
+            TOOL_ONTO_QUERY,
             "onto_stats",
             "onto_diff",
             "onto_lint",
@@ -220,8 +268,8 @@ pub fn expand_group(name: &str) -> &'static [&'static str] {
         ],
         // Tools that mutate the in-memory store but not external systems.
         "mutating" | "write" => &[
-            "onto_load",
-            "onto_clear",
+            TOOL_ONTO_LOAD,
+            TOOL_ONTO_CLEAR,
             "onto_save",
             "onto_convert",
             "onto_pull",
@@ -243,7 +291,7 @@ pub fn expand_group(name: &str) -> &'static [&'static str] {
         // Tools that change governance / lifecycle state.
         "governance" => &[
             "onto_plan",
-            "onto_apply",
+            TOOL_ONTO_APPLY,
             "onto_lock",
             "onto_drift",
             "onto_enforce",
@@ -282,10 +330,11 @@ pub fn expand_group(name: &str) -> &'static [&'static str] {
 ///
 /// # Examples
 /// ```
-/// # use open_ontologies::toolfilter::parse_csv;
-/// let (names, groups) = parse_csv("onto_status, onto_query, @read_only");
-/// assert_eq!(names,  vec!["onto_status", "onto_query"]);
-/// assert_eq!(groups, vec!["read_only"]);
+/// # use open_ontologies::toolfilter::{parse_csv, TOOL_ONTO_STATUS, TOOL_ONTO_QUERY, GROUP_READ_ONLY};
+/// let spec = format!("{}, {}, @{}", TOOL_ONTO_STATUS, TOOL_ONTO_QUERY, GROUP_READ_ONLY);
+/// let (names, groups) = parse_csv(&spec);
+/// assert_eq!(names,  vec![TOOL_ONTO_STATUS, TOOL_ONTO_QUERY]);
+/// assert_eq!(groups, vec![GROUP_READ_ONLY]);
 /// ```
 pub fn parse_csv(spec: &str) -> (Vec<String>, Vec<String>) {
     let mut names = Vec::new();

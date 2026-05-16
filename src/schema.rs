@@ -1,3 +1,27 @@
+/// XSD datatype URI for arbitrary text / fallback values.
+///
+/// ```
+/// use open_ontologies::schema::XSD_STRING;
+/// assert_eq!(XSD_STRING, "xsd:string");
+/// ```
+pub const XSD_STRING: &str = "xsd:string";
+
+/// XSD datatype URI for date-time values (timestamps).
+///
+/// ```
+/// use open_ontologies::schema::XSD_DATETIME;
+/// assert_eq!(XSD_DATETIME, "xsd:dateTime");
+/// ```
+pub const XSD_DATETIME: &str = "xsd:dateTime";
+
+/// XSD datatype URI for integer values.
+///
+/// ```
+/// use open_ontologies::schema::XSD_INTEGER;
+/// assert_eq!(XSD_INTEGER, "xsd:integer");
+/// ```
+pub const XSD_INTEGER: &str = "xsd:integer";
+
 /// Database schema introspection and OWL generation.
 ///
 /// # Examples
@@ -161,17 +185,17 @@ impl SchemaIntrospector {
         match base.as_str() {
             "integer" | "int" | "bigint" | "smallint" | "tinyint" | "hugeint"
             | "int4" | "int8" | "int2" | "int1" | "serial" | "bigserial"
-            | "smallserial" | "ubigint" | "uinteger" | "usmallint" | "utinyint" => "xsd:integer",
+            | "smallserial" | "ubigint" | "uinteger" | "usmallint" | "utinyint" => XSD_INTEGER,
             "numeric" | "decimal" | "real" | "double precision" | "double"
             | "float" | "float4" | "float8" => "xsd:decimal",
             "boolean" | "bool" => "xsd:boolean",
             "date" => "xsd:date",
             "timestamp" | "timestamptz" | "timestamp without time zone"
-            | "timestamp with time zone" | "datetime" => "xsd:dateTime",
+            | "timestamp with time zone" | "datetime" => XSD_DATETIME,
             "time" | "time without time zone" | "time with time zone" => "xsd:time",
             "bytea" | "blob" => "xsd:hexBinary",
-            "uuid" => "xsd:string",
-            _ => "xsd:string",
+            "uuid" => XSD_STRING,
+            _ => XSD_STRING,
         }
     }
 
