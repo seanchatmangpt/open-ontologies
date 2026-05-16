@@ -201,6 +201,30 @@ impl RetentionWorker {
         Ok((attrs, rels, events))
     }
 
+    /// Delete `lineage_events` rows whose `timestamp` is older than `days`.
+    ///
+    /// Returns the number of rows actually removed. A freshly-created
+    /// in-memory database has no lineage rows, so the count is always zero.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use open_ontologies::state::StateDb;
+    /// use open_ontologies::retention::RetentionWorker;
+    /// use open_ontologies::config::RetentionConfig;
+    /// use std::path::Path;
+    ///
+    /// let db = StateDb::open(Path::new(":memory:")).unwrap();
+    /// let worker = RetentionWorker::new(db, RetentionConfig::default());
+    ///
+    /// // Empty DB — nothing to prune regardless of the age window.
+    /// let pruned = worker.prune_lineage(30).unwrap();
+    /// assert_eq!(pruned, 0);
+    ///
+    /// // days=0 means "prune everything up to now"; still zero rows present.
+    /// let pruned_all = worker.prune_lineage(0).unwrap();
+    /// assert_eq!(pruned_all, 0);
+    /// ```
     pub fn prune_lineage(&self, days: u64) -> Result<u64> {
         let cutoff = days_ago(days);
         let n = self.db.conn().execute(
@@ -219,6 +243,27 @@ impl RetentionWorker {
         Ok(n)
     }
 
+    /// Delete `revoked_sessions` rows whose `revoked_at` timestamp is older
+    /// than `days`. The `days` grace period lets auditors inspect recently
+    /// revoked sessions before they are retired.
+    ///
+    /// Returns the number of rows actually removed.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use open_ontologies::state::StateDb;
+    /// use open_ontologies::retention::RetentionWorker;
+    /// use open_ontologies::config::RetentionConfig;
+    /// use std::path::Path;
+    ///
+    /// let db = StateDb::open(Path::new(":memory:")).unwrap();
+    /// let worker = RetentionWorker::new(db, RetentionConfig::default());
+    ///
+    /// // No revoked sessions in a fresh DB — zero rows pruned.
+    /// let pruned = worker.prune_revoked(30).unwrap();
+    /// assert_eq!(pruned, 0);
+    /// ```
     pub fn prune_revoked(&self, days: u64) -> Result<u64> {
         let cutoff = days_ago(days);
         let n = self.db.conn().execute(
@@ -278,6 +323,27 @@ impl RetentionWorker {
     /// older than the configured `feedback_days` window as orphaned if
     /// no class with that IRI is in `ontology_cache`. This is a coarse
     /// signal but it fixes the unbounded-growth case.
+    ///
+    /// Unlike the `days`-based pruners this function takes no age argument;
+    /// policy is resolved from [`RetentionConfig`] internally. The current
+    /// implementation is a defined no-op placeholder — returns `0` until a
+    /// cross-table orphan join is wired in a future release.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use open_ontologies::state::StateDb;
+    /// use open_ontologies::retention::RetentionWorker;
+    /// use open_ontologies::config::RetentionConfig;
+    /// use std::path::Path;
+    ///
+    /// let db = StateDb::open(Path::new(":memory:")).unwrap();
+    /// let worker = RetentionWorker::new(db, RetentionConfig::default());
+    ///
+    /// // Placeholder implementation always reports zero orphans pruned.
+    /// let pruned = worker.prune_embeddings_orphans().unwrap();
+    /// assert_eq!(pruned, 0);
+    /// ```
     pub fn prune_embeddings_orphans(&self) -> Result<u64> {
         // Without an authoritative "is-this-IRI-loaded" join we keep this
         // as a no-op when no policy is set. A more aggressive policy can
