@@ -79,6 +79,27 @@ impl Interner {
 /// assert_eq!(v["initial_triples"], 0);
 /// assert_eq!(v["dry_run"], true);
 /// ```
+///
+/// All three profiles produce consistent JSON output. On an empty graph,
+/// `initial_triples` and `final_triples` are both 0 regardless of profile.
+///
+/// ```
+/// use std::sync::Arc;
+/// use open_ontologies::graph::GraphStore;
+/// use open_ontologies::reason::Reasoner;
+///
+/// let graph = Arc::new(GraphStore::new());
+///
+/// for profile in &["rdfs", "owl-rl", "owl-rl-ext"] {
+///     let json = Reasoner::run(&graph, profile, false).unwrap();
+///     let v: serde_json::Value = serde_json::from_str(&json).unwrap();
+///     // initial and final triple counts must be equal on an empty graph
+///     assert_eq!(v["initial_triples"], v["final_triples"],
+///         "{profile}: initial_triples must equal final_triples on empty graph");
+///     assert_eq!(v["inferred_count"], 0,
+///         "{profile}: empty graph must infer 0 new triples");
+/// }
+/// ```
 pub struct Reasoner;
 
 impl Reasoner {
@@ -137,6 +158,43 @@ impl Reasoner {
     /// // Unknown profile returns Err (the valid profiles are rdfs, owl-rl, owl-rl-ext, owl-dl).
     /// let graph = Arc::new(GraphStore::new());
     /// assert!(Reasoner::run(&graph, "unknown-profile", false).is_err());
+    /// ```
+    ///
+    /// The extended OWL-RL profile processes someValuesFrom, allValuesFrom,
+    /// hasValue, intersectionOf, and unionOf axioms. On an empty graph it
+    /// behaves identically to the simpler profiles.
+    ///
+    /// ```
+    /// use std::sync::Arc;
+    /// use open_ontologies::graph::GraphStore;
+    /// use open_ontologies::reason::Reasoner;
+    ///
+    /// let graph = Arc::new(GraphStore::new());
+    /// let json = Reasoner::run(&graph, "owl-rl-ext", false).unwrap();
+    /// let v: serde_json::Value = serde_json::from_str(&json).unwrap();
+    /// assert_eq!(v["profile_used"], "owl-rl-ext");
+    /// assert_eq!(v["inferred_count"], 0);
+    /// assert_eq!(v["dry_run"], true);
+    /// // sample_inferences is always present and is an array
+    /// assert!(v["sample_inferences"].is_array());
+    /// ```
+    ///
+    /// The JSON result always includes `iterations` (fixpoint pass count) and
+    /// `sample_inferences` (up to 10 rdf:type inferences). On an empty graph,
+    /// fixpoint terminates in 1 pass.
+    ///
+    /// ```
+    /// use std::sync::Arc;
+    /// use open_ontologies::graph::GraphStore;
+    /// use open_ontologies::reason::Reasoner;
+    ///
+    /// let graph = Arc::new(GraphStore::new());
+    /// let json = Reasoner::run(&graph, "rdfs", false).unwrap();
+    /// let v: serde_json::Value = serde_json::from_str(&json).unwrap();
+    /// // Fixpoint terminates in exactly 1 pass on an empty graph.
+    /// assert_eq!(v["iterations"], 1);
+    /// // sample_inferences is present and empty (nothing to infer).
+    /// assert_eq!(v["sample_inferences"].as_array().unwrap().len(), 0);
     /// ```
     pub fn run(
         graph: &Arc<GraphStore>,

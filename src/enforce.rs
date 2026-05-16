@@ -53,6 +53,65 @@ impl Enforcer {
     /// assert_eq!(v["violations"].as_array().unwrap().len(), 0);
     /// assert_eq!(v["rule_pack"].as_str().unwrap(), "generic");
     /// ```
+    ///
+    /// All four built-in packs are recognized and return `rule_pack` matching the input.
+    /// An unknown pack name is also accepted — no built-in rules fire, so the result
+    /// has zero violations and compliance `1.0` (because total_rules == 0).
+    ///
+    /// ```
+    /// use std::sync::Arc;
+    /// use open_ontologies::enforce::Enforcer;
+    /// use open_ontologies::graph::GraphStore;
+    /// use open_ontologies::state::StateDb;
+    ///
+    /// let db = StateDb::open(std::path::Path::new(":memory:")).unwrap();
+    /// let graph = Arc::new(GraphStore::new());
+    /// let enforcer = Enforcer::new(db, graph);
+    ///
+    /// // All four built-in packs echo back the pack name in the JSON result.
+    /// for pack in &["generic", "boro", "value_partition", "hierarchy"] {
+    ///     let json = enforcer.enforce(pack).unwrap();
+    ///     let v: serde_json::Value = serde_json::from_str(&json).unwrap();
+    ///     assert_eq!(v["rule_pack"].as_str().unwrap(), *pack,
+    ///         "rule_pack field must match the requested pack");
+    ///     // Result always has a violations array and a compliance score.
+    ///     assert!(v["violations"].is_array());
+    ///     assert!(v["compliance"].as_f64().is_some());
+    /// }
+    ///
+    /// // An unknown pack name still returns valid JSON with zero violations.
+    /// let json = enforcer.enforce("unknown-pack").unwrap();
+    /// let v: serde_json::Value = serde_json::from_str(&json).unwrap();
+    /// assert_eq!(v["rule_pack"].as_str().unwrap(), "unknown-pack");
+    /// assert_eq!(v["violations"].as_array().unwrap().len(), 0);
+    /// // compliance is 1.0 when no rules run (total_rules == 0)
+    /// assert!((v["compliance"].as_f64().unwrap() - 1.0).abs() < f64::EPSILON);
+    /// ```
+    ///
+    /// Packs that check only structural content (generic, boro, value_partition)
+    /// produce zero violations on an empty graph since there are no classes or
+    /// properties to inspect.
+    ///
+    /// ```
+    /// use std::sync::Arc;
+    /// use open_ontologies::enforce::Enforcer;
+    /// use open_ontologies::graph::GraphStore;
+    /// use open_ontologies::state::StateDb;
+    ///
+    /// let db = StateDb::open(std::path::Path::new(":memory:")).unwrap();
+    /// let graph = Arc::new(GraphStore::new());
+    /// let enforcer = Enforcer::new(db, graph);
+    ///
+    /// // Structural packs: empty graph has nothing to violate.
+    /// for pack in &["generic", "boro", "value_partition"] {
+    ///     let json = enforcer.enforce(pack).unwrap();
+    ///     let v: serde_json::Value = serde_json::from_str(&json).unwrap();
+    ///     assert_eq!(v["violations"].as_array().unwrap().len(), 0,
+    ///         "{pack}: empty graph must have zero violations");
+    ///     assert!((v["compliance"].as_f64().unwrap() - 1.0).abs() < f64::EPSILON,
+    ///         "{pack}: empty graph must have compliance 1.0");
+    /// }
+    /// ```
     pub fn enforce(&self, rule_pack: &str) -> anyhow::Result<String> {
         self.enforce_with_feedback(rule_pack, None)
     }
@@ -197,6 +256,38 @@ impl Enforcer {
     /// let json = enforcer.enforce("custom").unwrap();
     /// let v: serde_json::Value = serde_json::from_str(&json).unwrap();
     /// assert_eq!(v["violations"].as_array().unwrap().len(), 0);
+    /// ```
+    ///
+    /// Multiple custom rules can be registered under the same pack name.
+    /// Only rules for the requested pack are evaluated.
+    ///
+    /// ```
+    /// use std::sync::Arc;
+    /// use open_ontologies::enforce::Enforcer;
+    /// use open_ontologies::graph::GraphStore;
+    /// use open_ontologies::state::StateDb;
+    ///
+    /// let db = StateDb::open(std::path::Path::new(":memory:")).unwrap();
+    /// let graph = Arc::new(GraphStore::new());
+    /// let enforcer = Enforcer::new(db, graph);
+    ///
+    /// // Register two rules under different packs.
+    /// enforcer.add_custom_rule("rule-a", "pack-alpha", "ASK { ?s ?p ?o }", "info", "alpha rule");
+    /// enforcer.add_custom_rule("rule-b", "pack-beta",  "ASK { ?s ?p ?o }", "error", "beta rule");
+    ///
+    /// // Running pack-alpha evaluates only rule-a; pack-beta is unaffected.
+    /// let json_a = enforcer.enforce("pack-alpha").unwrap();
+    /// let va: serde_json::Value = serde_json::from_str(&json_a).unwrap();
+    /// assert_eq!(va["rule_pack"].as_str().unwrap(), "pack-alpha");
+    ///
+    /// // Running pack-beta evaluates only rule-b.
+    /// let json_b = enforcer.enforce("pack-beta").unwrap();
+    /// let vb: serde_json::Value = serde_json::from_str(&json_b).unwrap();
+    /// assert_eq!(vb["rule_pack"].as_str().unwrap(), "pack-beta");
+    ///
+    /// // Both packs: empty graph → ASK returns false → 0 violations each.
+    /// assert_eq!(va["violations"].as_array().unwrap().len(), 0);
+    /// assert_eq!(vb["violations"].as_array().unwrap().len(), 0);
     /// ```
     pub fn add_custom_rule(&self, id: &str, rule_pack: &str, query: &str, severity: &str, message: &str) {
         let conn = self.db.conn();
