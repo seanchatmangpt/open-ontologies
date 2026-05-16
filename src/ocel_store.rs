@@ -105,6 +105,53 @@ pub const OCEL_ATTR_DOMAIN: &str = "domain";
 ///
 /// assert_eq!(OCEL_EVENT_LLM_INVOKED_FULL, "llm_invoked_full");
 /// ```
+///
+/// ## Auto-instinct: OCEL event type constants — non-empty, lowercase, distinct
+///
+/// All `OCEL_EVENT_*` constants must satisfy three structural invariants:
+/// - Non-empty: an empty string would be indistinguishable from a missing type
+///   and would pollute every SELECT DISTINCT result.
+/// - Lowercase-first: OCEL event types are snake_case identifiers; an
+///   uppercase first letter signals a copy-paste error from a class name.
+/// - Distinct: duplicate values make it impossible to distinguish event types
+///   in process-mining traces (two constants → same type → collapsed activity).
+///
+/// ```
+/// use open_ontologies::ocel_store::{
+///     OCEL_EVENT_BUILD_ORDER_GENERATED,
+///     OCEL_EVENT_LLM_INVOKED_FULL,
+/// };
+///
+/// let all_event_types: &[&str] = &[
+///     OCEL_EVENT_BUILD_ORDER_GENERATED,
+///     OCEL_EVENT_LLM_INVOKED_FULL,
+/// ];
+///
+/// // Invariant 1: none are the empty string.
+/// for et in all_event_types {
+///     assert!(!et.is_empty(), "OCEL_EVENT_* constant must not be empty: {:?}", et);
+/// }
+///
+/// // Invariant 2: all start with a lowercase ASCII letter.
+/// for et in all_event_types {
+///     let first = et.chars().next().expect("non-empty guaranteed above");
+///     assert!(
+///         first.is_ascii_lowercase(),
+///         "OCEL_EVENT_* constant must start with a lowercase letter: {:?}",
+///         et
+///     );
+/// }
+///
+/// // Invariant 3: all values are distinct (no two constants share a string).
+/// let mut seen = std::collections::HashSet::new();
+/// for et in all_event_types {
+///     assert!(
+///         seen.insert(*et),
+///         "Duplicate OCEL_EVENT_* constant value: {:?}",
+///         et
+///     );
+/// }
+/// ```
 pub const OCEL_EVENT_LLM_INVOKED_FULL: &str = "llm_invoked_full";
 
 /// Insert OCEL event + attrs + relationships through a `Connection` (which
@@ -565,6 +612,50 @@ impl OcelStore {
     /// let types = store.observed_event_types_for_session("sess-x").unwrap();
     /// // DISTINCT + ORDER BY means exactly two entries in alphabetical order.
     /// assert_eq!(types, vec!["completed".to_string(), "started".to_string()]);
+    /// ```
+    ///
+    /// ## Auto-instinct: three distinct types are returned sorted alphabetically
+    ///
+    /// Emitting events of three different types (in non-alphabetical order, with
+    /// duplicates) must produce a result that is deduplicated and alphabetically
+    /// sorted. This proves the `SELECT DISTINCT … ORDER BY event_type ASC` query
+    /// is wired correctly end-to-end — not merely that the method exists.
+    ///
+    /// ```
+    /// use open_ontologies::state::StateDb;
+    /// use open_ontologies::ocel_store::OcelStore;
+    /// use std::path::Path;
+    ///
+    /// let db = StateDb::open(Path::new(":memory:")).unwrap();
+    /// let store = OcelStore::new(db);
+    ///
+    /// // Emit three distinct types in non-alphabetical order, one repeated.
+    /// store.emit_event("t1", "workflow_closed",   "2026-03-01T10:00:00Z", "sess-3", &[], &[], None).unwrap();
+    /// store.emit_event("t2", "admission_granted", "2026-03-01T10:01:00Z", "sess-3", &[], &[], None).unwrap();
+    /// store.emit_event("t3", "stage_enter",       "2026-03-01T10:02:00Z", "sess-3", &[], &[], None).unwrap();
+    /// // Duplicate of the first type — must not appear twice in the result.
+    /// store.emit_event("t4", "workflow_closed",   "2026-03-01T10:03:00Z", "sess-3", &[], &[], None).unwrap();
+    ///
+    /// let types = store.observed_event_types_for_session("sess-3").unwrap();
+    ///
+    /// // Exactly three entries — deduplication collapsed the two workflow_closed events.
+    /// assert_eq!(types.len(), 3, "expected 3 distinct types, got {:?}", types);
+    ///
+    /// // Result is sorted alphabetically (a < s < w).
+    /// assert_eq!(
+    ///     types,
+    ///     vec![
+    ///         "admission_granted".to_string(),
+    ///         "stage_enter".to_string(),
+    ///         "workflow_closed".to_string(),
+    ///     ],
+    ///     "result must be alphabetically sorted"
+    /// );
+    ///
+    /// // Consecutive pairs must be in strictly ascending order.
+    /// for pair in types.windows(2) {
+    ///     assert!(pair[0] < pair[1], "not sorted: {:?} >= {:?}", pair[0], pair[1]);
+    /// }
     /// ```
     pub fn observed_event_types_for_session(&self, session_id: &str) -> Result<Vec<String>> {
         let conn = self.db.conn();
