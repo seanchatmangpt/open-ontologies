@@ -37,6 +37,23 @@ use wait_timeout::ChildExt;
 /// Typed timeout error. Carries enough context for OCEL emission
 /// without exposing PII (the script path is `env!("CARGO_MANIFEST_DIR")`-
 /// derived; arguments are NOT included).
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::subprocess::SubprocessError;
+///
+/// // Construct an LlmTimeout variant and check its Display message.
+/// let err = SubprocessError::LlmTimeout {
+///     elapsed_ms: 5_200,
+///     limit_ms: 5_000,
+///     script_path: "/opt/scripts/groq_pm4py.py".into(),
+/// };
+/// let msg = err.to_string();
+/// assert!(msg.contains("5200ms"), "elapsed must appear: {msg}");
+/// assert!(msg.contains("5000ms"), "limit must appear: {msg}");
+/// assert!(msg.contains("groq_pm4py.py"), "path must appear: {msg}");
+/// ```
 #[derive(Debug, Error)]
 pub enum SubprocessError {
     #[error("subprocess timed out after {elapsed_ms}ms (limit {limit_ms}ms): {script_path}")]
@@ -51,6 +68,24 @@ pub enum SubprocessError {
 
 /// Result of a successful timed run. Same shape as `std::process::Output`
 /// but carries `elapsed_ms` so OCEL emitters don't have to re-time.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::subprocess::TimedOutput;
+/// use std::process::Output;
+/// use std::os::unix::process::ExitStatusExt;
+///
+/// // Construct a TimedOutput from raw parts (hermetic — no subprocess needed).
+/// let status = std::process::ExitStatus::from_raw(0);
+/// let timed = TimedOutput {
+///     output: Output { status, stdout: b"hello\n".to_vec(), stderr: vec![] },
+///     elapsed_ms: 42,
+/// };
+/// assert!(timed.output.status.success());
+/// assert_eq!(timed.elapsed_ms, 42);
+/// assert_eq!(&timed.output.stdout, b"hello\n");
+/// ```
 #[derive(Debug)]
 pub struct TimedOutput {
     pub output: Output,
@@ -60,6 +95,25 @@ pub struct TimedOutput {
 /// Identification metadata for OCEL emission and error formatting.
 /// Pulled from the call site so per-tool / per-tenant attribution is
 /// preserved when several handlers share this wrapper.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::subprocess::SubprocessContext;
+///
+/// // Construct the context struct (pure data — hermetic).
+/// let ctx = SubprocessContext {
+///     model: "groq_pm4py",
+///     tenant_id: "acme-corp",
+///     script_path: "/opt/scripts/groq_pm4py.py",
+/// };
+/// assert_eq!(ctx.model, "groq_pm4py");
+/// assert_eq!(ctx.tenant_id, "acme-corp");
+///
+/// // Copy semantics are derived — the struct is Copy.
+/// let ctx2 = ctx;
+/// assert_eq!(ctx2.script_path, ctx.script_path);
+/// ```
 #[derive(Debug, Clone, Copy)]
 pub struct SubprocessContext<'a> {
     /// Logical tool / engine model string (e.g. `"groq_pm4py"`,
@@ -89,6 +143,26 @@ pub struct SubprocessContext<'a> {
 /// responsibility because the OCEL store + tenant context live on the
 /// server struct. Returning a typed error keeps this module
 /// dependency-free for unit testing.
+///
+/// # Examples
+///
+/// ```no_run
+/// use open_ontologies::subprocess::{run_with_timeout, SubprocessContext};
+/// use std::process::Command;
+/// use std::time::Duration;
+///
+/// let ctx = SubprocessContext {
+///     model: "groq_pm4py",
+///     tenant_id: "default",
+///     script_path: "/bin/echo",
+/// };
+/// let mut cmd = Command::new("/bin/echo");
+/// cmd.arg("hello");
+/// let result = run_with_timeout(&mut cmd, Duration::from_secs(5), ctx)
+///     .expect("echo should succeed within 5 s");
+/// assert!(result.output.status.success());
+/// assert!(result.elapsed_ms < 5_000);
+/// ```
 pub fn run_with_timeout(
     cmd: &mut Command,
     dur: Duration,
@@ -149,6 +223,26 @@ pub fn run_with_timeout(
 /// child's stdin before waiting. Used by the `ontostar_planner.py`
 /// site in `src/server.rs` which feeds a JSON payload over stdin
 /// rather than CLI args. Mirrors the same SIGKILL-on-timeout semantics.
+///
+/// # Examples
+///
+/// ```no_run
+/// use open_ontologies::subprocess::{run_with_timeout_stdin, SubprocessContext};
+/// use std::process::Command;
+/// use std::time::Duration;
+///
+/// let ctx = SubprocessContext {
+///     model: "ontostar_planner",
+///     tenant_id: "default",
+///     script_path: "/usr/bin/cat",
+/// };
+/// let payload = br#"{"query": "list classes"}"#;
+/// let mut cmd = Command::new("/usr/bin/cat");
+/// let result = run_with_timeout_stdin(&mut cmd, payload, Duration::from_secs(5), ctx)
+///     .expect("cat should echo stdin within 5 s");
+/// assert!(result.output.status.success());
+/// assert_eq!(&result.output.stdout, payload);
+/// ```
 pub fn run_with_timeout_stdin(
     cmd: &mut Command,
     stdin_payload: &[u8],
@@ -209,6 +303,26 @@ pub fn run_with_timeout_stdin(
 /// Convenience helper for the OCEL emit attrs vector. Returns four
 /// `(&str, &str)` borrow pairs so the caller can build a slice from
 /// local references.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::subprocess::timeout_ocel_attrs;
+///
+/// let elapsed = "5200";
+/// let attrs = timeout_ocel_attrs(
+///     "groq_pm4py",
+///     elapsed,
+///     "acme-corp",
+///     "/opt/scripts/groq_pm4py.py",
+/// );
+///
+/// assert_eq!(attrs[0], ("model", "groq_pm4py"));
+/// assert_eq!(attrs[1], ("elapsed_ms", "5200"));
+/// assert_eq!(attrs[2], ("tenant_id", "acme-corp"));
+/// assert_eq!(attrs[3], ("script_path", "/opt/scripts/groq_pm4py.py"));
+/// assert_eq!(attrs.len(), 4);
+/// ```
 pub fn timeout_ocel_attrs<'a>(
     model: &'a str,
     elapsed_ms_str: &'a str,

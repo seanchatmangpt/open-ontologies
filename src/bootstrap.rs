@@ -39,6 +39,9 @@
 use crate::state::StateDb;
 
 /// Type-level marker for the bootstrap window.
+///
+/// All state is persisted in the [`StateDb`] SQLite database. The struct
+/// itself carries no fields; it is a namespace for the associated functions.
 pub struct BootstrapState;
 
 impl BootstrapState {
@@ -48,6 +51,62 @@ impl BootstrapState {
     /// Lock-row precedence is absolute: once the lock exists, the
     /// bootstrap window is permanently closed. Use `onto_bootstrap_unlock`
     /// (admin-only, R5 WC-2) for last-resort recovery.
+    ///
+    /// # Examples
+    ///
+    /// ## Fresh database — bootstrap window is open
+    ///
+    /// ```
+    /// use open_ontologies::bootstrap::BootstrapState;
+    /// use open_ontologies::state::StateDb;
+    /// use std::path::Path;
+    ///
+    /// let db = StateDb::open(Path::new(":memory:")).unwrap();
+    /// // No lock row, no non-seed receipts → window is open.
+    /// assert!(BootstrapState::is_bootstrap(&db));
+    /// ```
+    ///
+    /// ## Lock row present — window is permanently closed
+    ///
+    /// ```
+    /// use open_ontologies::bootstrap::BootstrapState;
+    /// use open_ontologies::state::StateDb;
+    /// use std::path::Path;
+    ///
+    /// let db = StateDb::open(Path::new(":memory:")).unwrap();
+    ///
+    /// // Insert the lock row (normally done by `receipts::persist_with_tenant_in_tx`).
+    /// db.conn().execute(
+    ///     "INSERT OR IGNORE INTO bootstrap_lock (id, locked_at, locked_by) \
+    ///      VALUES (1, datetime('now'), 'doctest')",
+    ///     [],
+    /// ).unwrap();
+    ///
+    /// // Lock supersedes everything — window is closed.
+    /// assert!(!BootstrapState::is_bootstrap(&db));
+    /// ```
+    ///
+    /// ## Non-seed receipt present (no lock yet) — window is closed
+    ///
+    /// ```
+    /// use open_ontologies::bootstrap::BootstrapState;
+    /// use open_ontologies::state::StateDb;
+    /// use std::path::Path;
+    ///
+    /// let db = StateDb::open(Path::new(":memory:")).unwrap();
+    ///
+    /// // Insert a non-seed-v0 receipt row without the lock.
+    /// db.conn().execute(
+    ///     "INSERT INTO receipts \
+    ///      (receipt_hash, scope_token, artifact_hash, declared_powl_hash, \
+    ///       ocel_canonical_hash, gate_config_hash, production_law_version, granted_at) \
+    ///      VALUES ('h1','s1','a1','p1','o1','g1','v1','2026-01-01T00:00:00Z')",
+    ///     [],
+    /// ).unwrap();
+    ///
+    /// // Non-seed receipt → window is closed.
+    /// assert!(!BootstrapState::is_bootstrap(&db));
+    /// ```
     pub fn is_bootstrap(db: &StateDb) -> bool {
         let conn = db.conn();
 
