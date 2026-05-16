@@ -3719,11 +3719,21 @@ impl OpenOntologiesServer {
         out
     }
 
-    async fn onto_embed_inner(&self, input: OntoEmbedInput) -> String {
+    async fn onto_embed_inner(&self, _input_embed: OntoEmbedInput) -> String {
         #[cfg(not(feature = "embeddings"))]
-        { let _ = input; r#"{"error":"Compiled without embeddings feature. Rebuild with --features embeddings"}"#.to_string()}
+        { r#"{"error":"Compiled without embeddings feature. Rebuild with --features embeddings"}"#.to_string() }
+        #[cfg(feature = "embeddings")]
+        let input = _input_embed;
         #[cfg(feature = "embeddings")]
         {
+        if self.graph.triple_count() == 0 {
+            return serde_json::json!({
+                "ok": false,
+                "error": "No ontology loaded. Call onto_load first, then onto_embed to generate embeddings.",
+                "hint": "Use onto_load with a TTL file path to load an ontology before generating embeddings."
+            }).to_string();
+        }
+
         let embedder = match &self.text_embedder {
             Some(e) => e,
             None => return r#"{"error":"Embedding model not loaded. Run `open-ontologies init` to download."}"#.to_string(),
@@ -3829,11 +3839,28 @@ impl OpenOntologiesServer {
     }
 
     #[tool(name = "onto_search", description = "Semantic search over the loaded ontology using natural language. Returns the most similar classes by text meaning, structural position, or both. Requires onto_embed to have been run first.")]
-    async fn onto_search(&self, Parameters(input): Parameters<OntoSearchInput>) -> String {
+    async fn onto_search(&self, Parameters(_input): Parameters<OntoSearchInput>) -> String {
         #[cfg(not(feature = "embeddings"))]
-        { let _ = input; return r#"{"error":"Compiled without embeddings feature. Rebuild with --features embeddings"}"#.to_string(); }
+        { return r#"{"error":"Compiled without embeddings feature. Rebuild with --features embeddings"}"#.to_string(); }
         #[cfg(feature = "embeddings")]
         {
+        let input = _input;
+        if self.graph.triple_count() == 0 {
+            return serde_json::json!({
+                "ok": false,
+                "error": "No ontology loaded. Call onto_load first, then onto_embed to generate embeddings, then retry onto_search.",
+                "hint": "Call onto_load first."
+            }).to_string();
+        }
+
+        if input.query.trim().is_empty() {
+            return serde_json::json!({
+                "ok": false,
+                "error": "Query must not be blank. Provide a natural language description of the class you are looking for.",
+                "hint": "Example: onto_search with query = \"legal entity that owns assets\""
+            }).to_string();
+        }
+
         let top_k = input.top_k.unwrap_or(10);
         let mode = input.mode.as_deref().unwrap_or("product");
         let alpha = input.alpha.unwrap_or(0.5);
@@ -3913,11 +3940,36 @@ impl OpenOntologiesServer {
     }
 
     #[tool(name = "onto_similarity", description = "Compute embedding similarity between two IRIs — returns cosine similarity (text), Poincaré distance (structural), and product score.")]
-    async fn onto_similarity(&self, Parameters(input): Parameters<OntoSimilarityInput>) -> String {
+    async fn onto_similarity(&self, Parameters(_input): Parameters<OntoSimilarityInput>) -> String {
         #[cfg(not(feature = "embeddings"))]
-        { let _ = input; return r#"{"error":"Compiled without embeddings feature. Rebuild with --features embeddings"}"#.to_string(); }
+        { return r#"{"error":"Compiled without embeddings feature. Rebuild with --features embeddings"}"#.to_string(); }
         #[cfg(feature = "embeddings")]
         {
+        let input = _input;
+        if self.graph.triple_count() == 0 {
+            return serde_json::json!({
+                "ok": false,
+                "error": "No ontology loaded. Call onto_load first, then onto_embed to generate embeddings, then retry onto_similarity.",
+                "hint": "Call onto_load first."
+            }).to_string();
+        }
+
+        if input.iri_a.trim().is_empty() {
+            return serde_json::json!({
+                "ok": false,
+                "error": "iri_a must not be blank. Provide a fully qualified IRI for the first class.",
+                "hint": "Example IRI: \"https://example.org/ontology#MyClass\""
+            }).to_string();
+        }
+
+        if input.iri_b.trim().is_empty() {
+            return serde_json::json!({
+                "ok": false,
+                "error": "iri_b must not be blank. Provide a fully qualified IRI for the second class.",
+                "hint": "Example IRI: \"https://example.org/ontology#AnotherClass\""
+            }).to_string();
+        }
+
         let vecstore = self.vecstore.lock().unwrap();
 
         let text_a = vecstore.get_text_vec(&input.iri_a);
@@ -4426,6 +4478,24 @@ impl OpenOntologiesServer {
     ) -> String {
         use crate::cell8::{emit_earl_report, count_passed, count_failed, GateOutcome, GATE_NAMES};
         use crate::defects::DefectClass;
+
+        // Guard: ontology must be loaded (gates A1-A3 require an active triple store).
+        if self.graph.triple_count() == 0 {
+            return serde_json::json!({
+                "ok": false,
+                "error": "No ontology loaded. Attestation requires an active ontology.",
+                "hint": "Call onto_load first, then onto_cell8_attest to run conformance gates A1-A13."
+            }).to_string();
+        }
+
+        // Guard: scope_token is required.
+        if input.scope_token.trim().is_empty() {
+            return serde_json::json!({
+                "ok": false,
+                "error": "scope_token is required and must not be blank.",
+                "hint": "Example: {\"scope_token\": \"my-artifact-scope-2024\"}"
+            }).to_string();
+        }
 
         // Look up the latest persisted receipt for this scope.
         let conn = self.db.conn();
@@ -7255,6 +7325,29 @@ impl OpenOntologiesServer {
         use crate::attestation::{TrustedKeys, fingerprint_hex};
         use base64::Engine as _;
 
+        // Guard: all three fields are required and must not be blank.
+        if input.signature.trim().is_empty() {
+            return serde_json::json!({
+                "ok": false,
+                "error": "signature is required and must not be blank.",
+                "hint": "Provide a base64-encoded Ed25519 signature (88 base64 chars) plus payload_hash (BLAKE3 hex) and key_fpr (16 hex chars)."
+            }).to_string();
+        }
+        if input.payload_hash.trim().is_empty() {
+            return serde_json::json!({
+                "ok": false,
+                "error": "payload_hash is required and must not be blank.",
+                "hint": "Provide the BLAKE3 hex hash of the receipt payload being attested, e.g. a 64-char hex string."
+            }).to_string();
+        }
+        if input.key_fpr.trim().is_empty() {
+            return serde_json::json!({
+                "ok": false,
+                "error": "key_fpr is required and must not be blank.",
+                "hint": "Provide exactly 16 hex characters (8 bytes) identifying the signer in TrustedKeys, e.g. \"0102030405060708\"."
+            }).to_string();
+        }
+
         // Decode signature bytes into fixed [u8;64] — Ed25519 signatures are always 64 bytes.
         let sig_bytes: [u8; 64] = {
             let v = match base64::engine::general_purpose::STANDARD.decode(&input.signature) {
@@ -7262,13 +7355,15 @@ impl OpenOntologiesServer {
                 Err(e) => return serde_json::json!({
                     "ok": false,
                     "error": format!("base64 decode signature: {e}"),
+                    "hint": "signature must be standard base64-encoded. Regenerate with: base64::encode(ed25519_signature_bytes)"
                 }).to_string(),
             };
             match v.try_into() {
                 Ok(arr) => arr,
                 Err(_) => return serde_json::json!({
                     "ok": false,
-                    "error": "signature must be 64 bytes (Ed25519)",
+                    "error": "signature must decode to exactly 64 bytes (Ed25519).",
+                    "hint": "Ed25519 signatures are 64 bytes; base64-encoded they are 88 characters. Ensure you are passing the raw signature bytes, not a hex-encoded form."
                 }).to_string(),
             }
         };
@@ -7278,11 +7373,13 @@ impl OpenOntologiesServer {
             Ok(Some(t)) => t,
             Ok(None) => return serde_json::json!({
                 "ok": false,
-                "error": "OPEN_ONTOLOGIES_TRUSTED_KEYS_DIR not configured",
+                "error": "OPEN_ONTOLOGIES_TRUSTED_KEYS_DIR not configured.",
+                "hint": "Set OPEN_ONTOLOGIES_TRUSTED_KEYS_DIR to a directory containing *.pem trusted Ed25519 public keys, then restart the server."
             }).to_string(),
             Err(e) => return serde_json::json!({
                 "ok": false,
                 "error": format!("load trusted keys: {e}"),
+                "hint": "Verify that OPEN_ONTOLOGIES_TRUSTED_KEYS_DIR points to a readable directory containing Ed25519 public key files (*.pem)."
             }).to_string(),
         };
 
@@ -7295,7 +7392,8 @@ impl OpenOntologiesServer {
             }
             _ => return serde_json::json!({
                 "ok": false,
-                "error": "key_fpr must be 16 hex chars (8 bytes)",
+                "error": "key_fpr must be exactly 16 hex characters (8 bytes).",
+                "hint": "Example: \"0102030405060708\". Use the first 8 bytes of the SHA-256 fingerprint of the signer's public key."
             }).to_string(),
         };
 
@@ -7311,6 +7409,7 @@ impl OpenOntologiesServer {
             return serde_json::json!({
                 "ok": false,
                 "error": format!("signature verification failed: {outcome:?}"),
+                "hint": "Ensure key_fpr matches a key in OPEN_ONTOLOGIES_TRUSTED_KEYS_DIR, payload_hash exactly matches the signed bytes, and signature was produced by the corresponding private key."
             }).to_string();
         }
 
