@@ -95,16 +95,132 @@ fn apply_webhook(w: &WebhookConfig) {
 
 // ── Accessors ───────────────────────────────────────────────────────────
 
+/// Returns the maximum DL-tableaux expansion depth.
+///
+/// Before [`init_from_config`] is called the value equals the compiled-in
+/// default of 100.  After initialisation it reflects whatever was set in
+/// `config.toml` (or the same default if the field was left at zero).
+///
+/// ```
+/// let v = open_ontologies::runtime::tableaux_max_depth();
+/// assert!(v > 0, "default must be positive");
+/// ```
 pub fn tableaux_max_depth() -> usize { TABLEAUX_MAX_DEPTH.load(Ordering::Relaxed) }
+
+/// Returns the maximum number of nodes the tableaux reasoner may allocate.
+///
+/// Before [`init_from_config`] is called the value equals the compiled-in
+/// default of 10 000.
+///
+/// ```
+/// let v = open_ontologies::runtime::tableaux_max_nodes();
+/// assert!(v > 0, "default must be positive");
+/// ```
 pub fn tableaux_max_nodes() -> usize { TABLEAUX_MAX_NODES.load(Ordering::Relaxed) }
+
+/// Returns the maximum number of fixpoint iterations the reasoner performs.
+///
+/// Before [`init_from_config`] is called the value equals the compiled-in
+/// default of 64.
+///
+/// ```
+/// let v = open_ontologies::runtime::reasoner_max_iterations();
+/// assert!(v > 0, "default must be positive");
+/// ```
 pub fn reasoner_max_iterations() -> usize { REASONER_MAX_ITER.load(Ordering::Relaxed) }
+
+/// Returns the byte length used as the cache hash prefix.
+///
+/// Before [`init_from_config`] is called the value equals the compiled-in
+/// default of 65 536 (64 KiB).
+///
+/// ```
+/// let v = open_ontologies::runtime::cache_hash_prefix_bytes();
+/// assert!(v > 0, "default must be positive");
+/// ```
 pub fn cache_hash_prefix_bytes() -> usize { CACHE_HASH_PREFIX.load(Ordering::Relaxed) }
+
+/// Returns the feedback vote count at which a lint/enforce finding is suppressed.
+///
+/// The default is 3 (suppress after three dismissals).  The return type is
+/// `i64` so that a config of `−1` can disable suppression entirely.
+///
+/// ```
+/// let v: i64 = open_ontologies::runtime::feedback_suppress_threshold();
+/// // Default is 3; we only assert the type compiles and the value is
+/// // representable — negative values are permitted by design.
+/// let _ = v;
+/// ```
 pub fn feedback_suppress_threshold() -> i64 { FB_SUPPRESS.load(Ordering::Relaxed) }
+
+/// Returns the feedback vote count at which a lint/enforce finding is
+/// downgraded from an error to a warning.
+///
+/// The default is 2.  The return type is `i64` so that a config of `−1` can
+/// disable downgrading entirely.
+///
+/// ```
+/// let v: i64 = open_ontologies::runtime::feedback_downgrade_threshold();
+/// let _ = v;
+/// ```
 pub fn feedback_downgrade_threshold() -> i64 { FB_DOWNGRADE.load(Ordering::Relaxed) }
+
+/// Returns the default page size used by `onto_repo_list`.
+///
+/// Before [`init_from_config`] is called the value equals the compiled-in
+/// default of 1 000.
+///
+/// ```
+/// let v = open_ontologies::runtime::repo_default_list_limit();
+/// assert!(v > 0, "default must be positive");
+/// ```
 pub fn repo_default_list_limit() -> usize { REPO_LIST_LIMIT.load(Ordering::Relaxed) }
+
+/// Returns the maximum recursive depth followed when resolving `owl:imports`.
+///
+/// Before [`init_from_config`] is called the value equals the compiled-in
+/// default of 3.
+///
+/// ```
+/// let v = open_ontologies::runtime::imports_max_depth();
+/// assert!(v > 0, "default must be positive");
+/// ```
 pub fn imports_max_depth() -> usize { IMPORTS_MAX_DEPTH.load(Ordering::Relaxed) }
+
+/// Returns the per-request timeout (in seconds) used when fetching remote
+/// `owl:imports` via HTTP.
+///
+/// Before [`init_from_config`] is called the value equals the compiled-in
+/// default of 30 seconds.
+///
+/// ```
+/// let v = open_ontologies::runtime::imports_request_timeout_secs();
+/// assert!(v > 0, "default must be positive");
+/// ```
 pub fn imports_request_timeout_secs() -> u64 { IMPORTS_TIMEOUT.load(Ordering::Relaxed) }
+
+/// Returns whether the imports resolver is permitted to follow HTTP/HTTPS
+/// `owl:imports` URIs.
+///
+/// The compiled-in default is `true`.
+///
+/// ```
+/// let v: bool = open_ontologies::runtime::imports_follow_remote();
+/// // Accepts either true or false — just assert the type compiles.
+/// let _ = v;
+/// ```
 pub fn imports_follow_remote() -> bool { IMPORTS_FOLLOW_REMOTE.load(Ordering::Relaxed) }
+
+/// Returns the per-request timeout (in seconds) used when delivering webhook
+/// notifications.
+///
+/// Before [`init_from_config`] is called the value equals the compiled-in
+/// default of 10 seconds.
+///
+/// ```
+/// let v = open_ontologies::runtime::webhook_request_timeout_secs();
+/// assert!(v > 0, "default must be positive");
+/// ```
 pub fn webhook_request_timeout_secs() -> u64 { WEBHOOK_TIMEOUT.load(Ordering::Relaxed) }
 
 #[cfg(test)]
