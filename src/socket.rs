@@ -379,15 +379,31 @@ fn run_count_query(graph: &Arc<GraphStore>, query: &str) -> u64 {
 ///
 /// # Examples
 ///
+/// Oxigraph-style typed literals are stripped of quotes and datatype suffix:
+///
 /// ```
-/// // Oxigraph-style typed literal.
-/// // Access via the public test path — the function is pub(crate) via #[cfg(test)].
-/// // We verify the canonical format parses correctly by running the existing
-/// // unit test coverage; see the `#[cfg(test)]` block in socket.rs.
-/// let raw = "\"7\"^^<http://www.w3.org/2001/XMLSchema#integer>";
-/// // Strip surrounding quotes and datatype to get the bare integer string.
-/// let stripped = raw.trim_start_matches('"').split('"').next().unwrap_or("0");
-/// assert_eq!(stripped.parse::<u64>().unwrap(), 7u64);
+/// // Replicate the parsing logic used internally by parse_sparql_integer.
+/// // The function is private; these examples verify the underlying algorithm.
+///
+/// fn parse(raw: &str) -> u64 {
+///     let s = raw.trim_start_matches('"').split('"').next().unwrap_or("0");
+///     s.parse::<u64>().unwrap_or(0)
+/// }
+///
+/// // Standard Oxigraph typed literal: "42"^^<…#integer>
+/// assert_eq!(parse("\"42\"^^<http://www.w3.org/2001/XMLSchema#integer>"), 42);
+///
+/// // Bare quoted number (no datatype)
+/// assert_eq!(parse("\"7\""), 7);
+///
+/// // Zero
+/// assert_eq!(parse("\"0\"^^<http://www.w3.org/2001/XMLSchema#integer>"), 0);
+///
+/// // Non-numeric input falls back to 0
+/// assert_eq!(parse("abc"), 0);
+///
+/// // Empty string falls back to 0
+/// assert_eq!(parse(""), 0);
 /// ```
 fn parse_sparql_integer(raw: &str) -> u64 {
     // Strip surrounding quotes and datatype suffix

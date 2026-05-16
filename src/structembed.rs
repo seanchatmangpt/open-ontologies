@@ -70,14 +70,15 @@ impl StructuralTrainer {
     ///
     /// # Examples
     ///
-    /// ```no_run
-    /// // Requires `embeddings` feature
+    /// Construction is pure and requires no external resources:
+    ///
+    /// ```
     /// use open_ontologies::structembed::StructuralTrainer;
     ///
     /// // Minimal trainer: 2-D embeddings, 1 epoch, large learning rate
     /// let small = StructuralTrainer::new(2, 1, 0.1);
     ///
-    /// // Production-scale trainer
+    /// // Production-scale trainer — larger dim, more epochs, smaller lr
     /// let prod = StructuralTrainer::new(128, 200, 0.005);
     /// ```
     pub fn new(dim: usize, epochs: usize, lr: f32) -> Self {
@@ -156,31 +157,45 @@ impl StructuralTrainer {
     ///
     /// # Examples
     ///
-    /// ```no_run
-    /// // Requires `embeddings` feature
+    /// An empty store produces an empty embedding map — no SPARQL classes found:
+    ///
+    /// ```
     /// use open_ontologies::structembed::StructuralTrainer;
     /// use open_ontologies::graph::GraphStore;
     ///
-    /// // An empty store produces an empty embedding map.
-    /// let store = GraphStore::new().unwrap();
+    /// let store = GraphStore::new();
     /// let trainer = StructuralTrainer::new(8, 5, 0.01);
     /// let embeddings = trainer.train(&store).unwrap();
     /// assert!(embeddings.is_empty());
     /// ```
     ///
-    /// ```no_run
-    /// // Requires `embeddings` feature
+    /// After loading two classes with a subclass edge, each class gets a
+    /// `dim`-dimensional embedding vector:
+    ///
+    /// ```
     /// use open_ontologies::structembed::StructuralTrainer;
     /// use open_ontologies::graph::GraphStore;
     ///
-    /// // After loading an ontology the map contains one entry per class.
-    /// let store = GraphStore::new().unwrap();
-    /// // store.load_str(SOME_TURTLE, "text/turtle").unwrap();
-    /// let trainer = StructuralTrainer::new(4, 10, 0.01);
+    /// let store = GraphStore::new();
+    /// let ttl = r#"
+    ///     @prefix owl: <http://www.w3.org/2002/07/owl#> .
+    ///     @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+    ///     <urn:ex:Animal> a owl:Class .
+    ///     <urn:ex:Dog>    a owl:Class ;
+    ///                     rdfs:subClassOf <urn:ex:Animal> .
+    /// "#;
+    /// store.load_turtle(ttl, None).unwrap();
+    ///
+    /// let dim = 4;
+    /// let trainer = StructuralTrainer::new(dim, 3, 0.05);
     /// let embeddings = trainer.train(&store).unwrap();
-    /// // Each embedding has exactly `dim` components.
+    ///
+    /// // Both classes are represented.
+    /// assert_eq!(embeddings.len(), 2);
+    ///
+    /// // Every embedding vector has exactly `dim` components.
     /// for (_iri, vec) in &embeddings {
-    ///     assert_eq!(vec.len(), 4);
+    ///     assert_eq!(vec.len(), dim);
     /// }
     /// ```
     pub fn train(&self, store: &GraphStore) -> Result<HashMap<String, Vec<f32>>> {
