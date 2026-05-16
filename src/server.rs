@@ -727,6 +727,7 @@ impl OpenOntologiesServer {
                     "admission": "denied",
                     "defect": defect,
                     "remediation": remediation,
+                    "powl_stub": conf.is_stub,
                 }).to_string())
             }
         }
@@ -921,9 +922,76 @@ impl OpenOntologiesServer {
         let started = std::time::Instant::now();
         use crate::ontology::OntologyService;
         let out = if input.inline.unwrap_or(false) {
-            OntologyService::validate_string(&input.input).unwrap_or_else(|e| format!(r#"{{"error":"{}"}}"#, e))
+            OntologyService::validate_string(&input.input).unwrap_or_else(|e| {
+                format!(
+                    r#"{{"error":"Turtle parse error: {}. Check that 'input' contains valid Turtle/RDF content (prefixes declared, triples well-formed, IRIs angle-bracketed)."}}"#,
+                    e.to_string().replace('"', "'")
+                )
+            })
         } else {
-            OntologyService::validate_file(&input.input).unwrap_or_else(|e| format!(r#"{{"error":"{}"}}"#, e))
+            let path = &input.input;
+            // Pre-flight: give actionable errors before the underlying IO call
+            // so the user knows exactly what went wrong and what to do next.
+            if !std::path::Path::new(path).exists() {
+                let msg = format!(
+                    "File not found: '{}'. Verify the path is correct and the file exists. \
+                     Use onto_repo_list to discover ontologies in configured ontology_dirs, \
+                     or provide inline Turtle with inline=true.",
+                    path
+                );
+                let out = serde_json::json!({
+                    "valid": false,
+                    "path": path,
+                    "triple_count": 0,
+                    "errors": [msg]
+                }).to_string();
+                self.emit_tool_ocel("onto_validate", started, false, &[]);
+                return out;
+            }
+            // Check for a recognized RDF extension; unknown extensions are
+            // parsed as Turtle by default, which can produce confusing errors.
+            let ext = std::path::Path::new(path)
+                .extension()
+                .and_then(|e| e.to_str())
+                .unwrap_or("")
+                .to_ascii_lowercase();
+            let known_exts = ["ttl", "turtle", "nt", "ntriples", "rdf", "xml", "owl", "nq", "trig", "jsonld"];
+            if !known_exts.contains(&ext.as_str()) {
+                let msg = format!(
+                    "Unrecognized file extension '.{}' in '{}'. \
+                     Supported extensions: .ttl/.turtle (Turtle), .nt/.ntriples (N-Triples), \
+                     .rdf/.xml/.owl (RDF/XML), .nq (N-Quads), .trig (TriG). \
+                     Unknown extensions are parsed as Turtle.",
+                    ext, path
+                );
+                // Still attempt validation — warn only, do not abort.
+                let result = OntologyService::validate_file(path)
+                    .unwrap_or_else(|e| serde_json::json!({
+                        "valid": false,
+                        "path": path,
+                        "triple_count": 0,
+                        "errors": [e.to_string()]
+                    }).to_string());
+                // Inject the extension warning into the response.
+                if let Ok(mut v) = serde_json::from_str::<serde_json::Value>(&result) {
+                    if let Some(arr) = v.get_mut("errors").and_then(|e| e.as_array_mut()) {
+                        arr.insert(0, serde_json::Value::String(msg));
+                    }
+                    let ok = v.get("valid").and_then(|b| b.as_bool()).unwrap_or(false);
+                    self.emit_tool_ocel("onto_validate", started, ok, &[]);
+                    return v.to_string();
+                }
+                let ok = !result.contains(r#""error""#);
+                self.emit_tool_ocel("onto_validate", started, ok, &[]);
+                return result;
+            }
+            OntologyService::validate_file(path).unwrap_or_else(|e| {
+                format!(
+                    r#"{{"error":"Failed to read '{}': {}. Check file permissions and encoding (UTF-8 required)."}}"#,
+                    path,
+                    e.to_string().replace('"', "'")
+                )
+            })
         };
         let ok = !out.contains(r#""error""#);
         self.emit_tool_ocel("onto_validate", started, ok, &[]);
@@ -960,10 +1028,23 @@ impl OpenOntologiesServer {
             // Inline turtle bypasses the registry/cache (no source file).
             match self.graph.load_turtle(&turtle, None) {
                 Ok(count) => format!(r#"{{"ok":true,"triples_loaded":{},"source":"inline"}}"#, count),
-                Err(e) => format!(r#"{{"error":"{}"}}"#, e),
+                Err(e) => format!(
+                    r#"{{"error":"Inline Turtle parse error in 'turtle' field: {}. Ensure prefixes are declared before use, triples end with ' .', and IRIs are angle-bracketed (e.g. <https://example.org/>). Run onto_validate with inline=true to see detailed parse errors."}}"#,
+                    e.to_string().replace('"', "'")
+                ),
             }
         } else if let Some(path) = input.path {
             let path = expand_tilde(&path);
+            // Pre-flight diagnostics: give a targeted message before the
+            // registry call so the error names the file and suggests a remedy.
+            if !std::path::Path::new(&path).exists() {
+                let out = format!(
+                    r#"{{"error":"File not found: '{}'. Verify the path is correct and the file exists. Use onto_repo_list to discover files in configured ontology_dirs, or supply inline Turtle via the 'turtle' field instead."}}"#,
+                    path
+                );
+                self.emit_tool_ocel("onto_load", started, false, &[]);
+                return out;
+            }
             let opts = crate::registry::LoadOptions {
                 name: input.name,
                 auto_refresh: input.auto_refresh.unwrap_or(false),
@@ -981,10 +1062,27 @@ impl OpenOntologiesServer {
                         "cache_path": res.cache_path,
                     }).to_string()
                 },
-                Err(e) => format!(r#"{{"error":"{}"}}"#, e.to_string().replace('"', "'")),
+                Err(e) => {
+                    // Distinguish parse failures from infrastructure errors so
+                    // the user knows whether to fix the file or the environment.
+                    let raw = e.to_string();
+                    if raw.contains("parse source") || raw.contains("ParseError") || raw.contains("invalid") {
+                        format!(
+                            r#"{{"error":"RDF parse error loading '{}': {}. Run onto_validate with the same path for a detailed error report. Supported formats: .ttl/.turtle (Turtle), .nt (N-Triples), .rdf/.xml/.owl (RDF/XML), .nq (N-Quads), .trig (TriG)."}}"#,
+                            path,
+                            raw.replace('"', "'")
+                        )
+                    } else {
+                        format!(
+                            r#"{{"error":"Failed to load '{}': {}"}}"#,
+                            path,
+                            raw.replace('"', "'")
+                        )
+                    }
+                }
             }
         } else {
-            r#"{"error":"Either 'path' or 'turtle' must be provided"}"#.to_string()
+            r#"{"error":"Either 'path' or 'turtle' must be provided. Supply a file path via 'path' or inline Turtle/RDF content via 'turtle'."}"#.to_string()
         };
         let ok = !out.contains(r#""error""#);
         self.emit_tool_ocel("onto_load", started, ok, &[]);
@@ -1090,10 +1188,36 @@ impl OpenOntologiesServer {
         let path = match crate::repo::resolve_load_target(&input.name, repos) {
             Ok(p) => p,
             Err(e) => {
-                return format!(
-                    r#"{{"error":"{}"}}"#,
-                    e.to_string().replace('"', "'")
-                );
+                let raw = e.to_string();
+                // Enrich the resolution error with actionable next steps.
+                let enriched = if raw.contains("no ontology with name") || raw.contains("no file matching") {
+                    let repo_list: Vec<String> = repos.iter()
+                        .map(|p| p.to_string_lossy().into_owned())
+                        .collect();
+                    format!(
+                        "{} — Use onto_repo_list to see available ontologies in: {}",
+                        raw,
+                        if repo_list.is_empty() {
+                            "(no ontology_dirs configured)".to_string()
+                        } else {
+                            repo_list.join(", ")
+                        }
+                    )
+                } else if raw.contains("no ontology_dirs configured") {
+                    format!(
+                        "{}. Set [general] ontology_dirs in config.toml or the \
+                         OPEN_ONTOLOGIES_ONTOLOGY_DIRS environment variable, then restart the server.",
+                        raw
+                    )
+                } else if raw.contains("ambiguous name") {
+                    format!(
+                        "{} — Provide a more specific path (relative or absolute) to disambiguate.",
+                        raw
+                    )
+                } else {
+                    raw
+                };
+                return format!(r#"{{"error":"{}"}}"#, enriched.replace('"', "'"));
             }
         };
         let opts = crate::registry::LoadOptions {
@@ -1101,7 +1225,8 @@ impl OpenOntologiesServer {
             auto_refresh: input.auto_refresh.unwrap_or(false),
             force_recompile: input.force_recompile.unwrap_or(false),
         };
-        match self.registry.load_file(&path.to_string_lossy(), opts) {
+        let path_str = path.to_string_lossy().into_owned();
+        match self.registry.load_file(&path_str, opts) {
             Ok(res) => serde_json::json!({
                 "ok": true,
                 "triples_loaded": res.triple_count,
@@ -1111,7 +1236,23 @@ impl OpenOntologiesServer {
                 "cache_path": res.cache_path,
             })
             .to_string(),
-            Err(e) => format!(r#"{{"error":"{}"}}"#, e.to_string().replace('"', "'")),
+            Err(e) => {
+                let raw = e.to_string();
+                if raw.contains("parse source") || raw.contains("ParseError") || raw.contains("invalid") {
+                    format!(
+                        r#"{{"error":"RDF parse error loading '{}': {}. Run onto_validate with path='{}' for a detailed error report."}}"#,
+                        path_str,
+                        raw.replace('"', "'"),
+                        path_str
+                    )
+                } else {
+                    format!(
+                        r#"{{"error":"Failed to load '{}': {}"}}"#,
+                        path_str,
+                        raw.replace('"', "'")
+                    )
+                }
+            }
         }
     }
 
@@ -4829,12 +4970,25 @@ impl OpenOntologiesServer {
                 return denial;
             }
         };
+        // Detect whether the conformance check ran through the stream-2
+        // stub (NoopPowlReplay) or the real wasm4pm bridge.  The stub
+        // prefixes every run_id with "stub-run-" so callers and auditors
+        // can distinguish stub-path admissions from production-verified
+        // ones without reading the conformance_runs table.  In production
+        // this will always be false because evaluate_admission uses
+        // PowlBridgeReplay exclusively.
+        let powl_stub = receipt.record.conformance_run_id.starts_with("stub-run-");
         let out = serde_json::json!({
             "ok": true,
             "scope_token": receipt.record.scope_token,
             "receipt_hash": receipt.hex(),
             "production_law_version": receipt.record.production_law_version,
             "defects_taxonomy_version": receipt.record.defects_taxonomy_version,
+            // `powl_stub: true` signals that POWL replay is not yet
+            // integrated (stream-2 stub); CTQ admission skipped the real
+            // replay gate.  Callers MUST treat this as provisional until
+            // stream-2 integration is complete.
+            "powl_stub": powl_stub,
         }).to_string();
         self.emit_tool_ocel("onto_admit_ctq", started, true, &[]);
         out

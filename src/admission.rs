@@ -384,6 +384,16 @@ pub struct ConformanceResult {
     pub precision: f64,
     pub verdict: String,
     pub run_id: String,
+    /// `true` when this result was produced by the stream-2 stub
+    /// ([`NoopPowlReplay`]) rather than the real wasm4pm bridge
+    /// ([`PowlBridgeReplay`]).  Callers that see `is_stub = true` MUST
+    /// NOT treat the fitness/precision values as evidence of real
+    /// conformance — they are placeholders (1.0/1.0) that allow the
+    /// gate's other defect classes to be exercised in isolation.
+    /// Surfaced in the MCP JSON response as `"powl_stub": true` so
+    /// external operators and auditors can distinguish stub-path
+    /// admissions from production-verified ones without parsing `run_id`.
+    pub is_stub: bool,
 }
 
 /// **Stream-2 stub.** Returns a perfect-fit verdict. Retained because some
@@ -396,11 +406,17 @@ pub const STREAM3_STUB_POWL_REPLAY_MARKER: &str = "TODO(stream-2): replace NoopP
 
 impl PowlReplay for NoopPowlReplay {
     fn replay(&self, scope_token: &str, _powl_string: &str, _tenant_id: &str) -> ConformanceResult {
+        // POWL replay is not yet integrated (stream-2 stub);
+        // fitness=1.0 and precision=1.0 are placeholders — NOT real
+        // conformance evidence.  The `is_stub` flag and the
+        // `"stub-run-"` run_id prefix allow downstream consumers to
+        // detect this path without string-matching the verdict.
         ConformanceResult {
             fitness: 1.0,
             precision: 1.0,
             verdict: "conform".to_string(),
             run_id: format!("stub-run-{}", scope_token),
+            is_stub: true,
         }
     }
 }
@@ -432,6 +448,7 @@ impl<'a> PowlReplay for PowlBridgeReplay<'a> {
                     precision: 0.0,
                     verdict: format!("non_conform:parse:{e}"),
                     run_id: format!("powl-bridge-parse-fail-{scope_token}"),
+                    is_stub: false,
                 };
             }
         };
@@ -441,12 +458,14 @@ impl<'a> PowlReplay for PowlBridgeReplay<'a> {
                 precision: r.precision.unwrap_or(0.0),
                 verdict: r.verdict.to_string(),
                 run_id: r.run_id,
+                is_stub: false,
             },
             Err(e) => ConformanceResult {
                 fitness: 0.0,
                 precision: 0.0,
                 verdict: format!("non_conform:replay_error:{e}"),
                 run_id: format!("powl-bridge-replay-fail-{scope_token}"),
+                is_stub: false,
             },
         }
     }
@@ -1628,6 +1647,9 @@ fn persist_conformance_run(
     let now = chrono::Utc::now().to_rfc3339();
     let fitness_s = format!("{}", conf.fitness);
     let precision_s = format!("{}", conf.precision);
+    // Surface stub status in the OCEL witness so a process miner who sees
+    // only the event log can flag stub-path runs without parsing run_id.
+    let powl_stub_s = if conf.is_stub { "true" } else { "false" };
 
     let atomic: Result<(), anyhow::Error> = (|| {
         let mut conn = store.db().conn();
@@ -1668,6 +1690,11 @@ fn persist_conformance_run(
                 ("precision", &precision_s),
                 ("scope_token", scope_token),
                 ("trace_canonical_hash", trace_hash_hex),
+                // `powl_stub = true` marks that fitness/precision are
+                // placeholder values from NoopPowlReplay (stream-2 stub
+                // not yet integrated).  External auditors MUST NOT treat
+                // stub-path conformance runs as production evidence.
+                ("powl_stub", powl_stub_s),
                 ("production_law_version", "ontostar-1.0.0"),
                 ("defects_taxonomy_version", crate::defects::DEFECTS_TAXONOMY_VERSION),
             ],
