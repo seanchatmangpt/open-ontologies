@@ -767,6 +767,7 @@ impl OpenOntologiesServer {
                     "reason": reason,
                 },
                 "principal_revoked_at": now,
+                "hint": "The bypass was recorded but the session was revoked as required by policy. Declare a new workflow scope and restart the operation in a fresh session.",
             }).to_string());
         }
 
@@ -877,6 +878,7 @@ impl OpenOntologiesServer {
                     "defect": defect,
                     "remediation": remediation,
                     "powl_stub": conf.is_stub,
+                    "hint": "Inspect defect.kind to diagnose: 'StagesIncomplete' means required workflow stages are missing; 'CtqIncomplete' means a required CTQ field is blank; 'ReplayFailed' means POWL conformance check failed.",
                 }).to_string())
             }
         }
@@ -972,7 +974,7 @@ impl OpenOntologiesServer {
             rusqlite::params![scope_token, "planned_workflow", domain, powl],
         ) {
             return Err(format!(
-                r#"{{"ok":false,"error":"failed to declare scope: {}"}}"#,
+                r#"{{"ok":false,"error":"failed to declare scope: {}","hint":"Call onto_declare_workflow with a valid scope_token and POWL string, then retry. Ensure the session database is writable."}}"#,
                 e.to_string().replace('"', "'")
             ));
         }
@@ -3069,7 +3071,8 @@ impl OpenOntologiesServer {
         if input.code.trim().is_empty() {
             return serde_json::json!({
                 "ok": false,
-                "error": "'code' is required — provide a term to look up (e.g. 'diabetes', 'M79.3', 'SNOMED:44054006')."
+                "error": "'code' is required — provide a term to look up (e.g. 'diabetes', 'M79.3', 'SNOMED:44054006').",
+                "hint": "Pass a non-empty 'code' value, e.g. onto_crosswalk({\"code\": \"I10\", \"source_system\": \"ICD10\"})."
             }).to_string();
         }
         match crate::clinical::ClinicalCrosswalks::load("data/crosswalks.parquet") {
@@ -3111,13 +3114,15 @@ impl OpenOntologiesServer {
         if self.graph.triple_count() == 0 {
             return serde_json::json!({
                 "ok": false,
-                "error": "No ontology loaded. Call onto_load first, then use onto_enrich to add skos:exactMatch triples linking classes to clinical codes."
+                "error": "No ontology loaded. Call onto_load first, then use onto_enrich to add skos:exactMatch triples linking classes to clinical codes.",
+                "hint": "Call onto_load with a valid TTL file, then retry onto_enrich."
             }).to_string();
         }
         if input.code.trim().is_empty() {
             return serde_json::json!({
                 "ok": false,
-                "error": "'code' is required — provide a clinical code (ICD-10, SNOMED, or MeSH). Use onto_crosswalk to discover valid codes first."
+                "error": "'code' is required — provide a clinical code (ICD-10, SNOMED, or MeSH). Use onto_crosswalk to discover valid codes first.",
+                "hint": "Pass a non-empty 'code' field, e.g. onto_enrich({\"class_iri\": \"http://example.org/Diabetes\", \"code\": \"E11\", \"system\": \"ICD10\"})."
             }).to_string();
         }
         match crate::clinical::ClinicalCrosswalks::load("data/crosswalks.parquet") {
@@ -4390,7 +4395,7 @@ impl OpenOntologiesServer {
             "elixir" => "elixir",
             other => {
                 return format!(
-                    r#"{{"ok":false,"error":"Unknown generator '{}'. Valid values: python (aliases: python-client, py), rust (alias: rust-structs), typescript (aliases: typescript-types, ts), go (alias: golang), elixir."}}"#,
+                    r#"{{"ok":false,"error":"Unknown generator '{}'. Valid values: python (aliases: python-client, py), rust (alias: rust-structs), typescript (aliases: typescript-types, ts), go (alias: golang), elixir.","hint":"Set generator to one of: python, rust, typescript, go, elixir."}}"#,
                     other
                 );
             }
@@ -4998,13 +5003,13 @@ impl OpenOntologiesServer {
                 Ok(timed) => timed.output,
                 Err(crate::subprocess::SubprocessError::LlmTimeout { elapsed_ms, limit_ms, .. }) => {
                     return format!(
-                        r#"{{"ok":false,"error":"powl_from_text.py timed out after {}ms (limit {}ms)"}}"#,
+                        r#"{{"ok":false,"error":"powl_from_text.py timed out after {}ms (limit {}ms)","hint":"Simplify the problem statement or increase subprocess timeout in config.toml ([subprocess] timeout_ms)."}}"#,
                         elapsed_ms, limit_ms
                     );
                 }
                 Err(crate::subprocess::SubprocessError::SpawnFailed(e)) => {
                     return format!(
-                        r#"{{"ok":false,"error":"failed to spawn powl_from_text.py: {}"}}"#,
+                        r#"{{"ok":false,"error":"failed to spawn powl_from_text.py: {}","hint":"Ensure Python 3 is installed and 'python3' is on PATH, or pass the 'python' field pointing to the correct interpreter."}}"#,
                         e.to_string().replace('"', "'")
                     );
                 }
@@ -5013,7 +5018,7 @@ impl OpenOntologiesServer {
             if !out.status.success() {
                 let stderr = String::from_utf8_lossy(&out.stderr);
                 return format!(
-                    r#"{{"ok":false,"error":"powl_from_text.py exit nonzero: {}"}}"#,
+                    r#"{{"ok":false,"error":"powl_from_text.py exit nonzero: {}","hint":"Check that dspy-ai, pm4py, and groq are installed in the Python environment. Verify GROQ_API_KEY is set."}}"#,
                     stderr.replace('"', "'").replace('\n', " ")
                 );
             }
@@ -5028,7 +5033,7 @@ impl OpenOntologiesServer {
                 Some(l) => l.trim().to_string(),
                 None => {
                     return format!(
-                        r#"{{"ok":false,"error":"powl_from_text.py produced no JSON line: {}"}}"#,
+                        r#"{{"ok":false,"error":"powl_from_text.py produced no JSON line: {}","hint":"The POWL script produced no JSON. Check dspy-ai and pm4py are installed and GROQ_API_KEY is set."}}"#,
                         stdout.replace('"', "'").replace('\n', " ")
                     )
                 }
@@ -5037,7 +5042,7 @@ impl OpenOntologiesServer {
                 Ok(v) => v,
                 Err(e) => {
                     return format!(
-                        r#"{{"ok":false,"error":"powl_from_text.py non-JSON: {} (raw={})"}}"#,
+                        r#"{{"ok":false,"error":"powl_from_text.py non-JSON: {} (raw={})","hint":"The POWL script output malformed JSON. Verify the script version is current and the Python environment is healthy."}}"#,
                         e,
                         json_line.replace('"', "'")
                     )
@@ -5071,12 +5076,13 @@ impl OpenOntologiesServer {
                     "reason": reason,
                     "powl": powl,
                     "refinements": refinements,
+                    "hint": "The POWL validator returned verdict=false. Review the 'reason' field and refine the problem_statement to produce a lawful process model.",
                 })
                 .to_string();
             }
 
             if powl.trim().is_empty() {
-                return r#"{"ok":false,"defect":"replay_failed","reason":"empty powl with verdict=true"}"#.to_string();
+                return r#"{"ok":false,"defect":"replay_failed","reason":"empty powl with verdict=true","hint":"The POWL script returned verdict=true but an empty POWL string. This is likely a bug in the script output. Check GROQ_API_KEY and retry."}"#.to_string();
             }
 
             // Synthetic onto_declare_workflow — same shape as the mustar
@@ -5268,6 +5274,7 @@ impl OpenOntologiesServer {
                 "ok": false,
                 "defect": { "kind": "BootstrapClosed" },
                 "reason": "onto_exemplar_seed runs only during bootstrap; production receipts present (set OPEN_ONTOLOGIES_BOOTSTRAP_MODE=1 to override during integration tests)",
+                "hint": "Set OPEN_ONTOLOGIES_BOOTSTRAP_MODE=1 in your environment to override during integration tests, or use onto_planner_demos to query existing exemplars.",
             }).to_string();
         }
         let raw_path = input
@@ -5438,6 +5445,7 @@ impl OpenOntologiesServer {
                 "ok": false,
                 "admission": ADMISSION_VERDICT_DENIED,
                 "defect": { "kind": "RequirementWithoutSource" },
+                "hint": "Provide a non-empty source_voice field capturing the stakeholder's original words, e.g. 'We need sub-200ms latency'.",
             }).to_string();
         }
         let voice_kind = input.voice_kind.as_deref().unwrap_or("operator").trim();
@@ -5535,14 +5543,14 @@ impl OpenOntologiesServer {
                 Err(crate::subprocess::SubprocessError::LlmTimeout { elapsed_ms, limit_ms, .. }) => {
                     self.emit_tool_ocel(TOOL_TRANSLATE_CANDIDATE, started, false, &[]);
                     return format!(
-                        r#"{{"ok":false,"error":"ctq_from_voice.py timed out after {}ms (limit {}ms)"}}"#,
+                        r#"{{"ok":false,"error":"ctq_from_voice.py timed out after {}ms (limit {}ms)","hint":"Shorten the source_voice text or increase subprocess timeout in config.toml ([subprocess] timeout_ms)."}}"#,
                         elapsed_ms, limit_ms
                     );
                 }
                 Err(crate::subprocess::SubprocessError::SpawnFailed(e)) => {
                     self.emit_tool_ocel(TOOL_TRANSLATE_CANDIDATE, started, false, &[]);
                     return format!(
-                        r#"{{"ok":false,"error":"failed to spawn ctq_from_voice.py: {}"}}"#,
+                        r#"{{"ok":false,"error":"failed to spawn ctq_from_voice.py: {}","hint":"Ensure Python 3 is installed and 'python3' is on PATH, or pass the 'python' field pointing to the correct interpreter."}}"#,
                         e.to_string().replace('"', "'")
                     );
                 }
@@ -5551,7 +5559,7 @@ impl OpenOntologiesServer {
                 let stderr = String::from_utf8_lossy(&out.stderr);
                 self.emit_tool_ocel(TOOL_TRANSLATE_CANDIDATE, started, false, &[]);
                 return format!(
-                    r#"{{"ok":false,"error":"ctq_from_voice.py exit nonzero: {}"}}"#,
+                    r#"{{"ok":false,"error":"ctq_from_voice.py exit nonzero: {}","hint":"Check that dspy-ai and groq are installed in the Python environment. Verify GROQ_API_KEY is set."}}"#,
                     stderr.replace('"', "'").replace('\n', " ")
                 );
             }
@@ -5565,7 +5573,7 @@ impl OpenOntologiesServer {
                 None => {
                     self.emit_tool_ocel(TOOL_TRANSLATE_CANDIDATE, started, false, &[]);
                     return format!(
-                        r#"{{"ok":false,"error":"ctq_from_voice.py produced no JSON line: {}"}}"#,
+                        r#"{{"ok":false,"error":"ctq_from_voice.py produced no JSON line: {}","hint":"The CTQ script produced no JSON output. Check dspy-ai and groq are installed and GROQ_API_KEY is set."}}"#,
                         stdout.replace('"', "'").replace('\n', " ")
                     );
                 }
@@ -5575,7 +5583,7 @@ impl OpenOntologiesServer {
                 Err(e) => {
                     self.emit_tool_ocel(TOOL_TRANSLATE_CANDIDATE, started, false, &[]);
                     return format!(
-                        r#"{{"ok":false,"error":"ctq_from_voice.py non-JSON: {} (raw={})"}}"#,
+                        r#"{{"ok":false,"error":"ctq_from_voice.py non-JSON: {} (raw={})","hint":"The CTQ script output malformed JSON. Verify the script version is current and the Python environment is healthy."}}"#,
                         e,
                         json_line.replace('"', "'")
                     );
@@ -6120,6 +6128,7 @@ impl OpenOntologiesServer {
                 "ok": false,
                 "admission": ADMISSION_VERDICT_DENIED,
                 "defect": { "kind": "CtqIncomplete", "missing": m },
+                "hint": "All 6 CTQ fields are required: source_voice, ctq_text, measure_text, verification_text, negative_case_text, control_plan_text. Fill in the missing field and retry.",
             }).to_string();
         }
         // Build a canonical CTQ artifact byte payload (ordered fields, no
@@ -6204,6 +6213,7 @@ impl OpenOntologiesServer {
             return serde_json::json!({
                 "ok": false,
                 "error": "ctq_receipt_hash must be a 64-char lowercase hex string",
+                "hint": "Pass the receipt_hash returned by onto_admit_ctq — it is a 64-character lowercase hex string (SHA-256). Example: \"a3b4c5...\",",
             }).to_string();
         }
         let mut missing: Option<&'static str> = None;
@@ -6222,6 +6232,7 @@ impl OpenOntologiesServer {
             return serde_json::json!({
                 "ok": false,
                 "error": format!("required field is empty: {m}"),
+                "hint": "All three counterfactual fields are required: naked_craft_path, manufacturing_path, and counterfactual_delta. Fill in the missing field and retry.",
             }).to_string();
         }
         // Compute a stable draft id (BLAKE3 over canonical bytes) so the
@@ -6254,6 +6265,7 @@ impl OpenOntologiesServer {
                 "ok": false,
                 "admission": ADMISSION_VERDICT_DENIED,
                 "defect": { "kind": "CtqIncomplete", "missing": "ctq_receipt_hash" },
+                "hint": "Pass the receipt_hash returned by onto_admit_ctq as 'ctq_receipt_hash'. The value must be a 64-character hex string.",
             }).to_string();
         }
         let naked = input.naked_craft_path.trim();
@@ -6266,6 +6278,7 @@ impl OpenOntologiesServer {
                 "ok": false,
                 "admission": ADMISSION_VERDICT_DENIED,
                 "defect": { "kind": "WorkOrderMissingCounterfactual" },
+                "hint": "Fill in all three counterfactual fields: naked_craft_path, manufacturing_path, and counterfactual_delta. Use onto_counterfactual to generate these.",
             }).to_string();
         }
         // Emit work_order_admitted event BEFORE the gate so observed_stages
@@ -6341,6 +6354,7 @@ impl OpenOntologiesServer {
                 "ok": false,
                 "admission": ADMISSION_VERDICT_DENIED,
                 "defect": d,
+                "hint": "Inspect defect.kind to see which SolutionSpec field is invalid. Common causes: empty name, missing work_order_receipt_hash, or unsupported iac_target value.",
             }).to_string();
         }
 
@@ -6384,6 +6398,7 @@ impl OpenOntologiesServer {
                     "ok": false,
                     "admission": ADMISSION_VERDICT_DENIED,
                     "defect": d,
+                    "hint": "The solution generator failed. Check that all SolutionSpec fields are valid and iac_target is supported (aws_ec2, aws_lambda, aws_ecs).",
                 }).to_string();
             }
         };
@@ -6641,6 +6656,7 @@ impl OpenOntologiesServer {
                     "invented_tokens": invented,
                     "summary": summary_str,
                     "refinements": refinements,
+                    "hint": "The projection introduced tokens not present in admitted_evidence. Expand the admitted_evidence to include the cited terms, or retry with a different engine.",
                 }).to_string();
             }
             self.emit_tool_ocel(TOOL_EXECUTIVE_PROJECTION, started, true, &[]);
