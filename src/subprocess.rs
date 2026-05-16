@@ -54,6 +54,26 @@ use wait_timeout::ChildExt;
 /// assert!(msg.contains("5000ms"), "limit must appear: {msg}");
 /// assert!(msg.contains("groq_pm4py.py"), "path must appear: {msg}");
 /// ```
+///
+/// ```
+/// use open_ontologies::subprocess::SubprocessError;
+/// use std::io;
+///
+/// // Construct a SpawnFailed variant from a raw io::Error and verify Display.
+/// let io_err = io::Error::new(io::ErrorKind::NotFound, "no such file or directory");
+/// let err = SubprocessError::SpawnFailed(io_err);
+/// let msg = err.to_string();
+/// assert!(msg.contains("spawn failed"), "display must say spawn failed: {msg}");
+/// assert!(msg.contains("no such file"), "display must include io::Error message: {msg}");
+///
+/// // Verify debug formatting is available (derived).
+/// let timeout_err = SubprocessError::LlmTimeout {
+///     elapsed_ms: 100,
+///     limit_ms: 50,
+///     script_path: "test.py".into(),
+/// };
+/// assert!(format!("{timeout_err:?}").contains("LlmTimeout"));
+/// ```
 #[derive(Debug, Error)]
 pub enum SubprocessError {
     #[error("subprocess timed out after {elapsed_ms}ms (limit {limit_ms}ms): {script_path}")]
@@ -86,6 +106,32 @@ pub enum SubprocessError {
 /// assert_eq!(timed.elapsed_ms, 42);
 /// assert_eq!(&timed.output.stdout, b"hello\n");
 /// ```
+///
+/// ```
+/// use open_ontologies::subprocess::TimedOutput;
+/// use std::process::Output;
+/// use std::os::unix::process::ExitStatusExt;
+///
+/// // Non-zero exit status: success() returns false, stderr is populated.
+/// // On Unix, from_raw(256) encodes exit code 1 (upper byte is the exit code).
+/// let status = std::process::ExitStatus::from_raw(256);
+/// let timed = TimedOutput {
+///     output: Output {
+///         status,
+///         stdout: vec![],
+///         stderr: b"error: no input files\n".to_vec(),
+///     },
+///     elapsed_ms: 7,
+/// };
+/// assert!(!timed.output.status.success());
+/// assert_eq!(timed.elapsed_ms, 7);
+/// assert_eq!(&timed.output.stderr, b"error: no input files\n");
+/// assert!(timed.output.stdout.is_empty());
+///
+/// // Debug formatting is available (derived).
+/// let dbg = format!("{timed:?}");
+/// assert!(dbg.contains("elapsed_ms"), "debug must include field name: {dbg}");
+/// ```
 #[derive(Debug)]
 pub struct TimedOutput {
     pub output: Output,
@@ -113,6 +159,30 @@ pub struct TimedOutput {
 /// // Copy semantics are derived — the struct is Copy.
 /// let ctx2 = ctx;
 /// assert_eq!(ctx2.script_path, ctx.script_path);
+/// ```
+///
+/// ```
+/// use open_ontologies::subprocess::SubprocessContext;
+///
+/// // Demonstrate Clone: both copies are independent (though values point to
+/// // the same string literals since lifetime is 'static here).
+/// let model_name = String::from("powl_from_text");
+/// let tenant = String::from("beta-corp");
+/// let script = String::from("/scripts/powl.py");
+/// let ctx = SubprocessContext {
+///     model: &model_name,
+///     tenant_id: &tenant,
+///     script_path: &script,
+/// };
+/// let ctx_clone = ctx; // Copy
+/// assert_eq!(ctx.model, ctx_clone.model);
+/// assert_eq!(ctx.tenant_id, ctx_clone.tenant_id);
+/// assert_eq!(ctx.script_path, ctx_clone.script_path);
+///
+/// // Debug formatting is available (derived).
+/// let dbg = format!("{ctx:?}");
+/// assert!(dbg.contains("powl_from_text"), "debug must include model: {dbg}");
+/// assert!(dbg.contains("beta-corp"), "debug must include tenant_id: {dbg}");
 /// ```
 #[derive(Debug, Clone, Copy)]
 pub struct SubprocessContext<'a> {
@@ -322,6 +392,23 @@ pub fn run_with_timeout_stdin(
 /// assert_eq!(attrs[2], ("tenant_id", "acme-corp"));
 /// assert_eq!(attrs[3], ("script_path", "/opt/scripts/groq_pm4py.py"));
 /// assert_eq!(attrs.len(), 4);
+/// ```
+///
+/// ```
+/// use open_ontologies::subprocess::timeout_ocel_attrs;
+///
+/// // Keys are stable across all calls — the array is always
+/// // ["model", "elapsed_ms", "tenant_id", "script_path"] in that order.
+/// let attrs = timeout_ocel_attrs("m", "0", "t", "s");
+/// let keys: Vec<&str> = attrs.iter().map(|(k, _)| *k).collect();
+/// assert_eq!(keys, &["model", "elapsed_ms", "tenant_id", "script_path"]);
+///
+/// // Values round-trip correctly for all positions.
+/// let attrs2 = timeout_ocel_attrs("my-model", "12345", "my-tenant", "/my/script.py");
+/// assert_eq!(attrs2[0].1, "my-model");
+/// assert_eq!(attrs2[1].1, "12345");
+/// assert_eq!(attrs2[2].1, "my-tenant");
+/// assert_eq!(attrs2[3].1, "/my/script.py");
 /// ```
 pub fn timeout_ocel_attrs<'a>(
     model: &'a str,
