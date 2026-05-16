@@ -7,13 +7,48 @@ pub mod discovery;
 pub mod regression;
 
 /// What to do with an issue based on feedback history.
+///
+/// # Example
+///
+/// ```
+/// use open_ontologies::feedback::FeedbackAction;
+///
+/// // Enum variants are comparable with PartialEq.
+/// assert_eq!(FeedbackAction::Keep, FeedbackAction::Keep);
+/// assert_ne!(FeedbackAction::Keep, FeedbackAction::Suppress);
+/// assert_ne!(FeedbackAction::Downgrade, FeedbackAction::Suppress);
+/// ```
 #[derive(Debug, PartialEq)]
 pub enum FeedbackAction {
     /// Report at original severity
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use open_ontologies::feedback::FeedbackAction;
+    /// let action = FeedbackAction::Keep;
+    /// assert_eq!(action, FeedbackAction::Keep);
+    /// ```
     Keep,
     /// Downgrade severity one level (warning → info)
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use open_ontologies::feedback::FeedbackAction;
+    /// let action = FeedbackAction::Downgrade;
+    /// assert_eq!(action, FeedbackAction::Downgrade);
+    /// ```
     Downgrade,
     /// Suppress entirely (omit from output)
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use open_ontologies::feedback::FeedbackAction;
+    /// let action = FeedbackAction::Suppress;
+    /// assert_eq!(action, FeedbackAction::Suppress);
+    /// ```
     Suppress,
 }
 
@@ -21,6 +56,22 @@ pub enum FeedbackAction {
 // `[feedback]` in config.toml).
 
 /// Check feedback history for a (tool, rule_id, entity) tuple.
+///
+/// Returns [`FeedbackAction::Keep`] when there is no feedback or when any
+/// acceptance has been recorded. Returns [`FeedbackAction::Downgrade`] or
+/// [`FeedbackAction::Suppress`] when enough dismissals have accumulated.
+///
+/// # Example
+///
+/// ```
+/// use open_ontologies::state::StateDb;
+/// use open_ontologies::feedback::{get_feedback_adjustment, FeedbackAction};
+///
+/// let db = StateDb::open(std::path::Path::new(":memory:")).unwrap();
+/// // No prior feedback — always Keep.
+/// let action = get_feedback_adjustment(&db, "lint", "missing_label", "http://ex.org/A");
+/// assert_eq!(action, FeedbackAction::Keep);
+/// ```
 pub fn get_feedback_adjustment(db: &StateDb, tool: &str, rule_id: &str, entity: &str) -> FeedbackAction {
     let conn = db.conn();
     let dismiss_count: i64 = conn
@@ -53,6 +104,23 @@ pub fn get_feedback_adjustment(db: &StateDb, tool: &str, rule_id: &str, entity: 
 }
 
 /// Record feedback for a lint or enforce issue.
+///
+/// Inserts a row into `tool_feedback` and returns a JSON summary string.
+/// The JSON always contains `"ok": true` on success.
+///
+/// # Example
+///
+/// ```
+/// use open_ontologies::state::StateDb;
+/// use open_ontologies::feedback::record_tool_feedback;
+///
+/// let db = StateDb::open(std::path::Path::new(":memory:")).unwrap();
+/// let json = record_tool_feedback(&db, "enforce", "orphan_class", "http://ex.org/X", true).unwrap();
+/// let v: serde_json::Value = serde_json::from_str(&json).unwrap();
+/// assert_eq!(v["ok"], true);
+/// assert_eq!(v["tool"], "enforce");
+/// assert_eq!(v["accepted"], true);
+/// ```
 pub fn record_tool_feedback(db: &StateDb, tool: &str, rule_id: &str, entity: &str, accepted: bool) -> anyhow::Result<String> {
     let conn = db.conn();
     conn.execute(
@@ -70,6 +138,20 @@ pub fn record_tool_feedback(db: &StateDb, tool: &str, rule_id: &str, entity: &st
 }
 
 /// Downgrade a severity string by one level.
+///
+/// `"error"` becomes `"warning"`, `"warning"` becomes `"info"`, and any
+/// unrecognised severity passes through unchanged.
+///
+/// # Example
+///
+/// ```
+/// use open_ontologies::feedback::downgrade_severity;
+///
+/// assert_eq!(downgrade_severity("error"),   "warning");
+/// assert_eq!(downgrade_severity("warning"), "info");
+/// assert_eq!(downgrade_severity("info"),    "info");
+/// assert_eq!(downgrade_severity("critical"), "critical");
+/// ```
 pub fn downgrade_severity(severity: &str) -> &str {
     match severity {
         "error" => "warning",

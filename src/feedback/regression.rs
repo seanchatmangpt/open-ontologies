@@ -32,6 +32,30 @@ pub const DEFAULT_WINDOW_K: usize = 10;
 /// ```
 pub const REGRESSION_DELTA: f64 = 0.10;
 
+/// Outcome returned by [`check_after_insert`] and [`check_after_insert_with`].
+///
+/// When there are fewer than `2 * window_k` rows the `emitted` flag is `false`
+/// and all numeric fields are `0.0`.
+///
+/// # Example
+///
+/// ```
+/// use open_ontologies::state::StateDb;
+/// use open_ontologies::ocel_store::OcelStore;
+/// use open_ontologies::feedback::regression::check_after_insert;
+///
+/// let db = StateDb::open(std::path::Path::new(":memory:")).unwrap();
+/// let store = OcelStore::new(db);
+///
+/// let v = check_after_insert(&store, "invoicing").unwrap();
+/// // Struct fields are publicly accessible.
+/// assert_eq!(v.workflow_class, "invoicing");
+/// assert!(!v.emitted);
+/// assert_eq!(v.window_k, open_ontologies::feedback::regression::DEFAULT_WINDOW_K);
+/// assert!((v.baseline - 0.0).abs() < f64::EPSILON);
+/// assert!((v.current - 0.0).abs() < f64::EPSILON);
+/// assert!((v.delta - 0.0).abs() < f64::EPSILON);
+/// ```
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct RegressionVerdict {
     pub workflow_class: String,
@@ -85,6 +109,23 @@ pub fn check_after_insert(
 /// let verdict = check_after_insert_with(&store, "shipping", 2).unwrap();
 /// assert!(!verdict.emitted);
 /// assert_eq!(verdict.window_k, 2);
+/// ```
+///
+/// The verdict is [`serde::Serialize`] so it can be turned into JSON:
+///
+/// ```
+/// use open_ontologies::state::StateDb;
+/// use open_ontologies::ocel_store::OcelStore;
+/// use open_ontologies::feedback::regression::check_after_insert_with;
+///
+/// let db = StateDb::open(std::path::Path::new(":memory:")).unwrap();
+/// let store = OcelStore::new(db);
+///
+/// let verdict = check_after_insert_with(&store, "claims", 5).unwrap();
+/// let json = serde_json::to_value(&verdict).unwrap();
+/// assert_eq!(json["workflow_class"], "claims");
+/// assert_eq!(json["emitted"], false);
+/// assert_eq!(json["window_k"], 5);
 /// ```
 pub fn check_after_insert_with(
     store: &OcelStore,
