@@ -6714,7 +6714,7 @@ impl OpenOntologiesServer {
     fn onto_attestation_rotate_keys(&self) -> String {
         let started = std::time::Instant::now();
         if !self.is_admin_principal() {
-            self.emit_tool_ocel("onto_attestation_rotate_keys", started, false, &[]);
+            self.emit_tool_ocel(TOOL_ATTESTATION_ROTATE_KEYS, started, false, &[]);
             return serde_json::json!({
                 "ok": false,
                 "defect": { "kind": "FalsePass", "reason": DEFECT_REASON_NOT_ADMIN },
@@ -6726,7 +6726,7 @@ impl OpenOntologiesServer {
             Ok(d) if !d.trim().is_empty() => d,
             _ => {
                 self.emit_tool_ocel(
-                    "onto_attestation_rotate_keys",
+                    TOOL_ATTESTATION_ROTATE_KEYS,
                     started,
                     false,
                     &[],
@@ -6748,7 +6748,7 @@ impl OpenOntologiesServer {
             Ok(t) => t,
             Err(e) => {
                 self.emit_tool_ocel(
-                    "onto_attestation_rotate_keys",
+                    TOOL_ATTESTATION_ROTATE_KEYS,
                     started,
                     false,
                     &[],
@@ -6771,7 +6771,7 @@ impl OpenOntologiesServer {
         // next `.load()`. We emit a success event; downstream tooling
         // can verify the rotation by querying `trusted_keys_history`.
         self.emit_tool_ocel(
-            "onto_attestation_rotate_keys",
+            TOOL_ATTESTATION_ROTATE_KEYS,
             started,
             true,
             &[],
@@ -6878,7 +6878,7 @@ impl OpenOntologiesServer {
         let started = std::time::Instant::now();
         if !self.is_admin_principal() {
             self.emit_tool_ocel(
-                "onto_receipts_revoke_batch",
+                TOOL_RECEIPTS_REVOKE_BATCH,
                 started,
                 false,
                 &[],
@@ -6894,7 +6894,7 @@ impl OpenOntologiesServer {
         let reason = input.reason.trim();
         if pattern.is_empty() {
             self.emit_tool_ocel(
-                "onto_receipts_revoke_batch",
+                TOOL_RECEIPTS_REVOKE_BATCH,
                 started,
                 false,
                 &[],
@@ -6907,7 +6907,7 @@ impl OpenOntologiesServer {
         }
         if reason.is_empty() {
             self.emit_tool_ocel(
-                "onto_receipts_revoke_batch",
+                TOOL_RECEIPTS_REVOKE_BATCH,
                 started,
                 false,
                 &[],
@@ -6946,7 +6946,7 @@ impl OpenOntologiesServer {
                 Err(e) => {
                     drop(conn);
                     self.emit_tool_ocel(
-                        "onto_receipts_revoke_batch",
+                        TOOL_RECEIPTS_REVOKE_BATCH,
                         started,
                         false,
                         &[],
@@ -6965,7 +6965,7 @@ impl OpenOntologiesServer {
             "receipts_batch_revoked",
             &format!("pattern={};reason={};count={}", pattern, reason, updated),
         );
-        self.emit_tool_ocel("onto_receipts_revoke_batch", started, true, &[]);
+        self.emit_tool_ocel(TOOL_RECEIPTS_REVOKE_BATCH, started, true, &[]);
         serde_json::json!({
             "ok": true,
             "scope_token_pattern": pattern,
@@ -6996,7 +6996,7 @@ impl OpenOntologiesServer {
         let started = std::time::Instant::now();
         if !self.is_admin_principal() {
             self.emit_tool_ocel(
-                "onto_session_revoke_by_principal",
+                TOOL_SESSION_REVOKE_BY_PRINCIPAL,
                 started,
                 false,
                 &[],
@@ -7013,7 +7013,7 @@ impl OpenOntologiesServer {
         let reason = input.reason.trim();
         if tenant_id.is_empty() || principal_id.is_empty() || reason.is_empty() {
             self.emit_tool_ocel(
-                "onto_session_revoke_by_principal",
+                TOOL_SESSION_REVOKE_BY_PRINCIPAL,
                 started,
                 false,
                 &[],
@@ -7061,7 +7061,7 @@ impl OpenOntologiesServer {
                 Err(e) => {
                     drop(conn);
                     self.emit_tool_ocel(
-                        "onto_session_revoke_by_principal",
+                        TOOL_SESSION_REVOKE_BY_PRINCIPAL,
                         started,
                         false,
                         &[],
@@ -7086,7 +7086,7 @@ impl OpenOntologiesServer {
             ),
         );
         self.emit_tool_ocel(
-            "onto_session_revoke_by_principal",
+            TOOL_SESSION_REVOKE_BY_PRINCIPAL,
             started,
             true,
             &[],
@@ -7172,7 +7172,7 @@ impl OpenOntologiesServer {
     pub fn onto_retention_resume(&self) -> String {
         let started = std::time::Instant::now();
         if !self.is_admin_principal() {
-            self.emit_tool_ocel("onto_retention_resume", started, false, &[]);
+            self.emit_tool_ocel(TOOL_RETENTION_RESUME, started, false, &[]);
             return serde_json::json!({
                 "ok": false,
                 "defect": { "kind": "FalsePass", "reason": DEFECT_REASON_NOT_ADMIN },
@@ -7196,7 +7196,7 @@ impl OpenOntologiesServer {
             "retention_resumed",
             &format!("prev_paused_until_epoch={}", prev),
         );
-        self.emit_tool_ocel("onto_retention_resume", started, true, &[]);
+        self.emit_tool_ocel(TOOL_RETENTION_RESUME, started, true, &[]);
         serde_json::json!({
             "ok": true,
             "previous_paused_until_epoch_secs": prev,
