@@ -44,6 +44,23 @@ use serde_json::{json, Value};
 use crate::graph::GraphStore;
 use crate::state::StateDb;
 
+// ─── Magic-string constants ───────────────────────────────────────────────────
+
+/// NDJSON field name for the number of RDF triples successfully loaded.
+const KEY_TRIPLES_LOADED: &str = "triples_loaded";
+
+/// NDJSON field name for the serialization format identifier (Turtle, N-Triples, etc.).
+const KEY_FORMAT: &str = "format";
+
+/// NDJSON field name for file-system path arguments in command results.
+const KEY_PATH: &str = "path";
+
+/// NDJSON / JSON-array field name identifying the batch command.
+const KEY_COMMAND: &str = "command";
+
+/// Default RDF serialization format when `--format` is not specified.
+const DEFAULT_FORMAT: &str = "turtle";
+
 /// Outcome of attempting to deserialize a subprocess's JSON-string
 /// result. The runner consumes this via [`BatchOutcome::into_value`]
 /// to produce a Value for the NDJSON stream.
@@ -159,7 +176,7 @@ impl BatchRunner {
         let commands = match parse_input(input) {
             Ok(cmds) => cmds,
             Err(e) => {
-                let err = json!({"seq": 0, "command": "parse", "error": e});
+                let err = json!({"seq": 0, KEY_COMMAND: "parse", "error": e});
                 self.print_json(&err);
                 return 1;
             }
@@ -171,7 +188,7 @@ impl BatchRunner {
             let has_error = result.get("error").is_some();
             let line = json!({
                 "seq": seq,
-                "command": cmd.name,
+                KEY_COMMAND: cmd.name,
                 "result": result,
             });
             self.print_json(&line);
@@ -232,7 +249,7 @@ impl BatchRunner {
             None => return json!({"error": "load requires a file path"}),
         };
         match self.graph.load_file(path) {
-            Ok(count) => json!({"ok": true, "triples_loaded": count, "path": path}),
+            Ok(count) => json!({"ok": true, KEY_TRIPLES_LOADED: count, KEY_PATH: path}),
             Err(e) => json!({"error": e.to_string()}),
         }
     }
@@ -242,9 +259,9 @@ impl BatchRunner {
             Some(p) => p,
             None => return json!({"error": "save requires a file path"}),
         };
-        let format = Self::flag_value(args, "--format").unwrap_or("turtle".to_string());
+        let format = Self::flag_value(args, "--format").unwrap_or(DEFAULT_FORMAT.to_string());
         match self.graph.save_file(path, &format) {
-            Ok(_) => json!({"ok": true, "path": path, "format": format}),
+            Ok(_) => json!({"ok": true, KEY_PATH: path, KEY_FORMAT: format}),
             Err(e) => json!({"error": e.to_string()}),
         }
     }
@@ -351,7 +368,7 @@ impl BatchRunner {
         }
         let path = &args[0];
         let to = Self::flag_value(args, "--to").unwrap_or_else(|| {
-            if args.len() > 1 { args[1].clone() } else { "turtle".to_string() }
+            if args.len() > 1 { args[1].clone() } else { DEFAULT_FORMAT.to_string() }
         });
         let output = Self::flag_value(args, "--output");
         let store = GraphStore::new();
@@ -360,11 +377,11 @@ impl BatchRunner {
                 Ok(content) => {
                     if let Some(out_path) = output {
                         match std::fs::write(&out_path, &content) {
-                            Ok(_) => json!({"ok": true, "path": out_path, "format": to}),
+                            Ok(_) => json!({"ok": true, KEY_PATH: out_path, KEY_FORMAT: to}),
                             Err(e) => json!({"error": e.to_string()}),
                         }
                     } else {
-                        json!({"ok": true, "format": to, "content_length": content.len()})
+                        json!({"ok": true, KEY_FORMAT: to, "content_length": content.len()})
                     }
                 }
                 Err(e) => json!({"error": e.to_string()}),
@@ -438,7 +455,7 @@ impl BatchRunner {
         json!({
             "status": "ok",
             "version": env!("CARGO_PKG_VERSION"),
-            "triples_loaded": self.graph.triple_count(),
+            KEY_TRIPLES_LOADED: self.graph.triple_count(),
         })
     }
 
@@ -462,7 +479,7 @@ impl BatchRunner {
             }
         };
         match self.graph.load_turtle(&content, None) {
-            Ok(count) => json!({"ok": true, "triples_loaded": count, "source": url}),
+            Ok(count) => json!({"ok": true, KEY_TRIPLES_LOADED: count, "source": url}),
             Err(e) => json!({"error": format!("Parse error: {}", e)}),
         }
     }
@@ -483,7 +500,7 @@ impl BatchRunner {
             Err(e) => return json!({"error": e.to_string()}),
         };
         if rows.is_empty() {
-            return json!({"ok": true, "triples_loaded": 0, "warnings": ["No data rows found"]});
+            return json!({"ok": true, KEY_TRIPLES_LOADED: 0, "warnings": ["No data rows found"]});
         }
 
         let mapping_config = if let Some(ref mp) = mapping_path {
@@ -501,7 +518,7 @@ impl BatchRunner {
 
         let ntriples = mapping_config.rows_to_ntriples(&rows);
         match self.graph.load_ntriples(&ntriples) {
-            Ok(count) => json!({"ok": true, "triples_loaded": count, "rows": rows.len()}),
+            Ok(count) => json!({"ok": true, KEY_TRIPLES_LOADED: count, "rows": rows.len()}),
             Err(e) => json!({"error": e.to_string()}),
         }
     }
@@ -577,8 +594,8 @@ fn parse_json(input: &str) -> Result<Vec<BatchCmd>, String> {
         .map_err(|e| format!("invalid JSON: {}", e))?;
     let mut cmds = Vec::new();
     for item in arr {
-        let name = item["command"].as_str()
-            .ok_or_else(|| "each JSON object must have a \"command\" field".to_string())?
+        let name = item[KEY_COMMAND].as_str()
+            .ok_or_else(|| format!("each JSON object must have a \"{KEY_COMMAND}\" field"))?
             .to_string();
         let args = if let Some(obj) = item["args"].as_object() {
             let mut flat = Vec::new();
