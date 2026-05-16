@@ -4640,6 +4640,7 @@ impl OpenOntologiesServer {
                 return serde_json::json!({
                     "ok": false,
                     "defect": { "kind": "DeadParameter", "param": format!("op={}", other) },
+                    "hint": "Valid op values: apply, codegen, save, push. Example: onto_admission_check({\"op\": \"apply\", \"scope_token\": \"my-scope\"}).",
                 })
                 .to_string();
             }
@@ -4771,12 +4772,18 @@ impl OpenOntologiesServer {
                 let passed = count_passed(&outcomes);
                 let failed = count_failed(&outcomes);
                 let defects: Vec<DefectClass> = Vec::new();
+                let gate_names_passed: Vec<&str> = outcomes
+                    .iter()
+                    .filter(|(_, o)| o.passed)
+                    .map(|(g, _)| *g)
+                    .collect();
                 serde_json::json!({
                     "ok": true,
                     "scope_token": input.scope_token,
                     "earl_report": report,
                     "gates_passed": passed,
                     "gates_failed": failed,
+                    "gate_names_passed": gate_names_passed,
                     "defects": defects,
                 })
                 .to_string()
@@ -4879,6 +4886,7 @@ impl OpenOntologiesServer {
                     "ok": false,
                     "defect": { "kind": "ScopeUnclosed" },
                     "error": "no declared workflow for scope_token",
+                    "hint": "Call onto_declare_workflow with this scope_token first, then retry onto_conformance_check.",
                 })
                 .to_string();
             }
@@ -4892,6 +4900,7 @@ impl OpenOntologiesServer {
                     "ok": false,
                     "defect": { "kind": "ReplayFailed" },
                     "error": format!("powl parse: {e}"),
+                    "hint": "Verify the POWL string stored for this scope_token is a valid pm4py POWL expression. Use onto_plan_workflow to regenerate if corrupted.",
                 })
                 .to_string();
             }
@@ -4915,6 +4924,7 @@ impl OpenOntologiesServer {
                 "ok": false,
                 "defect": { "kind": "ReplayFailed" },
                 "error": format!("{e}"),
+                "hint": "Ensure OCEL events for this scope_token are loaded and the declared POWL is reachable. Check onto_status for store health.",
             })
             .to_string(),
         }
@@ -5704,6 +5714,7 @@ impl OpenOntologiesServer {
                 "ok": false,
                 "provisional": true,
                 "error": "NoLlmConfigured: GROQ_API_KEY is not set in env or .env",
+                "hint": "Set GROQ_API_KEY in your environment or .env file, then retry onto_translate_candidate. Use onto_groq_status to verify connectivity.",
             }).to_string();
         }
         // Phase 5: drive the DSPy-style **shaped** translator. The
@@ -5724,7 +5735,7 @@ impl OpenOntologiesServer {
             Err(e) => {
                 self.emit_tool_ocel(TOOL_TRANSLATE_CANDIDATE, started, false, &[]);
                 return format!(
-                    r#"{{"ok":false,"error":"LlmInput sanitize failed: {}"}}"#,
+                    r#"{{"ok":false,"error":"LlmInput sanitize failed: {}","hint":"Ensure the input is plain text under 256 bytes with no control characters or chat markers."}}"#,
                     e.to_string().replace('"', "'")
                 );
             }
@@ -6295,6 +6306,7 @@ impl OpenOntologiesServer {
             return serde_json::json!({
                 "ok": false,
                 "error": "admitted_evidence is empty",
+                "hint": "Pass the non-empty admitted evidence text, e.g. onto_executive_projection({\"admitted_evidence\": \"CTQ: reduce latency. Measure: p99 < 200ms.\", \"scope_token\": \"my-scope\"}).",
             }).to_string();
         }
 
@@ -6314,14 +6326,14 @@ impl OpenOntologiesServer {
                 Err(crate::subprocess::SubprocessError::LlmTimeout { elapsed_ms, limit_ms, .. }) => {
                     self.emit_tool_ocel(TOOL_EXECUTIVE_PROJECTION, started, false, &[]);
                     return format!(
-                        r#"{{"ok":false,"error":"executive_projection.py timed out after {}ms (limit {}ms)"}}"#,
+                        r#"{{"ok":false,"error":"executive_projection.py timed out after {}ms (limit {}ms)","hint":"Reduce the admitted_evidence length or increase the subprocess timeout in config.toml ([subprocess] timeout_ms)."}}"#,
                         elapsed_ms, limit_ms
                     );
                 }
                 Err(crate::subprocess::SubprocessError::SpawnFailed(e)) => {
                     self.emit_tool_ocel(TOOL_EXECUTIVE_PROJECTION, started, false, &[]);
                     return format!(
-                        r#"{{"ok":false,"error":"failed to spawn executive_projection.py: {}"}}"#,
+                        r#"{{"ok":false,"error":"failed to spawn executive_projection.py: {}","hint":"Ensure Python 3 is installed and 'python3' is on PATH, or pass the 'python' field pointing to the correct interpreter."}}"#,
                         e.to_string().replace('"', "'")
                     );
                 }
@@ -6330,7 +6342,7 @@ impl OpenOntologiesServer {
                 let stderr = String::from_utf8_lossy(&out.stderr);
                 self.emit_tool_ocel(TOOL_EXECUTIVE_PROJECTION, started, false, &[]);
                 return format!(
-                    r#"{{"ok":false,"error":"executive_projection.py exit nonzero: {}"}}"#,
+                    r#"{{"ok":false,"error":"executive_projection.py exit nonzero: {}","hint":"Check that dspy-ai and groq are installed: 'pip install dspy-ai groq'. Verify GROQ_API_KEY is set."}}"#,
                     stderr.replace('"', "'").replace('\n', " ")
                 );
             }
@@ -6344,7 +6356,7 @@ impl OpenOntologiesServer {
                 None => {
                     self.emit_tool_ocel(TOOL_EXECUTIVE_PROJECTION, started, false, &[]);
                     return format!(
-                        r#"{{"ok":false,"error":"executive_projection.py produced no JSON: {}"}}"#,
+                        r#"{{"ok":false,"error":"executive_projection.py produced no JSON: {}","hint":"The script did not output a JSON line. Check that dspy and groq are installed and GROQ_API_KEY is set."}}"#,
                         stdout.replace('"', "'").replace('\n', " ")
                     );
                 }
@@ -6354,7 +6366,7 @@ impl OpenOntologiesServer {
                 Err(e) => {
                     self.emit_tool_ocel(TOOL_EXECUTIVE_PROJECTION, started, false, &[]);
                     return format!(
-                        r#"{{"ok":false,"error":"executive_projection.py non-JSON: {}"}}"#,
+                        r#"{{"ok":false,"error":"executive_projection.py non-JSON: {}","hint":"The script output a non-parseable JSON line. Verify the script version is up to date and the Python environment is healthy."}}"#,
                         e
                     );
                 }
@@ -6545,6 +6557,7 @@ impl OpenOntologiesServer {
             return serde_json::json!({
                 "ok": false,
                 "error": "NoLlmConfigured: GROQ_API_KEY is not set",
+                "hint": "Set the GROQ_API_KEY environment variable, or use onto_groq_status to verify connectivity. To skip Groq, pass engine='inproc' to use the built-in projection.",
             }).to_string();
         }
         // Re-use the candidate-CTQ translation as the prompt frame: it
@@ -6564,7 +6577,7 @@ impl OpenOntologiesServer {
             Err(e) => {
                 self.emit_tool_ocel(TOOL_EXECUTIVE_PROJECTION, started, false, &[]);
                 return format!(
-                    r#"{{"ok":false,"error":"LlmInput sanitize failed: {}"}}"#,
+                    r#"{{"ok":false,"error":"LlmInput sanitize failed: {}","hint":"Ensure the input is plain text under 256 bytes with no control characters or chat markers."}}"#,
                     e.to_string().replace('"', "'")
                 );
             }
@@ -6616,6 +6629,7 @@ impl OpenOntologiesServer {
                 "defect": { "kind": "FalsePass" },
                 "reason": "executive projection introduced tokens not present in admitted evidence",
                 "invented_tokens": invented,
+                "hint": "The projection summary contains tokens not found in admitted_evidence. Expand the admitted_evidence to include the cited terms, or use a shorter summary scope.",
             }).to_string();
         }
         let inproc_latency_ms = started.elapsed().as_millis() as u64;
@@ -6699,6 +6713,7 @@ impl OpenOntologiesServer {
                     "key_present": false,
                     "model": "",
                     "error": format!("failed to spawn groq_status.py: {e}"),
+                    "hint": "Ensure Python 3 is installed and 'python3' is on PATH. If using a custom venv, pass 'python' parameter pointing to the correct interpreter.",
                 }).to_string();
             }
         };
@@ -6718,6 +6733,7 @@ impl OpenOntologiesServer {
                 "model": "",
                 "error": format!("groq_status.py produced no JSON: stderr={}",
                     stderr.replace('"', "'").replace('\n', " ")),
+                "hint": "Ensure dspy is installed in the Python environment: 'pip install dspy-ai'. Check that GROQ_API_KEY is set in the environment before retrying.",
             }),
         };
         let ok_flag = resp.get("ok").and_then(|v| v.as_bool()).unwrap_or(false);
@@ -6898,6 +6914,7 @@ impl OpenOntologiesServer {
                 "ok": false,
                 "defect": { "kind": "FalsePass", "reason": DEFECT_REASON_NOT_ADMIN },
                 "error": "caller is not in admin_principals",
+                "hint": "Set OPEN_ONTOLOGIES_ADMIN_PRINCIPALS to include the current principal, or use an admin-provisioned session.",
             })
             .to_string();
         }
@@ -6922,6 +6939,7 @@ impl OpenOntologiesServer {
                     return serde_json::json!({
                         "ok": false,
                         "error": format!("DELETE failed: {}", e.to_string().replace('"', "'")),
+                        "hint": "Check that the bootstrap_lock table exists and the database file is not locked by another process.",
                     })
                     .to_string();
                 }
@@ -6968,6 +6986,7 @@ impl OpenOntologiesServer {
                 "ok": false,
                 "defect": { "kind": "FalsePass", "reason": DEFECT_REASON_NOT_ADMIN },
                 "error": "caller is not in admin_principals",
+                "hint": "Set OPEN_ONTOLOGIES_ADMIN_PRINCIPALS to include the current principal, or use an admin-provisioned session.",
             })
             .to_string();
         }
@@ -6983,6 +7002,7 @@ impl OpenOntologiesServer {
             return serde_json::json!({
                 "ok": false,
                 "error": "scope_token_pattern must not be empty",
+                "hint": "Provide a SQLite GLOB pattern such as 'my-scope-*' to match scope_token values. Use '*' to revoke all (use with caution).",
             })
             .to_string();
         }
@@ -6996,6 +7016,7 @@ impl OpenOntologiesServer {
             return serde_json::json!({
                 "ok": false,
                 "error": "reason must not be empty",
+                "hint": "Provide a human-readable reason for the revocation, e.g. 'key compromise detected' or 'scope retired'. This is recorded in the audit trail.",
             })
             .to_string();
         }
@@ -7035,6 +7056,7 @@ impl OpenOntologiesServer {
                     return serde_json::json!({
                         "ok": false,
                         "error": format!("UPDATE failed: {}", e.to_string().replace('"', "'")),
+                        "hint": "Check that the receipts table exists and the database file is not locked by another process. Verify the GLOB pattern is valid SQLite syntax.",
                     })
                     .to_string();
                 }
@@ -7417,7 +7439,9 @@ impl OpenOntologiesServer {
         serde_json::json!({
             "ok": true,
             "fingerprint": fpr_hex,
+            "payload_hash": input.payload_hash,
             "recorded": recorded > 0,
+            "signature_valid": true,
         }).to_string()
     }
 
