@@ -591,25 +591,6 @@ pub fn resolve_llm_python(cfg: &LlmConfig) -> String {
         .unwrap_or_else(|| "python3".to_string())
 }
 
-/// Resolve the Gemini CLI binary path.
-/// Precedence: `GEMINI_BIN` env var > `"gemini"` default.
-///
-/// # Examples
-///
-/// ```
-/// # use open_ontologies::config::resolve_gemini_bin;
-/// // Without GEMINI_BIN set, returns "gemini".
-/// // (env var may be set in CI; test is illustrative)
-/// let bin = resolve_gemini_bin();
-/// assert!(!bin.is_empty());
-/// ```
-pub fn resolve_gemini_bin() -> String {
-    std::env::var("GEMINI_BIN")
-        .ok()
-        .filter(|v| !v.trim().is_empty())
-        .unwrap_or_else(|| "gemini".to_string())
-}
-
 /// Default wall-clock timeout (seconds) for every subprocess invoked by the
 /// LLM boundary — Groq pm4py scripts, ggen sync, wvda agents, gemini CLI,
 /// mu_star agents, etc.
