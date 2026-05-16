@@ -67,10 +67,6 @@ pub mod embed_remote;
 #[cfg(feature = "embeddings")]
 pub mod structembed;
 
-// Workflow planner — pure intent→plan resolver for the `onto_guide` tool.
-// No I/O, no LLM call; keyword matching only.
-pub mod guide;
-
 // R7 WD-1 — `LlmInput` newtype. Every byte that crosses into an LLM
 // prompt or completion-parser must be sanitized through
 // `LlmInput::sanitize` first. Public surfaces accept `&LlmInput`, never
