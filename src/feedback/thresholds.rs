@@ -50,6 +50,28 @@ pub const PRECISION_FLOOR: f64 = 0.70;
 /// ```
 pub const PRECISION_CEIL: f64 = 0.99;
 
+/// Summary returned by [`sweep`] and [`sweep_with`].
+///
+/// # Example
+///
+/// ```
+/// use open_ontologies::state::StateDb;
+/// use open_ontologies::ocel_store::OcelStore;
+/// use open_ontologies::feedback::thresholds::sweep;
+///
+/// let db = StateDb::open(std::path::Path::new(":memory:")).unwrap();
+/// let store = OcelStore::new(db);
+///
+/// let result = sweep(&store).unwrap();
+/// // Struct fields are publicly accessible.
+/// assert_eq!(result.examined, 0);
+/// assert_eq!(result.adjusted, 0);
+/// assert!(result.adjustments.is_empty());
+/// // The result serialises to JSON cleanly.
+/// let json = serde_json::to_value(&result).unwrap();
+/// assert_eq!(json["examined"], 0);
+/// assert_eq!(json["adjusted"], 0);
+/// ```
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct ThresholdSweepResult {
     pub examined: usize,
@@ -57,6 +79,27 @@ pub struct ThresholdSweepResult {
     pub adjustments: Vec<ThresholdAdjustment>,
 }
 
+/// A single threshold adjustment produced within a [`ThresholdSweepResult`].
+///
+/// `direction` is always `"decrement"` or `"increment"`.
+///
+/// # Example
+///
+/// ```
+/// use open_ontologies::feedback::thresholds::ThresholdAdjustment;
+///
+/// let adj = ThresholdAdjustment {
+///     workflow_class: "billing".to_string(),
+///     before: 0.85,
+///     after: 0.83,
+///     direction: "decrement",
+///     reason: "no_alerts_in_window",
+/// };
+/// assert_eq!(adj.direction, "decrement");
+/// assert!(adj.before > adj.after);
+/// let json = serde_json::to_value(&adj).unwrap();
+/// assert_eq!(json["workflow_class"], "billing");
+/// ```
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct ThresholdAdjustment {
     pub workflow_class: String,
@@ -66,6 +109,26 @@ pub struct ThresholdAdjustment {
     pub reason: &'static str,
 }
 
+/// A row from the `workflow_thresholds` table, returned by [`list_all`].
+///
+/// # Example
+///
+/// ```
+/// use open_ontologies::feedback::thresholds::ThresholdRow;
+///
+/// let row = ThresholdRow {
+///     workflow_class: "shipping".to_string(),
+///     precision_threshold: 0.85,
+///     fitness_threshold: 0.90,
+///     sample_count: 42,
+///     updated_at: "2026-01-01T00:00:00Z".to_string(),
+/// };
+/// assert_eq!(row.workflow_class, "shipping");
+/// assert_eq!(row.sample_count, 42);
+/// assert!((row.precision_threshold - 0.85).abs() < f64::EPSILON);
+/// let json = serde_json::to_value(&row).unwrap();
+/// assert_eq!(json["fitness_threshold"], 0.90);
+/// ```
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct ThresholdRow {
     pub workflow_class: String,
@@ -115,6 +178,23 @@ pub fn sweep(store: &OcelStore) -> Result<ThresholdSweepResult> {
 /// // Sweep with a 1-day window and 0.05 delta — still zero events in empty DB.
 /// let result = sweep_with(&store, 1, 0.05).unwrap();
 /// assert_eq!(result.examined, 0);
+/// ```
+///
+/// The result serialises to JSON:
+///
+/// ```
+/// use open_ontologies::state::StateDb;
+/// use open_ontologies::ocel_store::OcelStore;
+/// use open_ontologies::feedback::thresholds::sweep_with;
+///
+/// let db = StateDb::open(std::path::Path::new(":memory:")).unwrap();
+/// let store = OcelStore::new(db);
+///
+/// let result = sweep_with(&store, 30, 0.01).unwrap();
+/// let json = serde_json::to_value(&result).unwrap();
+/// assert_eq!(json["examined"], 0);
+/// assert_eq!(json["adjusted"], 0);
+/// assert!(json["adjustments"].as_array().unwrap().is_empty());
 /// ```
 pub fn sweep_with(
     store: &OcelStore,
@@ -238,6 +318,9 @@ fn adjust_one(
 
 /// Read all threshold rows for the `onto_threshold_status` MCP handler.
 ///
+/// Rows are ordered by `workflow_class ASC`. An empty database returns an
+/// empty `Vec`.
+///
 /// # Example
 ///
 /// ```
@@ -251,6 +334,21 @@ fn adjust_one(
 /// // A fresh database has no threshold rows.
 /// let rows = list_all(&store).unwrap();
 /// assert!(rows.is_empty());
+/// ```
+///
+/// The returned rows serialise cleanly to a JSON array:
+///
+/// ```
+/// use open_ontologies::state::StateDb;
+/// use open_ontologies::ocel_store::OcelStore;
+/// use open_ontologies::feedback::thresholds::list_all;
+///
+/// let db = StateDb::open(std::path::Path::new(":memory:")).unwrap();
+/// let store = OcelStore::new(db);
+///
+/// let rows = list_all(&store).unwrap();
+/// let json = serde_json::to_value(&rows).unwrap();
+/// assert!(json.as_array().unwrap().is_empty());
 /// ```
 pub fn list_all(store: &OcelStore) -> Result<Vec<ThresholdRow>> {
     let conn = store.db().conn();
