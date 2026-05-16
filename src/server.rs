@@ -133,6 +133,24 @@ pub(crate) const TOOL_GROQ_STATUS: &str = "onto_groq_status";
 pub(crate) const TOOL_GEMINI_STATUS: &str = "onto_gemini_status";
 /// Tool name / OCEL event type for `onto_old_ai_station` (3 call sites).
 pub(crate) const TOOL_OLD_AI_STATION: &str = "onto_old_ai_station";
+/// Tool name / OCEL event type for `onto_load` (2 emit_tool_ocel call sites).
+pub(crate) const TOOL_LOAD: &str = "onto_load";
+/// Tool name / OCEL event type for `onto_lint` (2 emit_tool_ocel call sites).
+pub(crate) const TOOL_LINT: &str = "onto_lint";
+/// Tool name / OCEL event type for `onto_rollback` (2 emit_tool_ocel call sites).
+pub(crate) const TOOL_ROLLBACK: &str = "onto_rollback";
+/// Tool name / OCEL event type for `onto_ingest` (2 emit_tool_ocel call sites).
+pub(crate) const TOOL_INGEST: &str = "onto_ingest";
+/// Tool name / OCEL event type for `onto_extend` (2 emit_tool_ocel call sites).
+pub(crate) const TOOL_EXTEND: &str = "onto_extend";
+/// Tool name / OCEL event type for `onto_receipts_revoke_batch` (5 emit_tool_ocel call sites).
+pub(crate) const TOOL_RECEIPTS_REVOKE_BATCH: &str = "onto_receipts_revoke_batch";
+/// Tool name / OCEL event type for `onto_session_revoke_by_principal` (4 emit_tool_ocel call sites).
+pub(crate) const TOOL_SESSION_REVOKE_BY_PRINCIPAL: &str = "onto_session_revoke_by_principal";
+/// Tool name / OCEL event type for `onto_retention_resume` (2 emit_tool_ocel call sites).
+pub(crate) const TOOL_RETENTION_RESUME: &str = "onto_retention_resume";
+/// Tool name / OCEL event type for `onto_attestation_rotate_keys` (4 emit_tool_ocel call sites).
+pub(crate) const TOOL_ATTESTATION_ROTATE_KEYS: &str = "onto_attestation_rotate_keys";
 
 // ─── OCEL emit_event attribute key constants ─────────────────────────────────
 //
@@ -1199,7 +1217,7 @@ impl OpenOntologiesServer {
                     r#"{{"error":"File not found: '{}'. Verify the path is correct and the file exists. Use onto_repo_list to discover files in configured ontology_dirs, or supply inline Turtle via the 'turtle' field instead."}}"#,
                     path
                 );
-                self.emit_tool_ocel("onto_load", started, false, &[]);
+                self.emit_tool_ocel(TOOL_LOAD, started, false, &[]);
                 return out;
             }
             let opts = crate::registry::LoadOptions {
@@ -1242,7 +1260,7 @@ impl OpenOntologiesServer {
             r#"{"error":"Either 'path' or 'turtle' must be provided. Supply a file path via 'path' or inline Turtle/RDF content via 'turtle'."}"#.to_string()
         };
         let ok = !out.contains(r#""error""#);
-        self.emit_tool_ocel("onto_load", started, ok, &[]);
+        self.emit_tool_ocel(TOOL_LOAD, started, ok, &[]);
         out
     }
 
@@ -1634,14 +1652,14 @@ impl OpenOntologiesServer {
                 Ok(c) => c,
                 Err(e) => {
                     let out = format!(r#"{{"error":"{}"}}"#, e);
-                    self.emit_tool_ocel("onto_lint", started, false, &[]);
+                    self.emit_tool_ocel(TOOL_LINT, started, false, &[]);
                     return out;
                 }
             }
         };
         let out = OntologyService::lint_with_feedback(&content, Some(&self.db)).unwrap_or_else(|e| format!(r#"{{"error":"{}"}}"#, e));
         let ok = !out.contains(r#""error""#);
-        self.emit_tool_ocel("onto_lint", started, ok, &[]);
+        self.emit_tool_ocel(TOOL_LINT, started, ok, &[]);
         out
     }
 
@@ -1862,6 +1880,14 @@ impl OpenOntologiesServer {
     #[tool(name = "onto_import", description = "Resolve and load all owl:imports from the currently loaded ontology")]
     async fn onto_import(&self, Parameters(input): Parameters<OntoImportInput>) -> String {
         use crate::graph::GraphStore;
+        // Guard: resolving owl:imports requires a base ontology to already be loaded.
+        if self.graph.triple_count() == 0 {
+            return serde_json::json!({
+                "ok": false,
+                "error": "No ontology loaded — onto_import resolves owl:imports from the currently loaded ontology.",
+                "hint": "Call onto_load with a TTL/RDF file first, then onto_import to pull in its declared owl:imports chains."
+            }).to_string();
+        }
         let max_depth = input
             .max_depth
             .unwrap_or_else(crate::runtime::imports_max_depth);
@@ -2089,13 +2115,28 @@ impl OpenOntologiesServer {
                                     "individuals": stats_val["individuals"],
                                 }).to_string()
                             }
-                            Err(e) => format!(r#"{{"error":"Parse error for {}: {}"}}"#, entry.id, e),
+                            Err(e) => serde_json::json!({
+                                "ok": false,
+                                "error": format!("Parse error for '{}': {}", entry.id, e),
+                                "hint": "The ontology fetched successfully but its content is not valid RDF. \
+                                         Try onto_validate on the raw content, or report the issue upstream."
+                            }).to_string(),
                         }
                     }
-                    Err(e) => format!(r#"{{"error":"Fetch error for {}: {}"}}"#, entry.id, e),
+                    Err(e) => serde_json::json!({
+                        "ok": false,
+                        "error": format!("Could not fetch '{}' from {}: {}", entry.id, entry.url, e),
+                        "hint": "Check network connectivity. If the source URL is unreachable, \
+                                 download the ontology manually and load it with onto_load."
+                    }).to_string(),
                 }
             }
-            other => format!(r#"{{"error":"Unknown action '{}'. Use 'list' or 'install'."}}"#, other),
+            other => serde_json::json!({
+                "ok": false,
+                "error": format!("Unknown action '{}'. Valid actions are: 'list', 'install'.", other),
+                "hint": "Use action 'list' to browse available ontologies, or 'install' with an 'id' to fetch and load one. \
+                         Example: onto_marketplace({\"action\":\"list\"}) or onto_marketplace({\"action\":\"install\",\"id\":\"prov-o\"})."
+            }).to_string(),
         }
     }
 
@@ -2159,7 +2200,7 @@ impl OpenOntologiesServer {
         ) {
             Ok(r) => Some(r),
             Err(denial) => {
-                self.emit_tool_ocel("onto_rollback", started, false, &[]);
+                self.emit_tool_ocel(TOOL_ROLLBACK, started, false, &[]);
                 return denial;
             }
         };
@@ -2192,7 +2233,7 @@ impl OpenOntologiesServer {
         } else {
             raw
         };
-        self.emit_tool_ocel("onto_rollback", started, ok, &[]);
+        self.emit_tool_ocel(TOOL_ROLLBACK, started, ok, &[]);
         out
     }
 
@@ -2212,13 +2253,13 @@ impl OpenOntologiesServer {
         ) {
             Ok(r) => Some(r),
             Err(denial) => {
-                self.emit_tool_ocel("onto_ingest", started, false, &[]);
+                self.emit_tool_ocel(TOOL_INGEST, started, false, &[]);
                 return denial;
             }
         };
         let out = self.onto_ingest_inner(input, receipt).await;
         let ok = !out.contains(r#""error""#);
-        self.emit_tool_ocel("onto_ingest", started, ok, &[]);
+        self.emit_tool_ocel(TOOL_INGEST, started, ok, &[]);
         out
     }
 
@@ -3019,7 +3060,11 @@ impl OpenOntologiesServer {
                         "code": input.code,
                         "system": input.source_system,
                         "mappings": [],
-                        "hint": format!("No mappings found for '{}'. Try a broader term or check onto_validate_clinical for coverage.", input.code),
+                        "hint": format!(
+                            "No mappings found for '{}'. Check spelling — clinical codes are case-sensitive (e.g. 'I10' not 'i10'). \
+                             Try onto_search to find related concepts, or onto_validate_clinical to see which terms have coverage.",
+                            input.code
+                        ),
                     }).to_string()
                 } else {
                     serde_json::json!({
@@ -3170,12 +3215,12 @@ impl OpenOntologiesServer {
             input.bypass_admission,
             input.bypass_reason.as_deref(),
         ) {
-            self.emit_tool_ocel("onto_extend", started, false, &[]);
+            self.emit_tool_ocel(TOOL_EXTEND, started, false, &[]);
             return denial;
         }
         let out = self.onto_extend_inner(input).await;
         let ok = !out.contains(r#""error""#);
-        self.emit_tool_ocel("onto_extend", started, ok, &[]);
+        self.emit_tool_ocel(TOOL_EXTEND, started, ok, &[]);
         out
     }
 
