@@ -21,18 +21,47 @@
 /// (lowercased) that do NOT appear as a substring of `evidence`
 /// (lowercased). Order-preserving and de-duplicated.
 ///
-/// Token rules (mirror of the closure in
-/// `src/server.rs::onto_executive_projection`):
+/// Token rules:
 ///   1. Split on any non-alphanumeric character.
 ///   2. Lowercase.
 ///   3. Reject if length < 4.
-///   4. Reject if any character is non-alphabetic (drops mixed
-///      alphanumerics like `q4`, `83pct`).
-///   5. Compare against `evidence_lc` via substring `contains`.
+///   4. Reject if any character is non-alphabetic (drops `q4`, `83pct`).
+///   5. Compare against `evidence` via substring `contains`.
 ///
-/// The substring check (rather than whole-word) is intentionally
-/// permissive — `forecast` matches `forecasted`, which keeps the gate
-/// from rejecting legitimate morphological variants.
+/// The substring check is intentionally permissive — `forecast` matches
+/// `forecasted`, keeping the gate from rejecting morphological variants.
+///
+/// # Examples
+///
+/// Empty summary always returns empty:
+/// ```
+/// # use open_ontologies::projection_check::invented_tokens;
+/// assert!(invented_tokens("", "anything").is_empty());
+/// ```
+///
+/// A faithful summary (all words present in evidence) returns empty:
+/// ```
+/// # use open_ontologies::projection_check::invented_tokens;
+/// let evidence = "Reconciliation completeness rate is 83 percent. Forecast risk explainable.";
+/// let summary  = "Reconciliation forecast risk completeness";
+/// assert!(invented_tokens(summary, evidence).is_empty());
+/// ```
+///
+/// A word absent from evidence is flagged:
+/// ```
+/// # use open_ontologies::projection_check::invented_tokens;
+/// let inv = invented_tokens(
+///     "Reconciliation hallucination detected",
+///     "Reconciliation gap detected.",
+/// );
+/// assert_eq!(inv, vec!["hallucination".to_string()]);
+/// ```
+///
+/// Short tokens (< 4 chars) are ignored even when absent from evidence:
+/// ```
+/// # use open_ontologies::projection_check::invented_tokens;
+/// assert!(invented_tokens("xyz alpha", "alpha beta gamma").is_empty());
+/// ```
 pub fn invented_tokens(summary: &str, evidence: &str) -> Vec<String> {
     let evidence_lc = evidence.to_lowercase();
     let mut invented: Vec<String> = Vec::new();

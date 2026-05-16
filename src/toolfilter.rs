@@ -27,6 +27,16 @@ pub enum Mode {
 }
 
 impl Mode {
+    /// Parse a mode string (case-insensitive). Accepts common aliases.
+    ///
+    /// # Examples
+    /// ```
+    /// # use open_ontologies::toolfilter::Mode;
+    /// assert_eq!(Mode::parse("all").unwrap(),   Mode::All);
+    /// assert_eq!(Mode::parse("ALLOW").unwrap(), Mode::Allow);
+    /// assert_eq!(Mode::parse("deny").unwrap(),  Mode::Deny);
+    /// assert!(Mode::parse("unknown").is_err());
+    /// ```
     pub fn parse(s: &str) -> Result<Self, String> {
         match s.to_ascii_lowercase().as_str() {
             "all" | "" => Ok(Mode::All),
@@ -79,7 +89,21 @@ impl ToolFilter {
         out
     }
 
-    /// Decide whether `tool_name` should be exposed.
+    /// Decide whether `tool_name` should be exposed under this filter.
+    ///
+    /// # Examples
+    /// ```
+    /// # use open_ontologies::toolfilter::ToolFilter;
+    /// // Allow-only: only listed tools pass.
+    /// let f = ToolFilter::allow_only(["onto_status".into(), "onto_query".into()]);
+    /// assert!( f.allows("onto_status"));
+    /// assert!(!f.allows("onto_load"));
+    ///
+    /// // Deny: all tools pass except listed ones.
+    /// let f = ToolFilter::deny(["onto_clear".into()]);
+    /// assert!( f.allows("onto_status"));
+    /// assert!(!f.allows("onto_clear"));
+    /// ```
     pub fn allows(&self, tool_name: &str) -> bool {
         let names = self.resolved_names();
         match self.mode {
@@ -122,6 +146,13 @@ impl ToolFilter {
 
 /// Curated tool groups. Tool names must match the ones registered with
 /// `#[tool(name = "...")]` in `src/server.rs`.
+///
+/// # Examples
+/// ```
+/// # use open_ontologies::toolfilter::expand_group;
+/// assert!(expand_group("read_only").contains(&"onto_status"));
+/// assert!(expand_group("does-not-exist").is_empty());
+/// ```
 pub fn expand_group(name: &str) -> &'static [&'static str] {
     match name {
         // Read-only inspection tools (safe to expose to untrusted callers).
@@ -200,8 +231,17 @@ pub fn expand_group(name: &str) -> &'static [&'static str] {
     }
 }
 
-/// Parse a comma-separated list of tool/group identifiers into (names, groups).
-/// Identifiers prefixed with `@` are treated as group names.
+/// Parse a comma-separated list of tool/group identifiers into `(names, groups)`.
+/// Identifiers prefixed with `@` are treated as group names; all others are
+/// exact tool names.
+///
+/// # Examples
+/// ```
+/// # use open_ontologies::toolfilter::parse_csv;
+/// let (names, groups) = parse_csv("onto_status, onto_query, @read_only");
+/// assert_eq!(names,  vec!["onto_status", "onto_query"]);
+/// assert_eq!(groups, vec!["read_only"]);
+/// ```
 pub fn parse_csv(spec: &str) -> (Vec<String>, Vec<String>) {
     let mut names = Vec::new();
     let mut groups = Vec::new();

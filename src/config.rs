@@ -1,3 +1,19 @@
+//! Runtime configuration for open-ontologies.
+//!
+//! Loaded from a TOML file (`config.toml` by default, falling back to
+//! built-in defaults). Every public `resolve_*` function reads one logical
+//! setting in priority order: **env var → TOML field → compiled-in default**.
+//!
+//! See `config.example.toml` in the repository root for all 14 sections
+//! with defaults and env-var overrides documented inline.
+//!
+//! # Config search path (highest priority first)
+//! 1. Path supplied to [`Config::load`]
+//! 2. `~/.config/open-ontologies/config.toml`
+//! 3. `/etc/open-ontologies/config.toml`
+//! 4. Built-in defaults (every `resolve_*` function returns a sane value
+//!    with no config file present — suitable for local development)
+
 use anyhow::{Context, Result};
 use serde::Deserialize;
 use std::path::Path;
