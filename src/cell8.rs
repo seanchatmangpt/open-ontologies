@@ -24,6 +24,19 @@
 use crate::receipts::Receipt;
 
 /// Outcome of a single Cell8 gate as observed by `cell_ready`.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::cell8::GateOutcome;
+///
+/// let pass = GateOutcome { passed: true,  message: "A1 satisfied".into() };
+/// let fail = GateOutcome { passed: false, message: "A2 missing triple".into() };
+///
+/// assert!(pass.passed);
+/// assert!(!fail.passed);
+/// assert_eq!(pass.message, "A1 satisfied");
+/// ```
 #[derive(Debug, Clone)]
 pub struct GateOutcome {
     pub passed: bool,
@@ -31,11 +44,63 @@ pub struct GateOutcome {
 }
 
 /// Count assertions that recorded `earl:passed`.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::cell8::{GateOutcome, count_passed};
+///
+/// let results: &[(&str, GateOutcome)] = &[
+///     ("A1_WorkflowDeclared", GateOutcome { passed: true,  message: "ok".into() }),
+///     ("A2_ScopeClosed",      GateOutcome { passed: true,  message: "ok".into() }),
+///     ("A3_OCELComplete",     GateOutcome { passed: false, message: "missing event".into() }),
+/// ];
+///
+/// assert_eq!(count_passed(results), 2);
+/// ```
+///
+/// An empty slice returns zero:
+///
+/// ```
+/// use open_ontologies::cell8::{GateOutcome, count_passed};
+///
+/// assert_eq!(count_passed(&[]), 0);
+/// ```
 pub fn count_passed(results: &[(&str, GateOutcome)]) -> u8 {
     results.iter().filter(|(_, g)| g.passed).count() as u8
 }
 
 /// Count assertions that recorded `earl:failed`.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::cell8::{GateOutcome, count_failed};
+///
+/// let results: &[(&str, GateOutcome)] = &[
+///     ("A1_WorkflowDeclared", GateOutcome { passed: true,  message: "ok".into() }),
+///     ("A2_ScopeClosed",      GateOutcome { passed: false, message: "scope open".into() }),
+///     ("A3_OCELComplete",     GateOutcome { passed: false, message: "missing event".into() }),
+/// ];
+///
+/// assert_eq!(count_failed(results), 2);
+/// ```
+///
+/// `count_passed` and `count_failed` always sum to the slice length:
+///
+/// ```
+/// use open_ontologies::cell8::{GateOutcome, count_passed, count_failed};
+///
+/// let results: &[(&str, GateOutcome)] = &[
+///     ("A1_WorkflowDeclared", GateOutcome { passed: true,  message: "ok".into() }),
+///     ("A2_ScopeClosed",      GateOutcome { passed: false, message: "fail".into() }),
+///     ("A3_OCELComplete",     GateOutcome { passed: true,  message: "ok".into() }),
+/// ];
+/// assert_eq!(
+///     count_passed(results) as usize + count_failed(results) as usize,
+///     results.len()
+/// );
+/// ```
 pub fn count_failed(results: &[(&str, GateOutcome)]) -> u8 {
     results.iter().filter(|(_, g)| !g.passed).count() as u8
 }
@@ -66,6 +131,87 @@ pub const GATE_NAMES: [&str; 13] = [
 /// (e.g. when admission denied early) should pad with `passed: false`
 /// entries to keep coverage exact — auditors rely on the SHACL shape
 /// rejecting any report with ≠ 13 assertions.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::cell8::{GateOutcome, GATE_NAMES, emit_earl_report};
+/// use open_ontologies::receipts::build;
+/// use open_ontologies::production_record::ProductionRecord;
+///
+/// // Build a minimal receipt hermetically — no I/O, no subprocess.
+/// let record = ProductionRecord {
+///     artifact_hash:            [1u8; 32],
+///     scope_token:              "order-to-cash".into(),
+///     declared_powl_hash:       [2u8; 32],
+///     ocel_canonical_hash:      [3u8; 32],
+///     conformance_run_id:       "run-earl-1".into(),
+///     gate_config_hash:         [4u8; 32],
+///     production_law_version:   "ontostar-1.0.0".into(),
+///     defects_taxonomy_version: "ontostar-defects-4.8.0".into(),
+///     gates_passed:             vec![],
+///     gates_refused:            vec![],
+///     prior_receipt:            None,
+///     signature:                None,
+///     signing_key_fpr:          None,
+/// };
+/// let receipt = build(record);
+///
+/// // Build thirteen gate outcomes — all passing.
+/// let outcomes: Vec<(&str, GateOutcome)> = GATE_NAMES
+///     .iter()
+///     .map(|g| (*g, GateOutcome { passed: true, message: format!("{g} ok") }))
+///     .collect();
+///
+/// let report = emit_earl_report(&receipt, &outcomes);
+///
+/// // The report is valid Turtle: it contains the required prefixes.
+/// assert!(report.contains("@prefix earl:"));
+/// assert!(report.contains("@prefix cell8:"));
+/// // Each gate produces exactly one assertion blank node.
+/// assert_eq!(report.matches("a earl:Assertion").count(), 13);
+/// // All-pass report contains only earl:passed outcomes.
+/// assert!(report.contains("earl:passed"));
+/// assert!(!report.contains("earl:failed"));
+/// // The receipt IRI is embedded in the subject declaration.
+/// assert!(report.contains(&format!("urn:ontostar:receipt:{}", receipt.hex())));
+/// ```
+///
+/// A single failing gate produces `earl:failed` in the report:
+///
+/// ```
+/// use open_ontologies::cell8::{GateOutcome, GATE_NAMES, emit_earl_report};
+/// use open_ontologies::receipts::build;
+/// use open_ontologies::production_record::ProductionRecord;
+///
+/// let record = ProductionRecord {
+///     artifact_hash:            [0u8; 32],
+///     scope_token:              "test".into(),
+///     declared_powl_hash:       [0u8; 32],
+///     ocel_canonical_hash:      [0u8; 32],
+///     conformance_run_id:       "run-x".into(),
+///     gate_config_hash:         [0u8; 32],
+///     production_law_version:   "ontostar-1.0.0".into(),
+///     defects_taxonomy_version: "ontostar-defects-4.8.0".into(),
+///     gates_passed:             vec![],
+///     gates_refused:            vec![],
+///     prior_receipt:            None,
+///     signature:                None,
+///     signing_key_fpr:          None,
+/// };
+/// let receipt = build(record);
+///
+/// let mut outcomes: Vec<(&str, GateOutcome)> = GATE_NAMES
+///     .iter()
+///     .map(|g| (*g, GateOutcome { passed: true, message: "ok".into() }))
+///     .collect();
+/// // Inject a failure at gate A9.
+/// outcomes[8].1 = GateOutcome { passed: false, message: "ProvenanceMissing".into() };
+///
+/// let report = emit_earl_report(&receipt, &outcomes);
+/// assert!(report.contains("earl:failed"));
+/// assert!(report.contains("ProvenanceMissing"));
+/// ```
 pub fn emit_earl_report(receipt: &Receipt, gate_results: &[(&str, GateOutcome)]) -> String {
     let receipt_iri = format!("urn:ontostar:receipt:{}", receipt.hex());
 
