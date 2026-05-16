@@ -74,6 +74,30 @@ use wait_timeout::ChildExt;
 /// };
 /// assert!(format!("{timeout_err:?}").contains("LlmTimeout"));
 /// ```
+///
+/// ```
+/// use open_ontologies::subprocess::SubprocessError;
+///
+/// // LlmTimeout elapsed_ms and limit_ms round-trip through struct fields.
+/// let err = SubprocessError::LlmTimeout {
+///     elapsed_ms: 99,
+///     limit_ms: 30,
+///     script_path: "runner.py".into(),
+/// };
+/// // The Display format encodes both values with "ms" suffix.
+/// let msg = err.to_string();
+/// assert!(msg.contains("99ms"), "elapsed must appear: {msg}");
+/// assert!(msg.contains("30ms"), "limit must appear: {msg}");
+/// assert!(msg.contains("runner.py"), "script path must appear: {msg}");
+///
+/// // SubprocessError implements std::error::Error.
+/// let boxed: Box<dyn std::error::Error> = Box::new(SubprocessError::LlmTimeout {
+///     elapsed_ms: 1,
+///     limit_ms: 1,
+///     script_path: "x.py".into(),
+/// });
+/// assert!(boxed.to_string().contains("timed out"));
+/// ```
 #[derive(Debug, Error)]
 pub enum SubprocessError {
     #[error("subprocess timed out after {elapsed_ms}ms (limit {limit_ms}ms): {script_path}")]
@@ -131,6 +155,28 @@ pub enum SubprocessError {
 /// // Debug formatting is available (derived).
 /// let dbg = format!("{timed:?}");
 /// assert!(dbg.contains("elapsed_ms"), "debug must include field name: {dbg}");
+/// ```
+///
+/// ```
+/// use open_ontologies::subprocess::TimedOutput;
+/// use std::process::Output;
+/// use std::os::unix::process::ExitStatusExt;
+///
+/// // A successful run with both stdout and no stderr models the happy path.
+/// // elapsed_ms=0 is valid (very fast command or test fixture).
+/// let status = std::process::ExitStatus::from_raw(0);
+/// let timed = TimedOutput {
+///     output: Output {
+///         status,
+///         stdout: b"{\n  \"classes\": 42\n}\n".to_vec(),
+///         stderr: vec![],
+///     },
+///     elapsed_ms: 0,
+/// };
+/// assert!(timed.output.status.success(), "exit code 0 must be success");
+/// assert!(timed.output.stderr.is_empty(), "no stderr on success path");
+/// let json = String::from_utf8(timed.output.stdout).unwrap();
+/// assert!(json.contains("42"));
 /// ```
 #[derive(Debug)]
 pub struct TimedOutput {
