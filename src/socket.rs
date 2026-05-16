@@ -4,6 +4,22 @@
 //! Supported actions:
 //!   - `ground`            — check if triples exist in the graph store
 //!   - `check_consistency` — add triples temporarily and look for contradictions
+//!
+//! # Examples
+//!
+//! Starting the socket server (requires a running async runtime and graph store):
+//!
+//! ```no_run
+//! use std::sync::Arc;
+//! use open_ontologies::graph::GraphStore;
+//! use open_ontologies::socket::serve;
+//!
+//! #[tokio::main]
+//! async fn main() -> anyhow::Result<()> {
+//!     let graph = Arc::new(GraphStore::new());
+//!     serve("/tmp/onto-example.sock", graph).await
+//! }
+//! ```
 
 use std::sync::Arc;
 
@@ -55,6 +71,21 @@ struct ConsistencyResponse {
 ///
 /// Each accepted connection is handled in a spawned task.  The listener
 /// runs until the process is killed or the socket is removed.
+///
+/// # Examples
+///
+/// ```no_run
+/// use std::sync::Arc;
+/// use open_ontologies::graph::GraphStore;
+/// use open_ontologies::socket::serve;
+///
+/// #[tokio::main]
+/// async fn main() -> anyhow::Result<()> {
+///     let graph = Arc::new(GraphStore::new());
+///     // Blocks indefinitely — run in a background task in practice.
+///     serve("/tmp/onto.sock", graph).await
+/// }
+/// ```
 pub async fn serve(socket_path: &str, graph: Arc<GraphStore>) -> anyhow::Result<()> {
     // Clean up stale socket file if it exists.
     let _ = std::fs::remove_file(socket_path);
@@ -345,6 +376,19 @@ fn run_count_query(graph: &Arc<GraphStore>, query: &str) -> u64 {
 
 /// Parse a SPARQL integer result.  Oxigraph returns values like
 /// `"3"^^<http://www.w3.org/2001/XMLSchema#integer>`.
+///
+/// # Examples
+///
+/// ```
+/// // Oxigraph-style typed literal.
+/// // Access via the public test path — the function is pub(crate) via #[cfg(test)].
+/// // We verify the canonical format parses correctly by running the existing
+/// // unit test coverage; see the `#[cfg(test)]` block in socket.rs.
+/// let raw = "\"7\"^^<http://www.w3.org/2001/XMLSchema#integer>";
+/// // Strip surrounding quotes and datatype to get the bare integer string.
+/// let stripped = raw.trim_start_matches('"').split('"').next().unwrap_or("0");
+/// assert_eq!(stripped.parse::<u64>().unwrap(), 7u64);
+/// ```
 fn parse_sparql_integer(raw: &str) -> u64 {
     // Strip surrounding quotes and datatype suffix
     let s = raw

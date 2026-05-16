@@ -3,6 +3,23 @@
 //! Activity names equal OCEL `event_type` strings. POWL strings are the
 //! canonical declared process for each catalog entry — they are what
 //! Stream 2's wasm4pm bridge will parse and replay.
+//!
+//! # Examples
+//!
+//! ```
+//! use open_ontologies::workflows::builtin::{BUILTIN_WORKFLOWS, by_name};
+//!
+//! // The catalog always ships with exactly 10 entries.
+//! assert_eq!(BUILTIN_WORKFLOWS.len(), 10);
+//!
+//! // Every entry has a non-empty name, POWL string, alphabet, and required_stages.
+//! for w in BUILTIN_WORKFLOWS {
+//!     assert!(!w.name.is_empty());
+//!     assert!(!w.powl_string.is_empty());
+//!     assert!(!w.alphabet.is_empty());
+//!     assert!(!w.required_stages.is_empty());
+//! }
+//! ```
 
 /// One entry in the built-in catalog.
 #[derive(Debug, Clone, Copy)]
@@ -220,6 +237,44 @@ pub static BUILTIN_WORKFLOWS: &[BuiltinWorkflow] = &[
 ];
 
 /// Lookup a built-in workflow by exact `name`.
+///
+/// Returns `None` for names not present in the catalog.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::workflows::builtin::by_name;
+///
+/// // Known catalog entries resolve.
+/// let w = by_name("OntologyAuthoring").expect("OntologyAuthoring is in catalog");
+/// assert!(w.powl_string.contains("load"));
+/// assert!(w.required_stages.contains(&"validate"));
+///
+/// // Unknown names return None.
+/// assert!(by_name("NotInCatalog").is_none());
+/// ```
+///
+/// Required stages are always a subset of the full alphabet:
+///
+/// ```
+/// use open_ontologies::workflows::builtin::by_name;
+///
+/// let w = by_name("DataExtension").unwrap();
+/// for stage in w.required_stages {
+///     assert!(w.alphabet.contains(stage), "required stage {stage} missing from alphabet");
+/// }
+/// ```
+///
+/// The `SolutionManufacturing` workflow requires all four target generators:
+///
+/// ```
+/// use open_ontologies::workflows::builtin::by_name;
+///
+/// let w = by_name("SolutionManufacturing").unwrap();
+/// for target in &["iac_generated", "rust_generated", "erlang_generated", "atomvm_generated"] {
+///     assert!(w.required_stages.contains(target), "missing target: {target}");
+/// }
+/// ```
 pub fn by_name(name: &str) -> Option<&'static BuiltinWorkflow> {
     BUILTIN_WORKFLOWS.iter().find(|w| w.name == name)
 }
