@@ -44,6 +44,99 @@ use super::{with_header, ManufacturedFile, SolutionSpec};
 /// // All files are tagged for the "erlang" target.
 /// assert!(files.iter().all(|f| f.target == "erlang"));
 /// ```
+///
+/// The `_app.erl` file implements the OTP `application` behaviour and
+/// delegates to the supervisor:
+///
+/// ```
+/// use open_ontologies::manufacturing::{erlang, SolutionSpec};
+///
+/// let spec = SolutionSpec {
+///     name: "auth_svc".into(),
+///     description: "Auth service".into(),
+///     iac_target: "aws".into(),
+///     region: "us-east-1".into(),
+///     supervisor_children: 1,
+///     mcu_target: "esp32".into(),
+///     work_order_receipt_hash: "3".repeat(64),
+/// };
+/// let files = erlang::generate(&spec);
+/// let app = files.iter().find(|f| f.path.ends_with("_app.erl")).unwrap();
+/// assert!(app.contents.contains("-behaviour(application)"));
+/// assert!(app.contents.contains("auth_svc_sup:start_link()"));
+/// ```
+///
+/// Every generated file carries the OntoStar inline receipt header:
+///
+/// ```
+/// use open_ontologies::manufacturing::{erlang, SolutionSpec};
+///
+/// let hash = "9".repeat(64);
+/// let spec = SolutionSpec {
+///     name: "notify_svc".into(),
+///     description: "Notification service".into(),
+///     iac_target: "aws".into(),
+///     region: "eu-central-1".into(),
+///     supervisor_children: 2,
+///     mcu_target: "rp2040".into(),
+///     work_order_receipt_hash: hash.clone(),
+/// };
+/// let files = erlang::generate(&spec);
+/// for f in &files {
+///     assert!(
+///         f.contents.contains("ostar-artifact-hash:"),
+///         "{} missing receipt header", f.path
+///     );
+///     assert!(
+///         f.contents.contains(&hash),
+///         "{} missing work-order hash", f.path
+///     );
+/// }
+/// ```
+///
+/// Output is deterministic — same spec always produces byte-identical files:
+///
+/// ```
+/// use open_ontologies::manufacturing::{erlang, SolutionSpec};
+///
+/// let spec = SolutionSpec {
+///     name: "cache_svc".into(),
+///     description: "Cache service".into(),
+///     iac_target: "aws".into(),
+///     region: "ap-southeast-1".into(),
+///     supervisor_children: 5,
+///     mcu_target: "stm32".into(),
+///     work_order_receipt_hash: "a".repeat(64),
+/// };
+/// let run1 = erlang::generate(&spec);
+/// let run2 = erlang::generate(&spec);
+/// assert_eq!(run1.len(), run2.len());
+/// for (a, b) in run1.iter().zip(run2.iter()) {
+///     assert_eq!(a.path, b.path);
+///     assert_eq!(a.contents, b.contents);
+/// }
+/// ```
+///
+/// The `rebar.config` contains the release stanza for the application:
+///
+/// ```
+/// use open_ontologies::manufacturing::{erlang, SolutionSpec};
+///
+/// let spec = SolutionSpec {
+///     name: "stream_svc".into(),
+///     description: "Stream service".into(),
+///     iac_target: "aws".into(),
+///     region: "us-west-1".into(),
+///     supervisor_children: 2,
+///     mcu_target: "esp32".into(),
+///     work_order_receipt_hash: "b".repeat(64),
+/// };
+/// let files = erlang::generate(&spec);
+/// let rebar = files.iter().find(|f| f.path.ends_with("rebar.config")).unwrap();
+/// assert!(rebar.contents.contains("erl_opts"));
+/// assert!(rebar.contents.contains("stream_svc"));
+/// assert!(rebar.contents.contains("relx"));
+/// ```
 pub fn generate(spec: &SolutionSpec) -> Vec<ManufacturedFile> {
     vec![
         file(

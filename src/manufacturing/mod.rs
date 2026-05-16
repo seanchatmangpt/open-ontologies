@@ -29,6 +29,26 @@ pub mod validators;
 /// data. The generators trust the spec to be sanitized at admission
 /// time (the gate enforces RawDataLeak / SecretLeak before any
 /// generator is called).
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::manufacturing::SolutionSpec;
+///
+/// let spec = SolutionSpec {
+///     name: "my_service".into(),
+///     description: "Demo service".into(),
+///     iac_target: "aws".into(),
+///     region: "us-east-1".into(),
+///     supervisor_children: 2,
+///     mcu_target: "esp32".into(),
+///     work_order_receipt_hash: "a".repeat(64),
+/// };
+/// assert_eq!(spec.name, "my_service");
+/// assert_eq!(spec.iac_target, "aws");
+/// assert_eq!(spec.supervisor_children, 2);
+/// assert_eq!(spec.work_order_receipt_hash.len(), 64);
+/// ```
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SolutionSpec {
     /// Project / solution name. Becomes the Terraform module name, the
@@ -59,6 +79,21 @@ pub struct SolutionSpec {
 }
 
 /// One file in the manufactured bundle.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::manufacturing::ManufacturedFile;
+///
+/// let f = ManufacturedFile {
+///     path: "rust/src/lib.rs".into(),
+///     contents: "// generated\npub fn hello() {}".into(),
+///     target: "rust".into(),
+/// };
+/// assert!(f.path.ends_with(".rs"));
+/// assert!(!f.contents.is_empty());
+/// assert_eq!(f.target, "rust");
+/// ```
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ManufacturedFile {
     /// Relative path within the bundle (e.g. `iac/main.tf.json`,
@@ -74,6 +109,25 @@ pub struct ManufacturedFile {
 }
 
 /// Complete manufactured bundle for a single SolutionSpec.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::manufacturing::{ManufacturedFile, SolutionBundle, SolutionSpec};
+///
+/// let spec = SolutionSpec {
+///     name: "billing".into(),
+///     description: "Billing service".into(),
+///     iac_target: "aws".into(),
+///     region: "us-west-2".into(),
+///     supervisor_children: 1,
+///     mcu_target: "stm32".into(),
+///     work_order_receipt_hash: "b".repeat(64),
+/// };
+/// let bundle = SolutionBundle { spec, files: vec![] };
+/// assert_eq!(bundle.total_bytes(), 0);
+/// assert_eq!(bundle.files_for("rust").len(), 0);
+/// ```
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SolutionBundle {
     pub spec: SolutionSpec,
@@ -82,11 +136,64 @@ pub struct SolutionBundle {
 
 impl SolutionBundle {
     /// Total bytes across all files.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use open_ontologies::manufacturing::{ManufacturedFile, SolutionBundle, SolutionSpec};
+    ///
+    /// let spec = SolutionSpec {
+    ///     name: "svc".into(),
+    ///     description: "Service".into(),
+    ///     iac_target: "aws".into(),
+    ///     region: "us-east-1".into(),
+    ///     supervisor_children: 1,
+    ///     mcu_target: "esp32".into(),
+    ///     work_order_receipt_hash: "0".repeat(64),
+    /// };
+    /// let file = ManufacturedFile {
+    ///     path: "rust/src/lib.rs".into(),
+    ///     contents: "hello world".into(),
+    ///     target: "rust".into(),
+    /// };
+    /// let bundle = SolutionBundle { spec, files: vec![file] };
+    /// assert_eq!(bundle.total_bytes(), "hello world".len());
+    /// ```
     pub fn total_bytes(&self) -> usize {
         self.files.iter().map(|f| f.contents.len()).sum()
     }
 
     /// Files for a given target.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use open_ontologies::manufacturing::{ManufacturedFile, SolutionBundle, SolutionSpec};
+    ///
+    /// let spec = SolutionSpec {
+    ///     name: "svc".into(),
+    ///     description: "Service".into(),
+    ///     iac_target: "aws".into(),
+    ///     region: "us-east-1".into(),
+    ///     supervisor_children: 1,
+    ///     mcu_target: "esp32".into(),
+    ///     work_order_receipt_hash: "0".repeat(64),
+    /// };
+    /// let rust_file = ManufacturedFile {
+    ///     path: "rust/src/lib.rs".into(),
+    ///     contents: "pub fn foo() {}".into(),
+    ///     target: "rust".into(),
+    /// };
+    /// let erlang_file = ManufacturedFile {
+    ///     path: "erlang/src/svc_app.erl".into(),
+    ///     contents: "-module(svc_app).".into(),
+    ///     target: "erlang".into(),
+    /// };
+    /// let bundle = SolutionBundle { spec, files: vec![rust_file, erlang_file] };
+    /// assert_eq!(bundle.files_for("rust").len(), 1);
+    /// assert_eq!(bundle.files_for("erlang").len(), 1);
+    /// assert_eq!(bundle.files_for("iac").len(), 0);
+    /// ```
     pub fn files_for(&self, target: &str) -> Vec<&ManufacturedFile> {
         self.files.iter().filter(|f| f.target == target).collect()
     }
@@ -95,6 +202,44 @@ impl SolutionBundle {
 /// Validate a `SolutionSpec` deterministically. Returns `Ok(())` when
 /// the spec is acceptable; otherwise returns the typed defect that
 /// the admission gate will surface.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::manufacturing::{validate_spec, SolutionSpec};
+/// use open_ontologies::DefectClass;
+///
+/// let valid = SolutionSpec {
+///     name: "order_svc".into(),
+///     description: "Order service".into(),
+///     iac_target: "aws".into(),
+///     region: "us-east-1".into(),
+///     supervisor_children: 3,
+///     mcu_target: "esp32".into(),
+///     work_order_receipt_hash: "d".repeat(64),
+/// };
+/// assert!(validate_spec(&valid).is_ok());
+///
+/// // Empty receipt hash is rejected.
+/// let mut bad = valid.clone();
+/// bad.work_order_receipt_hash = "".into();
+/// assert!(matches!(validate_spec(&bad), Err(DefectClass::ArchitectureUnbound)));
+///
+/// // Name starting with a digit is rejected.
+/// let mut bad2 = valid.clone();
+/// bad2.name = "9svc".into();
+/// assert!(matches!(validate_spec(&bad2), Err(DefectClass::IacInvalid { .. })));
+///
+/// // Unsupported MCU target is rejected.
+/// let mut bad3 = valid.clone();
+/// bad3.mcu_target = "arduino".into();
+/// assert!(matches!(validate_spec(&bad3), Err(DefectClass::AtomVmInvalid { .. })));
+///
+/// // Zero supervisor children is rejected.
+/// let mut bad4 = valid.clone();
+/// bad4.supervisor_children = 0;
+/// assert!(matches!(validate_spec(&bad4), Err(DefectClass::ErlangInvalid { .. })));
+/// ```
 pub fn validate_spec(spec: &SolutionSpec) -> Result<(), crate::defects::DefectClass> {
     use crate::defects::DefectClass;
     if spec.work_order_receipt_hash.trim().is_empty() {

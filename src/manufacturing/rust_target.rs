@@ -48,6 +48,72 @@ use super::{with_header, ManufacturedFile, SolutionSpec};
 /// assert!(files.iter().all(|f| f.contents.contains("ostar-artifact-hash:")));
 /// assert!(files.iter().all(|f| f.target == "rust"));
 /// ```
+///
+/// Receipt header is bound to the upstream work-order hash:
+///
+/// ```
+/// use open_ontologies::manufacturing::{rust_target, SolutionSpec};
+///
+/// let hash = "e".repeat(64);
+/// let spec = SolutionSpec {
+///     name: "payments_svc".into(),
+///     description: "Payments service".into(),
+///     iac_target: "aws".into(),
+///     region: "us-west-2".into(),
+///     supervisor_children: 1,
+///     mcu_target: "stm32".into(),
+///     work_order_receipt_hash: hash.clone(),
+/// };
+/// let files = rust_target::generate(&spec);
+/// // Every generated file contains the work-order receipt hash.
+/// for f in &files {
+///     assert!(f.contents.contains(&hash), "{} missing work-order hash", f.path);
+/// }
+/// ```
+///
+/// Output is deterministic — same spec always produces identical bytes:
+///
+/// ```
+/// use open_ontologies::manufacturing::{rust_target, SolutionSpec};
+///
+/// let spec = SolutionSpec {
+///     name: "idempotent_svc".into(),
+///     description: "Idempotent service".into(),
+///     iac_target: "aws".into(),
+///     region: "eu-central-1".into(),
+///     supervisor_children: 4,
+///     mcu_target: "esp32".into(),
+///     work_order_receipt_hash: "1".repeat(64),
+/// };
+/// let first = rust_target::generate(&spec);
+/// let second = rust_target::generate(&spec);
+/// assert_eq!(first.len(), second.len());
+/// for (a, b) in first.iter().zip(second.iter()) {
+///     assert_eq!(a.path, b.path);
+///     assert_eq!(a.contents, b.contents);
+/// }
+/// ```
+///
+/// Cargo.toml uses `edition = "2021"` and declares tokio:
+///
+/// ```
+/// use open_ontologies::manufacturing::{rust_target, SolutionSpec};
+///
+/// let spec = SolutionSpec {
+///     name: "edge_svc".into(),
+///     description: "Edge compute service".into(),
+///     iac_target: "aws".into(),
+///     region: "ap-northeast-1".into(),
+///     supervisor_children: 2,
+///     mcu_target: "rp2040".into(),
+///     work_order_receipt_hash: "2".repeat(64),
+/// };
+/// let files = rust_target::generate(&spec);
+/// let cargo = files.iter().find(|f| f.path.ends_with("Cargo.toml")).unwrap();
+/// assert!(cargo.contents.contains("edition = \"2021\""));
+/// assert!(cargo.contents.contains("tokio"));
+/// assert!(cargo.contents.contains("serde"));
+/// ```
 pub fn generate(spec: &SolutionSpec) -> Vec<ManufacturedFile> {
     vec![
         file("rust/Cargo.toml", &generate_cargo_toml(spec), spec),
