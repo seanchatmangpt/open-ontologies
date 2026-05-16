@@ -2,6 +2,20 @@ use crate::state::StateDb;
 use chrono::Utc;
 use wasm4pm_types::{Attribute, Attributes, Event, EventLog, Trace, AttributeValue};
 
+/// The SQLite table name used to store lineage events.
+///
+/// All SQL statements in this module target this table by name.  Consumers
+/// that query the database directly (e.g. for process mining) should use this
+/// constant rather than hardcoding the string `"lineage_events"`.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::lineage::LINEAGE_EVENTS_TABLE;
+///
+/// // Pin the contract: the table name is exactly "lineage_events".
+/// assert_eq!(LINEAGE_EVENTS_TABLE, "lineage_events");
+/// ```
 pub const LINEAGE_EVENTS_TABLE: &str = "lineage_events";
 
 /// Append-only lineage log. Compressed format for AI consumption.
@@ -150,6 +164,35 @@ impl LineageLog {
     /// assert!(compact.contains("admission_granted"));
     /// assert!(compact.contains("abc123"));
     /// ```
+    ///
+    /// Multiple events in the same session are stored with monotonically
+    /// increasing sequence numbers and appear in that order in the compact view:
+    ///
+    /// ```
+    /// use open_ontologies::lineage::LineageLog;
+    /// use open_ontologies::state::StateDb;
+    /// use std::path::Path;
+    ///
+    /// let db = StateDb::open(Path::new(":memory:")).unwrap();
+    /// let log = LineageLog::new(db);
+    /// let sid = "seq-order-doctest";
+    ///
+    /// log.record(sid, "S", "session_reset", "");
+    /// log.record(sid, "G", "admission_granted", "h1");
+    /// log.record(sid, "R", "powl_replay", "fitness=1.0;precision=1.0");
+    ///
+    /// let compact = log.get_compact(sid);
+    /// let lines: Vec<&str> = compact.lines().collect();
+    /// assert_eq!(lines.len(), 3, "three events must produce three lines");
+    ///
+    /// // Sequence numbers are 1-based and strictly increasing.
+    /// let seq_of = |line: &str| -> u64 {
+    ///     line.splitn(6, ':').nth(1).unwrap().parse().unwrap()
+    /// };
+    /// assert_eq!(seq_of(lines[0]), 1);
+    /// assert_eq!(seq_of(lines[1]), 2);
+    /// assert_eq!(seq_of(lines[2]), 3);
+    /// ```
     /// Format: session:seq:timestamp:event_type:operation:details
     pub fn record(&self, session_id: &str, event_type: &str, operation: &str, details: &str) {
         let conn = self.db.conn();
@@ -222,6 +265,28 @@ impl LineageLog {
     /// assert!(compact.contains("powl_replay"), "operation must appear in lineage");
     /// assert!(compact.contains("fitness=0.95;precision=0.9"),
     ///     "fitness and precision details must be persisted, got: {compact}");
+    /// ```
+    ///
+    /// The event type is always `"R"` — this is the single-letter code consumed
+    /// by process-mining queries to identify replay events:
+    ///
+    /// ```
+    /// use open_ontologies::state::StateDb;
+    /// use open_ontologies::lineage::LineageLog;
+    /// use std::path::Path;
+    ///
+    /// let db = StateDb::open(Path::new(":memory:")).unwrap();
+    /// let log = LineageLog::new(db);
+    /// let session = "replay-type-doctest";
+    ///
+    /// log.record_powl_replay(session, 1.0, 1.0);
+    ///
+    /// // The event type field (index 3 in the colon-delimited line) must be "R".
+    /// let compact = log.get_compact(session);
+    /// let first_line = compact.lines().next().unwrap();
+    /// let parts: Vec<&str> = first_line.splitn(6, ':').collect();
+    /// assert_eq!(parts[3], "R", "powl_replay event type must be 'R'");
+    /// assert_eq!(parts[4], "powl_replay", "operation must be 'powl_replay'");
     /// ```
     pub fn record_powl_replay(&self, session_id: &str, fitness: f64, precision: f64) {
         let details = format!("fitness={};precision={}", fitness, precision);
@@ -428,6 +493,31 @@ impl LineageLog {
     /// assert_eq!(parts[3], "G",           "event_type must be G");
     /// assert_eq!(parts[4], "admission_granted", "operation must match");
     /// ```
+    ///
+    /// Events recorded under a different session ID do not appear in the compact
+    /// view of an unrelated session (session isolation invariant):
+    ///
+    /// ```
+    /// use open_ontologies::lineage::LineageLog;
+    /// use open_ontologies::state::StateDb;
+    /// use std::path::Path;
+    ///
+    /// let db  = StateDb::open(Path::new(":memory:")).unwrap();
+    /// let log = LineageLog::new(db);
+    ///
+    /// log.record("session-x", "G", "admission_granted", "hash-x");
+    /// log.record("session-y", "D", "admission_denied",  "defect-y");
+    ///
+    /// // session-x compact must not contain anything from session-y.
+    /// let x_compact = log.get_compact("session-x");
+    /// assert!(!x_compact.contains("admission_denied"),  "session-y event must not leak into session-x");
+    /// assert!(!x_compact.contains("defect-y"),          "session-y detail must not leak");
+    ///
+    /// // session-y compact must not contain anything from session-x.
+    /// let y_compact = log.get_compact("session-y");
+    /// assert!(!y_compact.contains("admission_granted"), "session-x event must not leak into session-y");
+    /// assert!(!y_compact.contains("hash-x"),            "session-x detail must not leak");
+    /// ```
     pub fn get_compact(&self, session_id: &str) -> String {
         let conn = self.db.conn();
         let mut stmt = conn
@@ -536,6 +626,34 @@ fn rand_id() -> u64 {
 /// let event_log = lineage_to_event_log(&conn, Some("session-alpha")).unwrap();
 /// assert_eq!(event_log.traces.len(), 1);
 /// assert_eq!(event_log.traces[0].events.len(), 1);
+/// ```
+///
+/// ## lifecycle:transition invariant
+///
+/// Every event in the returned log carries a `lifecycle:transition` attribute
+/// with value `"complete"` — this satisfies the XES standard and makes the log
+/// directly consumable by pm4py conformance checkers:
+///
+/// ```
+/// use open_ontologies::lineage::{LineageLog, lineage_to_event_log};
+/// use open_ontologies::state::StateDb;
+/// use std::path::Path;
+///
+/// let db = StateDb::open(Path::new(":memory:")).unwrap();
+/// let log = LineageLog::new(db.clone());
+/// log.record("lc-session", "G", "admission_granted", "h42");
+///
+/// let conn = db.conn();
+/// let event_log = lineage_to_event_log(&conn, Some("lc-session")).unwrap();
+/// let event = &event_log.traces[0].events[0];
+///
+/// // Every event must carry lifecycle:transition = "complete".
+/// let lc = event.attributes.iter()
+///     .find(|a| a.key == "lifecycle:transition")
+///     .expect("lifecycle:transition attribute must be present on every event");
+/// assert!(matches!(&lc.value,
+///     wasm4pm_types::AttributeValue::String(v) if v == "complete"
+/// ), "lifecycle:transition must be 'complete', got: {:?}", lc.value);
 /// ```
 ///
 /// Groups events by session_id (each session becomes a trace/case).

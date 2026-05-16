@@ -10,6 +10,24 @@ use crate::state::StateDb;
 use std::sync::Arc;
 
 /// JSON field key for the RDF triple count reported in API responses.
+///
+/// All JSON objects that include a count of loaded or restored triples use this
+/// key, ensuring downstream consumers have a single stable field name to query.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::ontology::TRIPLE_COUNT_KEY;
+///
+/// // The key is exactly the string "triple_count" — pin the contract.
+/// assert_eq!(TRIPLE_COUNT_KEY, "triple_count");
+///
+/// // It appears as the JSON field name in validate_string output.
+/// let ttl = "@prefix owl: <http://www.w3.org/2002/07/owl#> .\n<urn:ex:A> a owl:Class .";
+/// let json = open_ontologies::ontology::OntologyService::validate_string(ttl).unwrap();
+/// let v: serde_json::Value = serde_json::from_str(&json).unwrap();
+/// assert!(v[TRIPLE_COUNT_KEY].is_number(), "TRIPLE_COUNT_KEY must index a numeric field");
+/// ```
 pub const TRIPLE_COUNT_KEY: &str = "triple_count";
 
 pub struct OntologyService;
@@ -58,6 +76,23 @@ impl OntologyService {
     }
 
     /// Validate an RDF file.
+    ///
+    /// Reads the file at `path`, parses it as Turtle, and returns a JSON report
+    /// in the same format as [`OntologyService::validate_string`].  A non-existent
+    /// or unreadable path produces `"valid": false` — the call itself never errors.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use open_ontologies::ontology::OntologyService;
+    ///
+    /// // Validation of a missing path yields a well-formed error report.
+    /// let json = OntologyService::validate_file("/tmp/no-such-file-9z9z.ttl").unwrap();
+    /// let v: serde_json::Value = serde_json::from_str(&json).unwrap();
+    /// assert_eq!(v["valid"], false);
+    /// assert_eq!(v["path"], "/tmp/no-such-file-9z9z.ttl");
+    /// assert!(!v["errors"].as_array().unwrap().is_empty());
+    /// ```
     pub fn validate_file(path: &str) -> anyhow::Result<String> {
         match GraphStore::validate_file(path) {
             Ok(count) => Ok(serde_json::json!({
@@ -88,6 +123,19 @@ impl OntologyService {
     /// let ttl = "@prefix owl: <http://www.w3.org/2002/07/owl#> .\n<urn:ex:A> a owl:Class .";
     /// let nt = OntologyService::convert(ttl, "turtle", "ntriples").unwrap();
     /// assert!(nt.contains("<urn:ex:A>"));
+    /// ```
+    ///
+    /// N-Triples format invariant: every non-empty line ends with ` .` (period
+    /// after a space), as mandated by the W3C N-Triples specification:
+    ///
+    /// ```
+    /// # use open_ontologies::ontology::OntologyService;
+    /// let ttl = "@prefix owl: <http://www.w3.org/2002/07/owl#> .\n<urn:ex:B> a owl:Class .";
+    /// let nt = OntologyService::convert(ttl, "turtle", "ntriples").unwrap();
+    /// // Every non-blank line in N-Triples output must end with " ."
+    /// for line in nt.lines().filter(|l| !l.trim().is_empty()) {
+    ///     assert!(line.ends_with(" ."), "N-Triples line must end with ` .`, got: {line:?}");
+    /// }
     /// ```
     pub fn convert(content: &str, _from: &str, to: &str) -> anyhow::Result<String> {
         let store = GraphStore::new();
@@ -120,6 +168,21 @@ impl OntologyService {
     /// let v: serde_json::Value = serde_json::from_str(&json).unwrap();
     /// assert!(v["added"].as_u64().unwrap() > 0);
     /// assert_eq!(v["removed"], 0);
+    /// ```
+    ///
+    /// Removing a class from the new content produces a non-zero `removed` count
+    /// and zero `added` (the symmetric case):
+    ///
+    /// ```
+    /// # use open_ontologies::ontology::OntologyService;
+    /// let old = "@prefix owl: <http://www.w3.org/2002/07/owl#> .\n<urn:ex:A> a owl:Class .\n<urn:ex:B> a owl:Class .";
+    /// let new = "@prefix owl: <http://www.w3.org/2002/07/owl#> .\n<urn:ex:A> a owl:Class .";
+    /// let json = OntologyService::diff(old, new).unwrap();
+    /// let v: serde_json::Value = serde_json::from_str(&json).unwrap();
+    /// assert_eq!(v["added"], 0);
+    /// assert!(v["removed"].as_u64().unwrap() > 0);
+    /// // removed_triples must be a non-empty array listing the deleted triple(s)
+    /// assert!(!v["removed_triples"].as_array().unwrap().is_empty());
     /// ```
     pub fn diff(old_content: &str, new_content: &str) -> anyhow::Result<String> {
         let old_store = Store::new()?;
@@ -248,6 +311,24 @@ impl OntologyService {
     /// // At least one issue (missing_label) is reported
     /// assert!(v["issue_count"].as_u64().unwrap() > 0);
     /// assert_eq!(v["suppressed_count"], 0);
+    /// ```
+    ///
+    /// With a fresh `StateDb` (no recorded feedback), `suppressed_count` is zero
+    /// and issue reporting is identical to passing `None`:
+    ///
+    /// ```
+    /// # use open_ontologies::ontology::OntologyService;
+    /// # use open_ontologies::state::StateDb;
+    /// # use std::path::Path;
+    /// let db = StateDb::open(Path::new(":memory:")).unwrap();
+    /// let ttl = "@prefix owl: <http://www.w3.org/2002/07/owl#> .\n<urn:ex:Z> a owl:Class .";
+    /// let json_with_db  = OntologyService::lint_with_feedback(ttl, Some(&db)).unwrap();
+    /// let json_no_db    = OntologyService::lint_with_feedback(ttl, None).unwrap();
+    /// let vd: serde_json::Value = serde_json::from_str(&json_with_db).unwrap();
+    /// let vn: serde_json::Value = serde_json::from_str(&json_no_db).unwrap();
+    /// // Both paths produce the same issue count and zero suppressions.
+    /// assert_eq!(vd["issue_count"], vn["issue_count"]);
+    /// assert_eq!(vd["suppressed_count"], 0);
     /// ```
     pub fn lint_with_feedback(content: &str, db: Option<&crate::state::StateDb>) -> anyhow::Result<String> {
         let store = Store::new()?;
@@ -463,6 +544,21 @@ impl OntologyService {
     /// assert_eq!(v["label"], "snap1");
     /// assert!(v["triples_restored"].as_u64().unwrap() >= 1);
     /// assert!(store.triple_count() >= 1);
+    /// ```
+    ///
+    /// Rolling back to a label that was never saved returns `Err` — the store is
+    /// left unchanged:
+    ///
+    /// ```
+    /// # use open_ontologies::ontology::OntologyService;
+    /// # use open_ontologies::state::StateDb;
+    /// # use open_ontologies::graph::GraphStore;
+    /// # use std::sync::Arc;
+    /// # use std::path::Path;
+    /// let db = StateDb::open(Path::new(":memory:")).unwrap();
+    /// let store = Arc::new(GraphStore::new());
+    /// let result = OntologyService::rollback_version(&db, &store, "nonexistent-label");
+    /// assert!(result.is_err(), "rollback to unknown label must return Err");
     /// ```
     pub fn rollback_version(db: &StateDb, store: &Arc<GraphStore>, label: &str) -> anyhow::Result<String> {
         let conn = db.conn();
