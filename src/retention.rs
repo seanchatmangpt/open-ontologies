@@ -25,6 +25,24 @@ use std::time::Duration;
 
 /// Outcome of a single retention pass. All counts are best-effort and
 /// reflect rows actually deleted (not rows considered).
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::retention::RetentionReport;
+///
+/// // Default report: every counter is zero.
+/// let report = RetentionReport::default();
+/// assert_eq!(report.ocel_events_pruned, 0);
+/// assert_eq!(report.lineage_events_pruned, 0);
+/// assert_eq!(report.revoked_sessions_pruned, 0);
+///
+/// // Clone is independent.
+/// let mut copy = report.clone();
+/// copy.ocel_events_pruned = 5;
+/// assert_eq!(copy.ocel_events_pruned, 5);
+/// assert_eq!(report.ocel_events_pruned, 0);
+/// ```
 #[derive(Debug, Clone, Default)]
 pub struct RetentionReport {
     pub ocel_events_pruned: u64,
@@ -56,6 +74,25 @@ pub struct RetentionWorker {
 }
 
 impl RetentionWorker {
+    /// Construct a new worker with its own `paused_until` atomic
+    /// initialised to 0 (not paused).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use open_ontologies::state::StateDb;
+    /// use open_ontologies::retention::RetentionWorker;
+    /// use open_ontologies::config::RetentionConfig;
+    /// use std::path::Path;
+    /// use std::sync::atomic::Ordering;
+    ///
+    /// let db = StateDb::open(Path::new(":memory:")).unwrap();
+    /// let worker = RetentionWorker::new(db, RetentionConfig::default());
+    ///
+    /// // paused_until starts at 0 — the worker is active immediately.
+    /// assert_eq!(worker.paused_until.load(Ordering::Relaxed), 0);
+    /// assert!(!worker.is_paused());
+    /// ```
     pub fn new(db: StateDb, cfg: RetentionConfig) -> Self {
         Self {
             db,
@@ -127,6 +164,33 @@ impl RetentionWorker {
     }
 
     /// Returns true when the worker is currently paused (kill-switch active).
+    ///
+    /// The worker is paused when `paused_until > Utc::now().timestamp()`.
+    /// Setting `paused_until` to 0 (or any past epoch) disables the pause.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use open_ontologies::state::StateDb;
+    /// use open_ontologies::retention::RetentionWorker;
+    /// use open_ontologies::config::RetentionConfig;
+    /// use std::path::Path;
+    /// use std::sync::atomic::Ordering;
+    ///
+    /// let db = StateDb::open(Path::new(":memory:")).unwrap();
+    /// let worker = RetentionWorker::new(db, RetentionConfig::default());
+    ///
+    /// // Not paused on construction.
+    /// assert!(!worker.is_paused());
+    ///
+    /// // Simulate a pause set far in the future (year 2100 ≈ 4102444800).
+    /// worker.paused_until.store(4_102_444_800, Ordering::Relaxed);
+    /// assert!(worker.is_paused());
+    ///
+    /// // Clear the pause.
+    /// worker.paused_until.store(0, Ordering::Relaxed);
+    /// assert!(!worker.is_paused());
+    /// ```
     pub fn is_paused(&self) -> bool {
         let until = self.paused_until.load(Ordering::Relaxed);
         until > 0 && chrono::Utc::now().timestamp() < until
@@ -234,6 +298,28 @@ impl RetentionWorker {
         Ok(n)
     }
 
+    /// Delete `conformance_runs` rows whose `ran_at` timestamp is older
+    /// than `days`. Returns the number of rows actually removed.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use open_ontologies::state::StateDb;
+    /// use open_ontologies::retention::RetentionWorker;
+    /// use open_ontologies::config::RetentionConfig;
+    /// use std::path::Path;
+    ///
+    /// let db = StateDb::open(Path::new(":memory:")).unwrap();
+    /// let worker = RetentionWorker::new(db, RetentionConfig::default());
+    ///
+    /// // No conformance runs in a fresh DB — zero rows pruned.
+    /// let pruned = worker.prune_conformance(30).unwrap();
+    /// assert_eq!(pruned, 0);
+    ///
+    /// // days=0 means "prune everything older than right now"; still zero.
+    /// let pruned_all = worker.prune_conformance(0).unwrap();
+    /// assert_eq!(pruned_all, 0);
+    /// ```
     pub fn prune_conformance(&self, days: u64) -> Result<u64> {
         let cutoff = days_ago(days);
         let n = self.db.conn().execute(
@@ -362,6 +448,21 @@ impl RetentionWorker {
 
     /// Convenience used by tests and the embedding pruner: number of
     /// rows currently present in `embeddings`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use open_ontologies::state::StateDb;
+    /// use open_ontologies::retention::RetentionWorker;
+    /// use open_ontologies::config::RetentionConfig;
+    /// use std::path::Path;
+    ///
+    /// let db = StateDb::open(Path::new(":memory:")).unwrap();
+    /// let worker = RetentionWorker::new(db, RetentionConfig::default());
+    ///
+    /// // Fresh in-memory DB has no embedding rows.
+    /// assert_eq!(worker.embedding_row_count().unwrap(), 0);
+    /// ```
     pub fn embedding_row_count(&self) -> Result<i64> {
         let n: i64 = self
             .db

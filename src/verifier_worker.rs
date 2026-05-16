@@ -43,7 +43,7 @@ use std::time::Duration;
 /// reflect rows actually examined and verdicts actually emitted (after
 /// the INSERT OR IGNORE idempotency filter).
 ///
-/// # Example
+/// # Examples
 ///
 /// ```
 /// use open_ontologies::verifier_worker::VerifierReport;
@@ -62,6 +62,12 @@ use std::time::Duration;
 /// pass.cursor_after = 42;
 /// assert_eq!(pass.scanned, 17);
 /// assert_eq!(pass.cursor_after, 42);
+///
+/// // A clean pass: all scanned, no warnings or failures.
+/// let clean = VerifierReport { scanned: 100, cursor_before: 50, cursor_after: 150, ..Default::default() };
+/// assert_eq!(clean.warnings, 0);
+/// assert_eq!(clean.failures, 0);
+/// assert_eq!(clean.cursor_after - clean.cursor_before, 100);
 /// ```
 #[derive(Debug, Clone, Default)]
 pub struct VerifierReport {
@@ -96,11 +102,11 @@ impl VerifierWorker {
     /// Construct a new worker. The worker starts with `last_verified_seq = 0`
     /// so the first tick back-fills all historical receipts.
     ///
-    /// # Example
+    /// # Examples
     ///
     /// ```
     /// use std::sync::Arc;
-    /// use std::sync::atomic::AtomicI64;
+    /// use std::sync::atomic::{AtomicI64, Ordering};
     /// use open_ontologies::verifier_worker::VerifierWorker;
     /// use open_ontologies::config::VerifierConfig;
     /// use open_ontologies::ocel_store::OcelStore;
@@ -115,8 +121,33 @@ impl VerifierWorker {
     ///
     /// let worker = VerifierWorker::new(db, ocel, cfg, pause);
     /// // Cursor starts at 0 — will back-fill all receipts on first tick.
-    /// use std::sync::atomic::Ordering;
     /// assert_eq!(worker.last_verified_seq.load(Ordering::Relaxed), 0);
+    /// // last_run_unix also starts at 0 — no tick has run yet.
+    /// assert_eq!(worker.last_run_unix.load(Ordering::Relaxed), 0);
+    /// // retention_paused_until starts at 0 — retention not paused.
+    /// assert_eq!(worker.retention_paused_until.load(Ordering::Relaxed), 0);
+    /// ```
+    ///
+    /// # Custom batch limit
+    ///
+    /// ```
+    /// use std::sync::Arc;
+    /// use std::sync::atomic::AtomicI64;
+    /// use open_ontologies::verifier_worker::VerifierWorker;
+    /// use open_ontologies::config::VerifierConfig;
+    /// use open_ontologies::ocel_store::OcelStore;
+    /// use open_ontologies::state::StateDb;
+    ///
+    /// let db   = StateDb::open(std::path::Path::new(":memory:")).unwrap();
+    /// let ocel = Arc::new(OcelStore::new(
+    ///     StateDb::open(std::path::Path::new(":memory:")).unwrap(),
+    /// ));
+    /// // Low batch limit for high-throughput sharding use-cases.
+    /// let cfg = VerifierConfig { batch_limit: 100, ..VerifierConfig::default() };
+    /// let pause = Arc::new(AtomicI64::new(0));
+    ///
+    /// let worker = VerifierWorker::new(db, ocel, cfg, pause);
+    /// assert_eq!(worker.cfg.batch_limit, 100);
     /// ```
     pub fn new(
         db: StateDb,
@@ -209,7 +240,9 @@ impl VerifierWorker {
     /// OTEL: emits `verifier.tick` span with `verifier.scanned`,
     /// `verifier.failures`, `verifier.cursor` attributes.
     ///
-    /// # Example
+    /// # Examples
+    ///
+    /// Empty DB — zero rows scanned, all counters at origin after the tick:
     ///
     /// ```
     /// use std::sync::Arc;
@@ -227,12 +260,38 @@ impl VerifierWorker {
     /// let pause = Arc::new(AtomicI64::new(0));
     ///
     /// let worker = VerifierWorker::new(db, ocel, cfg, pause);
-    /// // Empty receipts table → scanned = 0, no failures.
+    /// // Empty receipts table → scanned = 0, no failures, no warnings.
     /// let report = worker.tick().unwrap();
     /// assert_eq!(report.scanned, 0);
+    /// assert_eq!(report.warnings, 0);
     /// assert_eq!(report.failures, 0);
     /// assert_eq!(report.cursor_before, 0);
     /// assert_eq!(report.cursor_after, 0);
+    /// ```
+    ///
+    /// Multiple consecutive ticks on an empty DB are idempotent — cursor
+    /// stays at 0 and no failures are emitted:
+    ///
+    /// ```
+    /// use std::sync::Arc;
+    /// use std::sync::atomic::AtomicI64;
+    /// use open_ontologies::verifier_worker::VerifierWorker;
+    /// use open_ontologies::config::VerifierConfig;
+    /// use open_ontologies::ocel_store::OcelStore;
+    /// use open_ontologies::state::StateDb;
+    ///
+    /// let db  = StateDb::open(std::path::Path::new(":memory:")).unwrap();
+    /// let ocel = Arc::new(OcelStore::new(
+    ///     StateDb::open(std::path::Path::new(":memory:")).unwrap(),
+    /// ));
+    /// let pause = Arc::new(AtomicI64::new(0));
+    /// let worker = VerifierWorker::new(db, ocel, VerifierConfig::default(), pause);
+    ///
+    /// for _ in 0..3 {
+    ///     let r = worker.tick().unwrap();
+    ///     assert_eq!(r.cursor_after, 0);
+    ///     assert_eq!(r.failures, 0);
+    /// }
     /// ```
     pub fn tick(&self) -> anyhow::Result<VerifierReport> {
         let span = tracing::info_span!(
