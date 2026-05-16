@@ -481,16 +481,17 @@ pub fn resolve_llm_engine(cfg: &LlmConfig) -> String {
 /// ```
 /// // When GEMINI_BIN is unset, the default binary name is returned.
 /// // (Safe to run even if Gemini CLI is not installed.)
-/// # std::env::remove_var("GEMINI_BIN");
+/// # unsafe { std::env::remove_var("GEMINI_BIN"); }
 /// let bin = open_ontologies::config::resolve_gemini_bin();
 /// assert_eq!(bin, "gemini");
 /// ```
 ///
 /// ```
 /// // When GEMINI_BIN is set to a custom path it is used verbatim.
-/// std::env::set_var("GEMINI_BIN", "/usr/local/bin/gemini-cli");
+/// // SAFETY: single-threaded doctest; no concurrent env access.
+/// unsafe { std::env::set_var("GEMINI_BIN", "/usr/local/bin/gemini-cli"); }
 /// let bin = open_ontologies::config::resolve_gemini_bin();
-/// std::env::remove_var("GEMINI_BIN"); // restore
+/// unsafe { std::env::remove_var("GEMINI_BIN"); } // restore
 /// assert_eq!(bin, "/usr/local/bin/gemini-cli");
 /// ```
 pub fn resolve_gemini_bin() -> String {
@@ -508,7 +509,7 @@ pub fn resolve_gemini_bin() -> String {
 /// ```
 /// # use open_ontologies::config::LlmConfig;
 /// // Default: falls back to "python3" when env var and config are both absent.
-/// # std::env::remove_var("OPEN_ONTOLOGIES_LLM_PYTHON");
+/// # unsafe { std::env::remove_var("OPEN_ONTOLOGIES_LLM_PYTHON"); }
 /// let py = open_ontologies::config::resolve_llm_python(&LlmConfig::default());
 /// assert_eq!(py, "python3");
 /// ```
