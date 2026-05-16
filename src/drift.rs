@@ -58,6 +58,31 @@ impl DriftDetector {
     /// assert_eq!(parsed["added"].as_array().unwrap().len(), 0);
     /// assert_eq!(parsed["removed"].as_array().unwrap().len(), 0);
     /// ```
+    ///
+    /// When classes are added or removed, drift velocity is non-zero:
+    ///
+    /// ```
+    /// use open_ontologies::drift::DriftDetector;
+    /// use open_ontologies::state::StateDb;
+    /// use std::path::Path;
+    ///
+    /// let db = StateDb::open(Path::new(":memory:")).unwrap();
+    /// let detector = DriftDetector::new(db);
+    ///
+    /// let v1 = "@prefix owl: <http://www.w3.org/2002/07/owl#> .\n\
+    ///           <urn:ex:OldClass> a owl:Class .";
+    ///
+    /// let v2 = "@prefix owl: <http://www.w3.org/2002/07/owl#> .\n\
+    ///           <urn:ex:NewClass> a owl:Class .";
+    ///
+    /// let result = detector.detect(v1, v2).unwrap();
+    /// let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+    ///
+    /// // One class removed, one added → non-zero velocity
+    /// assert!(parsed["drift_velocity"].as_f64().unwrap() > 0.0);
+    /// assert_eq!(parsed["removed"].as_array().unwrap().len(), 1);
+    /// assert_eq!(parsed["added"].as_array().unwrap().len(), 1);
+    /// ```
     pub fn detect(&self, v1_turtle: &str, v2_turtle: &str) -> anyhow::Result<String> {
         let store1 = Arc::new(GraphStore::new());
         let store2 = Arc::new(GraphStore::new());
