@@ -39,6 +39,32 @@ use crate::ocel_store::OcelStore;
 /// the deterministic admission gate needs. Any of `measure_text`,
 /// `verification_text`, `negative_case_text`, `control_plan_text` may be
 /// empty; the gate will deny with `CtqIncomplete{missing}`.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::llm_translator::CandidateCtq;
+///
+/// let c = CandidateCtq {
+///     source_voice_echo:   "checkout errors up 3x".to_string(),
+///     defect_class_hint:   "PaymentFailure".to_string(),
+///     ctq_text:            "Payment success rate must be ≥ 99.5 %".to_string(),
+///     measure_text:        "Ratio of successful charges to total attempts".to_string(),
+///     verification_text:   "Stripe webhook confirmation within 5 s".to_string(),
+///     negative_case_text:  "Any charge attempt that returns a non-2xx status".to_string(),
+///     control_plan_text:   "Alert on 7-day rolling success rate below 99.5 %".to_string(),
+///     provisional:         true,
+/// };
+///
+/// assert_eq!(c.source_voice_echo, "checkout errors up 3x");
+/// assert_eq!(c.defect_class_hint, "PaymentFailure");
+/// assert!(c.provisional, "candidate must always be marked provisional");
+/// assert!(!c.ctq_text.is_empty());
+/// assert!(!c.measure_text.is_empty());
+/// assert!(!c.verification_text.is_empty());
+/// assert!(!c.negative_case_text.is_empty());
+/// assert!(!c.control_plan_text.is_empty());
+/// ```
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct CandidateCtq {
     /// Echo of the source-voice signal (so reviewers can check the
@@ -127,6 +153,24 @@ impl GroqTranslator {
     /// `https://api.groq.com/openai/v1` by default; the api_key is
     /// resolved from `OPEN_ONTOLOGIES_LLM_API_KEY` then `GROQ_API_KEY`
     /// then the config field.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use open_ontologies::config::LlmConfig;
+    /// use open_ontologies::llm_translator::GroqTranslator;
+    ///
+    /// let cfg = LlmConfig {
+    ///     api_base: Some("https://api.groq.com/openai/v1".to_string()),
+    ///     api_key:  None,
+    ///     model:    Some("llama-3.3-70b-versatile".to_string()),
+    ///     request_timeout_secs: Some(30),
+    ///     ..Default::default()
+    /// };
+    /// let translator = GroqTranslator::from_config(&cfg).unwrap();
+    /// assert!(!translator.is_configured()); // no API key
+    /// assert!(translator.endpoint().contains("/chat/completions"));
+    /// ```
     pub fn from_config(cfg: &LlmConfig) -> Result<Self> {
         let api_base = crate::config::resolve_llm_api_base(cfg);
         let api_key = crate::config::resolve_llm_api_key(cfg);
@@ -137,6 +181,36 @@ impl GroqTranslator {
 
     /// Build a translator from explicit parts. `api_base` should NOT
     /// include the trailing `/chat/completions` path.
+    ///
+    /// The `/chat/completions` suffix is appended automatically; any
+    /// trailing slash on `api_base` is stripped first.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::time::Duration;
+    /// use open_ontologies::llm_translator::GroqTranslator;
+    ///
+    /// // No API key — translator builds but is not configured.
+    /// let t = GroqTranslator::new(
+    ///     "https://api.groq.com/openai/v1",
+    ///     None,
+    ///     "llama-3.3-70b-versatile",
+    ///     Duration::from_secs(30),
+    /// ).unwrap();
+    /// assert!(!t.is_configured());
+    /// assert_eq!(t.model(), "llama-3.3-70b-versatile");
+    /// assert_eq!(t.endpoint(), "https://api.groq.com/openai/v1/chat/completions");
+    ///
+    /// // Whitespace-only key is normalised to "not configured".
+    /// let t2 = GroqTranslator::new(
+    ///     "https://api.groq.com/openai/v1",
+    ///     Some("   ".to_string()),
+    ///     "llama-3.3-70b-versatile",
+    ///     Duration::from_secs(30),
+    /// ).unwrap();
+    /// assert!(!t2.is_configured());
+    /// ```
     pub fn new(
         api_base: &str,
         api_key: Option<String>,
@@ -156,6 +230,29 @@ impl GroqTranslator {
 
     /// True if an API key is configured. Used by the gate to deny with
     /// `LlmAuthorityClaimed` when the caller bypasses translation.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::time::Duration;
+    /// use open_ontologies::llm_translator::GroqTranslator;
+    ///
+    /// let no_key = GroqTranslator::new(
+    ///     "https://api.groq.com/openai/v1",
+    ///     None,
+    ///     "llama-3.3-70b-versatile",
+    ///     Duration::from_secs(30),
+    /// ).unwrap();
+    /// assert!(!no_key.is_configured());
+    ///
+    /// let with_key = GroqTranslator::new(
+    ///     "https://api.groq.com/openai/v1",
+    ///     Some("gsk_real_key_value".to_string()),
+    ///     "llama-3.3-70b-versatile",
+    ///     Duration::from_secs(30),
+    /// ).unwrap();
+    /// assert!(with_key.is_configured());
+    /// ```
     pub fn is_configured(&self) -> bool {
         self.api_key.is_some()
     }
@@ -170,6 +267,28 @@ impl GroqTranslator {
     /// `&str`. Callers must build the `LlmInput` via
     /// [`LlmInput::sanitize`] which rejects chat-control markers,
     /// over-length payloads, control bytes, and disallowed characters.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use std::time::Duration;
+    /// use open_ontologies::llm_translator::GroqTranslator;
+    /// use open_ontologies::llm_input::{LlmInput, LlmInputKind};
+    ///
+    /// // Without an API key the translator fails immediately — no network call.
+    /// // This is async so shown as no_run; see the unit tests for a runnable version.
+    /// async fn example() {
+    ///     let t = GroqTranslator::new(
+    ///         "https://api.groq.com/openai/v1",
+    ///         None,
+    ///         "llama-3.3-70b-versatile",
+    ///         Duration::from_secs(30),
+    ///     ).unwrap();
+    ///     let voice = LlmInput::sanitize("checkout errors up 3x", LlmInputKind::SourceVoice).unwrap();
+    ///     let err = t.translate_candidate_ctq(&voice).await.unwrap_err();
+    ///     assert!(err.to_string().contains("NoLlmConfigured"));
+    /// }
+    /// ```
     pub async fn translate_candidate_ctq(&self, source_voice: &LlmInput) -> Result<CandidateCtq> {
         let api_key = self
             .api_key
@@ -386,11 +505,41 @@ impl GroqTranslator {
 
     /// Endpoint URL (for diagnostics / OCEL attribute use). Never contains
     /// the API key.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::time::Duration;
+    /// use open_ontologies::llm_translator::GroqTranslator;
+    ///
+    /// let t = GroqTranslator::new(
+    ///     "https://api.groq.com/openai/v1/",   // trailing slash stripped
+    ///     None,
+    ///     "llama-3.3-70b-versatile",
+    ///     Duration::from_secs(30),
+    /// ).unwrap();
+    /// assert_eq!(t.endpoint(), "https://api.groq.com/openai/v1/chat/completions");
+    /// ```
     pub fn endpoint(&self) -> &str {
         &self.endpoint
     }
 
     /// Configured model (for diagnostics).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::time::Duration;
+    /// use open_ontologies::llm_translator::GroqTranslator;
+    ///
+    /// let t = GroqTranslator::new(
+    ///     "https://api.groq.com/openai/v1",
+    ///     None,
+    ///     "llama-3.3-70b-versatile",
+    ///     Duration::from_secs(30),
+    /// ).unwrap();
+    /// assert_eq!(t.model(), "llama-3.3-70b-versatile");
+    /// ```
     pub fn model(&self) -> &str {
         &self.model
     }

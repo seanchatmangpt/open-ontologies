@@ -62,9 +62,84 @@ impl Interner {
 ///                  sameAs, equivalentClass/Property)
 ///   "owl-rl-ext" — All above + someValuesFrom, allValuesFrom, hasValue,
 ///                  intersectionOf, unionOf
+///
+/// # Examples
+///
+/// ```
+/// use std::sync::Arc;
+/// use open_ontologies::graph::GraphStore;
+/// use open_ontologies::reason::Reasoner;
+///
+/// // Empty graph — reasoner runs without errors and infers 0 new triples.
+/// let graph = Arc::new(GraphStore::new());
+/// let result = Reasoner::run(&graph, "rdfs", false).unwrap();
+/// let v: serde_json::Value = serde_json::from_str(&result).unwrap();
+/// assert_eq!(v["profile_used"], "rdfs");
+/// assert_eq!(v["inferred_count"], 0);
+/// assert_eq!(v["initial_triples"], 0);
+/// assert_eq!(v["dry_run"], true);
+/// ```
 pub struct Reasoner;
 
 impl Reasoner {
+    /// Run the reasoner over `graph` using the given `profile`.
+    ///
+    /// When `materialize` is `false` the inferred triples are counted but
+    /// **not** written back into the graph store (dry-run mode). Set
+    /// `materialize` to `true` to persist inferred triples.
+    ///
+    /// Returns a JSON string with keys: `profile_used`, `inferred_count`,
+    /// `iterations`, `initial_triples`, `final_triples`,
+    /// `sample_inferences` (up to 10 rdf:type inferences), and `dry_run`
+    /// (present only when `materialize` is `false`).
+    ///
+    /// # Errors
+    ///
+    /// Returns `Err` if the graph store cannot be read. Unknown profiles
+    /// fall back to `"rdfs"`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::sync::Arc;
+    /// use open_ontologies::graph::GraphStore;
+    /// use open_ontologies::reason::Reasoner;
+    ///
+    /// // RDFS reasoning on an empty in-memory graph (dry run).
+    /// let graph = Arc::new(GraphStore::new());
+    /// let json = Reasoner::run(&graph, "rdfs", false).unwrap();
+    /// let v: serde_json::Value = serde_json::from_str(&json).unwrap();
+    /// assert_eq!(v["profile_used"], "rdfs");
+    /// assert_eq!(v["inferred_count"], 0);
+    /// assert_eq!(v["dry_run"], true);
+    /// ```
+    ///
+    /// ```
+    /// use std::sync::Arc;
+    /// use open_ontologies::graph::GraphStore;
+    /// use open_ontologies::reason::Reasoner;
+    ///
+    /// // OWL-RL reasoning on an empty in-memory graph (materialize = true).
+    /// let graph = Arc::new(GraphStore::new());
+    /// let json = Reasoner::run(&graph, "owl-rl", true).unwrap();
+    /// let v: serde_json::Value = serde_json::from_str(&json).unwrap();
+    /// assert_eq!(v["profile_used"], "owl-rl");
+    /// assert_eq!(v["inferred_count"], 0);
+    /// // dry_run key is absent when materialize is true
+    /// assert!(v.get("dry_run").is_none());
+    /// ```
+    ///
+    /// ```
+    /// use std::sync::Arc;
+    /// use open_ontologies::graph::GraphStore;
+    /// use open_ontologies::reason::Reasoner;
+    ///
+    /// // Unknown profile falls back to rdfs (no error).
+    /// let graph = Arc::new(GraphStore::new());
+    /// let json = Reasoner::run(&graph, "unknown-profile", false).unwrap();
+    /// let v: serde_json::Value = serde_json::from_str(&json).unwrap();
+    /// assert_eq!(v["profile_used"], "rdfs");
+    /// ```
     pub fn run(
         graph: &Arc<GraphStore>,
         profile: &str,
