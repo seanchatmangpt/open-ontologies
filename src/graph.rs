@@ -7,6 +7,15 @@ use oxigraph::sparql::QueryResults;
 use oxigraph::store::Store;
 
 /// In-memory RDF graph store backed by Oxigraph.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::graph::GraphStore;
+///
+/// let store = GraphStore::new();
+/// assert_eq!(store.triple_count(), 0);
+/// ```
 pub struct GraphStore {
     store: Mutex<Store>,
 }
@@ -18,6 +27,16 @@ impl Default for GraphStore {
 }
 
 impl GraphStore {
+    /// Create a new empty in-memory graph store.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use open_ontologies::graph::GraphStore;
+    ///
+    /// let store = GraphStore::new();
+    /// assert_eq!(store.triple_count(), 0);
+    /// ```
     pub fn new() -> Self {
         Self {
             store: Mutex::new(Store::new().expect("Failed to create Oxigraph store")),
@@ -29,6 +48,19 @@ impl GraphStore {
     /// `--data_dir` operate on the same persistent triple set. Falls back to
     /// an in-memory store if the on-disk store cannot be opened (e.g. the
     /// directory exists but is locked by another process).
+    ///
+    /// # Note
+    ///
+    /// This constructor requires a real filesystem path. Use [`GraphStore::new`]
+    /// for hermetic in-memory usage.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use open_ontologies::graph::GraphStore;
+    ///
+    /// let store = GraphStore::open("/tmp/my_store").unwrap();
+    /// ```
     pub fn open<P: AsRef<std::path::Path>>(path: P) -> anyhow::Result<Self> {
         let store = Store::open(path.as_ref())
             .map_err(|e| anyhow::anyhow!("Failed to open Oxigraph store at {:?}: {e}", path.as_ref()))?;
@@ -37,11 +69,60 @@ impl GraphStore {
         })
     }
 
+    /// Return the number of triples currently held in the store.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use open_ontologies::graph::GraphStore;
+    ///
+    /// let store = GraphStore::new();
+    /// assert_eq!(store.triple_count(), 0);
+    ///
+    /// store.load_turtle(
+    ///     "@prefix ex: <http://example.org/> . ex:A a <http://www.w3.org/2002/07/owl#Class> .",
+    ///     None,
+    /// ).unwrap();
+    /// assert_eq!(store.triple_count(), 1);
+    /// ```
     pub fn triple_count(&self) -> usize {
         let store = self.store.lock().unwrap();
         store.len().unwrap_or(0)
     }
 
+    /// Load Turtle-formatted RDF into the store and return the number of triples inserted.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use open_ontologies::graph::GraphStore;
+    ///
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let store = GraphStore::new();
+    /// let count = store.load_turtle(
+    ///     "@prefix ex: <http://example.org/> . ex:A a <http://www.w3.org/2002/07/owl#Class> .",
+    ///     None,
+    /// )?;
+    /// assert_eq!(count, 1);
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// An optional base IRI resolves relative IRIs in the document:
+    ///
+    /// ```
+    /// use open_ontologies::graph::GraphStore;
+    ///
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let store = GraphStore::new();
+    /// let count = store.load_turtle(
+    ///     "<A> a <http://www.w3.org/2002/07/owl#Class> .",
+    ///     Some("http://example.org/"),
+    /// )?;
+    /// assert_eq!(count, 1);
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn load_turtle(&self, ttl: &str, base_iri: Option<&str>) -> anyhow::Result<usize> {
         let store = self.store.lock().unwrap();
         let reader = Cursor::new(ttl.as_bytes());
@@ -59,11 +140,46 @@ impl GraphStore {
     }
 
     /// Load RDF content in a specified format (Turtle, RDF/XML, etc.)
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use open_ontologies::graph::GraphStore;
+    /// use oxigraph::io::RdfFormat;
+    ///
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let store = GraphStore::new();
+    /// let count = store.load_content(
+    ///     "<http://example.org/A> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/2002/07/owl#Class> .",
+    ///     RdfFormat::NTriples,
+    /// )?;
+    /// assert_eq!(count, 1);
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn load_content(&self, content: &str, format: RdfFormat) -> anyhow::Result<usize> {
         self.load_content_with_base(content, format, None)
     }
 
     /// Load RDF content with an optional base IRI for resolving relative IRIs.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use open_ontologies::graph::GraphStore;
+    /// use oxigraph::io::RdfFormat;
+    ///
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let store = GraphStore::new();
+    /// let count = store.load_content_with_base(
+    ///     "<A> a <http://www.w3.org/2002/07/owl#Class> .",
+    ///     RdfFormat::Turtle,
+    ///     Some("http://example.org/"),
+    /// )?;
+    /// assert_eq!(count, 1);
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn load_content_with_base(&self, content: &str, format: RdfFormat, base_iri: Option<&str>) -> anyhow::Result<usize> {
         let store = self.store.lock().unwrap();
         let reader = Cursor::new(content.as_bytes());
@@ -80,6 +196,29 @@ impl GraphStore {
         Ok(count)
     }
 
+    /// Load an RDF file from disk, detecting the format from the file extension.
+    ///
+    /// Supported extensions: `.ttl` / `.turtle` (Turtle), `.nt` / `.ntriples`
+    /// (N-Triples), `.rdf` / `.xml` / `.owl` (RDF/XML), `.nq` (N-Quads),
+    /// `.trig` (TriG). Unknown extensions fall back to Turtle.
+    ///
+    /// # Note
+    ///
+    /// Requires a real filesystem path. For hermetic usage prefer
+    /// [`GraphStore::load_turtle`] or [`GraphStore::load_content`].
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use open_ontologies::graph::GraphStore;
+    ///
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let store = GraphStore::new();
+    /// let count = store.load_file("/path/to/ontology.ttl")?;
+    /// println!("Loaded {count} triples");
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn load_file(&self, path: &str) -> anyhow::Result<usize> {
         let content = std::fs::read_to_string(path)?;
         let format = Self::detect_format(path);
@@ -94,12 +233,97 @@ impl GraphStore {
         Ok(count)
     }
 
+    /// Serialize the store to a file in the given format.
+    ///
+    /// Supported format strings: `"turtle"` / `"ttl"`, `"ntriples"` / `"nt"`,
+    /// `"rdfxml"` / `"rdf"` / `"xml"` / `"owl"`, `"nquads"` / `"nq"`, `"trig"`.
+    ///
+    /// # Note
+    ///
+    /// Requires a writable filesystem path. For hermetic serialization use
+    /// [`GraphStore::serialize`] instead.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use open_ontologies::graph::GraphStore;
+    ///
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let store = GraphStore::new();
+    /// store.load_turtle(
+    ///     "@prefix ex: <http://example.org/> . ex:A a <http://www.w3.org/2002/07/owl#Class> .",
+    ///     None,
+    /// )?;
+    /// store.save_file("/tmp/output.ttl", "turtle")?;
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn save_file(&self, path: &str, format: &str) -> anyhow::Result<()> {
         let content = self.serialize(format)?;
         std::fs::write(path, content)?;
         Ok(())
     }
 
+    /// Parse and validate Turtle-formatted RDF without loading it into any store.
+    ///
+    /// Returns the number of triples found if parsing succeeds, or an error
+    /// describing the first parse failure. This is a **static method** — no
+    /// `GraphStore` instance is required.
+    ///
+    /// # Examples
+    ///
+    /// Valid minimal Turtle with a declared prefix:
+    ///
+    /// ```
+    /// use open_ontologies::graph::GraphStore;
+    ///
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let count = GraphStore::validate_turtle(
+    ///     "@prefix ex: <http://example.org/> . ex:A a <http://www.w3.org/2002/07/owl#Class> .",
+    /// )?;
+    /// assert_eq!(count, 1);
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// Multiple triples all count:
+    ///
+    /// ```
+    /// use open_ontologies::graph::GraphStore;
+    ///
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let ttl = "
+    ///     @prefix ex: <http://example.org/> .
+    ///     @prefix owl: <http://www.w3.org/2002/07/owl#> .
+    ///     ex:A a owl:Class .
+    ///     ex:B a owl:Class .
+    ///     ex:B <http://www.w3.org/2000/01/rdf-schema#subClassOf> ex:A .
+    /// ";
+    /// let count = GraphStore::validate_turtle(ttl)?;
+    /// assert_eq!(count, 3);
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// Invalid Turtle (missing terminating dot) returns an error:
+    ///
+    /// ```
+    /// use open_ontologies::graph::GraphStore;
+    ///
+    /// let result = GraphStore::validate_turtle(
+    ///     "@prefix ex: <http://example.org/> . ex:A a <http://www.w3.org/2002/07/owl#Class>",
+    /// );
+    /// assert!(result.is_err(), "truncated Turtle must not parse successfully");
+    /// ```
+    ///
+    /// Completely malformed input is also rejected:
+    ///
+    /// ```
+    /// use open_ontologies::graph::GraphStore;
+    ///
+    /// let result = GraphStore::validate_turtle("{ this is not rdf }");
+    /// assert!(result.is_err(), "garbage input must not parse successfully");
+    /// ```
     pub fn validate_turtle(ttl: &str) -> anyhow::Result<usize> {
         let reader = Cursor::new(ttl.as_bytes());
         let parser = RdfParser::from_format(RdfFormat::Turtle).for_reader(reader);
@@ -111,6 +335,27 @@ impl GraphStore {
         Ok(count)
     }
 
+    /// Parse and validate an RDF file on disk without loading it into any store.
+    ///
+    /// Detects format from the file extension (same rules as [`GraphStore::load_file`]).
+    /// Returns the triple count on success or a parse/IO error.
+    ///
+    /// # Note
+    ///
+    /// Requires a real filesystem path. For hermetic validation use
+    /// [`GraphStore::validate_turtle`] or [`GraphStore::load_content`] instead.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use open_ontologies::graph::GraphStore;
+    ///
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let count = GraphStore::validate_file("/path/to/ontology.ttl")?;
+    /// println!("File contains {count} valid triples");
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn validate_file(path: &str) -> anyhow::Result<usize> {
         let content = std::fs::read_to_string(path)?;
         let format = Self::detect_format(path);
@@ -124,6 +369,46 @@ impl GraphStore {
         Ok(count)
     }
 
+    /// Execute a SPARQL query (SELECT, CONSTRUCT, or ASK) against the store.
+    ///
+    /// Returns a JSON string. For SELECT queries the JSON object has
+    /// `"variables"` (array of variable names) and `"results"` (array of
+    /// binding maps). For ASK queries it has `"result"` (bool). For CONSTRUCT
+    /// queries it has `"triples"` (array of subject/predicate/object maps).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use open_ontologies::graph::GraphStore;
+    ///
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let store = GraphStore::new();
+    /// store.load_turtle(
+    ///     "@prefix ex: <http://example.org/> . ex:A a <http://www.w3.org/2002/07/owl#Class> .",
+    ///     None,
+    /// )?;
+    ///
+    /// let json = store.sparql_select(
+    ///     "SELECT ?s WHERE { ?s a <http://www.w3.org/2002/07/owl#Class> }"
+    /// )?;
+    /// assert!(json.contains("http://example.org/A"));
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// ASK query returns a boolean result:
+    ///
+    /// ```
+    /// use open_ontologies::graph::GraphStore;
+    ///
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let store = GraphStore::new();
+    /// let json = store.sparql_select("ASK { ?s ?p ?o }")?;
+    /// // Empty store — no triples, so ASK must return false
+    /// assert!(json.contains("false"));
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn sparql_select(&self, query: &str) -> anyhow::Result<String> {
         let store = self.store.lock().unwrap();
         match store.query(query)? {
@@ -162,8 +447,27 @@ impl GraphStore {
         }
     }
 
-    /// Run a SPARQL UPDATE (INSERT/DELETE) against the store.
-    /// Returns the number of new triples (delta).
+    /// Run a SPARQL UPDATE (INSERT DATA / DELETE DATA / etc.) against the store.
+    ///
+    /// Returns the net number of new triples added (after minus before). A
+    /// pure DELETE that removes triples will return `0` via saturating
+    /// subtraction.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use open_ontologies::graph::GraphStore;
+    ///
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let store = GraphStore::new();
+    /// let delta = store.sparql_update(
+    ///     "INSERT DATA { <http://example.org/A> a <http://www.w3.org/2002/07/owl#Class> . }"
+    /// )?;
+    /// assert_eq!(delta, 1);
+    /// assert_eq!(store.triple_count(), 1);
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn sparql_update(&self, update: &str) -> anyhow::Result<usize> {
         let store = self.store.lock().unwrap();
         let before = store.len()?;
@@ -172,6 +476,37 @@ impl GraphStore {
         Ok(after.saturating_sub(before))
     }
 
+    /// Serialize all triples in the store to a string in the given format.
+    ///
+    /// Supported format strings: `"turtle"` / `"ttl"`, `"ntriples"` / `"nt"`,
+    /// `"rdfxml"` / `"rdf"` / `"xml"` / `"owl"`, `"nquads"` / `"nq"`, `"trig"`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use open_ontologies::graph::GraphStore;
+    ///
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let store = GraphStore::new();
+    /// store.load_turtle(
+    ///     "@prefix ex: <http://example.org/> . ex:A a <http://www.w3.org/2002/07/owl#Class> .",
+    ///     None,
+    /// )?;
+    /// let nt = store.serialize("ntriples")?;
+    /// assert!(nt.contains("<http://example.org/A>"));
+    /// assert!(nt.contains("<http://www.w3.org/2002/07/owl#Class>"));
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// An unknown format name returns an error:
+    ///
+    /// ```
+    /// use open_ontologies::graph::GraphStore;
+    ///
+    /// let store = GraphStore::new();
+    /// assert!(store.serialize("jsonld").is_err());
+    /// ```
     pub fn serialize(&self, format: &str) -> anyhow::Result<String> {
         let store = self.store.lock().unwrap();
         let rdf_format = Self::parse_format(format)?;
@@ -245,12 +580,49 @@ impl GraphStore {
         .to_string())
     }
 
+    /// Remove all triples from the store, returning it to an empty state.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use open_ontologies::graph::GraphStore;
+    ///
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let store = GraphStore::new();
+    /// store.load_turtle(
+    ///     "@prefix ex: <http://example.org/> . ex:A a <http://www.w3.org/2002/07/owl#Class> .",
+    ///     None,
+    /// )?;
+    /// assert_eq!(store.triple_count(), 1);
+    ///
+    /// store.clear()?;
+    /// assert_eq!(store.triple_count(), 0);
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn clear(&self) -> anyhow::Result<()> {
         let store = self.store.lock().unwrap();
         store.clear()?;
         Ok(())
     }
 
+    /// Load N-Triples–formatted RDF into the store and return the number of
+    /// triples inserted.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use open_ontologies::graph::GraphStore;
+    ///
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let store = GraphStore::new();
+    /// let count = store.load_ntriples(
+    ///     "<http://example.org/A> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/2002/07/owl#Class> .\n"
+    /// )?;
+    /// assert_eq!(count, 1);
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn load_ntriples(&self, content: &str) -> anyhow::Result<usize> {
         let store = self.store.lock().unwrap();
         let reader = Cursor::new(content.as_bytes());
@@ -263,10 +635,47 @@ impl GraphStore {
         Ok(count)
     }
 
+    /// Alias for [`GraphStore::serialize`] — produces a full serialization of
+    /// the store in the given format string.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use open_ontologies::graph::GraphStore;
+    ///
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let store = GraphStore::new();
+    /// store.load_ntriples(
+    ///     "<http://example.org/A> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/2002/07/owl#Class> .\n"
+    /// )?;
+    /// let snap = store.snapshot("ntriples")?;
+    /// assert!(snap.contains("<http://example.org/A>"));
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn snapshot(&self, format: &str) -> anyhow::Result<String> {
         self.serialize(format)
     }
 
+    /// Fetch raw text from an HTTP URL. Typically used to download remote
+    /// ontologies before parsing.
+    ///
+    /// # Note
+    ///
+    /// Requires a live network connection. Use [`GraphStore::load_turtle`] for
+    /// hermetic in-memory usage.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use open_ontologies::graph::GraphStore;
+    ///
+    /// async fn example() {
+    ///     let ttl = GraphStore::fetch_url("https://example.org/ontology.ttl").await.unwrap();
+    ///     let store = GraphStore::new();
+    ///     store.load_turtle(&ttl, None).unwrap();
+    /// }
+    /// ```
     pub async fn fetch_url(url: &str) -> anyhow::Result<String> {
         let resp = reqwest::get(url).await?;
         if !resp.status().is_success() {
@@ -275,6 +684,26 @@ impl GraphStore {
         Ok(resp.text().await?)
     }
 
+    /// Send a SPARQL CONSTRUCT query to a remote SPARQL endpoint and return the
+    /// response body (typically Turtle or N-Triples).
+    ///
+    /// # Note
+    ///
+    /// Requires a live network connection to a SPARQL endpoint.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use open_ontologies::graph::GraphStore;
+    ///
+    /// async fn example() {
+    ///     let ttl = GraphStore::fetch_sparql(
+    ///         "https://dbpedia.org/sparql",
+    ///         "CONSTRUCT { ?s ?p ?o } WHERE { ?s ?p ?o } LIMIT 10",
+    ///     ).await.unwrap();
+    ///     println!("{ttl}");
+    /// }
+    /// ```
     pub async fn fetch_sparql(endpoint: &str, query: &str) -> anyhow::Result<String> {
         let client = reqwest::Client::new();
         let resp = client
@@ -290,6 +719,27 @@ impl GraphStore {
         Ok(resp.text().await?)
     }
 
+    /// Push N-Triples content to a remote SPARQL 1.1 Update endpoint using
+    /// `INSERT DATA { … }` into the default graph. Delegates to
+    /// [`GraphStore::push_sparql_graph`] with `graph_iri = None` and no extra
+    /// headers.
+    ///
+    /// # Note
+    ///
+    /// Requires a live network connection to a SPARQL Update endpoint.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use open_ontologies::graph::GraphStore;
+    ///
+    /// async fn example() {
+    ///     GraphStore::push_sparql(
+    ///         "http://localhost:7200/repositories/myrepo/statements",
+    ///         "<http://example.org/A> a <http://www.w3.org/2002/07/owl#Class> .",
+    ///     ).await.unwrap();
+    /// }
+    /// ```
     pub async fn push_sparql(endpoint: &str, content: &str) -> anyhow::Result<String> {
         Self::push_sparql_graph(endpoint, content, None, &[]).await
     }
@@ -345,7 +795,34 @@ impl GraphStore {
         Ok(format!("Pushed to {}: HTTP {}", endpoint, resp.status()))
     }
 
-    /// Extract all triples as (subject, predicate, object) string tuples.
+    /// Extract all triples as `(subject, predicate, object)` string tuples.
+    ///
+    /// Each term is rendered in canonical Oxigraph notation: IRIs as
+    /// `<http://...>`, literals as `"value"^^<datatype>`, and blank nodes as
+    /// `_:id`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use open_ontologies::graph::GraphStore;
+    ///
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let store = GraphStore::new();
+    /// store.load_turtle(
+    ///     "@prefix ex: <http://example.org/> . ex:A a <http://www.w3.org/2002/07/owl#Class> .",
+    ///     None,
+    /// )?;
+    ///
+    /// let triples = store.all_triples()?;
+    /// assert_eq!(triples.len(), 1);
+    ///
+    /// let (s, p, o) = &triples[0];
+    /// assert_eq!(s, "<http://example.org/A>");
+    /// assert_eq!(p, "<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>");
+    /// assert_eq!(o, "<http://www.w3.org/2002/07/owl#Class>");
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn all_triples(&self) -> anyhow::Result<Vec<(String, String, String)>> {
         let store = self.store.lock().unwrap();
         let mut triples = Vec::new();
