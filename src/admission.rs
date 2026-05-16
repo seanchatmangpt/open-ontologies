@@ -305,7 +305,7 @@ impl AdmissionOp {
             AdmissionOp::ReceiptsBatchRevoke => "receipts_batch_revoke",
             AdmissionOp::SessionRevoke => "session_revoke",
             // R7 WD-3 / WD-4
-            AdmissionOp::LlmInvokedFull => "llm_invoked_full",
+            AdmissionOp::LlmInvokedFull => crate::ocel_store::OCEL_EVENT_LLM_INVOKED_FULL,
             AdmissionOp::AlignProposed => "align_proposed",
             AdmissionOp::AlignApplied => "align_applied",
             AdmissionOp::OntostarAttest => "ontostar_attest",
@@ -706,6 +706,46 @@ pub const PRODUCTION_LAW_VERSION: &str = "ontostar-1.0.0";
 /// ```
 pub const OCEL_KEY_OP: &str = "op";
 
+/// OCEL event attribute key for the BLAKE3 hex hash of the artifact under
+/// admission. Appears 2 times in admission.rs (audit emit + artifact_generated
+/// anchor). Centralised here so callers that key on this attribute name can use
+/// the constant rather than a bare string.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::admission::OCEL_KEY_ARTIFACT_HASH;
+///
+/// assert_eq!(OCEL_KEY_ARTIFACT_HASH, "artifact_hash");
+/// ```
+pub const OCEL_KEY_ARTIFACT_HASH: &str = "artifact_hash";
+
+/// OCEL event attribute key for the BLAKE3 hex hash of the POWL string
+/// declared at workflow-declare time. Appears 2 times in admission.rs
+/// (workflow_declared anchor + admission_granted event).
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::admission::OCEL_KEY_POWL_HASH;
+///
+/// assert_eq!(OCEL_KEY_POWL_HASH, "powl_hash");
+/// ```
+pub const OCEL_KEY_POWL_HASH: &str = "powl_hash";
+
+/// Fallback tenant identifier used when a scope has no declared workflow row.
+/// Appears 3 times in admission.rs: two SQL fallbacks and one direct emit.
+/// Extracted so a tenant rename is a one-line change.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::admission::DEFAULT_TENANT_ID;
+///
+/// assert_eq!(DEFAULT_TENANT_ID, "default");
+/// ```
+pub const DEFAULT_TENANT_ID: &str = "default";
+
 impl PowlReplay for NoopPowlReplay {
     fn replay(&self, scope_token: &str, _powl_string: &str, _tenant_id: &str) -> ConformanceResult {
         // POWL replay is not yet integrated (stream-2 stub);
@@ -1000,7 +1040,7 @@ impl OntoStarAdmissionGate {
                 rusqlite::params![scope_token],
                 |r| r.get::<_, String>(0),
             )
-            .unwrap_or_else(|_| "default".to_string());
+            .unwrap_or_else(|_| DEFAULT_TENANT_ID.to_string());
         if owner_tenant != caller_tenant {
             let defect = DefectClass::TenantBoundary {
                 from: caller_tenant.to_string(),
@@ -1061,7 +1101,7 @@ impl OntoStarAdmissionGate {
             &[
                 (OCEL_KEY_OP, op.as_str()),
                 ("artifact_kind", artifact.kind),
-                ("artifact_hash", artifact_hash.to_hex().as_ref()),
+                (OCEL_KEY_ARTIFACT_HASH, artifact_hash.to_hex().as_ref()),
                 (OCEL_KEY_PRODUCTION_LAW_VERSION, PRODUCTION_LAW_VERSION),
                 (
                     OCEL_KEY_DEFECTS_TAXONOMY_VERSION,
@@ -1160,7 +1200,7 @@ impl OntoStarAdmissionGate {
             &chrono::Utc::now().to_rfc3339(),
             session_id,
             &[
-                ("powl_hash", &powl_hash_hex),
+                (OCEL_KEY_POWL_HASH, &powl_hash_hex),
                 ("powl_string", powl_string),
                 (OCEL_KEY_PRODUCTION_LAW_VERSION, PRODUCTION_LAW_VERSION),
                 (OCEL_KEY_DEFECTS_TAXONOMY_VERSION, crate::defects::DEFECTS_TAXONOMY_VERSION),
@@ -1207,7 +1247,7 @@ impl OntoStarAdmissionGate {
             &chrono::Utc::now().to_rfc3339(),
             session_id,
             &[
-                ("artifact_hash", &artifact_hash_hex),
+                (OCEL_KEY_ARTIFACT_HASH, &artifact_hash_hex),
                 (OCEL_KEY_SCOPE_TOKEN, scope_token),
                 ("session_id", session_id),
                 (OCEL_KEY_PRODUCTION_LAW_VERSION, PRODUCTION_LAW_VERSION),
@@ -1250,7 +1290,7 @@ impl OntoStarAdmissionGate {
                 rusqlite::params![scope_token],
                 |r| r.get::<_, String>(0),
             )
-            .unwrap_or_else(|_| "default".to_string());
+            .unwrap_or_else(|_| DEFAULT_TENANT_ID.to_string());
         let prior_receipt =
             receipts::latest_for_session_in_tenant(store.db(), session_id, &scope_tenant);
 
@@ -1459,7 +1499,7 @@ impl OntoStarAdmissionGate {
                             (OCEL_KEY_SCOPE_TOKEN, &receipt.record.scope_token),
                             (OCEL_KEY_PRODUCTION_LAW_VERSION, &receipt.record.production_law_version),
                             (OCEL_KEY_DEFECTS_TAXONOMY_VERSION, &receipt.record.defects_taxonomy_version),
-                            ("powl_hash", &powl_hash_hex),
+                            (OCEL_KEY_POWL_HASH, &powl_hash_hex),
                         ],
                         &[],
                         Some(&receipt.record.scope_token),
@@ -2091,7 +2131,7 @@ fn persist_conformance_run(
             ],
             &[],
             Some(scope_token),
-            "default",
+            DEFAULT_TENANT_ID,
         )?;
         tx.commit()?;
         Ok(())
