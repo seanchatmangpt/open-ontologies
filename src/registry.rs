@@ -22,6 +22,7 @@ use std::time::{Duration, Instant};
 use crate::cache::{CacheManager, SourceFingerprint};
 use crate::config::CacheConfig;
 use crate::graph::GraphStore;
+use crate::ontology::TRIPLE_COUNT_KEY;
 use crate::state::StateDb;
 
 /// RDF serialization format used for the compile cache (N-Triples).
@@ -406,7 +407,7 @@ impl OntologyRegistry {
                     "name": e.name,
                     "source_path": e.source_path,
                     "cache_path": e.cache_path,
-                    "triple_count": e.triple_count,
+                    TRIPLE_COUNT_KEY: e.triple_count,
                     "source_mtime": e.source_mtime,
                     "source_size": e.source_size,
                     "compiled_at": e.compiled_at,
@@ -447,7 +448,7 @@ impl OntologyRegistry {
                     "name": e.name,
                     "source_path": e.source_path,
                     "cache_path": e.cache_path,
-                    "triple_count": e.triple_count,
+                    TRIPLE_COUNT_KEY: e.triple_count,
                     "compiled_at": e.compiled_at,
                     "last_access_at": e.last_access_at,
                 })
