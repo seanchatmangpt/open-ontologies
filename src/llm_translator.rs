@@ -428,7 +428,7 @@ mod tests {
     #[test]
     fn debug_impl_redacts_api_key() {
         let t = GroqTranslator::new(
-            "https://api.groq.com/openai/v1",
+            crate::config::GROQ_DEFAULT_API_BASE,
             Some("super-secret-key-DO-NOT-LEAK".to_string()),
             "llama-3.3-70b-versatile",
             Duration::from_secs(30),
@@ -442,7 +442,7 @@ mod tests {
     #[test]
     fn debug_impl_marks_unset_when_no_key() {
         let t = GroqTranslator::new(
-            "https://api.groq.com/openai/v1",
+            crate::config::GROQ_DEFAULT_API_BASE,
             None,
             "llama-3.3-70b-versatile",
             Duration::from_secs(30),
@@ -455,7 +455,7 @@ mod tests {
     #[test]
     fn empty_or_whitespace_key_is_treated_as_unset() {
         let t = GroqTranslator::new(
-            "https://api.groq.com/openai/v1",
+            crate::config::GROQ_DEFAULT_API_BASE,
             Some("   ".to_string()),
             "x",
             Duration::from_secs(1),
@@ -493,7 +493,7 @@ mod tests {
     #[tokio::test]
     async fn translate_returns_no_llm_configured_when_key_missing() {
         let t = GroqTranslator::new(
-            "https://api.groq.com/openai/v1",
+            crate::config::GROQ_DEFAULT_API_BASE,
             None,
             "x",
             Duration::from_secs(1),
