@@ -1833,6 +1833,14 @@ impl OpenOntologiesServer {
         let started = std::time::Instant::now();
         use crate::reason::Reasoner;
         let profile = input.profile.as_deref().unwrap_or("rdfs");
+        if self.graph.triple_count() == 0 {
+            let out = format!(
+                r#"{{"error":"onto_reason: no triples in store (profile '{}' requested). Call onto_load first to load an ontology before running inference."}}"#,
+                profile
+            );
+            self.emit_tool_ocel("onto_reason", started, false, &[]);
+            return out;
+        }
         let materialize = input.materialize.unwrap_or(true);
         let out = Reasoner::run(&self.graph, profile, materialize)
             .unwrap_or_else(|e| format!(r#"{{"error":"{}"}}"#, e));
