@@ -16,6 +16,30 @@ pub struct OntologyService;
 
 impl OntologyService {
     /// Validate RDF syntax. Returns a JSON report (never errors on bad input).
+    ///
+    /// # Examples
+    ///
+    /// Valid minimal Turtle returns `"valid": true`:
+    ///
+    /// ```
+    /// # use open_ontologies::ontology::OntologyService;
+    /// let ttl = "@prefix owl: <http://www.w3.org/2002/07/owl#> .\n<urn:ex:A> a owl:Class .";
+    /// let json = OntologyService::validate_string(ttl).unwrap();
+    /// let v: serde_json::Value = serde_json::from_str(&json).unwrap();
+    /// assert_eq!(v["valid"], true);
+    /// assert!(v["triple_count"].as_u64().unwrap() > 0);
+    /// ```
+    ///
+    /// Malformed TTL returns `"valid": false` (no panic, no `Err`):
+    ///
+    /// ```
+    /// # use open_ontologies::ontology::OntologyService;
+    /// let bad = "@prefix owl: <http://www.w3.org/2002/07/owl#>";   // missing closing dot
+    /// let json = OntologyService::validate_string(bad).unwrap();
+    /// let v: serde_json::Value = serde_json::from_str(&json).unwrap();
+    /// assert_eq!(v["valid"], false);
+    /// assert!(!v["errors"].as_array().unwrap().is_empty());
+    /// ```
     pub fn validate_string(content: &str) -> anyhow::Result<String> {
         match GraphStore::validate_turtle(content) {
             Ok(count) => Ok(serde_json::json!({
@@ -54,6 +78,17 @@ impl OntologyService {
     }
 
     /// Convert between RDF formats.
+    ///
+    /// # Examples
+    ///
+    /// Convert Turtle to N-Triples — output contains the expected IRI:
+    ///
+    /// ```
+    /// # use open_ontologies::ontology::OntologyService;
+    /// let ttl = "@prefix owl: <http://www.w3.org/2002/07/owl#> .\n<urn:ex:A> a owl:Class .";
+    /// let nt = OntologyService::convert(ttl, "turtle", "ntriples").unwrap();
+    /// assert!(nt.contains("<urn:ex:A>"));
+    /// ```
     pub fn convert(content: &str, _from: &str, to: &str) -> anyhow::Result<String> {
         let store = GraphStore::new();
         store.load_turtle(content, None)?;
@@ -61,6 +96,31 @@ impl OntologyService {
     }
 
     /// Diff two ontologies. Returns added/removed triples.
+    ///
+    /// # Examples
+    ///
+    /// Identical content produces zero added and zero removed:
+    ///
+    /// ```
+    /// # use open_ontologies::ontology::OntologyService;
+    /// let ttl = "@prefix owl: <http://www.w3.org/2002/07/owl#> .\n<urn:ex:A> a owl:Class .";
+    /// let json = OntologyService::diff(ttl, ttl).unwrap();
+    /// let v: serde_json::Value = serde_json::from_str(&json).unwrap();
+    /// assert_eq!(v["added"], 0);
+    /// assert_eq!(v["removed"], 0);
+    /// ```
+    ///
+    /// Adding a class to the new content produces a non-zero `added` count:
+    ///
+    /// ```
+    /// # use open_ontologies::ontology::OntologyService;
+    /// let old = "@prefix owl: <http://www.w3.org/2002/07/owl#> .\n<urn:ex:A> a owl:Class .";
+    /// let new = "@prefix owl: <http://www.w3.org/2002/07/owl#> .\n<urn:ex:A> a owl:Class .\n<urn:ex:B> a owl:Class .";
+    /// let json = OntologyService::diff(old, new).unwrap();
+    /// let v: serde_json::Value = serde_json::from_str(&json).unwrap();
+    /// assert!(v["added"].as_u64().unwrap() > 0);
+    /// assert_eq!(v["removed"], 0);
+    /// ```
     pub fn diff(old_content: &str, new_content: &str) -> anyhow::Result<String> {
         let old_store = Store::new()?;
         let new_store = Store::new()?;
@@ -173,6 +233,22 @@ impl OntologyService {
     }
 
     /// Lint an ontology with feedback-based suppression.
+    ///
+    /// Pass `None` for `db` to skip feedback suppression (all issues are reported as-is).
+    ///
+    /// # Examples
+    ///
+    /// A class without `rdfs:label` is flagged even when `db` is `None`:
+    ///
+    /// ```
+    /// # use open_ontologies::ontology::OntologyService;
+    /// let ttl = "@prefix owl: <http://www.w3.org/2002/07/owl#> .\n<urn:ex:A> a owl:Class .";
+    /// let json = OntologyService::lint_with_feedback(ttl, None).unwrap();
+    /// let v: serde_json::Value = serde_json::from_str(&json).unwrap();
+    /// // At least one issue (missing_label) is reported
+    /// assert!(v["issue_count"].as_u64().unwrap() > 0);
+    /// assert_eq!(v["suppressed_count"], 0);
+    /// ```
     pub fn lint_with_feedback(content: &str, db: Option<&crate::state::StateDb>) -> anyhow::Result<String> {
         let store = Store::new()?;
         let reader = Cursor::new(content.as_bytes());
@@ -220,11 +296,49 @@ impl OntologyService {
     }
 
     /// Lint an ontology -- check for missing labels, comments, domains.
+    ///
+    /// # Examples
+    ///
+    /// A class missing `rdfs:label` triggers a `missing_label` warning:
+    ///
+    /// ```
+    /// # use open_ontologies::ontology::OntologyService;
+    /// let ttl = "@prefix owl: <http://www.w3.org/2002/07/owl#> .\n<urn:ex:A> a owl:Class .";
+    /// let json = OntologyService::lint(ttl).unwrap();
+    /// let v: serde_json::Value = serde_json::from_str(&json).unwrap();
+    /// assert!(v["issue_count"].as_u64().unwrap() > 0);
+    /// let issues = v["issues"].as_array().unwrap();
+    /// let has_missing_label = issues.iter().any(|i| i["type"] == "missing_label");
+    /// assert!(has_missing_label);
+    /// ```
     pub fn lint(content: &str) -> anyhow::Result<String> {
         Self::lint_with_feedback(content, None)
     }
 
     /// Save a named version (snapshot) of the current graph store.
+    ///
+    /// Requires a live [`StateDb`] and [`GraphStore`]. Use `StateDb::open(Path::new(":memory:"))`
+    /// for in-memory testing.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use open_ontologies::ontology::OntologyService;
+    /// # use open_ontologies::state::StateDb;
+    /// # use open_ontologies::graph::GraphStore;
+    /// # use std::sync::Arc;
+    /// # use std::path::Path;
+    /// let db = StateDb::open(Path::new(":memory:")).unwrap();
+    /// let store = Arc::new(GraphStore::new());
+    /// store.load_turtle(
+    ///     "@prefix owl: <http://www.w3.org/2002/07/owl#> .\n<urn:ex:A> a owl:Class .",
+    ///     None,
+    /// ).unwrap();
+    /// let json = OntologyService::save_version(&db, &store, "v1").unwrap();
+    /// let v: serde_json::Value = serde_json::from_str(&json).unwrap();
+    /// assert_eq!(v["ok"], true);
+    /// assert_eq!(v["label"], "v1");
+    /// ```
     pub fn save_version(db: &StateDb, store: &Arc<GraphStore>, label: &str) -> anyhow::Result<String> {
         let content = store.snapshot("ntriples")?;
         let count = store.triple_count();
@@ -241,6 +355,20 @@ impl OntologyService {
     }
 
     /// List all saved ontology versions.
+    ///
+    /// Returns a JSON object with a `"versions"` array (empty when no snapshots have been saved).
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use open_ontologies::ontology::OntologyService;
+    /// # use open_ontologies::state::StateDb;
+    /// # use std::path::Path;
+    /// let db = StateDb::open(Path::new(":memory:")).unwrap();
+    /// let json = OntologyService::list_versions(&db).unwrap();
+    /// let v: serde_json::Value = serde_json::from_str(&json).unwrap();
+    /// assert!(v["versions"].is_array());
+    /// ```
     pub fn list_versions(db: &StateDb) -> anyhow::Result<String> {
         let conn = db.conn();
         let mut stmt = conn.prepare(
@@ -259,6 +387,31 @@ impl OntologyService {
     }
 
     /// Rollback the graph store to a previously saved version.
+    ///
+    /// Restores the store contents from the snapshot identified by `label` and returns a JSON
+    /// object reporting the number of triples restored.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use open_ontologies::ontology::OntologyService;
+    /// # use open_ontologies::state::StateDb;
+    /// # use open_ontologies::graph::GraphStore;
+    /// # use std::sync::Arc;
+    /// # use std::path::Path;
+    /// let db = StateDb::open(Path::new(":memory:")).unwrap();
+    /// let store = Arc::new(GraphStore::new());
+    /// store.load_turtle(
+    ///     "@prefix owl: <http://www.w3.org/2002/07/owl#> .\n<urn:ex:A> a owl:Class .",
+    ///     None,
+    /// ).unwrap();
+    /// OntologyService::save_version(&db, &store, "snap1").unwrap();
+    /// store.clear().unwrap();
+    /// let json = OntologyService::rollback_version(&db, &store, "snap1").unwrap();
+    /// let v: serde_json::Value = serde_json::from_str(&json).unwrap();
+    /// assert_eq!(v["ok"], true);
+    /// assert_eq!(v["label"], "snap1");
+    /// ```
     pub fn rollback_version(db: &StateDb, store: &Arc<GraphStore>, label: &str) -> anyhow::Result<String> {
         let conn = db.conn();
         let content: String = conn.query_row(
