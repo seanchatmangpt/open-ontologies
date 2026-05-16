@@ -96,6 +96,31 @@ impl LineageLog {
     }
 
     /// Generate a new session ID (short hex).
+    ///
+    /// Session IDs are 16-character lowercase hexadecimal strings derived from
+    /// a monotonic nanosecond counter. Successive calls are guaranteed to
+    /// produce distinct values within a single process.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use open_ontologies::lineage::LineageLog;
+    /// use open_ontologies::state::StateDb;
+    /// use std::path::Path;
+    ///
+    /// let db = StateDb::open(Path::new(":memory:")).unwrap();
+    /// let log = LineageLog::new(db);
+    ///
+    /// let s1 = log.new_session();
+    /// let s2 = log.new_session();
+    ///
+    /// // IDs are exactly 16 hex characters.
+    /// assert_eq!(s1.len(), 16);
+    /// assert!(s1.chars().all(|c| c.is_ascii_hexdigit()));
+    ///
+    /// // Successive calls produce distinct IDs.
+    /// assert_ne!(s1, s2);
+    /// ```
     pub fn new_session(&self) -> String {
         format!("{:016x}", rand_id())
     }
@@ -369,7 +394,40 @@ impl LineageLog {
     }
 
     /// Get compact lineage for a session.
-    /// Returns: "session:seq:timestamp:type:operation:details\n" per event.
+    ///
+    /// Returns one line per recorded event in the format:
+    /// `session_id:seq:timestamp:event_type:operation:details\n`.
+    ///
+    /// When the session has no events the return value is a single newline
+    /// character (`"\n"`), which makes it safe to call unconditionally and
+    /// split on newlines without special-casing the empty case.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use open_ontologies::lineage::LineageLog;
+    /// use open_ontologies::state::StateDb;
+    /// use std::path::Path;
+    ///
+    /// let db  = StateDb::open(Path::new(":memory:")).unwrap();
+    /// let log = LineageLog::new(db);
+    /// let sid = "compact-doctest-01";
+    ///
+    /// // Empty session returns a single newline.
+    /// assert_eq!(log.get_compact(sid), "\n");
+    ///
+    /// // After recording, the compact view has exactly one colon-delimited line.
+    /// log.record(sid, "G", "admission_granted", "cafe0123");
+    /// let compact = log.get_compact(sid);
+    ///
+    /// // Line format: session:seq:timestamp:event_type:operation:details
+    /// let first_line = compact.lines().next().unwrap();
+    /// let parts: Vec<&str> = first_line.splitn(6, ':').collect();
+    /// assert_eq!(parts[0], sid,           "session_id must be first");
+    /// assert_eq!(parts[1], "1",           "first event has seq=1");
+    /// assert_eq!(parts[3], "G",           "event_type must be G");
+    /// assert_eq!(parts[4], "admission_granted", "operation must match");
+    /// ```
     pub fn get_compact(&self, session_id: &str) -> String {
         let conn = self.db.conn();
         let mut stmt = conn
