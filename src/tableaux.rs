@@ -79,6 +79,99 @@ const OWL_ON_CLASS: &str = "<http://www.w3.org/2002/07/owl#onClass>";
 
 /// Description Logic concept in NNF (Negation Normal Form).
 /// All negations pushed to atomic level. Supports SHOIQ.
+///
+/// # Overview
+///
+/// Each variant corresponds to a standard DL constructor:
+///
+/// | Variant | DL notation | Meaning |
+/// |---------|-------------|---------|
+/// | `Top` | ⊤ | universal concept (owl:Thing) |
+/// | `Bottom` | ⊥ | empty concept (owl:Nothing) |
+/// | `Atom(id)` | A | named class (interned id) |
+/// | `NegAtom(id)` | ¬A | complement of named class |
+/// | `And(cs)` | C ⊓ D | conjunction (intersection) |
+/// | `Or(cs)` | C ⊔ D | disjunction (union) |
+/// | `Exists(r, c)` | ∃R.C | existential restriction |
+/// | `ForAll(r, c)` | ∀R.C | universal restriction |
+/// | `MinCard(r, n, c)` | ≥n R.C | min qualified cardinality |
+/// | `MaxCard(r, n, c)` | ≤n R.C | max qualified cardinality |
+///
+/// # Examples
+///
+/// The `Top` and `Bottom` sentinel concepts correspond to owl:Thing and
+/// owl:Nothing respectively — they carry no payload:
+///
+/// ```
+/// use open_ontologies::tableaux::Concept;
+///
+/// assert_eq!(Concept::Top, Concept::Top);
+/// assert_ne!(Concept::Top, Concept::Bottom);
+/// ```
+///
+/// Atomic and negated-atomic concepts are dual:
+///
+/// ```
+/// use open_ontologies::tableaux::Concept;
+///
+/// let atom    = Concept::Atom(42);
+/// let neg     = Concept::NegAtom(42);
+///
+/// // They are distinct concepts ...
+/// assert_ne!(atom, neg);
+/// // ... but each is the NNF negation of the other:
+/// assert_eq!(atom.negate(), neg);
+/// assert_eq!(neg.negate(), atom);
+/// ```
+///
+/// Conjunctions and disjunctions hold an arbitrary number of conjuncts:
+///
+/// ```
+/// use open_ontologies::tableaux::Concept;
+///
+/// let conj = Concept::And(vec![Concept::Atom(0), Concept::Atom(1)]);
+/// let disj = Concept::Or(vec![Concept::Atom(0), Concept::NegAtom(1)]);
+///
+/// // Both derive PartialEq, so structural equality works:
+/// assert_eq!(conj, Concept::And(vec![Concept::Atom(0), Concept::Atom(1)]));
+/// assert_ne!(conj, disj);
+/// ```
+///
+/// Existential and universal restrictions are parameterised by a role id and
+/// a boxed filler concept:
+///
+/// ```
+/// use open_ontologies::tableaux::Concept;
+///
+/// let role   = 7_u32;
+/// let filler = Concept::Atom(3);
+///
+/// let exists = Concept::Exists(role, Box::new(filler.clone()));
+/// let forall = Concept::ForAll(role, Box::new(filler.clone()));
+///
+/// // Same role and filler but different constructors:
+/// assert_ne!(exists, forall);
+/// // Negation swaps the constructor and negates the filler:
+/// assert_eq!(exists.negate(), Concept::ForAll(role, Box::new(filler.negate())));
+/// ```
+///
+/// Qualified cardinality constraints carry role, bound, and filler:
+///
+/// ```
+/// use open_ontologies::tableaux::Concept;
+///
+/// let role = 2_u32;
+/// // "at least 3 R-successors satisfying ⊤"
+/// let min3 = Concept::MinCard(role, 3, Box::new(Concept::Top));
+/// // "at most 1 R-successor satisfying ⊤"
+/// let max1 = Concept::MaxCard(role, 1, Box::new(Concept::Top));
+///
+/// assert_ne!(min3, max1);
+/// // ¬(≥3 R.⊤) = ≤2 R.⊤
+/// assert_eq!(min3.negate(), Concept::MaxCard(role, 2, Box::new(Concept::Top)));
+/// // ¬(≤1 R.⊤) = ≥2 R.⊤
+/// assert_eq!(max1.negate(), Concept::MinCard(role, 2, Box::new(Concept::Top)));
+/// ```
 #[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum Concept {
     Top,
@@ -1862,6 +1955,10 @@ impl DlReasoner {
 
 // ── Agent Result Types ──────────────────────────────────────────────────
 
+/// Result produced by the agent-based parallel classification pipeline.
+///
+/// Contains the inferred subsumption hierarchy, any unsatisfiable classes,
+/// detected equivalences, and per-agent performance metrics.
 pub struct AgentClassificationResult {
     pub hierarchy: HashMap<u32, HashSet<u32>>,
     pub unsatisfiable: Vec<u32>,
@@ -1870,6 +1967,28 @@ pub struct AgentClassificationResult {
     pub agents: AgentMetrics,
 }
 
+/// Performance counters for the three parallel agents in the classification
+/// pipeline: satisfiability, subsumption, and totals.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::tableaux::{AgentMetrics, AgentTaskMetrics};
+///
+/// let metrics = AgentMetrics {
+///     satisfiability: AgentTaskMetrics { tasks: 10, results: 9, time_ms: 42 },
+///     subsumption: AgentTaskMetrics { tasks: 90, results: 5, time_ms: 100 },
+///     total_time_ms: 150,
+///     parallel_workers: 4,
+/// };
+///
+/// // Satisfiability agent found 9 satisfiable classes out of 10 tested.
+/// assert_eq!(metrics.satisfiability.tasks, 10);
+/// assert_eq!(metrics.satisfiability.results, 9);
+/// // Subsumption agent ran 90 pairwise tests.
+/// assert_eq!(metrics.subsumption.tasks, 90);
+/// assert!(metrics.total_time_ms >= metrics.satisfiability.time_ms);
+/// ```
 pub struct AgentMetrics {
     pub satisfiability: AgentTaskMetrics,
     pub subsumption: AgentTaskMetrics,
@@ -1877,18 +1996,77 @@ pub struct AgentMetrics {
     pub parallel_workers: usize,
 }
 
+/// Per-agent task counters: how many tasks were attempted, how many produced
+/// a positive result (satisfiable / subsumed), and elapsed wall-time in ms.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::tableaux::AgentTaskMetrics;
+///
+/// let m = AgentTaskMetrics { tasks: 50, results: 12, time_ms: 200 };
+///
+/// assert_eq!(m.tasks, 50);
+/// assert_eq!(m.results, 12);
+/// // Results never exceed tasks.
+/// assert!(m.results <= m.tasks);
+/// ```
 pub struct AgentTaskMetrics {
     pub tasks: usize,
     pub results: usize,
     pub time_ms: u64,
 }
 
+/// Result of the ABox consistency check performed by the ABox Agent.
+///
+/// `consistent` is `true` when no individual violates the TBox constraints.
+/// `inferred_types` maps each individual's interned id to the set of class
+/// ids inferred beyond the explicitly asserted types.
+///
+/// # Examples
+///
+/// ```
+/// use std::collections::HashMap;
+/// use open_ontologies::tableaux::ABoxResult;
+///
+/// // An ABox with no individuals is trivially consistent.
+/// let empty = ABoxResult {
+///     consistent: true,
+///     individuals_checked: 0,
+///     inferred_types: HashMap::new(),
+/// };
+/// assert!(empty.consistent);
+/// assert_eq!(empty.individuals_checked, 0);
+/// assert!(empty.inferred_types.is_empty());
+/// ```
 pub struct ABoxResult {
     pub consistent: bool,
     pub individuals_checked: usize,
     pub inferred_types: HashMap<u32, HashSet<u32>>,
 }
 
+/// Result of a sequential (non-parallel) classification run.
+///
+/// Carries the same information as [`AgentClassificationResult`] but without
+/// per-agent performance metrics; used in lightweight single-threaded
+/// contexts.
+///
+/// # Examples
+///
+/// ```
+/// use std::collections::HashMap;
+/// use open_ontologies::tableaux::ClassificationResult;
+///
+/// // A trivial result with no inferred subsumptions.
+/// let result = ClassificationResult {
+///     hierarchy: HashMap::new(),
+///     unsatisfiable: Vec::new(),
+///     equivalences: Vec::new(),
+///     inferred_subsumptions: 0,
+/// };
+/// assert!(result.unsatisfiable.is_empty());
+/// assert_eq!(result.inferred_subsumptions, 0);
+/// ```
 pub struct ClassificationResult {
     pub hierarchy: HashMap<u32, HashSet<u32>>,
     pub unsatisfiable: Vec<u32>,
