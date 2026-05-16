@@ -22,6 +22,47 @@ use crate::state::StateDb;
 // `[cache] hash_prefix_bytes` in config.toml. See `crate::runtime`.
 
 /// Information about a source ontology file used as the cache validity key.
+///
+/// The triple `(mtime_secs, size, sha_prefix)` uniquely identifies a version
+/// of a source file for freshness purposes. Two fingerprints are equal iff all
+/// three fields match — a rename alone (same content, new path) will produce
+/// identical fingerprints, which is intentional: the *content* is what matters.
+///
+/// # Examples
+///
+/// Building a fingerprint from known values and comparing equality:
+///
+/// ```
+/// # use open_ontologies::cache::SourceFingerprint;
+/// let fp1 = SourceFingerprint {
+///     mtime_secs: 1_700_000_000,
+///     size: 2048,
+///     sha_prefix: "deadbeef".to_string(),
+/// };
+/// let fp2 = SourceFingerprint {
+///     mtime_secs: 1_700_000_000,
+///     size: 2048,
+///     sha_prefix: "deadbeef".to_string(),
+/// };
+/// assert_eq!(fp1, fp2);
+/// ```
+///
+/// A modified file produces a different fingerprint:
+///
+/// ```
+/// # use open_ontologies::cache::SourceFingerprint;
+/// let original = SourceFingerprint {
+///     mtime_secs: 1_700_000_000,
+///     size: 2048,
+///     sha_prefix: "deadbeef".to_string(),
+/// };
+/// let modified = SourceFingerprint {
+///     mtime_secs: 1_700_001_000, // mtime bumped
+///     size: 2060,               // size grew
+///     sha_prefix: "cafebabe".to_string(),
+/// };
+/// assert_ne!(original, modified);
+/// ```
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SourceFingerprint {
     pub mtime_secs: i64,
@@ -154,6 +195,51 @@ fn sha256(input: &[u8]) -> [u8; 32] {
 }
 
 /// One row from the `ontology_cache` table.
+///
+/// Holds the validity key (mtime, size, sha256 prefix) plus metadata used by
+/// `CacheManager::is_fresh` to decide whether a cached N-Triples file is still
+/// current for its source `.ttl`.
+///
+/// # Examples
+///
+/// Constructing an entry directly — useful in tests to seed a mock cache:
+///
+/// ```
+/// # use open_ontologies::cache::CacheEntry;
+/// let entry = CacheEntry {
+///     name: "pizza".to_string(),
+///     source_path: "/ontology/pizza.ttl".to_string(),
+///     source_mtime: 1_700_000_000,
+///     source_size: 4096,
+///     source_sha: "abcdef1234567890".to_string(),
+///     cache_path: "/cache/pizza.abcdef12.nt".to_string(),
+///     triple_count: 42,
+///     compiled_at: "2024-01-01T00:00:00".to_string(),
+///     last_access_at: "2024-06-01T12:00:00".to_string(),
+/// };
+/// assert_eq!(entry.name, "pizza");
+/// assert_eq!(entry.triple_count, 42);
+/// assert_eq!(entry.source_size, 4096);
+/// ```
+///
+/// A stale entry has a different `source_mtime` than the on-disk file:
+///
+/// ```
+/// # use open_ontologies::cache::CacheEntry;
+/// let entry = CacheEntry {
+///     name: "beer".to_string(),
+///     source_path: "/ontology/beer.ttl".to_string(),
+///     source_mtime: 0,          // epoch — clearly stale
+///     source_size: 1,
+///     source_sha: String::new(),
+///     cache_path: "/cache/beer.nt".to_string(),
+///     triple_count: 0,
+///     compiled_at: "1970-01-01T00:00:00".to_string(),
+///     last_access_at: "1970-01-01T00:00:00".to_string(),
+/// };
+/// // is_fresh would return false because the file mtime won't match 0.
+/// assert_eq!(entry.source_mtime, 0);
+/// ```
 #[derive(Debug, Clone)]
 pub struct CacheEntry {
     pub name: String,
@@ -224,6 +310,27 @@ impl CacheManager {
     }
 
     /// Build a cache file path for a given source key.
+    ///
+    /// The returned path is `<cache_dir>/<safe_name>.<sha_prefix>.nt` where
+    /// `safe_name` has every non-alphanumeric character (except `-` and `_`)
+    /// replaced with `_`, and `sha_prefix` is the first 16 characters of `sha`.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use std::path::PathBuf;
+    /// # use open_ontologies::cache::CacheManager;
+    /// // CacheManager requires a live StateDb — demonstrate the naming rules here:
+    /// // name="pizza.ttl" → safe="pizza_ttl", sha[..16]="deadbeef00000000"
+    /// // result: <cache_dir>/pizza_ttl.deadbeef00000000.nt
+    /// let sha = "deadbeef0000000099999999";
+    /// let safe: String = "pizza.ttl"
+    ///     .chars()
+    ///     .map(|c| if c.is_ascii_alphanumeric() || c == '-' || c == '_' { c } else { '_' })
+    ///     .collect();
+    /// let filename = format!("{}.{}.nt", safe, &sha[..sha.len().min(16)]);
+    /// assert_eq!(filename, "pizza_ttl.deadbeef00000000.nt");
+    /// ```
     pub fn cache_path_for(&self, name: &str, sha: &str) -> PathBuf {
         // Use both the name and the sha so renames don't collide and we can
         // garbage-collect stale entries by `name`.

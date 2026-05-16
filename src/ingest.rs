@@ -3,6 +3,33 @@ use std::collections::HashMap;
 use std::fs;
 
 /// Canonical format token for CSV — the default when no extension is recognised.
+///
+/// # Examples
+///
+/// ```
+/// # use open_ontologies::ingest::{FORMAT_CSV, FORMAT_JSON, FORMAT_NDJSON,
+/// #     FORMAT_XML, FORMAT_YAML, FORMAT_XLSX, FORMAT_PARQUET};
+/// // All seven tokens are distinct non-empty strings.
+/// let all = [FORMAT_CSV, FORMAT_JSON, FORMAT_NDJSON, FORMAT_XML,
+///            FORMAT_YAML, FORMAT_XLSX, FORMAT_PARQUET];
+/// assert!(all.iter().all(|t| !t.is_empty()));
+/// // Each token is unique.
+/// let mut dedup = all.to_vec();
+/// dedup.sort_unstable();
+/// dedup.dedup();
+/// assert_eq!(dedup.len(), all.len());
+/// ```
+///
+/// `detect_format` returns these constants directly:
+///
+/// ```
+/// # use open_ontologies::ingest::{DataIngester, FORMAT_CSV, FORMAT_JSON, FORMAT_PARQUET};
+/// assert_eq!(DataIngester::detect_format("data.csv"),     FORMAT_CSV);
+/// assert_eq!(DataIngester::detect_format("data.json"),    FORMAT_JSON);
+/// assert_eq!(DataIngester::detect_format("data.parquet"), FORMAT_PARQUET);
+/// // Unknown extension falls back to the CSV token.
+/// assert_eq!(DataIngester::detect_format("data.unk"),     FORMAT_CSV);
+/// ```
 pub const FORMAT_CSV: &str = "csv";
 /// Canonical format token for JSON.
 pub const FORMAT_JSON: &str = "json";
@@ -18,6 +45,34 @@ pub const FORMAT_XLSX: &str = "xlsx";
 pub const FORMAT_PARQUET: &str = "parquet";
 
 /// Data ingester that parses structured data files into rows of key-value pairs.
+///
+/// `DataIngester` is a zero-size stateless helper: all methods are associated
+/// functions (`fn foo(…)` rather than `fn foo(&self, …)`). Instantiation is
+/// never required — call methods directly on the type.
+///
+/// # Supported formats
+///
+/// | Format | Constant | Extension(s) |
+/// |--------|----------|-------------|
+/// | CSV    | `FORMAT_CSV`     | `.csv`              |
+/// | JSON   | `FORMAT_JSON`    | `.json`             |
+/// | NDJSON | `FORMAT_NDJSON`  | `.ndjson`, `.jsonl` |
+/// | XML    | `FORMAT_XML`     | `.xml`              |
+/// | YAML   | `FORMAT_YAML`    | `.yaml`, `.yml`     |
+/// | XLSX   | `FORMAT_XLSX`    | `.xlsx`             |
+/// | Parquet| `FORMAT_PARQUET` | `.parquet`          |
+///
+/// # Examples
+///
+/// Parsing inline CSV and extracting sorted headers in one pipeline:
+///
+/// ```
+/// # use open_ontologies::ingest::DataIngester;
+/// let rows = DataIngester::parse_csv("id,label\n1,Alpha\n2,Beta").unwrap();
+/// assert_eq!(rows.len(), 2);
+/// let headers = DataIngester::extract_headers(&rows);
+/// assert_eq!(headers, vec!["id", "label"]);
+/// ```
 pub struct DataIngester;
 
 /// Convert a serde_json::Value to a flat string representation.
