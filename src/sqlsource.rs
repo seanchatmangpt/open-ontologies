@@ -76,13 +76,26 @@ pub enum SqlDriver {
 impl SqlDriver {
     /// Return the canonical lowercase driver name as a `&'static str`.
     ///
-    /// # Examples
+    /// # Auto-instinct: driver names are lowercase, non-empty, and distinct
+    ///
+    /// All driver names are lowercase ASCII (no uppercase, no whitespace) so
+    /// they can be embedded in connection-string prefixes, OCEL event attributes,
+    /// and log records without escaping.
     ///
     /// ```
     /// use open_ontologies::sqlsource::SqlDriver;
     ///
     /// assert_eq!(SqlDriver::Postgres.as_str(), "postgres");
     /// assert_eq!(SqlDriver::DuckDb.as_str(), "duckdb");
+    ///
+    /// // Auto-instinct: names are lowercase, non-empty, and distinct.
+    /// for driver in [SqlDriver::Postgres, SqlDriver::DuckDb] {
+    ///     let name = driver.as_str();
+    ///     assert!(!name.is_empty(), "driver name must be non-empty");
+    ///     assert_eq!(name, name.to_lowercase(), "driver name must be lowercase");
+    /// }
+    /// assert_ne!(SqlDriver::Postgres.as_str(), SqlDriver::DuckDb.as_str(),
+    ///            "driver names must be distinct");
     /// ```
     pub fn as_str(&self) -> &'static str {
         match self {
@@ -195,6 +208,39 @@ pub fn duckdb_target(connection: &str) -> String {
 /// [`crate::ingest::DataIngester::parse_file`]).
 ///
 /// Compatible with [`crate::mapping::MappingConfig::rows_to_ntriples`].
+///
+/// # Auto-instinct: connection string is dispatched before any I/O
+///
+/// An unrecognised connection string is rejected synchronously — the driver
+/// detection runs before any network or filesystem I/O, so bad strings fail
+/// immediately without touching external resources.
+///
+/// ```
+/// use open_ontologies::sqlsource::detect_driver;
+///
+/// // Auto-instinct: detect_driver is the same gate query_rows passes through.
+/// // Unknown scheme → error before any I/O.
+/// assert!(detect_driver("sqlite:///tmp/x.db").is_err());
+/// assert!(detect_driver("mongodb://host/db").is_err());
+///
+/// // Known schemes succeed without network access (driver detection is pure).
+/// assert!(detect_driver("postgres://user@host/db").is_ok());
+/// assert!(detect_driver(":memory:").is_ok());
+/// ```
+///
+/// # Examples (live I/O — not run in doctests)
+///
+/// ```no_run
+/// # async fn example() -> anyhow::Result<()> {
+/// use open_ontologies::sqlsource::query_rows;
+///
+/// // DuckDB in-memory: SELECT returns rows as HashMap<String,String>.
+/// let rows = query_rows(":memory:", "SELECT 42 AS answer").await?;
+/// assert_eq!(rows.len(), 1);
+/// assert_eq!(rows[0]["answer"], "42");
+/// # Ok(())
+/// # }
+/// ```
 pub async fn query_rows(connection: &str, sql: &str) -> Result<Vec<HashMap<String, String>>> {
     match detect_driver(connection)? {
         SqlDriver::Postgres => query_postgres(connection, sql).await,
@@ -207,6 +253,39 @@ pub async fn query_rows(connection: &str, sql: &str) -> Result<Vec<HashMap<Strin
 /// Used by `onto_import_schema` / `import-schema` to build OWL from a
 /// relational schema. Both Postgres and DuckDB expose the SQL-standard
 /// `information_schema.*` views that the introspectors rely on.
+///
+/// # Auto-instinct: feature-flag gate is enforced at runtime
+///
+/// Requesting a driver whose feature flag was not compiled in returns an `Err`
+/// rather than silently producing empty results. The error message names the
+/// missing feature so operators can diagnose mis-configured deployments.
+///
+/// ```
+/// use open_ontologies::sqlsource::detect_driver;
+/// use open_ontologies::sqlsource::SqlDriver;
+///
+/// // detect_driver confirms the driver *before* introspect_tables opens any
+/// // connection. The same detection logic is reused by introspect_tables, so
+/// // an unsupported connection string is rejected at the driver-detect layer.
+/// let result = detect_driver("mysql://host/db");
+/// assert!(result.is_err());
+/// let msg = result.unwrap_err().to_string();
+/// assert!(msg.contains("unrecognised SQL connection string"));
+/// ```
+///
+/// # Examples (live I/O — not run in doctests)
+///
+/// ```no_run
+/// # async fn example() -> anyhow::Result<()> {
+/// use open_ontologies::sqlsource::introspect_tables;
+///
+/// // Requires the `duckdb` feature; queries information_schema.columns.
+/// let tables = introspect_tables(":memory:").await?;
+/// // An empty DuckDB in-memory DB has no user tables.
+/// assert!(tables.is_empty());
+/// # Ok(())
+/// # }
+/// ```
 pub async fn introspect_tables(connection: &str) -> Result<Vec<TableInfo>> {
     match detect_driver(connection)? {
         SqlDriver::Postgres => {

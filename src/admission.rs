@@ -259,12 +259,18 @@ impl AdmissionOp {
     /// OCEL event. Downstream process miners that consume the OCEL log depend on
     /// these strings being stable across releases.
     ///
+    /// # Auto-instinct: op strings are non-empty, lowercase, and snake_case
+    ///
+    /// Every `as_str()` value must be a non-empty ASCII string with no uppercase
+    /// letters, no spaces, and no hyphens — only underscores separate words.
+    /// This is enforced by the OCEL schema and downstream process miners.
+    ///
     /// # Examples
     ///
     /// ```
     /// use open_ontologies::admission::AdmissionOp;
     ///
-    /// // Full-admission ops map to descriptive kebab-case strings.
+    /// // Full-admission ops map to descriptive snake_case strings.
     /// assert_eq!(AdmissionOp::Apply.as_str(), "apply");
     /// assert_eq!(AdmissionOp::Codegen.as_str(), "codegen");
     /// assert_eq!(AdmissionOp::SolutionManufactured.as_str(), "solution_manufactured");
@@ -273,6 +279,19 @@ impl AdmissionOp {
     /// assert_eq!(AdmissionOp::Clear.as_str(), "clear");
     /// assert_eq!(AdmissionOp::LlmTranslate.as_str(), "llm_translate");
     /// assert_eq!(AdmissionOp::TenantSwitch.as_str(), "tenant_switch");
+    ///
+    /// // Auto-instinct: all op strings are non-empty and contain no uppercase or hyphens.
+    /// let ops = [
+    ///     AdmissionOp::Apply, AdmissionOp::Codegen, AdmissionOp::Save,
+    ///     AdmissionOp::Ingest, AdmissionOp::Clear, AdmissionOp::LlmTranslate,
+    ///     AdmissionOp::TenantSwitch, AdmissionOp::AlignApplied, AdmissionOp::OntostarAttest,
+    /// ];
+    /// for op in ops {
+    ///     let s = op.as_str();
+    ///     assert!(!s.is_empty(),             "op string must be non-empty: {op:?}");
+    ///     assert!(!s.contains(char::is_uppercase), "op string must be lowercase: {s:?}");
+    ///     assert!(!s.contains('-'),           "op string must use underscores: {s:?}");
+    /// }
     /// ```
     pub fn as_str(&self) -> &'static str {
         match self {
@@ -367,6 +386,13 @@ impl AdmissionOp {
     /// because snapshot creation is non-destructive metadata — taking a
     /// snapshot can never make the system worse, only more recoverable.
     ///
+    /// # Auto-instinct: full-admission and audit-only are mutually exclusive
+    ///
+    /// Every op is classified as exactly one tier — never both and never
+    /// neither. The invariant is structural: `is_full_admission()` is a
+    /// `!matches!(...)` over the audit-only set, so adding an op to that
+    /// set automatically removes it from full-admission.
+    ///
     /// # Examples
     ///
     /// ```
@@ -397,6 +423,12 @@ impl AdmissionOp {
     /// // R7 WD-3: proposals are audit-only; only AlignApplied mutates the graph.
     /// assert!(!AdmissionOp::AlignProposed.is_full_admission());
     /// assert!(!AdmissionOp::OntostarAttest.is_full_admission());
+    ///
+    /// // Auto-instinct: full-admission and audit-only are mutually exclusive.
+    /// let full      = [AdmissionOp::Apply, AdmissionOp::Codegen, AdmissionOp::AlignApplied];
+    /// let audit_only = [AdmissionOp::Clear, AdmissionOp::LlmTranslate, AdmissionOp::Bypass];
+    /// for op in full      { assert!( op.is_full_admission(), "{op:?} must be full-admission"); }
+    /// for op in audit_only { assert!(!op.is_full_admission(), "{op:?} must be audit-only"); }
     /// ```
     pub fn is_full_admission(&self) -> bool {
         !matches!(
@@ -544,6 +576,136 @@ pub struct ConformanceResult {
     /// external operators and auditors can distinguish stub-path
     /// admissions from production-verified ones without parsing `run_id`.
     pub is_stub: bool,
+}
+
+impl ConformanceResult {
+    /// Construct a passing (conformant) result for test fixtures.
+    ///
+    /// Sets `verdict = "conform"`, `fitness = 1.0`, `precision = 1.0`, and
+    /// `is_stub = false`. The `run_id` is taken verbatim from the caller.
+    ///
+    /// # Auto-instinct: pass() implies is_conformant() and !is_non_conformant()
+    ///
+    /// ```
+    /// use open_ontologies::admission::ConformanceResult;
+    ///
+    /// let pass = ConformanceResult::pass("test-run-01");
+    /// assert!(pass.is_conformant(),      "pass() must be conformant");
+    /// assert!(!pass.is_non_conformant(), "pass() must not be non-conformant");
+    /// assert!(!pass.is_stub,             "pass() produces non-stub evidence");
+    /// assert_eq!(pass.fitness, 1.0);
+    /// assert_eq!(pass.precision, 1.0);
+    /// assert_eq!(pass.verdict, "conform");
+    /// ```
+    pub fn pass(run_id: impl Into<String>) -> Self {
+        ConformanceResult {
+            fitness: 1.0,
+            precision: 1.0,
+            verdict: "conform".to_string(),
+            run_id: run_id.into(),
+            is_stub: false,
+        }
+    }
+
+    /// Construct a failing (non-conformant) result for test fixtures.
+    ///
+    /// Sets `verdict = "non_conform"`, `fitness = 0.0`, `precision = 0.0`,
+    /// and `is_stub = false`.
+    ///
+    /// # Auto-instinct: fail() implies is_non_conformant() and !is_conformant()
+    ///
+    /// ```
+    /// use open_ontologies::admission::ConformanceResult;
+    ///
+    /// let fail = ConformanceResult::fail("test-run-02", "low_fitness");
+    /// assert!(fail.is_non_conformant(),  "fail() must be non-conformant");
+    /// assert!(!fail.is_conformant(),     "fail() must not be conformant");
+    /// assert!(!fail.is_stub,             "fail() produces non-stub evidence");
+    /// assert_eq!(fail.fitness, 0.0);
+    /// assert_eq!(fail.precision, 0.0);
+    /// assert!(fail.verdict.contains("non_conform"));
+    /// ```
+    pub fn fail(run_id: impl Into<String>, reason: &str) -> Self {
+        ConformanceResult {
+            fitness: 0.0,
+            precision: 0.0,
+            verdict: format!("non_conform:{reason}"),
+            run_id: run_id.into(),
+            is_stub: false,
+        }
+    }
+
+    /// Returns `true` when the verdict is `"conform"`.
+    ///
+    /// # Auto-instinct: is_conformant() and is_non_conformant() are mutually exclusive
+    ///
+    /// ```
+    /// use open_ontologies::admission::ConformanceResult;
+    ///
+    /// let r_pass = ConformanceResult::pass("r1");
+    /// let r_fail = ConformanceResult::fail("r2", "fitness_below_threshold");
+    ///
+    /// // Auto-instinct: exactly one of is_conformant / is_non_conformant is true.
+    /// assert!(r_pass.is_conformant() ^ r_pass.is_non_conformant(),
+    ///         "pass result: exactly one flag must be set");
+    /// assert!(r_fail.is_conformant() ^ r_fail.is_non_conformant(),
+    ///         "fail result: exactly one flag must be set");
+    ///
+    /// // Direct field check.
+    /// assert_eq!(r_pass.is_conformant(), r_pass.verdict == "conform");
+    /// ```
+    pub fn is_conformant(&self) -> bool {
+        self.verdict == "conform"
+    }
+
+    /// Returns `true` when the verdict is **not** `"conform"`.
+    ///
+    /// # Auto-instinct: is_non_conformant() is the logical complement of is_conformant()
+    ///
+    /// ```
+    /// use open_ontologies::admission::ConformanceResult;
+    ///
+    /// // Auto-instinct: !is_conformant() == is_non_conformant() for any result.
+    /// for verdict in ["conform", "non_conform:replay_error:timeout", "non_conform:parse:eof"] {
+    ///     let r = ConformanceResult {
+    ///         fitness: 0.5, precision: 0.5,
+    ///         verdict: verdict.to_string(),
+    ///         run_id: "r".to_string(),
+    ///         is_stub: false,
+    ///     };
+    ///     assert_eq!(r.is_non_conformant(), !r.is_conformant(),
+    ///                "complement invariant violated for verdict={verdict:?}");
+    /// }
+    /// ```
+    pub fn is_non_conformant(&self) -> bool {
+        !self.is_conformant()
+    }
+
+    /// Returns `true` when this result was produced by the stream-2 stub
+    /// ([`NoopPowlReplay`]) rather than the production wasm4pm bridge.
+    ///
+    /// Stub results have `fitness = 1.0` and `precision = 1.0` as placeholders
+    /// and MUST NOT be treated as real conformance evidence by downstream auditors.
+    ///
+    /// # Auto-instinct: stub results produced by NoopPowlReplay always conform
+    ///
+    /// ```
+    /// use open_ontologies::admission::{NoopPowlReplay, PowlReplay};
+    ///
+    /// let replay = NoopPowlReplay;
+    /// let stub_result = replay.replay("scope-xyz", "SEQ(A,B)", "default");
+    ///
+    /// // Auto-instinct: stub results are always conformant (placeholder 1.0/1.0).
+    /// assert!(stub_result.is_stub_result(), "NoopPowlReplay must set is_stub = true");
+    /// assert!(stub_result.is_conformant(),  "stub result must report conformance");
+    ///
+    /// // A hand-crafted non-stub conforming result is not a stub.
+    /// let real = open_ontologies::admission::ConformanceResult::pass("prod-run-007");
+    /// assert!(!real.is_stub_result(), "pass() must not set is_stub");
+    /// ```
+    pub fn is_stub_result(&self) -> bool {
+        self.is_stub
+    }
 }
 
 /// **Stream-2 stub.** Returns a perfect-fit verdict. Retained because some
