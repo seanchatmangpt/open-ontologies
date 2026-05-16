@@ -36,6 +36,37 @@ use std::collections::HashMap;
 use crate::schema::TableInfo;
 
 /// Recognised SQL backbone drivers.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::sqlsource::SqlDriver;
+///
+/// // Variants can be compared for equality.
+/// assert_eq!(SqlDriver::Postgres, SqlDriver::Postgres);
+/// assert_eq!(SqlDriver::DuckDb,   SqlDriver::DuckDb);
+/// assert_ne!(SqlDriver::Postgres, SqlDriver::DuckDb);
+///
+/// // Clone produces an independent copy with the same value.
+/// let original = SqlDriver::DuckDb;
+/// let cloned   = original;
+/// assert_eq!(original, cloned);
+/// ```
+///
+/// ## Mapping connection strings to drivers
+///
+/// ```
+/// use open_ontologies::sqlsource::{detect_driver, SqlDriver};
+///
+/// // The driver enum is returned by detect_driver for further dispatch.
+/// let driver = detect_driver("postgres://user:pass@localhost/mydb").unwrap();
+/// assert_eq!(driver, SqlDriver::Postgres);
+/// assert_eq!(driver.as_str(), "postgres");
+///
+/// let duck = detect_driver(":memory:").unwrap();
+/// assert_eq!(duck, SqlDriver::DuckDb);
+/// assert_eq!(duck.as_str(), "duckdb");
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SqlDriver {
     Postgres,
