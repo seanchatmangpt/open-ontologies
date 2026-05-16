@@ -23,6 +23,22 @@ struct PlanState {
 }
 
 impl Planner {
+    /// Create a new `Planner` backed by the given state database and graph store.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::sync::Arc;
+    /// use open_ontologies::graph::GraphStore;
+    /// use open_ontologies::state::StateDb;
+    /// use open_ontologies::plan::Planner;
+    ///
+    /// let store = Arc::new(GraphStore::new());
+    /// let db = StateDb::open(std::path::Path::new(":memory:")).unwrap();
+    /// let planner = Planner::new(db, store);
+    /// // Fresh planner — no plan computed yet, no IRIs locked.
+    /// assert!(!planner.is_locked("http://example.org/Anything"));
+    /// ```
     pub fn new(db: StateDb, graph: Arc<GraphStore>) -> Self {
         Self {
             db,
@@ -32,6 +48,36 @@ impl Planner {
     }
 
     /// Compute a diff plan between current store and proposed new Turtle.
+    ///
+    /// Returns a JSON string with `added_classes`, `removed_classes`,
+    /// `added_properties`, `removed_properties`, `blast_radius`, and
+    /// a `risk_score` of `"low"`, `"medium"`, or `"high"`.
+    ///
+    /// When the store is empty, loading a new ontology produces only
+    /// additions — risk is `"low"`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::sync::Arc;
+    /// use open_ontologies::graph::GraphStore;
+    /// use open_ontologies::state::StateDb;
+    /// use open_ontologies::plan::Planner;
+    ///
+    /// let store = Arc::new(GraphStore::new());
+    /// let db = StateDb::open(std::path::Path::new(":memory:")).unwrap();
+    /// let planner = Planner::new(db, store);
+    ///
+    /// // Empty store + new classes → additions only → risk_score = "low".
+    /// let ttl = r#"
+    ///     @prefix owl: <http://www.w3.org/2002/07/owl#> .
+    ///     <http://example.org/Pizza> a owl:Class .
+    /// "#;
+    /// let json_str = planner.plan(ttl).unwrap();
+    /// let v: serde_json::Value = serde_json::from_str(&json_str).unwrap();
+    /// assert_eq!(v["risk_score"], "low");
+    /// assert!(v["added_classes"].as_array().unwrap().len() > 0);
+    /// ```
     pub fn plan(&self, new_turtle: &str) -> anyhow::Result<String> {
         let current_classes = self.extract_classes_from_store(&self.graph);
         let current_properties = self.extract_properties_from_store(&self.graph);

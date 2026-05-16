@@ -3,6 +3,21 @@
 //! Reads commands from a file or stdin (one per line, or JSON array),
 //! executes them sequentially with shared state, and outputs NDJSON.
 //!
+//! # Quick start
+//!
+//! ```
+//! use std::sync::Arc;
+//! use open_ontologies::batch::BatchRunner;
+//! use open_ontologies::graph::GraphStore;
+//! use open_ontologies::state::StateDb;
+//!
+//! let db = StateDb::open(std::path::Path::new(":memory:")).unwrap();
+//! let graph = Arc::new(GraphStore::new());
+//! // Compact NDJSON output (pretty = false).
+//! let runner = BatchRunner::new(db, graph, false);
+//! drop(runner);
+//! ```
+//!
 //! # Subprocess JSON parsing
 //!
 //! Many helpers (lint / shacl / reason / plan / apply / version /
@@ -124,7 +139,7 @@ impl BatchRunner {
     ///
     /// # Examples
     ///
-    /// ```no_run
+    /// ```
     /// # async fn example() -> anyhow::Result<()> {
     /// use std::sync::Arc;
     /// use open_ontologies::batch::BatchRunner;
