@@ -2,6 +2,24 @@ use std::time::Duration;
 
 /// Fire-and-forget webhook delivery. Timeout is configurable via
 /// `[webhook] request_timeout_secs` (default 10s).
+///
+/// # Example
+///
+/// ```no_run
+/// # #[tokio::main]
+/// # async fn main() {
+/// use serde_json::json;
+///
+/// // POST a JSON payload to a webhook endpoint; returns Ok(()) on 2xx.
+/// open_ontologies::webhook::deliver_webhook(
+///     "https://example.com/hook",
+///     Some(r#"{"X-Custom-Header":"value"}"#),
+///     &json!({"event": "receipt_verified", "seq": 42}),
+/// )
+/// .await
+/// .unwrap();
+/// # }
+/// ```
 pub async fn deliver_webhook(
     url: &str,
     headers_json: Option<&str>,

@@ -24,6 +24,33 @@ use crate::config::TelemetryConfig;
 /// startup notice but does NOT yet wire the OTLP exporter. That wiring
 /// requires `opentelemetry-otlp` + `tracing-opentelemetry` crate deps
 /// (deferred to R9-3 once an endpoint is available for integration testing).
+///
+/// # Examples
+///
+/// Initialise with the default configuration (no OTLP endpoint):
+///
+/// ```
+/// use open_ontologies::config::TelemetryConfig;
+/// use open_ontologies::telemetry::init_telemetry;
+///
+/// let cfg = TelemetryConfig::default();
+/// // Installs the tracing subscriber; second call is a no-op.
+/// init_telemetry(&cfg);
+/// init_telemetry(&cfg); // safe to call again
+/// ```
+///
+/// Initialise with an OTLP endpoint (logs the deferred-wiring notice):
+///
+/// ```
+/// use open_ontologies::config::TelemetryConfig;
+/// use open_ontologies::telemetry::init_telemetry;
+///
+/// let cfg = TelemetryConfig {
+///     otlp_endpoint: Some("http://localhost:4317".to_string()),
+///     service_name: "my-service".to_string(),
+/// };
+/// init_telemetry(&cfg);
+/// ```
 pub fn init_telemetry(cfg: &TelemetryConfig) {
     use tracing_subscriber::{fmt, EnvFilter};
 

@@ -42,6 +42,27 @@ use std::time::Duration;
 /// Outcome of a single verifier pass. All counts are best-effort — they
 /// reflect rows actually examined and verdicts actually emitted (after
 /// the INSERT OR IGNORE idempotency filter).
+///
+/// # Example
+///
+/// ```
+/// use open_ontologies::verifier_worker::VerifierReport;
+///
+/// // Default report: all counters zero, cursors at origin.
+/// let report = VerifierReport::default();
+/// assert_eq!(report.scanned, 0);
+/// assert_eq!(report.warnings, 0);
+/// assert_eq!(report.failures, 0);
+/// assert_eq!(report.cursor_before, 0);
+/// assert_eq!(report.cursor_after, 0);
+///
+/// // Clone and mutate independently.
+/// let mut pass = report.clone();
+/// pass.scanned = 17;
+/// pass.cursor_after = 42;
+/// assert_eq!(pass.scanned, 17);
+/// assert_eq!(pass.cursor_after, 42);
+/// ```
 #[derive(Debug, Clone, Default)]
 pub struct VerifierReport {
     pub scanned: u64,
@@ -72,6 +93,31 @@ pub struct VerifierWorker {
 }
 
 impl VerifierWorker {
+    /// Construct a new worker. The worker starts with `last_verified_seq = 0`
+    /// so the first tick back-fills all historical receipts.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use std::sync::Arc;
+    /// use std::sync::atomic::AtomicI64;
+    /// use open_ontologies::verifier_worker::VerifierWorker;
+    /// use open_ontologies::config::VerifierConfig;
+    /// use open_ontologies::ocel_store::OcelStore;
+    /// use open_ontologies::state::StateDb;
+    ///
+    /// let db  = StateDb::open(std::path::Path::new(":memory:")).unwrap();
+    /// let ocel = Arc::new(OcelStore::new(
+    ///     StateDb::open(std::path::Path::new(":memory:")).unwrap(),
+    /// ));
+    /// let cfg = VerifierConfig::default();
+    /// let pause = Arc::new(AtomicI64::new(0));
+    ///
+    /// let worker = VerifierWorker::new(db, ocel, cfg, pause);
+    /// // Cursor starts at 0 — will back-fill all receipts on first tick.
+    /// use std::sync::atomic::Ordering;
+    /// assert_eq!(worker.last_verified_seq.load(Ordering::Relaxed), 0);
+    /// ```
     pub fn new(
         db: StateDb,
         ocel: Arc<OcelStore>,
@@ -90,6 +136,32 @@ impl VerifierWorker {
 
     /// Spawn the loop. Returns `(JoinHandle, last_verified_seq)`. The
     /// caller can read the cursor at any time.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # #[tokio::main]
+    /// # async fn main() {
+    /// use std::sync::Arc;
+    /// use std::sync::atomic::{AtomicI64, Ordering};
+    /// use open_ontologies::verifier_worker::VerifierWorker;
+    /// use open_ontologies::config::VerifierConfig;
+    /// use open_ontologies::ocel_store::OcelStore;
+    /// use open_ontologies::state::StateDb;
+    ///
+    /// let db  = StateDb::open(std::path::Path::new(":memory:")).unwrap();
+    /// let ocel = Arc::new(OcelStore::new(
+    ///     StateDb::open(std::path::Path::new(":memory:")).unwrap(),
+    /// ));
+    /// let mut cfg = VerifierConfig::default();
+    /// cfg.tick_secs = 60;
+    /// let pause = Arc::new(AtomicI64::new(0));
+    ///
+    /// let (_handle, cursor) = VerifierWorker::spawn_with_cursor(db, ocel, cfg, pause);
+    /// // Cursor is still 0 — the first tick hasn't fired yet.
+    /// assert_eq!(cursor.load(Ordering::Relaxed), 0);
+    /// # }
+    /// ```
     pub fn spawn_with_cursor(
         db: StateDb,
         ocel: Arc<OcelStore>,
@@ -136,6 +208,32 @@ impl VerifierWorker {
     ///
     /// OTEL: emits `verifier.tick` span with `verifier.scanned`,
     /// `verifier.failures`, `verifier.cursor` attributes.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use std::sync::Arc;
+    /// use std::sync::atomic::AtomicI64;
+    /// use open_ontologies::verifier_worker::VerifierWorker;
+    /// use open_ontologies::config::VerifierConfig;
+    /// use open_ontologies::ocel_store::OcelStore;
+    /// use open_ontologies::state::StateDb;
+    ///
+    /// let db  = StateDb::open(std::path::Path::new(":memory:")).unwrap();
+    /// let ocel = Arc::new(OcelStore::new(
+    ///     StateDb::open(std::path::Path::new(":memory:")).unwrap(),
+    /// ));
+    /// let cfg = VerifierConfig::default();
+    /// let pause = Arc::new(AtomicI64::new(0));
+    ///
+    /// let worker = VerifierWorker::new(db, ocel, cfg, pause);
+    /// // Empty receipts table → scanned = 0, no failures.
+    /// let report = worker.tick().unwrap();
+    /// assert_eq!(report.scanned, 0);
+    /// assert_eq!(report.failures, 0);
+    /// assert_eq!(report.cursor_before, 0);
+    /// assert_eq!(report.cursor_after, 0);
+    /// ```
     pub fn tick(&self) -> anyhow::Result<VerifierReport> {
         let span = tracing::info_span!(
             target: "verifier",
