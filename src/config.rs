@@ -520,18 +520,31 @@ pub fn resolve_llm_python(cfg: &LlmConfig) -> String {
         .unwrap_or_else(|| "python3".to_string())
 }
 
+/// Default wall-clock timeout (seconds) for every subprocess invoked by the
+/// LLM boundary — Groq pm4py scripts, ggen sync, wvda agents, gemini CLI,
+/// mu_star agents, etc.
+///
+/// All 12 shell-out sites in `src/server.rs` flow through
+/// [`resolve_subprocess_timeout`], which falls back to this constant when
+/// neither the `OPEN_ONTOLOGIES_SUBPROCESS_TIMEOUT_SECS` env var nor
+/// `[llm] subprocess_timeout_secs` in `config.toml` is set.  Extracting
+/// the magic literal here makes it grep-able and keeps every timeout path
+/// consistent.
+pub const SUBPROCESS_TIMEOUT_DEFAULT_SECS: u64 = 60;
+
 /// R7 WB-1 — resolve the subprocess wall-clock timeout in seconds.
 ///
 /// Precedence order: `OPEN_ONTOLOGIES_SUBPROCESS_TIMEOUT_SECS` env,
-/// then config, then 60s default. The env override lets operators
-/// (and integration tests) tighten the deadline without rewriting
-/// `config.toml`. Returns a `Duration` so call sites skip the cast.
+/// then config, then [`SUBPROCESS_TIMEOUT_DEFAULT_SECS`] (60 s). The env
+/// override lets operators (and integration tests) tighten the deadline
+/// without rewriting `config.toml`. Returns a `Duration` so call sites
+/// skip the cast.
 pub fn resolve_subprocess_timeout(cfg: &LlmConfig) -> std::time::Duration {
     let secs = std::env::var("OPEN_ONTOLOGIES_SUBPROCESS_TIMEOUT_SECS")
         .ok()
         .and_then(|v| v.trim().parse::<u64>().ok())
         .or(cfg.subprocess_timeout_secs)
-        .unwrap_or(60);
+        .unwrap_or(SUBPROCESS_TIMEOUT_DEFAULT_SECS);
     std::time::Duration::from_secs(secs)
 }
 
