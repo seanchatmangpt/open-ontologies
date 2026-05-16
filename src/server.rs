@@ -4856,6 +4856,7 @@ impl OpenOntologiesServer {
                 "ok": false,
                 "session_id": input.session_id,
                 "error": e.to_string(),
+                "hint": "Confirm the session_id exists in revoked_sessions. Use onto_session_revoke_by_principal to check active revocations.",
             })
             .to_string(),
         }
@@ -7036,6 +7037,7 @@ impl OpenOntologiesServer {
                 "ok": false,
                 "defect": { "kind": "FalsePass", "reason": DEFECT_REASON_NOT_ADMIN },
                 "error": "caller is not in OPEN_ONTOLOGIES_ADMIN_PRINCIPALS",
+                "hint": "Set OPEN_ONTOLOGIES_ADMIN_PRINCIPALS to include the current principal, or use an admin-provisioned session.",
             })
             .to_string();
         }
@@ -7051,6 +7053,7 @@ impl OpenOntologiesServer {
                 return serde_json::json!({
                     "ok": false,
                     "error": "OPEN_ONTOLOGIES_TRUSTED_KEYS_DIR is unset; rotation requires a configured directory",
+                    "hint": "Set the OPEN_ONTOLOGIES_TRUSTED_KEYS_DIR environment variable to a directory containing trusted Ed25519 public keys (.pub files).",
                 })
                 .to_string();
             }
@@ -7073,6 +7076,7 @@ impl OpenOntologiesServer {
                 return serde_json::json!({
                     "ok": false,
                     "error": format!("failed to load trust dir: {}", e.to_string().replace('"', "'")),
+                    "hint": "Verify OPEN_ONTOLOGIES_TRUSTED_KEYS_DIR points to a readable directory containing valid Ed25519 .pub key files.",
                 })
                 .to_string();
             }
@@ -7322,6 +7326,7 @@ impl OpenOntologiesServer {
                 "ok": false,
                 "defect": { "kind": "FalsePass", "reason": DEFECT_REASON_NOT_ADMIN },
                 "error": "caller is not in admin_principals",
+                "hint": "Set OPEN_ONTOLOGIES_ADMIN_PRINCIPALS to include the current principal, or use an admin-provisioned session.",
             })
             .to_string();
         }
@@ -7338,6 +7343,7 @@ impl OpenOntologiesServer {
             return serde_json::json!({
                 "ok": false,
                 "error": "tenant_id, principal_id, and reason are all required (non-empty)",
+                "hint": "Provide all three fields: tenant_id (the tenant scope), principal_id (the identity to revoke), and reason (audit trail explanation).",
             })
             .to_string();
         }
@@ -7386,6 +7392,7 @@ impl OpenOntologiesServer {
                     return serde_json::json!({
                         "ok": false,
                         "error": format!("INSERT failed: {}", e.to_string().replace('"', "'")),
+                        "hint": "Check for schema mismatches in the revoked_sessions table. Verify the database is writable and the session is not already revoked.",
                     })
                     .to_string();
                 }
@@ -7440,6 +7447,7 @@ impl OpenOntologiesServer {
                 "ok": false,
                 "defect": { "kind": "FalsePass", "reason": DEFECT_REASON_NOT_ADMIN },
                 "error": "caller is not in admin_principals",
+                "hint": "Set OPEN_ONTOLOGIES_ADMIN_PRINCIPALS to include the current principal, or use an admin-provisioned session.",
             })
             .to_string();
         }
@@ -7449,6 +7457,7 @@ impl OpenOntologiesServer {
             return serde_json::json!({
                 "ok": false,
                 "error": "minutes must be in 1..=10080 (max 1 week)",
+                "hint": "Pass a positive integer between 1 and 10080 (10080 minutes = 1 week). Use onto_retention_resume to clear the pause early.",
             })
             .to_string();
         }
@@ -7494,6 +7503,7 @@ impl OpenOntologiesServer {
                 "ok": false,
                 "defect": { "kind": "FalsePass", "reason": DEFECT_REASON_NOT_ADMIN },
                 "error": "caller is not in admin_principals",
+                "hint": "Set OPEN_ONTOLOGIES_ADMIN_PRINCIPALS to include the current principal, or use an admin-provisioned session.",
             })
             .to_string();
         }
