@@ -134,11 +134,9 @@ impl Reasoner {
     /// use open_ontologies::graph::GraphStore;
     /// use open_ontologies::reason::Reasoner;
     ///
-    /// // Unknown profile falls back to rdfs (no error).
+    /// // Unknown profile returns Err (the valid profiles are rdfs, owl-rl, owl-rl-ext, owl-dl).
     /// let graph = Arc::new(GraphStore::new());
-    /// let json = Reasoner::run(&graph, "unknown-profile", false).unwrap();
-    /// let v: serde_json::Value = serde_json::from_str(&json).unwrap();
-    /// assert_eq!(v["profile_used"], "rdfs");
+    /// assert!(Reasoner::run(&graph, "unknown-profile", false).is_err());
     /// ```
     pub fn run(
         graph: &Arc<GraphStore>,

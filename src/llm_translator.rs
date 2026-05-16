@@ -168,7 +168,7 @@ impl GroqTranslator {
     ///     ..Default::default()
     /// };
     /// let translator = GroqTranslator::from_config(&cfg).unwrap();
-    /// assert!(!translator.is_configured()); // no API key
+    /// // endpoint resolves correctly regardless of whether GROQ_API_KEY is in the environment
     /// assert!(translator.endpoint().contains("/chat/completions"));
     /// ```
     pub fn from_config(cfg: &LlmConfig) -> Result<Self> {
