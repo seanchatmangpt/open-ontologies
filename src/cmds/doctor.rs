@@ -1,4 +1,25 @@
 //! Doctor Commands — environment diagnostics
+//!
+//! Diagnostics that check config files, data directory, Oxigraph store cache,
+//! ggen binary, and the MCP server binary.
+//!
+//! Each check group (`config`, `data`, `store`, `ggen`, `mcp`) produces a
+//! `Vec<DoctorCheck>` where every entry has a `name`, an `ok` flag, and a
+//! human-readable `detail` string.  The aggregate `all_ok` flag is `true`
+//! only when every individual check passes.
+//!
+//! # CLI usage
+//!
+//! ```no_run
+//! // Run every doctor check and emit a structured JSON report.
+//! // CLI: open-ontologies doctor full
+//! //
+//! // Run just the config domain:
+//! // CLI: open-ontologies doctor check --target config
+//! //
+//! // Run just the ggen domain:
+//! // CLI: open-ontologies doctor check --target ggen
+//! ```
 
 use clap_noun_verb::Result as NounVerbResult;
 use clap_noun_verb_macros::verb;
@@ -8,6 +29,20 @@ use std::process::Command;
 
 // ── output types ─────────────────────────────────────────────────────────
 
+/// A single named diagnostic check with pass/fail status and human-readable detail.
+///
+/// The `ok` field drives the aggregate `all_ok` flag: every check in a group
+/// must be `true` for the group to pass.  `detail` carries a message that is
+/// meaningful to the operator — e.g. the path that was found or not found.
+///
+/// # Examples
+///
+/// ```no_run
+/// // Construct a passing check (typically produced by into_checks())
+/// // CLI: open-ontologies doctor check --target config
+/// // JSON output example:
+/// // { "name": "config_file", "ok": true, "detail": "Config file found at ~/.open-ontologies/config.toml" }
+/// ```
 #[derive(Serialize)]
 pub struct DoctorCheck {
     pub name: String,
@@ -15,6 +50,16 @@ pub struct DoctorCheck {
     pub detail: String,
 }
 
+/// Aggregated result for a single doctor target (e.g. `"config"`, `"data"`, `"ggen"`).
+///
+/// `all_ok` is the conjunction of every `DoctorCheck::ok` in `checks`.
+///
+/// # Examples
+///
+/// ```no_run
+/// // CLI: open-ontologies doctor check --target ggen
+/// // Returns DoctorOutput { target: "ggen", checks: [...], all_ok: true/false }
+/// ```
 #[derive(Serialize)]
 pub struct DoctorOutput {
     pub target: String,
@@ -36,6 +81,22 @@ pub struct FullOutput {
     pub failed: usize,
 }
 
+/// Summary returned by `doctor run` — all checks across every domain with counts.
+///
+/// `passed + failed == checks.len()` is always true.
+/// `all_ok` is equivalent to `failed == 0`.
+///
+/// # Examples
+///
+/// ```no_run
+/// // CLI: open-ontologies doctor run
+/// // Returns RunOutput {
+/// //   checks: [...],   // every check from config + data + ggen + mcp
+/// //   all_ok: false,   // true only when every individual check passes
+/// //   passed: 5,
+/// //   failed: 1,
+/// // }
+/// ```
 #[derive(Serialize)]
 pub struct RunOutput {
     pub checks: Vec<DoctorCheck>,
@@ -44,6 +105,25 @@ pub struct RunOutput {
     pub failed: usize,
 }
 
+/// Result of the config domain doctor check.
+///
+/// The `exists` flag reflects whether the config file was found on disk;
+/// `parseable` is only meaningful when `exists` is also `true`.
+/// `ggen_path_resolves` is `true` when `Command::new(&ggen_path).arg("--version")`
+/// succeeds (exit 0 or process spawned successfully).
+///
+/// # Examples
+///
+/// ```no_run
+/// // CLI: open-ontologies doctor config
+/// // Returns ConfigCheckOutput {
+/// //   config_path: "/home/user/.open-ontologies/config.toml",
+/// //   exists: true,
+/// //   parseable: true,
+/// //   ggen_path: "ggen",          // or OPEN_ONTOLOGIES_CODEGEN_GGEN_PATH override
+/// //   ggen_path_resolves: false,  // false when ggen binary is not on PATH
+/// // }
+/// ```
 #[derive(Serialize, Clone)]
 pub struct ConfigCheckOutput {
     pub config_path: String,
@@ -89,6 +169,26 @@ impl ConfigCheckOutput {
     }
 }
 
+/// Result of the data-directory domain doctor check.
+///
+/// `writable` is only `true` when `exists` is also `true`; `db_accessible`
+/// reflects whether the SQLite state database can be opened (or would be
+/// created in a writable directory).
+///
+/// # Examples
+///
+/// ```no_run
+/// // CLI: open-ontologies doctor data
+/// // Returns DataCheckOutput {
+/// //   data_dir: "/home/user/.open-ontologies",
+/// //   exists: true,
+/// //   writable: true,
+/// //   db_accessible: true,
+/// // }
+/// //
+/// // When the directory does not exist:
+/// //   exists: false, writable: false, db_accessible: false
+/// ```
 #[derive(Serialize, Clone)]
 pub struct DataCheckOutput {
     pub data_dir: String,
