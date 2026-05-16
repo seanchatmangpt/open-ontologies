@@ -49,6 +49,58 @@ use super::{with_header, ManufacturedFile, SolutionSpec};
 /// };
 /// assert!(atomvm::generate(&spec).is_empty());
 /// ```
+///
+/// Auto-instinct: all three supported MCU targets produce exactly 2 files each
+/// and all files carry the receipt header:
+///
+/// ```
+/// use open_ontologies::manufacturing::{atomvm, SolutionSpec};
+///
+/// for mcu in ["esp32", "stm32", "rp2040"] {
+///     let spec = SolutionSpec {
+///         name: "edge_node".into(),
+///         description: "Edge node".into(),
+///         iac_target: "aws".into(),
+///         region: "us-east-1".into(),
+///         supervisor_children: 1,
+///         mcu_target: mcu.into(),
+///         work_order_receipt_hash: "c".repeat(64),
+///     };
+///     let files = atomvm::generate(&spec);
+///     assert_eq!(files.len(), 2, "mcu={mcu} should produce 2 files");
+///     for f in &files {
+///         assert!(
+///             f.contents.contains("ostar-artifact-hash:"),
+///             "{} on mcu={mcu} missing receipt header",
+///             f.path
+///         );
+///     }
+/// }
+/// ```
+///
+/// Auto-instinct: the work-order receipt hash is embedded in the Erlang module
+/// so an external auditor can read it from the AVM-loaded ROM:
+///
+/// ```
+/// use open_ontologies::manufacturing::{atomvm, SolutionSpec};
+///
+/// let wor = "f".repeat(64);
+/// let spec = SolutionSpec {
+///     name: "sensor".into(),
+///     description: "Sensor node".into(),
+///     iac_target: "aws".into(),
+///     region: "eu-west-1".into(),
+///     supervisor_children: 1,
+///     mcu_target: "rp2040".into(),
+///     work_order_receipt_hash: wor.clone(),
+/// };
+/// let files = atomvm::generate(&spec);
+/// let erl_file = files.iter().find(|f| f.path.ends_with(".erl")).unwrap();
+/// // Receipt hash must appear in the Erlang source for audit round-trips.
+/// assert!(erl_file.contents.contains(&wor));
+/// // The target field is always "atomvm".
+/// assert!(files.iter().all(|f| f.target == "atomvm"));
+/// ```
 pub fn generate(spec: &SolutionSpec) -> Vec<ManufacturedFile> {
     if !matches!(spec.mcu_target.as_str(), "esp32" | "stm32" | "rp2040") {
         return Vec::new();

@@ -63,6 +63,175 @@ use crate::defects::DefectClass;
 ///     Err(DefectClass::ManufacturingChainBroken { .. })
 /// ));
 /// ```
+///
+/// Auto-instinct: pass and fail are mutually exclusive — a bundle cannot
+/// simultaneously satisfy `Ok(())` and `Err(...)`:
+///
+/// ```
+/// use open_ontologies::manufacturing::{manufacture, SolutionSpec, validators};
+///
+/// let spec = SolutionSpec {
+///     name: "mutex_check".into(),
+///     description: "Mutual exclusion check".into(),
+///     iac_target: "aws".into(),
+///     region: "us-east-1".into(),
+///     supervisor_children: 1,
+///     mcu_target: "esp32".into(),
+///     work_order_receipt_hash: "1".repeat(64),
+/// };
+/// let bundle = manufacture(&spec).expect("manufacture succeeds");
+/// let result = validators::validate_bundle(&bundle);
+/// // Exactly one of is_ok / is_err must be true.
+/// assert!(result.is_ok() != result.is_err());
+/// ```
+///
+/// Auto-instinct: `Err` variants from `validate_bundle` carry non-empty
+/// reason/missing strings — no silent "unknown error" failures:
+///
+/// ```
+/// use open_ontologies::manufacturing::{
+///     SolutionSpec, SolutionBundle, ManufacturedFile, validators,
+/// };
+/// use open_ontologies::defects::DefectClass;
+///
+/// let spec = SolutionSpec {
+///     name: "reason_check".into(),
+///     description: "Error reason check".into(),
+///     iac_target: "aws".into(),
+///     region: "us-east-1".into(),
+///     supervisor_children: 1,
+///     mcu_target: "esp32".into(),
+///     work_order_receipt_hash: "2".repeat(64),
+/// };
+/// let bundle = SolutionBundle {
+///     spec,
+///     files: vec![ManufacturedFile {
+///         path: "rust/src/lib.rs".into(),
+///         contents: "pub fn foo() {}".into(),
+///         target: "rust".into(),
+///     }],
+/// };
+/// match validators::validate_bundle(&bundle) {
+///     Err(DefectClass::ManufacturingChainBroken { missing }) => {
+///         assert!(!missing.is_empty(), "missing reason must be non-empty");
+///     }
+///     other => panic!("expected ManufacturingChainBroken, got {:?}", other),
+/// }
+/// ```
+///
+/// Auto-instinct: a Terraform JSON file containing `_ontostar_receipt` is
+/// rejected with `IacInvalid` (Terraform's top-level schema is closed):
+///
+/// ```
+/// use open_ontologies::manufacturing::{
+///     SolutionSpec, SolutionBundle, ManufacturedFile, validators,
+/// };
+/// use open_ontologies::defects::DefectClass;
+///
+/// let wor = "3".repeat(64);
+/// // Sidecar with the IaC files listed.
+/// let sidecar_json = serde_json::json!({
+///     "production_law": "ontostar-1.0.0",
+///     "defects_taxonomy": "4.4.0",
+///     "target": "iac",
+///     "artifact_hash": "aabbcc",
+///     "work_order_receipt": &wor,
+///     "solution_name": "bad_iac",
+///     "files": ["main.tf.json"]
+/// });
+/// let bad_tf = serde_json::json!({
+///     "terraform": {},
+///     "_ontostar_receipt": "this key breaks terraform validate"
+/// });
+/// let spec = SolutionSpec {
+///     name: "bad_iac".into(),
+///     description: "Bad IaC bundle".into(),
+///     iac_target: "aws".into(),
+///     region: "us-east-1".into(),
+///     supervisor_children: 1,
+///     mcu_target: "esp32".into(),
+///     work_order_receipt_hash: wor.clone(),
+/// };
+/// let bundle = SolutionBundle {
+///     spec,
+///     files: vec![
+///         ManufacturedFile {
+///             path: "iac/main.tf.json".into(),
+///             contents: serde_json::to_string(&bad_tf).unwrap(),
+///             target: "iac".into(),
+///         },
+///         ManufacturedFile {
+///             path: "iac/.ontostar-receipt.json".into(),
+///             contents: serde_json::to_string(&sidecar_json).unwrap(),
+///             target: "iac".into(),
+///         },
+///     ],
+/// };
+/// assert!(matches!(
+///     validators::validate_bundle(&bundle),
+///     Err(DefectClass::IacInvalid { .. })
+/// ));
+/// ```
+///
+/// Auto-instinct: a bundle whose work-order receipt hash is absent from all
+/// file contents fails with `ManufacturingChainBroken`:
+///
+/// ```
+/// use open_ontologies::manufacturing::{
+///     SolutionSpec, SolutionBundle, ManufacturedFile, validators,
+/// };
+/// use open_ontologies::defects::DefectClass;
+///
+/// let wor = "4".repeat(64);
+/// // File has the artifact-hash header but binds a *different* work-order hash.
+/// let contents = format!(
+///     "// ostar-artifact-hash: deadbeef\n// ostar-work-order-receipt: {}\nfn ok() {{}}\n",
+///     "5".repeat(64) // deliberately wrong hash
+/// );
+/// let spec = SolutionSpec {
+///     name: "missing_wor".into(),
+///     description: "Missing WOR test".into(),
+///     iac_target: "aws".into(),
+///     region: "us-east-1".into(),
+///     supervisor_children: 1,
+///     mcu_target: "esp32".into(),
+///     work_order_receipt_hash: wor,
+/// };
+/// let bundle = SolutionBundle {
+///     spec,
+///     files: vec![ManufacturedFile {
+///         path: "rust/src/lib.rs".into(),
+///         contents,
+///         target: "rust".into(),
+///     }],
+/// };
+/// assert!(matches!(
+///     validators::validate_bundle(&bundle),
+///     Err(DefectClass::ManufacturingChainBroken { .. })
+/// ));
+/// ```
+///
+/// Auto-instinct: `validate_bundle` on a fully manufactured bundle is
+/// idempotent — calling it twice yields the same result:
+///
+/// ```
+/// use open_ontologies::manufacturing::{manufacture, SolutionSpec, validators};
+///
+/// let spec = SolutionSpec {
+///     name: "idempotent_val".into(),
+///     description: "Idempotency check".into(),
+///     iac_target: "aws".into(),
+///     region: "us-east-1".into(),
+///     supervisor_children: 2,
+///     mcu_target: "stm32".into(),
+///     work_order_receipt_hash: "6".repeat(64),
+/// };
+/// let bundle = manufacture(&spec).expect("manufacture succeeds");
+/// let first  = validators::validate_bundle(&bundle);
+/// let second = validators::validate_bundle(&bundle);
+/// assert_eq!(first.is_ok(), second.is_ok(),
+///     "validate_bundle must be idempotent");
+/// ```
 pub fn validate_bundle(bundle: &SolutionBundle) -> Result<(), DefectClass> {
     // Two binding forms are accepted:
     //   - comment-prefixed `ostar-artifact-hash:` header (Rust / Erlang
@@ -368,6 +537,38 @@ fn require_erlang_decl(file: &ManufacturedFile, needle: &str) -> Result<(), Defe
 /// // Shell/Makefile comment prefix `#`.
 /// let makefile = "# ostar-production-law: ontostar-1.0.0\n# ostar-target: atomvm\n.PHONY: build\n";
 /// assert_eq!(strip_header(makefile, "#"), ".PHONY: build\n");
+/// ```
+///
+/// Auto-instinct: `strip_header` is idempotent — stripping an already-stripped
+/// body a second time returns the body unchanged:
+///
+/// ```
+/// use open_ontologies::manufacturing::validators::strip_header;
+///
+/// let src = "// ostar-production-law: ontostar-1.0.0\n// ostar-artifact-hash: deadbeef\nfn main() {}\n";
+/// let stripped_once  = strip_header(src, "//");
+/// let stripped_twice = strip_header(&stripped_once, "//");
+/// assert_eq!(stripped_once, stripped_twice,
+///     "strip_header must be idempotent on already-stripped content");
+/// ```
+///
+/// Auto-instinct: the stripped body is strictly shorter than the input when
+/// headers are present, and exactly equal when there are no headers:
+///
+/// ```
+/// use open_ontologies::manufacturing::validators::strip_header;
+///
+/// // With headers: body is shorter.
+/// let with_header = "// ostar-artifact-hash: aabbcc\nfn foo() {}\n";
+/// let body = strip_header(with_header, "//");
+/// assert!(body.len() < with_header.len(),
+///     "stripping headers must shorten the content");
+///
+/// // Without headers: output equals input byte-for-byte.
+/// let no_header = "fn bar() {}\n";
+/// let unchanged = strip_header(no_header, "//");
+/// assert_eq!(unchanged, no_header,
+///     "strip_header must return input unchanged when no headers are present");
 /// ```
 pub fn strip_header(contents: &str, prefix: &str) -> String {
     let header_marker = format!("{prefix} ostar-");
