@@ -39,6 +39,27 @@ pub struct WorkflowPlan {
 ///
 /// Intent matching: lowercase substring against each cluster's keyword list.
 /// First match wins. Unknown intents return an empty plan with `known_intents`.
+///
+/// # Examples
+///
+/// A recognized intent returns a non-empty ordered plan:
+/// ```
+/// # use open_ontologies::guide::plan_for_intent;
+/// let plan = plan_for_intent("load and validate", false);
+/// assert!(plan.ok);
+/// assert!(!plan.plan.is_empty());
+/// assert_eq!(plan.plan[0].tool, "onto_validate");
+/// ```
+///
+/// An unrecognized intent returns the known workflow names for the caller
+/// to choose from:
+/// ```
+/// # use open_ontologies::guide::plan_for_intent;
+/// let plan = plan_for_intent("do something unknown", false);
+/// assert!(plan.ok);
+/// assert!(plan.plan.is_empty());
+/// assert!(plan.known_intents.is_some());
+/// ```
 pub fn plan_for_intent(intent: &str, include_powl: bool) -> WorkflowPlan {
     let lower = intent.to_lowercase();
 

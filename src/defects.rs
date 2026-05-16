@@ -239,6 +239,17 @@ pub enum DefectClass {
 
 impl DefectClass {
     /// Stable short tag suitable for OCEL `defect` attribute strings.
+    /// Short stable string identifier for this variant.
+    ///
+    /// Stored in OCEL events and receipts; used by auditors to identify
+    /// defect classes without parsing the full JSON shape.
+    ///
+    /// # Examples
+    /// ```
+    /// # use open_ontologies::defects::DefectClass;
+    /// assert_eq!(DefectClass::CapabilityZero.tag(), "capability_zero");
+    /// assert_eq!(DefectClass::ScopeUnclosed.tag(),  "scope_unclosed");
+    /// ```
     pub fn tag(&self) -> &'static str {
         match self {
             DefectClass::CapabilityZero => "capability_zero",
@@ -318,6 +329,18 @@ impl DefectClass {
 }
 
 /// Compute the BLAKE3 hex hash of the concatenated tag list.
+///
+/// The result must equal [`DEFECTS_TAXONOMY_DISCRIMINANT_HASH`]. The CI gate
+/// [`tests::taxonomy_discriminant_hash_pinned`] enforces this; any variant
+/// add/rename/remove will break it and force a taxonomy version bump.
+///
+/// # Examples
+/// ```
+/// # use open_ontologies::defects::{discriminant_hash, DEFECTS_TAXONOMY_DISCRIMINANT_HASH};
+/// let h = discriminant_hash();
+/// assert_eq!(h.len(), 64);                        // BLAKE3 hex is always 64 chars
+/// assert_eq!(h, DEFECTS_TAXONOMY_DISCRIMINANT_HASH); // must match the pinned constant
+/// ```
 pub fn discriminant_hash() -> String {
     let mut h = blake3::Hasher::new();
     for tag in DefectClass::all_tags() {
@@ -374,6 +397,15 @@ impl DefectClass {
     /// agents can self-correct without human intervention.
     ///
     /// This method is pure — no I/O, no DB calls, deterministic.
+    ///
+    /// # Examples
+    /// ```
+    /// # use open_ontologies::defects::{DefectClass, RemediationSeverity};
+    /// let rem = DefectClass::ScopeUnclosed.remediation();
+    /// assert_eq!(rem.severity,  RemediationSeverity::Blocking);
+    /// assert!(rem.auto_retry);
+    /// assert_eq!(rem.next_tool.as_deref(), Some("onto_declare_workflow"));
+    /// ```
     pub fn remediation(&self) -> RemediationBlock {
         use serde_json::json;
         match self {

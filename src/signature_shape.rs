@@ -39,6 +39,17 @@ pub struct FieldSpec {
 }
 
 impl FieldSpec {
+    /// Construct a required field with a 1-character minimum length.
+    ///
+    /// # Examples
+    /// ```
+    /// # use open_ontologies::signature_shape::FieldSpec;
+    /// let f = FieldSpec::required("voice", "stakeholder voice text");
+    /// assert_eq!(f.name, "voice");
+    /// assert!(f.required);
+    /// assert_eq!(f.min_len, 1);
+    /// assert!(f.allowed_values.is_none());
+    /// ```
     pub fn required(name: impl Into<String>, description: impl Into<String>) -> Self {
         Self {
             name: name.into(),
@@ -125,7 +136,17 @@ pub enum ValidationFailure {
 }
 
 impl ValidationFailure {
-    /// Short, machine-readable hint to feed into the refine prompt.
+    /// Short, machine-readable hint to feed back into the refine prompt.
+    ///
+    /// # Examples
+    /// ```
+    /// # use open_ontologies::signature_shape::ValidationFailure;
+    /// let f = ValidationFailure::MissingField { field: "ctq".into() };
+    /// assert!(f.revision_hint().contains("ctq"));
+    ///
+    /// let f = ValidationFailure::TooShort { field: "voice".into(), observed: 2, required: 10 };
+    /// assert!(f.revision_hint().contains("at least 10"));
+    /// ```
     pub fn revision_hint(&self) -> String {
         match self {
             ValidationFailure::NonJsonResponse { .. } =>

@@ -334,7 +334,19 @@ fn local_name(iri: &str) -> &str {
         .unwrap_or(iri)
 }
 
-/// Jaro-Winkler string similarity (public for testing).
+/// Jaro-Winkler string similarity between two strings, in the range `[0.0, 1.0]`.
+///
+/// Returns `1.0` for identical strings and `0.0` when either string is empty.
+/// Adds a prefix bonus (up to 4 chars) on top of the base Jaro score.
+///
+/// # Examples
+/// ```
+/// # use open_ontologies::drift::jaro_winkler;
+/// assert_eq!(jaro_winkler("apple", "apple"), 1.0);  // identical
+/// assert_eq!(jaro_winkler("",      "apple"), 0.0);  // empty string
+/// assert!(jaro_winkler("Martha", "Marhta") > 0.9);  // classic Jaro example
+/// assert!(jaro_winkler("apple",  "orange") < 0.7);  // dissimilar
+/// ```
 pub fn jaro_winkler(s1: &str, s2: &str) -> f64 {
     if s1 == s2 {
         return 1.0;
