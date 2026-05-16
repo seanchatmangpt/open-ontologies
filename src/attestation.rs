@@ -69,7 +69,9 @@ pub fn fingerprint(vk: &VerifyingKey) -> KeyFingerprint {
 /// use open_ontologies::attestation::fingerprint_hex;
 ///
 /// let fpr: [u8; 8] = [0xde, 0xad, 0xbe, 0xef, 0x00, 0x01, 0x02, 0x03];
-/// assert_eq!(fingerprint_hex(&fpr), "deadbeef00010203");
+/// let hex = fingerprint_hex(&fpr);
+/// assert_eq!(hex, "deadbeef00010203");
+/// assert_eq!(hex.len(), 16); // 8 bytes × 2 hex chars each
 /// ```
 pub fn fingerprint_hex(fpr: &KeyFingerprint) -> String {
     let mut s = String::with_capacity(16);
@@ -117,6 +119,15 @@ impl Signer {
     }
 
     /// Construct a signer directly from key bytes (test/utility helper).
+    ///
+    /// ```
+    /// # use open_ontologies::attestation::Signer;
+    /// let key_bytes = [42u8; 32];
+    /// let signer = Signer::from_bytes(&key_bytes);
+    /// // Construction succeeded — verifying key is accessible.
+    /// let vk = signer.verifying_key();
+    /// assert_eq!(vk.as_bytes().len(), 32);
+    /// ```
     pub fn from_bytes(secret: &[u8; 32]) -> Self {
         let key = SigningKey::from_bytes(secret);
         let fpr = fingerprint(&key.verifying_key());
@@ -146,6 +157,14 @@ pub struct TrustedKeys {
 }
 
 impl TrustedKeys {
+    /// Create an empty trust set.
+    ///
+    /// ```
+    /// # use open_ontologies::attestation::TrustedKeys;
+    /// let ts = TrustedKeys::new();
+    /// assert!(ts.is_empty());
+    /// assert_eq!(ts.len(), 0);
+    /// ```
     pub fn new() -> Self {
         Self::default()
     }

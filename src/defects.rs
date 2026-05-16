@@ -248,7 +248,11 @@ impl DefectClass {
     /// ```
     /// # use open_ontologies::defects::DefectClass;
     /// assert_eq!(DefectClass::CapabilityZero.tag(), "capability_zero");
-    /// assert_eq!(DefectClass::ScopeUnclosed.tag(),  "scope_unclosed");
+    /// assert_eq!(
+    ///     DefectClass::SkippedTask { stage: "enforce_run".into() }.tag(),
+    ///     "skipped_task"
+    /// );
+    /// assert_eq!(DefectClass::BootstrapChainTooShort.tag(), "bootstrap_chain_too_short");
     /// ```
     pub fn tag(&self) -> &'static str {
         match self {
