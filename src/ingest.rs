@@ -2,6 +2,21 @@ use anyhow::{Context, Result};
 use std::collections::HashMap;
 use std::fs;
 
+/// Canonical format token for CSV — the default when no extension is recognised.
+pub const FORMAT_CSV: &str = "csv";
+/// Canonical format token for JSON.
+pub const FORMAT_JSON: &str = "json";
+/// Canonical format token for newline-delimited JSON (NDJSON / JSON Lines).
+pub const FORMAT_NDJSON: &str = "ndjson";
+/// Canonical format token for XML.
+pub const FORMAT_XML: &str = "xml";
+/// Canonical format token for YAML.
+pub const FORMAT_YAML: &str = "yaml";
+/// Canonical format token for Excel XLSX.
+pub const FORMAT_XLSX: &str = "xlsx";
+/// Canonical format token for Apache Parquet.
+pub const FORMAT_PARQUET: &str = "parquet";
+
 /// Data ingester that parses structured data files into rows of key-value pairs.
 pub struct DataIngester;
 
@@ -27,14 +42,14 @@ impl DataIngester {
             .unwrap_or("")
             .to_lowercase();
         match ext.as_str() {
-            "csv" => "csv",
-            "json" => "json",
-            "jsonl" | "ndjson" => "ndjson",
-            "xml" => "xml",
-            "yaml" | "yml" => "yaml",
-            "xlsx" => "xlsx",
-            "parquet" => "parquet",
-            _ => "csv",
+            "csv" => FORMAT_CSV,
+            "json" => FORMAT_JSON,
+            "jsonl" | "ndjson" => FORMAT_NDJSON,
+            "xml" => FORMAT_XML,
+            "yaml" | "yml" => FORMAT_YAML,
+            "xlsx" => FORMAT_XLSX,
+            "parquet" => FORMAT_PARQUET,
+            _ => FORMAT_CSV,
         }
     }
 
@@ -386,13 +401,13 @@ impl DataIngester {
             Some(f) => {
                 let lower = f.to_ascii_lowercase();
                 match lower.as_str() {
-                    "csv" => "csv",
-                    "json" => "json",
-                    "ndjson" => "ndjson",
-                    "yaml" | "yml" => "yaml",
-                    "xml" => "xml",
-                    "xlsx" => "xlsx",
-                    "parquet" => "parquet",
+                    "csv" => FORMAT_CSV,
+                    "json" => FORMAT_JSON,
+                    "ndjson" => FORMAT_NDJSON,
+                    "yaml" | "yml" => FORMAT_YAML,
+                    "xml" => FORMAT_XML,
+                    "xlsx" => FORMAT_XLSX,
+                    "parquet" => FORMAT_PARQUET,
                     other => {
                         anyhow::bail!(
                             "unsupported format override '{}': expected one of csv, json, ndjson, yaml, xml, xlsx, parquet",
