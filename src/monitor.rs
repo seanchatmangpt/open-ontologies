@@ -56,10 +56,70 @@ pub struct Monitor {
 }
 
 impl Monitor {
+    /// Create a new `Monitor` backed by the given SQLite state store and
+    /// in-memory Oxigraph graph.
+    ///
+    /// Both arguments are cheap to construct in tests:
+    ///
+    /// ```
+    /// use open_ontologies::monitor::Monitor;
+    /// use open_ontologies::state::StateDb;
+    /// use open_ontologies::graph::GraphStore;
+    /// use std::path::Path;
+    /// use std::sync::Arc;
+    ///
+    /// let db    = StateDb::open(Path::new(":memory:")).unwrap();
+    /// let graph = Arc::new(GraphStore::new());
+    /// let _monitor = Monitor::new(db, graph);
+    /// ```
     pub fn new(db: StateDb, graph: Arc<GraphStore>) -> Self {
         Self { db, graph }
     }
 
+    /// Register a watcher that fires when a measured value exceeds its
+    /// threshold. The watcher is persisted to the SQLite state store so
+    /// it survives across `Monitor` instances that share the same `StateDb`.
+    ///
+    /// Because `StateDb` is `Clone`, a second `Monitor` built from the same
+    /// `StateDb` can read back the watcher to confirm persistence.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use open_ontologies::monitor::{Monitor, Watcher, WatcherAction};
+    /// use open_ontologies::state::StateDb;
+    /// use open_ontologies::graph::GraphStore;
+    /// use std::path::Path;
+    /// use std::sync::Arc;
+    ///
+    /// let db    = StateDb::open(Path::new(":memory:")).unwrap();
+    /// let graph = Arc::new(GraphStore::new());
+    /// let monitor = Monitor::new(db.clone(), graph.clone());
+    ///
+    /// monitor.add_watcher(Watcher {
+    ///     id:              "class-count-gate".to_string(),
+    ///     check_type:      "sparql".to_string(),
+    ///     threshold:       100.0,
+    ///     severity:        "warning".to_string(),
+    ///     action:          WatcherAction::Notify,
+    ///     query:           Some(
+    ///         "SELECT (COUNT(?c) AS ?count) WHERE { ?c a <http://www.w3.org/2002/07/owl#Class> }"
+    ///             .to_string(),
+    ///     ),
+    ///     message:         Some("Class count exceeded threshold".to_string()),
+    ///     webhook_url:     None,
+    ///     webhook_headers: None,
+    /// });
+    ///
+    /// // The watcher is stored in the shared SQLite state. Verify via the
+    /// // raw connection that `StateDb` exposes for inspection.
+    /// let stored_id: String = db.conn().query_row(
+    ///     "SELECT id FROM monitor_watchers WHERE id = 'class-count-gate'",
+    ///     [],
+    ///     |row| row.get(0),
+    /// ).unwrap();
+    /// assert_eq!(stored_id, "class-count-gate");
+    /// ```
     pub fn add_watcher(&self, watcher: Watcher) {
         let conn = self.db.conn();
         let action_str = serde_json::to_string(&watcher.action).unwrap_or_default();
@@ -75,6 +135,39 @@ impl Monitor {
         );
     }
 
+    /// Evaluate every enabled watcher and return a [`MonitorResult`] that
+    /// reports the overall status, any alerts that fired, and the list of
+    /// watcher IDs that passed.
+    ///
+    /// When no watchers are registered the result has `status = "ok"` and
+    /// empty `alerts` and `passed` vectors. This makes the zero-watcher case
+    /// safe for hermetic tests that need to exercise downstream status
+    /// handling without standing up a live SPARQL endpoint.
+    ///
+    /// For watchers whose `check_type` is `"sparql"` the implementation
+    /// issues a SELECT query against the underlying Oxigraph store; those
+    /// watchers require a populated store to return meaningful values. The
+    /// example below covers the zero-watcher path only.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use open_ontologies::monitor::Monitor;
+    /// use open_ontologies::state::StateDb;
+    /// use open_ontologies::graph::GraphStore;
+    /// use std::path::Path;
+    /// use std::sync::Arc;
+    ///
+    /// let db    = StateDb::open(Path::new(":memory:")).unwrap();
+    /// let graph = Arc::new(GraphStore::new());
+    /// let monitor = Monitor::new(db, graph);
+    ///
+    /// // With no watchers registered the monitor reports "ok".
+    /// let result = monitor.run_watchers();
+    /// assert_eq!(result.status, "ok");
+    /// assert!(result.alerts.is_empty());
+    /// assert!(result.passed.is_empty());
+    /// ```
     pub fn run_watchers(&self) -> MonitorResult {
         // OntoStar Stream 4 — Loop 2: opportunistic threshold calibration sweep.
         // Failure here is non-fatal — the sweep is best-effort housekeeping.
@@ -156,6 +249,29 @@ impl Monitor {
         MonitorResult { status, alerts, passed }
     }
 
+    /// Return `true` when a watcher action has raised the block flag, meaning
+    /// the next `onto_apply` call should be refused until the issue is
+    /// resolved and [`clear_blocked`][Monitor::clear_blocked] is called.
+    ///
+    /// The blocked state is persisted in SQLite so it survives process
+    /// restarts when the same `StateDb` path is reused.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use open_ontologies::monitor::Monitor;
+    /// use open_ontologies::state::StateDb;
+    /// use open_ontologies::graph::GraphStore;
+    /// use std::path::Path;
+    /// use std::sync::Arc;
+    ///
+    /// let db    = StateDb::open(Path::new(":memory:")).unwrap();
+    /// let graph = Arc::new(GraphStore::new());
+    /// let monitor = Monitor::new(db, graph);
+    ///
+    /// // A freshly created monitor is never blocked.
+    /// assert!(!monitor.is_blocked());
+    /// ```
     pub fn is_blocked(&self) -> bool {
         let conn = self.db.conn();
         let result: Option<String> = conn
@@ -168,6 +284,38 @@ impl Monitor {
         result.as_deref() == Some("true")
     }
 
+    /// Raise or lower the block flag. Pass `true` to block and `false` to
+    /// unblock. Prefer [`clear_blocked`][Monitor::clear_blocked] for the
+    /// unblock case — it is more expressive at call sites.
+    ///
+    /// This is called automatically by [`run_watchers`][Monitor::run_watchers]
+    /// when a watcher with `WatcherAction::BlockNextApply` exceeds its
+    /// threshold.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use open_ontologies::monitor::Monitor;
+    /// use open_ontologies::state::StateDb;
+    /// use open_ontologies::graph::GraphStore;
+    /// use std::path::Path;
+    /// use std::sync::Arc;
+    ///
+    /// let db    = StateDb::open(Path::new(":memory:")).unwrap();
+    /// let graph = Arc::new(GraphStore::new());
+    /// let monitor = Monitor::new(db, graph);
+    ///
+    /// // Starts unblocked.
+    /// assert!(!monitor.is_blocked());
+    ///
+    /// // Raise the block flag.
+    /// monitor.set_blocked(true);
+    /// assert!(monitor.is_blocked());
+    ///
+    /// // Lower it again.
+    /// monitor.set_blocked(false);
+    /// assert!(!monitor.is_blocked());
+    /// ```
     pub fn set_blocked(&self, blocked: bool) {
         let conn = self.db.conn();
         let _ = conn.execute(
@@ -176,6 +324,38 @@ impl Monitor {
         );
     }
 
+    /// Clear the block flag, allowing the next `onto_apply` call to proceed.
+    ///
+    /// This is the standard resolution path after a practitioner has
+    /// investigated a monitor alert: fix the root cause in the ontology, then
+    /// call `clear_blocked` to re-open the apply gate.
+    ///
+    /// # Examples
+    ///
+    /// Full blocked → unblocked lifecycle:
+    ///
+    /// ```
+    /// use open_ontologies::monitor::Monitor;
+    /// use open_ontologies::state::StateDb;
+    /// use open_ontologies::graph::GraphStore;
+    /// use std::path::Path;
+    /// use std::sync::Arc;
+    ///
+    /// let db    = StateDb::open(Path::new(":memory:")).unwrap();
+    /// let graph = Arc::new(GraphStore::new());
+    /// let monitor = Monitor::new(db, graph);
+    ///
+    /// // Initially not blocked.
+    /// assert!(!monitor.is_blocked());
+    ///
+    /// // A threshold breach blocks the apply gate.
+    /// monitor.set_blocked(true);
+    /// assert!(monitor.is_blocked());
+    ///
+    /// // After resolving the issue, clear the block.
+    /// monitor.clear_blocked();
+    /// assert!(!monitor.is_blocked());
+    /// ```
     pub fn clear_blocked(&self) {
         self.set_blocked(false);
     }
