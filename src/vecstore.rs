@@ -57,6 +57,8 @@ impl VecStore {
     /// # Examples
     ///
     /// ```
+    /// # #[cfg(feature = "embeddings")]
+    /// # {
     /// use open_ontologies::state::StateDb;
     /// use open_ontologies::vecstore::VecStore;
     /// use std::path::Path;
@@ -65,6 +67,7 @@ impl VecStore {
     /// let store = VecStore::new(db);
     /// assert!(store.is_empty());
     /// assert_eq!(store.len(), 0);
+    /// # }
     /// ```
     pub fn new(db: StateDb) -> Self {
         Self {
@@ -81,6 +84,8 @@ impl VecStore {
     /// # Examples
     ///
     /// ```
+    /// # #[cfg(feature = "embeddings")]
+    /// # {
     /// use open_ontologies::state::StateDb;
     /// use open_ontologies::vecstore::VecStore;
     /// use std::path::Path;
@@ -94,6 +99,7 @@ impl VecStore {
     /// // Upserting the same IRI replaces the existing entry, not appends.
     /// store.upsert("urn:ex:A", &[0.0, 1.0], &[0.3, 0.4]);
     /// assert_eq!(store.len(), 1);
+    /// # }
     /// ```
     pub fn upsert(&mut self, iri: &str, text_vec: &[f32], struct_vec: &[f32]) {
         self.entries.insert(iri.to_string(), VecEntry {
@@ -109,6 +115,8 @@ impl VecStore {
     /// # Examples
     ///
     /// ```
+    /// # #[cfg(feature = "embeddings")]
+    /// # {
     /// use open_ontologies::state::StateDb;
     /// use open_ontologies::vecstore::VecStore;
     /// use std::path::Path;
@@ -125,6 +133,7 @@ impl VecStore {
     /// // Removing again is a no-op.
     /// store.remove("urn:ex:B");
     /// assert!(store.is_empty());
+    /// # }
     /// ```
     pub fn remove(&mut self, iri: &str) {
         self.entries.remove(iri);
@@ -139,6 +148,8 @@ impl VecStore {
     /// # Examples
     ///
     /// ```
+    /// # #[cfg(feature = "embeddings")]
+    /// # {
     /// use open_ontologies::state::StateDb;
     /// use open_ontologies::vecstore::VecStore;
     /// use std::path::Path;
@@ -155,9 +166,12 @@ impl VecStore {
     /// assert_eq!(results.len(), 2);
     /// assert_eq!(results[0].0, "urn:ex:X");
     /// assert!(results[0].1 > results[1].1);
+    /// # }
     /// ```
     ///
     /// ```
+    /// # #[cfg(feature = "embeddings")]
+    /// # {
     /// use open_ontologies::state::StateDb;
     /// use open_ontologies::vecstore::VecStore;
     /// use std::path::Path;
@@ -175,6 +189,7 @@ impl VecStore {
     /// let empty_db = StateDb::open(Path::new(":memory:")).unwrap();
     /// let empty = VecStore::new(empty_db);
     /// assert_eq!(empty.search_cosine(&[1.0, 0.0], 5).len(), 0);
+    /// # }
     /// ```
     pub fn search_cosine(&self, query: &[f32], top_k: usize) -> Vec<(String, f32)> {
         let query_norm = l2_normalize(query);
@@ -193,6 +208,8 @@ impl VecStore {
     /// # Examples
     ///
     /// ```
+    /// # #[cfg(feature = "embeddings")]
+    /// # {
     /// use open_ontologies::state::StateDb;
     /// use open_ontologies::vecstore::VecStore;
     /// use std::path::Path;
@@ -209,6 +226,7 @@ impl VecStore {
     /// assert_eq!(results.len(), 2);
     /// // Nearest entry (smallest distance) is first.
     /// assert!(results[0].1 <= results[1].1);
+    /// # }
     /// ```
     pub fn search_poincare(&self, query: &[f32], top_k: usize) -> Vec<(String, f32)> {
         let mut scores: Vec<(String, f32)> = self.entries.iter()
@@ -228,6 +246,8 @@ impl VecStore {
     /// # Examples
     ///
     /// ```
+    /// # #[cfg(feature = "embeddings")]
+    /// # {
     /// use open_ontologies::state::StateDb;
     /// use open_ontologies::vecstore::VecStore;
     /// use std::path::Path;
@@ -242,9 +262,12 @@ impl VecStore {
     /// assert_eq!(results.len(), 2);
     /// // Results are in descending combined-score order.
     /// assert!(results[0].1 >= results[1].1);
+    /// # }
     /// ```
     ///
     /// ```
+    /// # #[cfg(feature = "embeddings")]
+    /// # {
     /// use open_ontologies::state::StateDb;
     /// use open_ontologies::vecstore::VecStore;
     /// use std::path::Path;
@@ -259,6 +282,7 @@ impl VecStore {
     /// let product = store.search_product(&[1.0, 0.0], &[0.0, 0.0], 2, 1.0);
     /// let cosine  = store.search_cosine(&[1.0, 0.0], 2);
     /// assert_eq!(product[0].0, cosine[0].0);
+    /// # }
     /// ```
     pub fn search_product(
         &self,
@@ -385,6 +409,8 @@ impl VecStore {
     /// # Examples
     ///
     /// ```
+    /// # #[cfg(feature = "embeddings")]
+    /// # {
     /// use open_ontologies::state::StateDb;
     /// use open_ontologies::vecstore::VecStore;
     /// use std::path::Path;
@@ -398,6 +424,7 @@ impl VecStore {
     ///
     /// store.upsert("urn:ex:D", &[0.0, 1.0], &[0.0, 0.0]);
     /// assert_eq!(store.len(), 2);
+    /// # }
     /// ```
     pub fn len(&self) -> usize {
         self.entries.len()
@@ -408,6 +435,8 @@ impl VecStore {
     /// # Examples
     ///
     /// ```
+    /// # #[cfg(feature = "embeddings")]
+    /// # {
     /// use open_ontologies::state::StateDb;
     /// use open_ontologies::vecstore::VecStore;
     /// use std::path::Path;
@@ -418,6 +447,7 @@ impl VecStore {
     ///
     /// store.upsert("urn:ex:E", &[1.0, 0.0], &[0.0, 0.0]);
     /// assert!(!store.is_empty());
+    /// # }
     /// ```
     pub fn is_empty(&self) -> bool {
         self.entries.is_empty()
@@ -432,6 +462,8 @@ impl VecStore {
     /// # Examples
     ///
     /// ```
+    /// # #[cfg(feature = "embeddings")]
+    /// # {
     /// use open_ontologies::state::StateDb;
     /// use open_ontologies::vecstore::VecStore;
     /// use std::path::Path;
@@ -447,6 +479,7 @@ impl VecStore {
     /// // The vector is L2-normalised: ‖v‖ ≈ 1.
     /// let norm: f32 = v.iter().map(|x| x * x).sum::<f32>().sqrt();
     /// assert!((norm - 1.0).abs() < 1e-5);
+    /// # }
     /// ```
     pub fn get_text_vec(&self, iri: &str) -> Option<&[f32]> {
         self.entries.get(iri).map(|e| e.text_vec.as_slice())
@@ -461,6 +494,8 @@ impl VecStore {
     /// # Examples
     ///
     /// ```
+    /// # #[cfg(feature = "embeddings")]
+    /// # {
     /// use open_ontologies::state::StateDb;
     /// use open_ontologies::vecstore::VecStore;
     /// use std::path::Path;
@@ -473,6 +508,7 @@ impl VecStore {
     /// store.upsert("urn:ex:G", &[1.0, 0.0], &[0.2, 0.3]);
     /// let sv = store.get_struct_vec("urn:ex:G").unwrap();
     /// assert_eq!(sv, &[0.2_f32, 0.3_f32]);
+    /// # }
     /// ```
     pub fn get_struct_vec(&self, iri: &str) -> Option<&[f32]> {
         self.entries.get(iri).map(|e| e.struct_vec.as_slice())
