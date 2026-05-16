@@ -43,6 +43,16 @@ pub enum SqlDriver {
 }
 
 impl SqlDriver {
+    /// Return the canonical lowercase driver name as a `&'static str`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use open_ontologies::sqlsource::SqlDriver;
+    ///
+    /// assert_eq!(SqlDriver::Postgres.as_str(), "postgres");
+    /// assert_eq!(SqlDriver::DuckDb.as_str(), "duckdb");
+    /// ```
     pub fn as_str(&self) -> &'static str {
         match self {
             SqlDriver::Postgres => "postgres",
@@ -58,6 +68,34 @@ impl SqlDriver {
 /// * `duckdb://…` / `duckdb:…` → DuckDB
 /// * `:memory:` → DuckDB (in-memory)
 /// * `*.duckdb`, `*.ddb` file path → DuckDB
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::sqlsource::{detect_driver, SqlDriver};
+///
+/// // Postgres schemes
+/// assert_eq!(detect_driver("postgres://user:pass@host/db").unwrap(), SqlDriver::Postgres);
+/// assert_eq!(detect_driver("postgresql://user@host/db").unwrap(), SqlDriver::Postgres);
+///
+/// // DuckDB — in-memory sentinel
+/// assert_eq!(detect_driver(":memory:").unwrap(), SqlDriver::DuckDb);
+///
+/// // DuckDB — URL schemes
+/// assert_eq!(detect_driver("duckdb:///tmp/warehouse.db").unwrap(), SqlDriver::DuckDb);
+/// assert_eq!(detect_driver("duckdb:/tmp/warehouse.db").unwrap(), SqlDriver::DuckDb);
+///
+/// // DuckDB — file extensions
+/// assert_eq!(detect_driver("/data/store.duckdb").unwrap(), SqlDriver::DuckDb);
+/// assert_eq!(detect_driver("./local.ddb").unwrap(), SqlDriver::DuckDb);
+///
+/// // Case-insensitive
+/// assert_eq!(detect_driver("POSTGRES://U@H/D").unwrap(), SqlDriver::Postgres);
+///
+/// // Unknown scheme → error
+/// assert!(detect_driver("mysql://host/db").is_err());
+/// assert!(detect_driver("").is_err());
+/// ```
 pub fn detect_driver(connection: &str) -> Result<SqlDriver> {
     let trimmed = connection.trim();
     if trimmed.is_empty() {
@@ -82,6 +120,28 @@ pub fn detect_driver(connection: &str) -> Result<SqlDriver> {
 /// Strip the `duckdb:` / `duckdb://` prefix. Returns `:memory:` unchanged and
 /// preserves bare file paths. The remaining string is what the duckdb crate
 /// expects (a filesystem path or `:memory:`).
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::sqlsource::duckdb_target;
+///
+/// // Three-slash URL: strip prefix, keep path
+/// assert_eq!(duckdb_target("duckdb:///tmp/x.db"), "/tmp/x.db");
+///
+/// // Two-slash URL: strip prefix, keep path
+/// assert_eq!(duckdb_target("duckdb:/tmp/x.db"), "/tmp/x.db");
+///
+/// // Empty URL body → in-memory sentinel
+/// assert_eq!(duckdb_target("duckdb://"), ":memory:");
+/// assert_eq!(duckdb_target("duckdb:"), ":memory:");
+///
+/// // Already a bare sentinel — returned unchanged
+/// assert_eq!(duckdb_target(":memory:"), ":memory:");
+///
+/// // Bare file path — returned unchanged
+/// assert_eq!(duckdb_target("/data/warehouse.duckdb"), "/data/warehouse.duckdb");
+/// ```
 pub fn duckdb_target(connection: &str) -> String {
     let trimmed = connection.trim();
     if let Some(rest) = trimmed.strip_prefix("duckdb://") {

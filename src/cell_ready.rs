@@ -31,11 +31,64 @@ use crate::state::StateDb;
 
 /// Stream-2-stub stand-in for `wasm4pm`'s POWL arena handle. Stream 2
 /// replaces this with a re-export from `powl_bridge.rs`.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::cell_ready::PowlOpRef;
+///
+/// let op = PowlOpRef {
+///     powl_string: "→(A, B, C)",
+///     powl_hash: [0u8; 32],
+/// };
+/// assert_eq!(op.powl_string, "→(A, B, C)");
+/// assert_eq!(op.powl_hash, [0u8; 32]);
+/// ```
 pub struct PowlOpRef<'a> {
     pub powl_string: &'a str,
     pub powl_hash: [u8; 32],
 }
 
+/// All inputs required to evaluate the full 13-gate `CellReady` predicate.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::cell_ready::{CellReadyInputs, PowlOpRef};
+///
+/// let powl = PowlOpRef { powl_string: "→(seed,breed,validate)", powl_hash: [0u8; 32] };
+///
+/// let _inp = CellReadyInputs {
+///     scope_token: "scope-abc",
+///     declared_powl: &powl,
+///     ocel_trace_hash: &"aa".repeat(32),
+///     artifact_hash: &"bb".repeat(32),
+///     gate_config_hash: &"cc".repeat(32),
+///     session_revoked: false,
+///     fitness_observed: 0.95,
+///     precision_observed: 0.90,
+///     fitness_required: 0.80,
+///     precision_required: 0.80,
+///     required_stages: &["seed".to_string(), "breed".to_string()],
+///     observed_stages: &["seed".to_string(), "breed".to_string(), "validate".to_string()],
+///     conformance_run_id: "run-001",
+///     production_law_version: "ontostar-1.0.0",
+///     prior_receipt: None,
+///     session_id: "session-xyz",
+///     provenance_evidence: &["bb".repeat(32)],
+///     external_attestation: "",
+///     granted_at_chain: &["2026-01-01T00:00:00Z".to_string(), "2026-01-02T00:00:00Z".to_string()],
+///     admitted_receipts: &[],
+///     replay_canonical_hash: &"aa".repeat(32),
+///     signature: None,
+///     signing_key_fpr: None,
+///     trusted_keys: None,
+///     allow_legacy_unsigned: true,
+///     post_bootstrap: false,
+///     prior_tenant_receipt_count: 0,
+///     trusted_keys_db: None,
+/// };
+/// ```
 pub struct CellReadyInputs<'a> {
     pub scope_token: &'a str,
     pub declared_powl: &'a PowlOpRef<'a>,
@@ -142,6 +195,69 @@ pub struct CellReadyInputs<'a> {
 ///
 /// Persistence of the receipt is the caller's responsibility (admission
 /// gate); this function only certifies that all thirteen conjuncts hold.
+///
+/// # Failure modes
+///
+/// Every denial is a typed [`DefectClass`]; no string-error authority is used.
+/// The first failing conjunct short-circuits evaluation — later gates are not
+/// checked when an earlier one fails.
+///
+/// # Example
+///
+/// ```no_run
+/// # use std::path::Path;
+/// # use open_ontologies::cell_ready::{CellReadyInputs, PowlOpRef, cell_ready};
+/// # use open_ontologies::ocel_store::OcelStore;
+/// # use open_ontologies::state::StateDb;
+///
+/// // Open an in-memory StateDb and wrap it in an OcelStore.
+/// let db = StateDb::open(Path::new(":memory:")).expect("StateDb::open");
+/// let store = OcelStore::new(db);
+///
+/// let powl = PowlOpRef { powl_string: "→(A, B)", powl_hash: [0u8; 32] };
+/// let artifact = "bb".repeat(32);
+/// let ocel_hash = "aa".repeat(32);
+/// let gate_cfg = "cc".repeat(32);
+///
+/// let inp = CellReadyInputs {
+///     scope_token: "scope-demo",
+///     declared_powl: &powl,
+///     ocel_trace_hash: &ocel_hash,
+///     artifact_hash: &artifact,
+///     gate_config_hash: &gate_cfg,
+///     session_revoked: false,
+///     fitness_observed: 0.95,
+///     precision_observed: 0.90,
+///     fitness_required: 0.80,
+///     precision_required: 0.80,
+///     required_stages: &["A".to_string()],
+///     observed_stages: &["A".to_string(), "B".to_string()],
+///     conformance_run_id: "run-001",
+///     production_law_version: "ontostar-1.0.0",
+///     prior_receipt: None,
+///     session_id: "sess-demo",
+///     provenance_evidence: &[artifact.clone()],
+///     external_attestation: "",
+///     granted_at_chain: &[
+///         "2026-01-01T00:00:00Z".to_string(),
+///         "2026-01-02T00:00:00Z".to_string(),
+///     ],
+///     admitted_receipts: &[],
+///     replay_canonical_hash: &ocel_hash,
+///     signature: None,
+///     signing_key_fpr: None,
+///     trusted_keys: None,
+///     allow_legacy_unsigned: true,
+///     post_bootstrap: false,
+///     prior_tenant_receipt_count: 0,
+///     trusted_keys_db: None,
+/// };
+///
+/// // Without a declared + closed workflow in the store this returns
+/// // Err(DefectClass::ScopeUnclosed).
+/// let result = cell_ready(inp, &store);
+/// assert!(result.is_err());
+/// ```
 pub fn cell_ready(
     inp: CellReadyInputs<'_>,
     store: &OcelStore,
