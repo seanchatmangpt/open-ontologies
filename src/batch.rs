@@ -90,12 +90,56 @@ struct BatchCmd {
 }
 
 impl BatchRunner {
+    /// Create a new `BatchRunner` backed by an in-memory database and graph.
+    ///
+    /// Set `pretty` to `true` to emit indented JSON on stdout; `false` emits
+    /// compact NDJSON.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::sync::Arc;
+    /// use open_ontologies::batch::BatchRunner;
+    /// use open_ontologies::graph::GraphStore;
+    /// use open_ontologies::state::StateDb;
+    ///
+    /// let db = StateDb::open(std::path::Path::new(":memory:")).unwrap();
+    /// let graph = Arc::new(GraphStore::new());
+    /// let runner = BatchRunner::new(db, graph, false);
+    /// // Runner is ready — no triples loaded yet.
+    /// drop(runner);
+    /// ```
     pub fn new(db: StateDb, graph: Arc<GraphStore>, pretty: bool) -> Self {
         Self { db, graph, pretty }
     }
 
     /// Parse input (auto-detect line vs JSON format) and run all commands.
     /// Returns the process exit code (0 = success, 1 = at least one error).
+    ///
+    /// Input is auto-detected: if it starts with `[` it is parsed as a JSON
+    /// array of `{"command": "...", "args": [...]}` objects; otherwise each
+    /// non-blank, non-comment line is treated as a shell-quoted command.
+    ///
+    /// A `bail` value of `true` stops execution on the first error.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # tokio_test::block_on(async {
+    /// use std::sync::Arc;
+    /// use open_ontologies::batch::BatchRunner;
+    /// use open_ontologies::graph::GraphStore;
+    /// use open_ontologies::state::StateDb;
+    ///
+    /// let db = StateDb::open(std::path::Path::new(":memory:")).unwrap();
+    /// let graph = Arc::new(GraphStore::new());
+    /// let runner = BatchRunner::new(db, graph, false);
+    ///
+    /// // "status" is a built-in command that always succeeds.
+    /// let code = runner.run("status", false).await;
+    /// assert_eq!(code, 0);
+    /// # });
+    /// ```
     pub async fn run(&self, input: &str, bail: bool) -> i32 {
         let commands = match parse_input(input) {
             Ok(cmds) => cmds,
