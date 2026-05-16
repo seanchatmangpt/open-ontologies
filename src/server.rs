@@ -2112,13 +2112,37 @@ impl OpenOntologiesServer {
                 self.lineage().record(&self.session_id, "P", "plan", "computed");
                 result
             }
-            Err(e) => format!(r#"{{"error":"{}"}}"#, e),
+            Err(e) => serde_json::json!({
+                "error": format!("{}", e),
+                "hint": "onto_plan failed to parse or diff the provided Turtle. \
+                         Common causes: invalid Turtle syntax (missing prefix declarations, \
+                         unclosed literals, bad IRI escaping) or an empty new_turtle field. \
+                         Validate your Turtle with onto_validate before calling onto_plan.",
+            }).to_string(),
         }
     }
 
     #[tool(name = "onto_apply", description = "Apply the last plan. Modes: 'safe' (clear+reload, checks monitor), 'force' (skip monitor watchers — does NOT bypass admission), 'migrate' (adds owl:equivalentClass/Property bridges for renames). To bypass admission, set bypass_admission=true with a non-empty bypass_reason.")]
     async fn onto_apply(&self, Parameters(input): Parameters<OntoApplyInput>) -> String {
         let mode = input.mode.as_deref().unwrap_or("safe");
+
+        // Validate mode before any state mutation or admission gate.
+        const VALID_MODES: &[&str] = &["safe", "force", "migrate"];
+        if !VALID_MODES.contains(&mode) {
+            return serde_json::json!({
+                "error": format!("Invalid apply mode '{}'.", mode),
+                "hint": format!(
+                    "Valid modes are: {}. \
+                     'safe' clears the store and reloads from the plan (default). \
+                     'force' is the same as 'safe' but skips monitor watchers — \
+                     it does NOT bypass the admission gate. \
+                     'migrate' retains removed IRIs by adding owl:equivalentClass or \
+                     owl:equivalentProperty bridges to their replacements instead of \
+                     deleting them — use this when locked IRIs appear in the plan.",
+                    VALID_MODES.join(", ")
+                ),
+            }).to_string();
+        }
         // OntoStar Stream 3: admission gate fires BEFORE any state mutation.
         let artifact_bytes = self.graph.serialize("ntriples").unwrap_or_default();
         let receipt = match self.evaluate_admission(
@@ -2182,7 +2206,30 @@ impl OpenOntologiesServer {
                     }
                 parsed.to_string()
             }
-            Err(e) => format!(r#"{{"error":"{}"}}"#, e),
+            Err(e) => {
+                // Surface structured, actionable context. The most common causes are:
+                // locked IRI violations (the plan removes a protected term) or a missing
+                // prior plan (onto_plan was not called before onto_apply).
+                let msg = format!("{}", e);
+                let hint = if msg.contains("locked IRI") || msg.contains("Apply blocked") {
+                    "The plan attempts to remove one or more locked IRIs. \
+                     Use mode='migrate' to add owl:equivalentClass or owl:equivalentProperty \
+                     bridges instead of deleting them, or unlock each IRI with onto_lock \
+                     (pass the IRI with lock=false) before applying."
+                } else if msg.contains("No plan found") {
+                    "Call onto_plan with your new Turtle content first. \
+                     onto_apply requires a computed plan to know what changed."
+                } else {
+                    "onto_apply failed during store mutation. Check that the ontology \
+                     store is loaded (onto_load) and the plan Turtle is valid \
+                     (onto_validate). If monitor watchers are blocking, use \
+                     onto_monitor_clear or mode='force' to skip watchers."
+                };
+                serde_json::json!({
+                    "error": msg,
+                    "hint": hint,
+                }).to_string()
+            }
         }
     }
 
@@ -2190,14 +2237,72 @@ impl OpenOntologiesServer {
     async fn onto_lock(&self, Parameters(input): Parameters<OntoLockInput>) -> String {
         let planner = crate::plan::Planner::new(self.db.clone(), self.graph.clone());
         let reason = input.reason.as_deref().unwrap_or("locked");
+
+        // Check which IRIs are actually present in the store so callers know if
+        // they are locking something that does not yet exist.
+        let mut locked: Vec<String> = Vec::new();
+        let mut not_in_store: Vec<String> = Vec::new();
         for iri in &input.iris {
+            // A quick ASK-style existence check: any triple that references the IRI.
+            let check_query = format!(
+                "SELECT (COUNT(*) AS ?n) WHERE {{ \
+                 {{ <{iri}> ?p ?o }} UNION {{ ?s ?p <{iri}> }} \
+                 }}"
+            );
+            let exists = self
+                .graph
+                .sparql_select(&check_query)
+                .ok()
+                .and_then(|json| serde_json::from_str::<serde_json::Value>(&json).ok())
+                .and_then(|v| {
+                    v["results"]
+                        .as_array()?
+                        .first()?["n"]
+                        .as_str()
+                        .map(|s| {
+                            s.trim_matches('"')
+                                .split("^^")
+                                .next()
+                                .unwrap_or("0")
+                                .trim_matches('"')
+                                .parse::<u64>()
+                                .unwrap_or(0)
+                        })
+                })
+                .map(|n| n > 0)
+                .unwrap_or(false);
+
             planner.lock_iri(iri, reason);
+            locked.push(iri.clone());
+            if !exists {
+                not_in_store.push(iri.clone());
+            }
         }
-        serde_json::json!({
-            "ok": true,
-            "locked": input.iris,
-            "reason": reason,
-        }).to_string()
+
+        if not_in_store.is_empty() {
+            serde_json::json!({
+                "ok": true,
+                "locked": locked,
+                "reason": reason,
+            })
+            .to_string()
+        } else {
+            serde_json::json!({
+                "ok": true,
+                "locked": locked,
+                "reason": reason,
+                "warning": format!(
+                    "{} IRI(s) were locked but are not currently present in the store: {}. \
+                     The lock is recorded and will take effect if these IRIs are added in a \
+                     future load. If you intended to lock an existing IRI, check the spelling \
+                     or run onto_query to confirm the IRI is present.",
+                    not_in_store.len(),
+                    not_in_store.join(", ")
+                ),
+                "not_in_store": not_in_store,
+            })
+            .to_string()
+        }
     }
 
     #[tool(name = "onto_drift", description = "Detect drift between two ontology versions. Returns added/removed terms, likely renames with confidence scores, and drift velocity.")]

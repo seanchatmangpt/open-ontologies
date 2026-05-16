@@ -18,6 +18,8 @@ struct PlanState {
     removed_classes: Vec<String>,
     added_properties: Vec<String>,
     removed_properties: Vec<String>,
+    /// IRIs that are locked and appear in the removal set.
+    locked_iris: Vec<String>,
 }
 
 impl Planner {
@@ -77,6 +79,12 @@ impl Planner {
             "low"
         };
 
+        // Collect the locked IRI names for enforcement in apply().
+        let locked_iris: Vec<String> = locked_violations
+            .iter()
+            .filter_map(|v| v.get("iri").and_then(|s| s.as_str()).map(str::to_owned))
+            .collect();
+
         // Cache the plan state
         *self.last_plan.borrow_mut() = Some(PlanState {
             new_turtle: new_turtle.to_string(),
@@ -84,6 +92,7 @@ impl Planner {
             removed_classes: removed_classes.clone(),
             added_properties: added_properties.clone(),
             removed_properties: removed_properties.clone(),
+            locked_iris,
         });
 
         let result = serde_json::json!({
@@ -119,8 +128,31 @@ impl Planner {
         let plan = self.last_plan.borrow();
         let plan = match plan.as_ref() {
             Some(p) => p,
-            None => anyhow::bail!("No plan found. Run plan() first."),
+            None => anyhow::bail!(
+                "No plan found. Call onto_plan with your new Turtle first — \
+                 apply requires a computed plan to know what changed."
+            ),
         };
+
+        // Block removal of locked IRIs in safe/force modes.
+        // In migrate mode the IRIs are retained via owl:equivalentClass bridges,
+        // so they are not actually removed and the lock is respected.
+        if mode != "migrate" && !plan.locked_iris.is_empty() {
+            let names = plan.locked_iris.join(", ");
+            anyhow::bail!(
+                "Apply blocked: the plan removes {} locked IRI(s): {}. \
+                 Locked IRIs are protected production terms that must not be deleted. \
+                 Options: \
+                 (1) Use mode='migrate' — keeps the locked IRIs in the store and adds \
+                 owl:equivalentClass or owl:equivalentProperty bridges to their replacements \
+                 instead of removing them. \
+                 (2) Unlock each IRI first with onto_lock (set lock=false on the IRI) \
+                 if you are certain removal is safe. \
+                 (3) Revise the Turtle so the locked IRIs are still present.",
+                plan.locked_iris.len(),
+                names
+            );
+        }
 
         if mode == "migrate" {
             return self.apply_migrate(plan);
