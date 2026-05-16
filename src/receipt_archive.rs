@@ -22,6 +22,14 @@
 //!     archived_at  TEXT NOT NULL
 //! );
 //! ```
+//!
+//! # Note
+//!
+//! `archive_receipts` requires a [`StateDb`] backed by a real SQLite file
+//! (not an in-memory `:memory:` connection) because it uses WAL mode and
+//! multi-statement batches. Doctests below use `tempfile::TempDir` to
+//! satisfy the file requirement while remaining hermetic: the temp directory
+//! is cleaned up automatically when the guard drops.
 
 use crate::state::StateDb;
 use anyhow::{anyhow, Context, Result};
@@ -29,6 +37,29 @@ use rusqlite::Connection;
 use std::path::Path;
 
 /// Aggregate stats from one [`archive_receipts`] run.
+///
+/// # Examples
+///
+/// A fresh run against an empty (or all-recent) hot table produces all
+/// zeroes — the caller can branch on `rows_archived == 0` to skip
+/// downstream telemetry.
+///
+/// ```
+/// use open_ontologies::receipt_archive::ArchiveStats;
+///
+/// let stats = ArchiveStats::default();
+/// assert_eq!(stats.rows_archived, 0);
+/// assert_eq!(stats.rows_pruned_from_hot, 0);
+/// assert_eq!(stats.shards_written, 0);
+///
+/// // Fields are public so callers can construct test doubles.
+/// let partial = ArchiveStats {
+///     rows_archived: 5,
+///     rows_pruned_from_hot: 5,
+///     shards_written: 1,
+/// };
+/// assert!(partial.rows_archived > 0);
+/// ```
 #[derive(Debug, Clone, Default)]
 pub struct ArchiveStats {
     pub rows_archived: u64,
@@ -69,6 +100,68 @@ pub struct ArchivedReceipt {
 /// the hot row is deleted. If shard-write fails, the hot row stays. If
 /// hot-delete fails, the shard write is durable (so the chain walker
 /// still finds the receipt) and the next run will retry the prune.
+///
+/// # Examples
+///
+/// Run against an empty hot table: no rows are archived.
+///
+/// ```
+/// use open_ontologies::receipt_archive::archive_receipts;
+/// use open_ontologies::state::StateDb;
+/// use tempfile::tempdir;
+///
+/// let db_dir  = tempdir().unwrap();
+/// let arc_dir = tempdir().unwrap();
+/// let db = StateDb::open(&db_dir.path().join("state.db")).unwrap();
+///
+/// let stats = archive_receipts(&db, 365, arc_dir.path()).unwrap();
+/// assert_eq!(stats.rows_archived, 0);
+/// assert_eq!(stats.shards_written, 0);
+/// ```
+///
+/// Insert one receipt that is 400 days old and archive it.  The hot
+/// table must be empty after the call and the sidecar index must contain
+/// the hash.
+///
+/// ```
+/// use open_ontologies::receipt_archive::{archive_receipts, lookup_archived};
+/// use open_ontologies::state::StateDb;
+/// use tempfile::tempdir;
+///
+/// let db_dir  = tempdir().unwrap();
+/// let arc_dir = tempdir().unwrap();
+/// let db = StateDb::open(&db_dir.path().join("state.db")).unwrap();
+///
+/// // Stamp granted_at 400 days in the past so it clears the 365-day gate.
+/// let old_ts = (chrono::Utc::now() - chrono::Duration::days(400)).to_rfc3339();
+/// let hash   = format!("{:064x}", 0xdeadbeef_u64);
+/// db.conn().execute(
+///     "INSERT INTO receipts (
+///         receipt_hash, scope_token, session_id,
+///         artifact_hash, declared_powl_hash, ocel_canonical_hash,
+///         gate_config_hash, prior_receipt_hash,
+///         production_law_version, granted_at, sequence, tenant_id,
+///         key_valid_at
+///      ) VALUES (?1,'s','s',?1,?1,?1,?1,NULL,'ontostar-1.0.0',?2,1,'default','')",
+///     rusqlite::params![hash, old_ts],
+/// ).unwrap();
+///
+/// let stats = archive_receipts(&db, 365, arc_dir.path()).unwrap();
+/// assert_eq!(stats.rows_archived, 1);
+/// assert_eq!(stats.rows_pruned_from_hot, 1);
+/// assert_eq!(stats.shards_written, 1);
+///
+/// // Hot table is now empty.
+/// let hot: i64 = db.conn()
+///     .query_row("SELECT COUNT(*) FROM receipts", [], |r| r.get(0))
+///     .unwrap();
+/// assert_eq!(hot, 0);
+///
+/// // Archived hash is recoverable via the sidecar index.
+/// let found = lookup_archived(arc_dir.path(), &hash).unwrap();
+/// assert!(found.is_some());
+/// assert_eq!(found.unwrap().receipt_hash, hash);
+/// ```
 pub fn archive_receipts(
     db: &StateDb,
     older_than_days: u64,
@@ -144,6 +237,53 @@ pub fn archive_receipts(
 /// Look up an archived receipt by hash. Returns `Ok(None)` when the
 /// hash is not in the sidecar index (caller should treat this as
 /// "receipt was never admitted, OR has not yet been archived").
+///
+/// # Examples
+///
+/// When no `archive_index.db` exists in `archive_dir`, the function
+/// returns `Ok(None)` immediately — no error.
+///
+/// ```
+/// use open_ontologies::receipt_archive::lookup_archived;
+/// use tempfile::tempdir;
+///
+/// let arc_dir = tempdir().unwrap();
+/// // Directory exists but contains no archive_index.db yet.
+/// let result = lookup_archived(arc_dir.path(), "nonexistent-hash").unwrap();
+/// assert!(result.is_none());
+/// ```
+///
+/// After a receipt has been archived by [`archive_receipts`], the same
+/// hash is resolved in O(1) via the sidecar index.
+///
+/// ```
+/// use open_ontologies::receipt_archive::{archive_receipts, lookup_archived};
+/// use open_ontologies::state::StateDb;
+/// use tempfile::tempdir;
+///
+/// let db_dir  = tempdir().unwrap();
+/// let arc_dir = tempdir().unwrap();
+/// let db = StateDb::open(&db_dir.path().join("state.db")).unwrap();
+///
+/// let old_ts = (chrono::Utc::now() - chrono::Duration::days(400)).to_rfc3339();
+/// let hash   = format!("{:064x}", 0xcafe_u64);
+/// db.conn().execute(
+///     "INSERT INTO receipts (
+///         receipt_hash, scope_token, session_id,
+///         artifact_hash, declared_powl_hash, ocel_canonical_hash,
+///         gate_config_hash, prior_receipt_hash,
+///         production_law_version, granted_at, sequence, tenant_id,
+///         key_valid_at
+///      ) VALUES (?1,'s','s',?1,?1,?1,?1,NULL,'ontostar-1.0.0',?2,1,'default','')",
+///     rusqlite::params![hash, old_ts],
+/// ).unwrap();
+/// archive_receipts(&db, 365, arc_dir.path()).unwrap();
+///
+/// let archived = lookup_archived(arc_dir.path(), &hash).unwrap().unwrap();
+/// assert_eq!(archived.receipt_hash, hash);
+/// assert_eq!(archived.tenant_id, "default");
+/// assert_eq!(archived.sequence, 1);
+/// ```
 pub fn lookup_archived(
     archive_dir: &Path,
     receipt_hash: &str,
