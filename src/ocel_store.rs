@@ -158,6 +158,24 @@ impl OcelStore {
     }
 
     /// Stream-3 helper: does a declared workflow row exist for the scope?
+    ///
+    /// Returns `false` for any scope that has not been declared yet. A freshly
+    /// opened in-memory database contains no declared workflows, so any query
+    /// against an unknown scope token returns `false`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use open_ontologies::state::StateDb;
+    /// use open_ontologies::ocel_store::OcelStore;
+    /// use std::path::Path;
+    ///
+    /// let db = StateDb::open(Path::new(":memory:")).unwrap();
+    /// let store = OcelStore::new(db);
+    ///
+    /// // No workflow has been declared for this scope, so the predicate is false.
+    /// assert!(!store.has_declared_workflow("test-session-1").unwrap());
+    /// ```
     pub fn has_declared_workflow(&self, scope_token: &str) -> Result<bool> {
         let conn = self.db.conn();
         let _ = conn.execute_batch(crate::receipts::STREAM3_STUB_MIGRATION);
@@ -170,6 +188,24 @@ impl OcelStore {
     }
 
     /// Stream-3 helper: is the scope closed (closed_at IS NOT NULL)?
+    ///
+    /// A scope is considered closed when its `declared_workflows` row carries a
+    /// non-NULL `closed_at` timestamp. A scope that was never declared, or a
+    /// scope that has been declared but not yet closed, both return `false`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use open_ontologies::state::StateDb;
+    /// use open_ontologies::ocel_store::OcelStore;
+    /// use std::path::Path;
+    ///
+    /// let db = StateDb::open(Path::new(":memory:")).unwrap();
+    /// let store = OcelStore::new(db);
+    ///
+    /// // A scope that was never declared cannot be closed.
+    /// assert!(!store.is_scope_closed("test-session-1").unwrap());
+    /// ```
     pub fn is_scope_closed(&self, scope_token: &str) -> Result<bool> {
         let conn = self.db.conn();
         let _ = conn.execute_batch(crate::receipts::STREAM3_STUB_MIGRATION);
@@ -182,6 +218,25 @@ impl OcelStore {
     }
 
     /// Stream-3 helper: does a conforming replay exist for the scope?
+    ///
+    /// Queries `conformance_runs` for a row whose `scope_token` matches and
+    /// whose `verdict` is `'conform'`. A freshly opened database has no
+    /// conformance run records, so any scope returns `false` until a conforming
+    /// replay has been recorded via [`OcelStore::replay_against_powl`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use open_ontologies::state::StateDb;
+    /// use open_ontologies::ocel_store::OcelStore;
+    /// use std::path::Path;
+    ///
+    /// let db = StateDb::open(Path::new(":memory:")).unwrap();
+    /// let store = OcelStore::new(db);
+    ///
+    /// // No conformance run has been recorded for this scope.
+    /// assert!(!store.has_conforming_replay("test-session-1").unwrap());
+    /// ```
     pub fn has_conforming_replay(&self, scope_token: &str) -> Result<bool> {
         let conn = self.db.conn();
         let _ = conn.execute_batch(crate::receipts::STREAM3_STUB_MIGRATION);
@@ -194,6 +249,25 @@ impl OcelStore {
     }
 
     /// Stream-3 helper: is the session in revoked_sessions (and not cleared)?
+    ///
+    /// Returns `true` only when a row for `session_id` exists in
+    /// `revoked_sessions` with `cleared_at IS NULL`. Sessions that were never
+    /// revoked, and revocations that have subsequently been cleared, both
+    /// return `false`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use open_ontologies::state::StateDb;
+    /// use open_ontologies::ocel_store::OcelStore;
+    /// use std::path::Path;
+    ///
+    /// let db = StateDb::open(Path::new(":memory:")).unwrap();
+    /// let store = OcelStore::new(db);
+    ///
+    /// // A session that was never revoked is not revoked.
+    /// assert!(!store.session_is_revoked("test-session-1").unwrap());
+    /// ```
     pub fn session_is_revoked(&self, session_id: &str) -> Result<bool> {
         let conn = self.db.conn();
         let _ = conn.execute_batch(crate::receipts::STREAM3_STUB_MIGRATION);
