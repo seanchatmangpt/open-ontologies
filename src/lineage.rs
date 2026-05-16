@@ -5,6 +5,27 @@ use wasm4pm_types::{Attribute, Attributes, Event, EventLog, Trace, AttributeValu
 pub const LINEAGE_EVENTS_TABLE: &str = "lineage_events";
 
 /// Append-only lineage log. Compressed format for AI consumption.
+///
+/// Each `LineageLog` is backed by an in-memory or on-disk SQLite database via
+/// [`StateDb`]. Events are written in append-only fashion and tagged with a
+/// session identifier so that the PM lifecycle loop can isolate and mine one
+/// session at a time.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::lineage::LineageLog;
+/// use open_ontologies::state::StateDb;
+/// use std::path::Path;
+///
+/// let db = StateDb::open(Path::new(":memory:")).unwrap();
+/// let log = LineageLog::new(db);
+/// let session_id = log.new_session();
+///
+/// // session IDs are 16-character lowercase hex strings.
+/// assert_eq!(session_id.len(), 16);
+/// assert!(session_id.chars().all(|c| c.is_ascii_hexdigit()));
+/// ```
 pub struct LineageLog {
     db: StateDb,
     governance_webhook: Option<String>,
@@ -25,6 +46,30 @@ impl LineageLog {
     }
 
     /// Record a lineage event.
+    ///
+    /// Events are stored in insertion order within the session. The `event_type`
+    /// is a single-letter code (`R`, `G`, `D`, `B`, `V`, `S`) and `operation`
+    /// is the human-readable activity name. Together they form the
+    /// `concept:name` attribute consumed by [`lineage_to_event_log`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use open_ontologies::lineage::LineageLog;
+    /// use open_ontologies::state::StateDb;
+    /// use std::path::Path;
+    ///
+    /// let db = StateDb::open(Path::new(":memory:")).unwrap();
+    /// let log = LineageLog::new(db);
+    /// let sid = "doctestSession01".to_string();
+    ///
+    /// log.record(&sid, "G", "admission_granted", "abc123");
+    ///
+    /// // The compact representation captures every field in order.
+    /// let compact = log.get_compact(&sid);
+    /// assert!(compact.contains("admission_granted"));
+    /// assert!(compact.contains("abc123"));
+    /// ```
     /// Format: session:seq:timestamp:event_type:operation:details
     pub fn record(&self, session_id: &str, event_type: &str, operation: &str, details: &str) {
         let conn = self.db.conn();
@@ -132,7 +177,81 @@ fn rand_id() -> u64 {
     (d.as_nanos() as u64).wrapping_add(seq)
 }
 
-/// Convert lineage events to a wasm4pm EventLog for process mining.
+/// Convert lineage events to a wasm4pm [`EventLog`] for process mining.
+///
+/// Each unique `session_id` in the [`LINEAGE_EVENTS_TABLE`] becomes one
+/// [`Trace`] (case) in the returned log. Events within a session are ordered
+/// by their monotonic `seq` column. The function is the OCEL bridge: after
+/// calling it, the caller can hand the [`EventLog`] to any wasm4pm discovery
+/// or conformance algorithm — Alpha Miner, Heuristic Miner, Inductive Miner —
+/// without any additional transformation.
+///
+/// Pass `Some(session_id)` to mine a single session; pass `None` to include
+/// all sessions in the log (cross-session process discovery).
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::lineage::{LineageLog, lineage_to_event_log};
+/// use open_ontologies::state::StateDb;
+/// use std::path::Path;
+///
+/// // Open an in-memory database — hermetic, no filesystem side-effects.
+/// let db = StateDb::open(Path::new(":memory:")).unwrap();
+///
+/// // Record two events in session "s1" and one event in session "s2".
+/// let log = LineageLog::new(db.clone());
+/// log.record("s1", "G", "admission_granted", "hash-a");
+/// log.record("s1", "R", "powl_replay", "fitness=1.0;precision=0.9");
+/// log.record("s2", "D", "admission_denied", "low-fitness");
+///
+/// // Bridge: convert lineage into a mineable event log.
+/// let conn = db.conn();
+/// let event_log = lineage_to_event_log(&conn, None).unwrap();
+///
+/// // Two sessions → two traces.
+/// assert_eq!(event_log.traces.len(), 2);
+///
+/// // Session "s1" has two events; session "s2" has one.
+/// let s1_trace = event_log.traces.iter()
+///     .find(|t| {
+///         t.attributes.iter().any(|a| {
+///             a.key == "case:concept:name"
+///             && matches!(&a.value, wasm4pm_types::AttributeValue::String(v) if v == "s1")
+///         })
+///     })
+///     .expect("trace for session s1 must exist");
+/// assert_eq!(s1_trace.events.len(), 2);
+///
+/// // Each event carries a concept:name formed as "event_type:operation".
+/// let first_event = &s1_trace.events[0];
+/// let concept = first_event.attributes.iter()
+///     .find(|a| a.key == "concept:name")
+///     .expect("concept:name attribute must be present");
+/// assert!(matches!(&concept.value,
+///     wasm4pm_types::AttributeValue::String(v) if v == "G:admission_granted"
+/// ));
+/// ```
+///
+/// ## Session-filtered variant
+///
+/// ```
+/// use open_ontologies::lineage::{LineageLog, lineage_to_event_log};
+/// use open_ontologies::state::StateDb;
+/// use std::path::Path;
+///
+/// let db = StateDb::open(Path::new(":memory:")).unwrap();
+/// let log = LineageLog::new(db.clone());
+/// log.record("session-alpha", "S", "session_reset", "");
+/// log.record("session-beta", "V", "session_revoked", "policy-violation");
+///
+/// // Filter to a single session — only one trace is returned.
+/// let conn = db.conn();
+/// let event_log = lineage_to_event_log(&conn, Some("session-alpha")).unwrap();
+/// assert_eq!(event_log.traces.len(), 1);
+/// assert_eq!(event_log.traces[0].events.len(), 1);
+/// ```
+///
 /// Groups events by session_id (each session becomes a trace/case).
 pub fn lineage_to_event_log(
     conn: &rusqlite::Connection,
