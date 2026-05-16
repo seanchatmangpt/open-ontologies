@@ -13,6 +13,7 @@ use rmcp::{
 };
 use crate::config::{expand_tilde, ENGINE_INPROC, ENGINE_GROQ_PM4PY};
 use crate::admission::{OCEL_KEY_PRODUCTION_LAW_VERSION, OCEL_KEY_RECEIPT_HASH, OCEL_KEY_DEFECTS_TAXONOMY_VERSION};
+use crate::registry::{NTRIPLES_FORMAT, TURTLE_FORMAT};
 use crate::graph::GraphStore;
 use crate::inputs::*;
 use crate::state::StateDb;
@@ -77,6 +78,17 @@ pub(crate) const OCEL_KEY_PROVISIONAL: &str = "provisional";
 /// OCEL event attribute key for the number of swarm refinement cycles run
 /// during manufacture_solution / executive_projection. 12 occurrences.
 pub(crate) const OCEL_KEY_REFINEMENTS: &str = "refinements";
+
+/// JSON value string emitted as `"admission": "denied"` on every gate-refusal
+/// response. Consolidated from 10 literal sites in server.rs; a typo produces
+/// a divergent admission event that bypasses log analysis.
+pub(crate) const ADMISSION_VERDICT_DENIED: &str = "denied";
+
+/// JSON value string emitted as `"reason": "not_admin"` inside the
+/// `"defect": { "kind": "FalsePass", "reason": "not_admin" }` object returned
+/// by every admin-gated tool when the caller is not in
+/// `OPEN_ONTOLOGIES_ADMIN_PRINCIPALS`. Consolidated from 6 literal sites.
+pub(crate) const DEFECT_REASON_NOT_ADMIN: &str = "not_admin";
 
 // ─── HTTP-scoped LLM engine override (task-local) ───────────────────────────
 //
@@ -603,7 +615,7 @@ impl OpenOntologiesServer {
                     .record_admission_denied(&self.session_id, "false_pass");
                 return Err(serde_json::json!({
                     "ok": false,
-                    "admission": "denied",
+                    "admission": ADMISSION_VERDICT_DENIED,
                     "defect": { "kind": "FalsePass" },
                     "reason": "bypass_admission=true requires a non-empty bypass_reason",
                     "remediation": {
@@ -710,7 +722,7 @@ impl OpenOntologiesServer {
                     crate::defects::DefectClass::ScopeUnclosed.remediation();
                 return Err(serde_json::json!({
                     "ok": false,
-                    "admission": "denied",
+                    "admission": ADMISSION_VERDICT_DENIED,
                     "defect": { "kind": "ScopeUnclosed" },
                     "remediation": remediation,
                 }).to_string());
@@ -786,7 +798,7 @@ impl OpenOntologiesServer {
                 let remediation = defect.remediation();
                 Err(serde_json::json!({
                     "ok": false,
-                    "admission": "denied",
+                    "admission": ADMISSION_VERDICT_DENIED,
                     "defect": defect,
                     "remediation": remediation,
                     "powl_stub": conf.is_stub,
@@ -1434,7 +1446,7 @@ impl OpenOntologiesServer {
             self.emit_tool_ocel("onto_save", started, false, &[]);
             return out;
         }
-        let format = input.format.as_deref().unwrap_or("turtle");
+        let format = input.format.as_deref().unwrap_or(TURTLE_FORMAT);
         let path = expand_tilde(&input.path);
         // OntoStar Stream 3: admission gate fires BEFORE the disk write. The
         // receipt commits to the header-LESS artifact bytes — we prepend
@@ -1749,7 +1761,7 @@ impl OpenOntologiesServer {
         }
 
         // OntoStar Stream 3: admission gate fires BEFORE the SPARQL POST.
-        let artifact_preview = self.graph.serialize("ntriples").unwrap_or_default();
+        let artifact_preview = self.graph.serialize(NTRIPLES_FORMAT).unwrap_or_default();
         let receipt = match self.evaluate_admission(
             crate::admission::AdmissionOp::Push,
             input.scope_token.as_deref(),
@@ -1761,7 +1773,7 @@ impl OpenOntologiesServer {
             Ok(r) => r,
             Err(denial) => return denial,
         };
-        match self.graph.serialize("ntriples") {
+        match self.graph.serialize(NTRIPLES_FORMAT) {
             Ok(content) => {
                 let receipt_hex = receipt.hex();
                 let prod_law = receipt.record.production_law_version.clone();
@@ -2366,15 +2378,28 @@ impl OpenOntologiesServer {
     async fn onto_reason(&self, Parameters(input): Parameters<OntoReasonInput>) -> String {
         let started = std::time::Instant::now();
         use crate::reason::Reasoner;
-        let profile = input.profile.as_deref().unwrap_or("rdfs");
+
+        // Guard: no triples means reasoning has nothing to work with.
         if self.graph.triple_count() == 0 {
+            let out = r#"{"ok":false,"error":"No ontology loaded. Call onto_load first, then use onto_reason to materialize inferred triples.","hint":"Example: onto_load with a .ttl file, then onto_reason with profile='rdfs' or 'owl-rl'."}"#.to_string();
+            self.emit_tool_ocel("onto_reason", started, false, &[]);
+            return out;
+        }
+
+        let profile = input.profile.as_deref().unwrap_or("rdfs");
+
+        // Guard: reject unknown profiles with a clear list of valid options.
+        const VALID_PROFILES: &[&str] = &["rdfs", "owl-rl", "owl-rl-ext", "owl-dl"];
+        if !VALID_PROFILES.contains(&profile) {
             let out = format!(
-                r#"{{"error":"onto_reason: no triples in store (profile '{}' requested). Call onto_load first to load an ontology before running inference."}}"#,
+                r#"{{"ok":false,"error":"Unknown reasoning profile '{}'. Valid profiles: rdfs, owl-rl, owl-rl-ext, owl-dl.","hint":"Use 'rdfs' for subclass/domain/range inference, 'owl-rl' to also handle transitive/symmetric/inverse properties, 'owl-rl-ext' for existential/universal restrictions, or 'owl-dl' for full OWL2-DL tableaux."}}"#,
                 profile
             );
             self.emit_tool_ocel("onto_reason", started, false, &[]);
             return out;
         }
+
+
         let materialize = input.materialize.unwrap_or(true);
         let out = Reasoner::run(&self.graph, profile, materialize)
             .unwrap_or_else(|e| format!(r#"{{"error":"{}"}}"#, e));
@@ -2386,15 +2411,64 @@ impl OpenOntologiesServer {
     #[tool(name = "onto_dl_explain", description = "Explain why a class is unsatisfiable using DL tableaux reasoning. Returns an explanation trace showing the logical contradictions that make the class impossible to instantiate.")]
     async fn onto_dl_explain(&self, Parameters(input): Parameters<OntoDlExplainInput>) -> String {
         use crate::tableaux::DlReasoner;
+
+        // Guard: no ontology in store.
+        if self.graph.triple_count() == 0 {
+            return r#"{"ok":false,"error":"No ontology loaded. Call onto_load first, then use onto_dl_explain to find why a class is unsatisfiable.","hint":"Load an ontology with onto_load, then call onto_dl_explain with the full IRI of the class to inspect."}"#.to_string();
+        }
+
+        // Guard: empty IRI.
+        if input.class_iri.trim().is_empty() {
+            return r#"{"ok":false,"error":"'class_iri' is required — provide a full IRI (e.g. 'https://example.org/ontology#MyClass').","hint":"Call onto_query with 'SELECT ?s WHERE { ?s a owl:Class }' to list available class IRIs."}"#.to_string();
+        }
+
         DlReasoner::explain_class(&self.graph, &input.class_iri)
-            .unwrap_or_else(|e| format!(r#"{{"error":"{}"}}"#, e))
+            .unwrap_or_else(|e| {
+                // The underlying "Unknown class" error is not actionable; surface
+                // a targeted message pointing the caller to onto_query.
+                let raw = e.to_string();
+                if raw.starts_with("Unknown class") {
+                    format!(
+                        r#"{{"ok":false,"error":"Class '{}' not found in the loaded ontology.","hint":"Call onto_query with 'SELECT ?s WHERE {{ ?s a owl:Class }}' to list available classes, then retry with a valid IRI."}}"#,
+                        input.class_iri
+                    )
+                } else {
+                    format!(r#"{{"error":"{}"}}"#, raw)
+                }
+            })
     }
 
     #[tool(name = "onto_dl_check", description = "Check if one class is subsumed by another using DL tableaux reasoning. Returns whether sub_class is a subclass of super_class, with justification.")]
     async fn onto_dl_check(&self, Parameters(input): Parameters<OntoDlCheckInput>) -> String {
         use crate::tableaux::DlReasoner;
+
+        // Guard: no ontology in store.
+        if self.graph.triple_count() == 0 {
+            return r#"{"ok":false,"error":"No ontology loaded. Call onto_load first.","hint":"Load an ontology with onto_load, then call onto_dl_check with both 'sub_class' and 'super_class' IRIs."}"#.to_string();
+        }
+
+        // Guard: empty IRIs — name which field is missing.
+        if input.sub_class.trim().is_empty() {
+            return r#"{"ok":false,"error":"'sub_class' is required — provide the full IRI of the more-specific class (e.g. 'https://example.org/ontology#Cat').","hint":"Call onto_query with 'SELECT ?s WHERE { ?s a owl:Class }' to list available class IRIs."}"#.to_string();
+        }
+        if input.super_class.trim().is_empty() {
+            return r#"{"ok":false,"error":"'super_class' is required — provide the full IRI of the more-general class (e.g. 'https://example.org/ontology#Animal').","hint":"Call onto_query with 'SELECT ?s WHERE { ?s a owl:Class }' to list available class IRIs."}"#.to_string();
+        }
+
         DlReasoner::check_subsumption(&self.graph, &input.sub_class, &input.super_class)
-            .unwrap_or_else(|e| format!(r#"{{"error":"{}"}}"#, e))
+            .unwrap_or_else(|e| {
+                // Surface targeted message for "Unknown class" errors, naming the IRI.
+                let raw = e.to_string();
+                if raw.starts_with("Unknown class") {
+                    // The underlying error includes the IRI; forward it with actionable hint.
+                    format!(
+                        r#"{{"ok":false,"error":"Class not found in loaded ontology: {}","hint":"Call onto_query with 'SELECT ?s WHERE {{ ?s a owl:Class }}' to list available classes, then retry with valid IRIs."}}"#,
+                        raw.trim_start_matches("Unknown class: ")
+                    )
+                } else {
+                    format!(r#"{{"error":"{}"}}"#, raw)
+                }
+            })
     }
 
     // ── v2: Lifecycle tools ─────────────────────────────────────────────────
@@ -2469,7 +2543,7 @@ impl OpenOntologiesServer {
             }).to_string();
         }
         // OntoStar Stream 3: admission gate fires BEFORE any state mutation.
-        let artifact_bytes = self.graph.serialize("ntriples").unwrap_or_default();
+        let artifact_bytes = self.graph.serialize(NTRIPLES_FORMAT).unwrap_or_default();
         let receipt = match self.evaluate_admission(
             crate::admission::AdmissionOp::Apply,
             input.scope_token.as_deref(),
@@ -3103,6 +3177,12 @@ impl OpenOntologiesServer {
         use crate::schema::SchemaIntrospector;
         use crate::sqlsource;
 
+        // Guard: empty connection string — show supported forms before the
+        // admission gate runs (saves an unnecessary admission roundtrip).
+        if input.connection.trim().is_empty() {
+            return r#"{"ok":false,"error":"'connection' is required — provide a database connection string.","hint":"Supported forms: 'postgres://user:pass@host:5432/dbname', 'duckdb:///path/to/file.duckdb', ':memory:' (in-memory DuckDB), or a bare '*.duckdb' file path."}"#.to_string();
+        }
+
         let base_iri = input.base_iri.as_deref().unwrap_or("http://example.org/db/");
 
         // OntoStar Stream 3: admission gate fires BEFORE the introspect+load.
@@ -3123,7 +3203,10 @@ impl OpenOntologiesServer {
         // is identical.
         let driver = match sqlsource::detect_driver(&input.connection) {
             Ok(d) => d,
-            Err(e) => return format!(r#"{{"error":"{}"}}"#, e),
+            Err(e) => return format!(
+                r#"{{"ok":false,"error":"{}","hint":"Supported connection strings: 'postgres://user:pass@host:5432/dbname', 'duckdb:///path/to/file.duckdb', ':memory:', or a bare '*.duckdb' file path."}}"#,
+                e
+            ),
         };
 
         let tables: Vec<crate::schema::TableInfo> = match driver {
@@ -3132,12 +3215,12 @@ impl OpenOntologiesServer {
                 {
                     match SchemaIntrospector::introspect_postgres(&input.connection).await {
                         Ok(t) => t,
-                        Err(e) => return format!(r#"{{"error":"Postgres connection failed: {}"}}"#, e),
+                        Err(e) => return format!(r#"{{"ok":false,"error":"PostgreSQL connection failed: {}","hint":"Verify the connection string (postgres://user:pass@host:5432/dbname), that the server is reachable, and that credentials are correct."}}"#, e),
                     }
                 }
                 #[cfg(not(feature = "postgres"))]
                 {
-                    return r#"{"error":"Compiled without postgres feature. Rebuild with --features postgres"}"#.to_string();
+                    return r#"{"ok":false,"error":"Compiled without postgres feature. Rebuild with --features postgres."}"#.to_string();
                 }
             }
             crate::sqlsource::SqlDriver::DuckDb => {
@@ -3151,13 +3234,13 @@ impl OpenOntologiesServer {
                     .await
                     {
                         Ok(Ok(t)) => t,
-                        Ok(Err(e)) => return format!(r#"{{"error":"DuckDB introspection failed: {}"}}"#, e),
-                        Err(e) => return format!(r#"{{"error":"DuckDB worker panicked: {}"}}"#, e),
+                        Ok(Err(e)) => return format!(r#"{{"ok":false,"error":"DuckDB introspection failed: {}","hint":"Verify the file path exists and is a valid DuckDB database, or use ':memory:' for an in-memory instance."}}"#, e),
+                        Err(e) => return format!(r#"{{"ok":false,"error":"DuckDB worker panicked: {}"}}"#, e),
                     }
                 }
                 #[cfg(not(feature = "duckdb"))]
                 {
-                    return r#"{"error":"Compiled without duckdb feature. Rebuild with --features duckdb"}"#.to_string();
+                    return r#"{"ok":false,"error":"Compiled without duckdb feature. Rebuild with --features duckdb."}"#.to_string();
                 }
             }
         };
@@ -3938,7 +4021,7 @@ impl OpenOntologiesServer {
         }
 
         // OntoStar Stream 3: admission gate fires BEFORE invoking ggen.
-        let artifact_preview = self.graph.serialize("turtle").unwrap_or_default();
+        let artifact_preview = self.graph.serialize(TURTLE_FORMAT).unwrap_or_default();
         let receipt = match self.evaluate_admission(
             crate::admission::AdmissionOp::Codegen,
             input.scope_token.as_deref(),
@@ -3983,7 +4066,7 @@ impl OpenOntologiesServer {
         }
 
         let temp_path = tmp_dir.join("ontology.ttl").to_string_lossy().to_string();
-        if let Err(e) = self.graph.save_file(&temp_path, "turtle") {
+        if let Err(e) = self.graph.save_file(&temp_path, TURTLE_FORMAT) {
             let _ = std::fs::remove_dir_all(&tmp_dir);
             return format!(r#"{{"error":"Failed to serialize graph: {}"}}"#, e);
         }
@@ -4224,7 +4307,7 @@ impl OpenOntologiesServer {
             }
         };
         // Use the current canonical graph as the artifact preview.
-        let artifact = self.graph.serialize("turtle").unwrap_or_default();
+        let artifact = self.graph.serialize(TURTLE_FORMAT).unwrap_or_default();
         match self.evaluate_admission(
             op,
             input.scope_token.as_deref(),
@@ -4925,7 +5008,7 @@ impl OpenOntologiesServer {
         let onto_star_path = serde_json::json!({
             "scope_token": scope_token,
             "workflow_name": workflow_name,
-            "verdict": if admitted.unwrap_or(0) > 0 { "granted" } else { "denied" },
+            "verdict": if admitted.unwrap_or(0) > 0 { "granted" } else { ADMISSION_VERDICT_DENIED },
             "fitness": fitness.unwrap_or(0.0),
             "gates_fired": gates_fired.clone(),
             "gates_denied": gates_denied,
@@ -4966,7 +5049,7 @@ impl OpenOntologiesServer {
             self.emit_tool_ocel("onto_propose_requirement", started, false, &[]);
             return serde_json::json!({
                 "ok": false,
-                "admission": "denied",
+                "admission": ADMISSION_VERDICT_DENIED,
                 "defect": { "kind": "RequirementWithoutSource" },
             }).to_string();
         }
@@ -5647,7 +5730,7 @@ impl OpenOntologiesServer {
             self.emit_tool_ocel("onto_admit_ctq", started, false, &[]);
             return serde_json::json!({
                 "ok": false,
-                "admission": "denied",
+                "admission": ADMISSION_VERDICT_DENIED,
                 "defect": { "kind": "CtqIncomplete", "missing": m },
             }).to_string();
         }
@@ -5781,7 +5864,7 @@ impl OpenOntologiesServer {
             self.emit_tool_ocel("onto_admit_work_order", started, false, &[]);
             return serde_json::json!({
                 "ok": false,
-                "admission": "denied",
+                "admission": ADMISSION_VERDICT_DENIED,
                 "defect": { "kind": "CtqIncomplete", "missing": "ctq_receipt_hash" },
             }).to_string();
         }
@@ -5793,7 +5876,7 @@ impl OpenOntologiesServer {
             self.emit_tool_ocel("onto_admit_work_order", started, false, &[]);
             return serde_json::json!({
                 "ok": false,
-                "admission": "denied",
+                "admission": ADMISSION_VERDICT_DENIED,
                 "defect": { "kind": "WorkOrderMissingCounterfactual" },
             }).to_string();
         }
@@ -5868,7 +5951,7 @@ impl OpenOntologiesServer {
             self.emit_tool_ocel("onto_manufacture_solution", started, false, &[]);
             return serde_json::json!({
                 "ok": false,
-                "admission": "denied",
+                "admission": ADMISSION_VERDICT_DENIED,
                 "defect": d,
             }).to_string();
         }
@@ -5911,7 +5994,7 @@ impl OpenOntologiesServer {
                 self.emit_tool_ocel("onto_manufacture_solution", started, false, &[]);
                 return serde_json::json!({
                     "ok": false,
-                    "admission": "denied",
+                    "admission": ADMISSION_VERDICT_DENIED,
                     "defect": d,
                 }).to_string();
             }
@@ -6578,7 +6661,7 @@ impl OpenOntologiesServer {
             self.emit_tool_ocel("onto_attestation_rotate_keys", started, false, &[]);
             return serde_json::json!({
                 "ok": false,
-                "defect": { "kind": "FalsePass", "reason": "not_admin" },
+                "defect": { "kind": "FalsePass", "reason": DEFECT_REASON_NOT_ADMIN },
                 "error": "caller is not in OPEN_ONTOLOGIES_ADMIN_PRINCIPALS",
             })
             .to_string();
@@ -6676,7 +6759,7 @@ impl OpenOntologiesServer {
             self.emit_tool_ocel("onto_bootstrap_unlock", started, false, &[]);
             return serde_json::json!({
                 "ok": false,
-                "defect": { "kind": "FalsePass", "reason": "not_admin" },
+                "defect": { "kind": "FalsePass", "reason": DEFECT_REASON_NOT_ADMIN },
                 "error": "caller is not in admin_principals",
             })
             .to_string();
@@ -6746,7 +6829,7 @@ impl OpenOntologiesServer {
             );
             return serde_json::json!({
                 "ok": false,
-                "defect": { "kind": "FalsePass", "reason": "not_admin" },
+                "defect": { "kind": "FalsePass", "reason": DEFECT_REASON_NOT_ADMIN },
                 "error": "caller is not in admin_principals",
             })
             .to_string();
@@ -6864,7 +6947,7 @@ impl OpenOntologiesServer {
             );
             return serde_json::json!({
                 "ok": false,
-                "defect": { "kind": "FalsePass", "reason": "not_admin" },
+                "defect": { "kind": "FalsePass", "reason": DEFECT_REASON_NOT_ADMIN },
                 "error": "caller is not in admin_principals",
             })
             .to_string();
@@ -6982,7 +7065,7 @@ impl OpenOntologiesServer {
             self.emit_tool_ocel("onto_retention_pause", started, false, &[]);
             return serde_json::json!({
                 "ok": false,
-                "defect": { "kind": "FalsePass", "reason": "not_admin" },
+                "defect": { "kind": "FalsePass", "reason": DEFECT_REASON_NOT_ADMIN },
                 "error": "caller is not in admin_principals",
             })
             .to_string();
@@ -7036,7 +7119,7 @@ impl OpenOntologiesServer {
             self.emit_tool_ocel("onto_retention_resume", started, false, &[]);
             return serde_json::json!({
                 "ok": false,
-                "defect": { "kind": "FalsePass", "reason": "not_admin" },
+                "defect": { "kind": "FalsePass", "reason": DEFECT_REASON_NOT_ADMIN },
                 "error": "caller is not in admin_principals",
             })
             .to_string();
