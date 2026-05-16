@@ -334,6 +334,29 @@ impl CacheManager {
 
 /// Convenience: derive a default ontology name from a source path
 /// (basename without extension), used when the caller doesn't supply one.
+///
+/// # Examples
+///
+/// A plain filename has its extension stripped:
+///
+/// ```
+/// # use open_ontologies::cache::derive_name;
+/// assert_eq!(derive_name("pizza.ttl"), "pizza");
+/// ```
+///
+/// A full path returns only the stem of the final component:
+///
+/// ```
+/// # use open_ontologies::cache::derive_name;
+/// assert_eq!(derive_name("/foo/bar/baz.ttl"), "baz");
+/// ```
+///
+/// An empty string has no file stem and falls back to `"default"`:
+///
+/// ```
+/// # use open_ontologies::cache::derive_name;
+/// assert_eq!(derive_name(""), "default");
+/// ```
 pub fn derive_name(path: &str) -> String {
     Path::new(path)
         .file_stem()
@@ -343,6 +366,33 @@ pub fn derive_name(path: &str) -> String {
 }
 
 /// Validate a shape used by tests and the registry.
+///
+/// Returns a reference to the inner string when `path` is `Some` and non-empty,
+/// or an error when `path` is `None` or holds an empty string.
+///
+/// # Examples
+///
+/// A `Some` with a non-empty string succeeds:
+///
+/// ```
+/// # use open_ontologies::cache::require_path;
+/// let p = Some("valid/path.ttl".to_string());
+/// assert_eq!(require_path(&p).unwrap(), "valid/path.ttl");
+/// ```
+///
+/// `None` returns an error:
+///
+/// ```
+/// # use open_ontologies::cache::require_path;
+/// assert!(require_path(&None).is_err());
+/// ```
+///
+/// An empty `Some` is also rejected:
+///
+/// ```
+/// # use open_ontologies::cache::require_path;
+/// assert!(require_path(&Some(String::new())).is_err());
+/// ```
 pub fn require_path(path: &Option<String>) -> Result<&str> {
     match path {
         Some(p) if !p.is_empty() => Ok(p),
