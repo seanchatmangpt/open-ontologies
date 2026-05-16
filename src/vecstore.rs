@@ -18,6 +18,23 @@ pub struct VecStore {
 }
 
 impl VecStore {
+    /// Creates a new, empty `VecStore` backed by the given [`StateDb`].
+    ///
+    /// The store starts with no entries; use [`upsert`](VecStore::upsert) to
+    /// populate it before calling any search method.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use open_ontologies::state::StateDb;
+    /// use open_ontologies::vecstore::VecStore;
+    /// use std::path::Path;
+    ///
+    /// let db = StateDb::open(Path::new(":memory:")).unwrap();
+    /// let store = VecStore::new(db);
+    /// assert!(store.is_empty());
+    /// assert_eq!(store.len(), 0);
+    /// ```
     pub fn new(db: StateDb) -> Self {
         Self {
             db,
@@ -25,6 +42,28 @@ impl VecStore {
         }
     }
 
+    /// Inserts or replaces an entry for `iri`.
+    ///
+    /// The `text_vec` is L2-normalised internally before storage; `struct_vec`
+    /// is stored as-is for Poincaré distance computation.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use open_ontologies::state::StateDb;
+    /// use open_ontologies::vecstore::VecStore;
+    /// use std::path::Path;
+    ///
+    /// let db = StateDb::open(Path::new(":memory:")).unwrap();
+    /// let mut store = VecStore::new(db);
+    ///
+    /// store.upsert("urn:ex:A", &[1.0, 0.0], &[0.1, 0.2]);
+    /// assert_eq!(store.len(), 1);
+    ///
+    /// // Upserting the same IRI replaces the existing entry, not appends.
+    /// store.upsert("urn:ex:A", &[0.0, 1.0], &[0.3, 0.4]);
+    /// assert_eq!(store.len(), 1);
+    /// ```
     pub fn upsert(&mut self, iri: &str, text_vec: &[f32], struct_vec: &[f32]) {
         self.entries.insert(iri.to_string(), VecEntry {
             text_vec: l2_normalize(text_vec),
@@ -32,10 +71,60 @@ impl VecStore {
         });
     }
 
+    /// Removes the entry for `iri` if it exists.
+    ///
+    /// Removing a non-existent IRI is a no-op.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use open_ontologies::state::StateDb;
+    /// use open_ontologies::vecstore::VecStore;
+    /// use std::path::Path;
+    ///
+    /// let db = StateDb::open(Path::new(":memory:")).unwrap();
+    /// let mut store = VecStore::new(db);
+    ///
+    /// store.upsert("urn:ex:B", &[1.0, 0.0], &[0.0, 0.0]);
+    /// assert_eq!(store.len(), 1);
+    ///
+    /// store.remove("urn:ex:B");
+    /// assert!(store.is_empty());
+    ///
+    /// // Removing again is a no-op.
+    /// store.remove("urn:ex:B");
+    /// assert!(store.is_empty());
+    /// ```
     pub fn remove(&mut self, iri: &str) {
         self.entries.remove(iri);
     }
 
+    /// Returns the top-`k` entries ranked by cosine similarity to `query`.
+    ///
+    /// Results are returned in descending similarity order (most similar
+    /// first). If the store has fewer than `top_k` entries the returned
+    /// `Vec` is shorter than `top_k`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use open_ontologies::state::StateDb;
+    /// use open_ontologies::vecstore::VecStore;
+    /// use std::path::Path;
+    ///
+    /// let db = StateDb::open(Path::new(":memory:")).unwrap();
+    /// let mut store = VecStore::new(db);
+    ///
+    /// // Insert two entries whose text vectors point in different directions.
+    /// store.upsert("urn:ex:X", &[1.0, 0.0], &[0.0, 0.0]);
+    /// store.upsert("urn:ex:Y", &[0.0, 1.0], &[0.0, 0.0]);
+    ///
+    /// // A query aligned with X should rank X first.
+    /// let results = store.search_cosine(&[1.0, 0.0], 2);
+    /// assert_eq!(results.len(), 2);
+    /// assert_eq!(results[0].0, "urn:ex:X");
+    /// assert!(results[0].1 > results[1].1);
+    /// ```
     pub fn search_cosine(&self, query: &[f32], top_k: usize) -> Vec<(String, f32)> {
         let query_norm = l2_normalize(query);
         let mut scores: Vec<(String, f32)> = self.entries.iter()
@@ -46,6 +135,30 @@ impl VecStore {
         scores
     }
 
+    /// Returns the top-`k` entries ranked by Poincaré distance to `query`.
+    ///
+    /// Results are returned in ascending distance order (nearest first).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use open_ontologies::state::StateDb;
+    /// use open_ontologies::vecstore::VecStore;
+    /// use std::path::Path;
+    ///
+    /// let db = StateDb::open(Path::new(":memory:")).unwrap();
+    /// let mut store = VecStore::new(db);
+    ///
+    /// // Struct vectors must lie strictly inside the Poincaré ball (norm < 1).
+    /// store.upsert("urn:ex:P", &[1.0, 0.0], &[0.1, 0.0]);
+    /// store.upsert("urn:ex:Q", &[0.0, 1.0], &[0.4, 0.0]);
+    ///
+    /// // A query at the origin is closest to the entry nearer the origin.
+    /// let results = store.search_poincare(&[0.0, 0.0], 2);
+    /// assert_eq!(results.len(), 2);
+    /// // Nearest entry (smallest distance) is first.
+    /// assert!(results[0].1 <= results[1].1);
+    /// ```
     pub fn search_poincare(&self, query: &[f32], top_k: usize) -> Vec<(String, f32)> {
         let mut scores: Vec<(String, f32)> = self.entries.iter()
             .map(|(iri, e)| (iri.clone(), poincare_distance(query, &e.struct_vec)))
@@ -55,6 +168,30 @@ impl VecStore {
         scores
     }
 
+    /// Returns the top-`k` entries ranked by a linear combination of cosine
+    /// similarity and Poincaré proximity.
+    ///
+    /// The combined score is `alpha * cosine + (1 - alpha) * (1 / (1 + poincaré))`.
+    /// Set `alpha = 1.0` for pure cosine; `alpha = 0.0` for pure Poincaré proximity.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use open_ontologies::state::StateDb;
+    /// use open_ontologies::vecstore::VecStore;
+    /// use std::path::Path;
+    ///
+    /// let db = StateDb::open(Path::new(":memory:")).unwrap();
+    /// let mut store = VecStore::new(db);
+    ///
+    /// store.upsert("urn:ex:M", &[1.0, 0.0], &[0.1, 0.0]);
+    /// store.upsert("urn:ex:N", &[0.0, 1.0], &[0.4, 0.0]);
+    ///
+    /// let results = store.search_product(&[1.0, 0.0], &[0.0, 0.0], 2, 0.5);
+    /// assert_eq!(results.len(), 2);
+    /// // Results are in descending combined-score order.
+    /// assert!(results[0].1 >= results[1].1);
+    /// ```
     pub fn search_product(
         &self,
         text_query: &[f32],
@@ -121,18 +258,100 @@ impl VecStore {
         Ok(())
     }
 
+    /// Returns the number of entries currently held in the store.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use open_ontologies::state::StateDb;
+    /// use open_ontologies::vecstore::VecStore;
+    /// use std::path::Path;
+    ///
+    /// let db = StateDb::open(Path::new(":memory:")).unwrap();
+    /// let mut store = VecStore::new(db);
+    /// assert_eq!(store.len(), 0);
+    ///
+    /// store.upsert("urn:ex:C", &[1.0, 0.0], &[0.0, 0.0]);
+    /// assert_eq!(store.len(), 1);
+    ///
+    /// store.upsert("urn:ex:D", &[0.0, 1.0], &[0.0, 0.0]);
+    /// assert_eq!(store.len(), 2);
+    /// ```
     pub fn len(&self) -> usize {
         self.entries.len()
     }
 
+    /// Returns `true` when the store contains no entries.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use open_ontologies::state::StateDb;
+    /// use open_ontologies::vecstore::VecStore;
+    /// use std::path::Path;
+    ///
+    /// let db = StateDb::open(Path::new(":memory:")).unwrap();
+    /// let mut store = VecStore::new(db);
+    /// assert!(store.is_empty());
+    ///
+    /// store.upsert("urn:ex:E", &[1.0, 0.0], &[0.0, 0.0]);
+    /// assert!(!store.is_empty());
+    /// ```
     pub fn is_empty(&self) -> bool {
         self.entries.is_empty()
     }
 
+    /// Returns the (L2-normalised) text embedding stored for `iri`, or `None`
+    /// if the IRI has not been inserted.
+    ///
+    /// Note: the returned slice reflects the *normalised* vector, which may
+    /// differ from the raw `text_vec` passed to [`upsert`](VecStore::upsert).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use open_ontologies::state::StateDb;
+    /// use open_ontologies::vecstore::VecStore;
+    /// use std::path::Path;
+    ///
+    /// let db = StateDb::open(Path::new(":memory:")).unwrap();
+    /// let mut store = VecStore::new(db);
+    ///
+    /// assert!(store.get_text_vec("urn:ex:F").is_none());
+    ///
+    /// store.upsert("urn:ex:F", &[3.0, 4.0], &[0.0, 0.0]);
+    /// let v = store.get_text_vec("urn:ex:F").unwrap();
+    ///
+    /// // The vector is L2-normalised: ‖v‖ ≈ 1.
+    /// let norm: f32 = v.iter().map(|x| x * x).sum::<f32>().sqrt();
+    /// assert!((norm - 1.0).abs() < 1e-5);
+    /// ```
     pub fn get_text_vec(&self, iri: &str) -> Option<&[f32]> {
         self.entries.get(iri).map(|e| e.text_vec.as_slice())
     }
 
+    /// Returns the structural embedding stored for `iri`, or `None` if the
+    /// IRI has not been inserted.
+    ///
+    /// Unlike the text vector, the structural vector is stored exactly as
+    /// supplied to [`upsert`](VecStore::upsert) (no normalisation).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use open_ontologies::state::StateDb;
+    /// use open_ontologies::vecstore::VecStore;
+    /// use std::path::Path;
+    ///
+    /// let db = StateDb::open(Path::new(":memory:")).unwrap();
+    /// let mut store = VecStore::new(db);
+    ///
+    /// assert!(store.get_struct_vec("urn:ex:G").is_none());
+    ///
+    /// store.upsert("urn:ex:G", &[1.0, 0.0], &[0.2, 0.3]);
+    /// let sv = store.get_struct_vec("urn:ex:G").unwrap();
+    /// assert_eq!(sv, &[0.2_f32, 0.3_f32]);
+    /// ```
     pub fn get_struct_vec(&self, iri: &str) -> Option<&[f32]> {
         self.entries.get(iri).map(|e| e.struct_vec.as_slice())
     }
