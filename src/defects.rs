@@ -327,6 +327,380 @@ pub fn discriminant_hash() -> String {
     h.finalize().to_hex().to_string()
 }
 
+/// Severity of an actionable remediation hint.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RemediationSeverity {
+    Blocking,
+    Warning,
+    Info,
+}
+
+/// Structured remediation block attached to every defect JSON response.
+///
+/// Enables AI agents (LangChain, CrewAI) to self-correct without human
+/// intervention: the agent reads `next_tool` + `next_params`, calls that
+/// tool, and retries. `auto_retry = true` means the agent may do so
+/// without user confirmation.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RemediationBlock {
+    pub explanation: String,
+    pub next_tool: Option<String>,
+    pub next_params: Option<serde_json::Value>,
+    pub severity: RemediationSeverity,
+    pub auto_retry: bool,
+}
+
+impl RemediationBlock {
+    fn blocking(
+        explanation: impl Into<String>,
+        next_tool: Option<&str>,
+        next_params: Option<serde_json::Value>,
+        auto_retry: bool,
+    ) -> Self {
+        Self {
+            explanation: explanation.into(),
+            next_tool: next_tool.map(|s| s.to_string()),
+            next_params,
+            severity: RemediationSeverity::Blocking,
+            auto_retry,
+        }
+    }
+}
+
+impl DefectClass {
+    /// Returns a structured remediation hint for AI agents. Every variant
+    /// maps to the exact next tool to call (and suggested params) so that
+    /// agents can self-correct without human intervention.
+    ///
+    /// This method is pure — no I/O, no DB calls, deterministic.
+    pub fn remediation(&self) -> RemediationBlock {
+        use serde_json::json;
+        match self {
+            DefectClass::ScopeUnclosed => RemediationBlock::blocking(
+                "No open workflow scope. Call onto_declare_workflow to open one, \
+                 then retry this operation with the returned scope_token.",
+                Some("onto_declare_workflow"),
+                Some(json!({"name": "OntologyAuthoring", "description": "auto-opened by remediation"})),
+                true,
+            ),
+            DefectClass::CapabilityZero => RemediationBlock::blocking(
+                "Required stage missing in OCEL event log. Declare and open a \
+                 workflow scope before the first tool call.",
+                Some("onto_declare_workflow"),
+                Some(json!({"name": "OntologyAuthoring"})),
+                true,
+            ),
+            DefectClass::SkippedTask { stage } => {
+                let next = stage_to_tool(stage);
+                RemediationBlock::blocking(
+                    format!(
+                        "Stage '{}' was required by the workflow but missing from the OCEL trace. \
+                         Complete that stage first.",
+                        stage
+                    ),
+                    next,
+                    None,
+                    false,
+                )
+            }
+            DefectClass::ExtraTask { stage } => RemediationBlock::blocking(
+                format!(
+                    "Stage '{}' appeared in the OCEL trace but is not declared in the workflow. \
+                     Close the current scope and declare a workflow that includes this stage.",
+                    stage
+                ),
+                Some("onto_close_workflow"),
+                None,
+                false,
+            ),
+            DefectClass::WrongOrder { expected, got } => {
+                let next = stage_to_tool(expected);
+                RemediationBlock::blocking(
+                    format!(
+                        "Stages out of order: expected '{}' before '{}'. \
+                         Complete the prerequisite stage first.",
+                        expected, got
+                    ),
+                    next,
+                    None,
+                    false,
+                )
+            }
+            DefectClass::BypassRevoked { reason } => RemediationBlock::blocking(
+                format!(
+                    "Session revoked by bypass_admission (reason: '{}'). \
+                     The session cannot be reused. Start a new session.",
+                    reason
+                ),
+                None,
+                None,
+                false,
+            ),
+            DefectClass::ReceiptMissing => RemediationBlock::blocking(
+                "No admission receipt found. Open a workflow scope via \
+                 onto_declare_workflow and complete the required stages before \
+                 this operation.",
+                Some("onto_declare_workflow"),
+                Some(json!({})),
+                false,
+            ),
+            DefectClass::OcelIncomplete => RemediationBlock::blocking(
+                "OCEL event log is incomplete for the current scope. Ensure all \
+                 required stages have been executed and their events are present.",
+                Some("onto_declare_workflow"),
+                Some(json!({})),
+                false,
+            ),
+            DefectClass::ThresholdFailed { metric, observed, required } => {
+                RemediationBlock::blocking(
+                    format!(
+                        "Threshold check failed: {} is {:.3} but must be ≥ {:.3}. \
+                         Run onto_threshold_sweep to see which parameters meet the threshold.",
+                        metric, observed, required
+                    ),
+                    Some("onto_threshold_sweep"),
+                    None,
+                    false,
+                )
+            }
+            DefectClass::ReplayFailed => RemediationBlock::blocking(
+                "POWL replay against the declared workflow failed. Check that all \
+                 required stages were executed in order, then retry.",
+                Some("onto_conformance_check"),
+                None,
+                false,
+            ),
+            DefectClass::DeadParameter { param } => RemediationBlock::blocking(
+                format!(
+                    "Parameter '{}' was declared but never consumed. Remove it from \
+                     the function signature or use it.",
+                    param
+                ),
+                None,
+                None,
+                false,
+            ),
+            DefectClass::RequirementWithoutSource => RemediationBlock::blocking(
+                "A requirement was proposed with no source_voice signal. \
+                 Provide a non-empty source_voice when calling onto_propose_requirement.",
+                Some("onto_propose_requirement"),
+                Some(json!({"source_voice": "<stakeholder voice — required>"})),
+                false,
+            ),
+            DefectClass::CtqIncomplete { missing } => RemediationBlock::blocking(
+                format!(
+                    "CTQ admission denied: mandatory field '{}' is missing or empty. \
+                     Provide all required CTQ fields before calling onto_admit_ctq.",
+                    missing
+                ),
+                Some("onto_admit_ctq"),
+                None,
+                false,
+            ),
+            DefectClass::WorkOrderMissingCounterfactual => RemediationBlock::blocking(
+                "Work-order admission denied: no naked-craft counterfactual delta was bound. \
+                 Bind a counterfactual via onto_counterfactual before calling \
+                 onto_admit_work_order.",
+                Some("onto_propose_work_order"),
+                None,
+                false,
+            ),
+            DefectClass::LlmAuthorityClaimed { reason, .. } => RemediationBlock::blocking(
+                format!(
+                    "LLM output was treated as authoritative without passing the CTQ gate \
+                     (reason: '{}'). LLM output must be validated by onto_admit_ctq before \
+                     any downstream tool can act on it.",
+                    reason
+                ),
+                Some("onto_translate_candidate"),
+                None,
+                false,
+            ),
+            DefectClass::RawDataLeak { field } => RemediationBlock::blocking(
+                format!(
+                    "Export contains restricted raw-data field '{}'. \
+                     Remove or redact the field before retrying.",
+                    field
+                ),
+                None,
+                None,
+                false,
+            ),
+            DefectClass::GeneratorEmpty { target } => RemediationBlock::blocking(
+                format!(
+                    "Generator '{}' emitted no bytes. Check the work order inputs and \
+                     retry onto_manufacture_solution.",
+                    target
+                ),
+                Some("onto_manufacture_solution"),
+                None,
+                false,
+            ),
+            DefectClass::IacInvalid { reason } => RemediationBlock::blocking(
+                format!(
+                    "Generated IaC failed validation: {}. \
+                     Fix the work order inputs and retry onto_manufacture_solution.",
+                    reason
+                ),
+                Some("onto_manufacture_solution"),
+                None,
+                false,
+            ),
+            DefectClass::RustInvalid { reason } => RemediationBlock::blocking(
+                format!(
+                    "Generated Rust failed validation: {}. \
+                     Fix the work order inputs and retry onto_manufacture_solution.",
+                    reason
+                ),
+                Some("onto_manufacture_solution"),
+                None,
+                false,
+            ),
+            DefectClass::ErlangInvalid { reason } => RemediationBlock::blocking(
+                format!(
+                    "Generated Erlang failed validation: {}. \
+                     Fix the work order inputs and retry onto_manufacture_solution.",
+                    reason
+                ),
+                Some("onto_manufacture_solution"),
+                None,
+                false,
+            ),
+            DefectClass::AtomVmInvalid { reason } => RemediationBlock::blocking(
+                format!(
+                    "Generated AtomVM target failed validation: {}. \
+                     Fix the work order inputs and retry onto_manufacture_solution.",
+                    reason
+                ),
+                Some("onto_manufacture_solution"),
+                None,
+                false,
+            ),
+            DefectClass::ManufacturingChainBroken { missing } => RemediationBlock::blocking(
+                format!(
+                    "Manufacturing stage '{}' is missing — the chain cannot ship. \
+                     Complete the missing stage via onto_admit_work_order.",
+                    missing
+                ),
+                Some("onto_admit_work_order"),
+                None,
+                false,
+            ),
+            DefectClass::ArchitectureUnbound => RemediationBlock::blocking(
+                "Solution architecture was not bound to an admitted work order. \
+                 Admit a work order via onto_admit_work_order before manufacturing.",
+                Some("onto_admit_work_order"),
+                None,
+                false,
+            ),
+            DefectClass::TenantBoundary { from, to } => RemediationBlock::blocking(
+                format!(
+                    "Cross-tenant access denied: caller in tenant '{}' cannot access \
+                     resources in tenant '{}'. Use resources within your own tenant.",
+                    from, to
+                ),
+                None,
+                None,
+                false,
+            ),
+            DefectClass::ProvenanceMissing { artifact_hash } => RemediationBlock::blocking(
+                format!(
+                    "Provenance chain broken: artifact hash '{}' not found in \
+                     provenance evidence. View lineage via onto_lineage.",
+                    artifact_hash
+                ),
+                Some("onto_lineage"),
+                None,
+                false,
+            ),
+            DefectClass::AttestationMissing => RemediationBlock::blocking(
+                "No external attestation found for this artifact. \
+                 Provide an Ed25519 receipt via onto_ontostar_attest.",
+                Some("onto_ontostar_attest"),
+                None,
+                false,
+            ),
+            DefectClass::TemporalSkew { observed_skew_ms } => RemediationBlock::blocking(
+                format!(
+                    "Temporal validity failed: granted_at chain has a negative skew \
+                     of {}ms. Check system clock synchronization and retry.",
+                    observed_skew_ms
+                ),
+                None,
+                None,
+                false,
+            ),
+            DefectClass::DependencyClosureBroken { missing_hash } => RemediationBlock::blocking(
+                format!(
+                    "Dependency closure broken: prior receipt '{}' is referenced but \
+                     absent from the admitted-receipts set. View lineage via onto_lineage.",
+                    missing_hash
+                ),
+                Some("onto_lineage"),
+                None,
+                false,
+            ),
+            DefectClass::ReplayDivergence { expected, observed } => RemediationBlock::blocking(
+                format!(
+                    "POWL replay divergence: expected OCEL hash '{}', observed '{}'. \
+                     Run onto_conformance_check to diagnose.",
+                    expected, observed
+                ),
+                Some("onto_conformance_check"),
+                None,
+                false,
+            ),
+            DefectClass::AttestationInvalid { reason } => RemediationBlock::blocking(
+                format!(
+                    "Ed25519 attestation invalid ({}). \
+                     Rotate signing keys via onto_attestation_rotate_keys and re-attest.",
+                    reason
+                ),
+                Some("onto_attestation_rotate_keys"),
+                None,
+                false,
+            ),
+            DefectClass::BootstrapClosed => RemediationBlock::blocking(
+                "Bootstrap window is closed — bootstrap-only tools (e.g. onto_exemplar_seed) \
+                 can no longer be called. Use production admission via onto_declare_workflow.",
+                None,
+                None,
+                false,
+            ),
+            DefectClass::BootstrapChainTooShort => RemediationBlock::blocking(
+                "Post-bootstrap chain is too short (< 2 entries). \
+                 Ensure the seed grant was admitted before the current operation.",
+                Some("onto_admission_check"),
+                Some(json!({"op": "apply"})),
+                true,
+            ),
+        }
+    }
+}
+
+/// Map a workflow stage name to the tool that produces it.
+fn stage_to_tool(stage: &str) -> Option<&'static str> {
+    match stage {
+        "load" | "repo_load" => Some("onto_load"),
+        "validate" => Some("onto_validate"),
+        "reason" => Some("onto_reason"),
+        "enforce_run" => Some("onto_enforce"),
+        "save" => Some("onto_save"),
+        "version" => Some("onto_version"),
+        "map" => Some("onto_map"),
+        "ingest" => Some("onto_ingest"),
+        "shacl" => Some("onto_shacl"),
+        "embed" => Some("onto_embed"),
+        "align_run" => Some("onto_align"),
+        "codegen_run" => Some("onto_codegen"),
+        "apply" => Some("onto_apply"),
+        "plan" => Some("onto_plan"),
+        "drift" => Some("onto_drift"),
+        _ => None,
+    }
+}
+
 /// Evidence carried alongside a [`DefectClass`] explaining the deviation.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Deviation {

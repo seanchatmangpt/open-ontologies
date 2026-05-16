@@ -92,6 +92,7 @@ const EXPECTED_TOOLS: &[&str] = &[
     "onto_exemplar_seed",
     "onto_extend",
     "onto_groq_status",
+    "onto_guide",
     "onto_history",
     "onto_import",
     "onto_import_schema",
@@ -401,8 +402,43 @@ async fn a13_receipts_revoke_batch_empty_ids_returns_valid_json() {
     assert!(is_json(&resp), "onto_receipts_revoke_batch returned invalid JSON: {resp}");
 }
 
+#[test]
+fn a14_guide_known_intent_returns_nonempty_plan() {
+    let (_tmp, _db, server) = build_server();
+    let resp = server.onto_guide(Parameters(open_ontologies::inputs::OntoGuideInput {
+        intent: "load and validate an ontology".to_string(),
+        include_powl: None,
+    }));
+    let v: serde_json::Value = serde_json::from_str(&resp).expect("onto_guide returned non-JSON");
+    assert_eq!(v["ok"], true);
+    assert!(
+        v["plan"].as_array().map(|a| !a.is_empty()).unwrap_or(false),
+        "known intent must return a non-empty plan\nresponse: {resp}"
+    );
+    assert_eq!(v["workflow_name"], "LoadAndValidate");
+}
+
+#[test]
+fn a15_guide_unknown_intent_returns_known_intents_list() {
+    let (_tmp, _db, server) = build_server();
+    let resp = server.onto_guide(Parameters(open_ontologies::inputs::OntoGuideInput {
+        intent: "totally unknown xyz intent 99999".to_string(),
+        include_powl: None,
+    }));
+    let v: serde_json::Value = serde_json::from_str(&resp).expect("onto_guide returned non-JSON");
+    assert_eq!(v["ok"], true);
+    assert!(
+        v["known_intents"].as_array().map(|a| !a.is_empty()).unwrap_or(false),
+        "unknown intent must return known_intents list\nresponse: {resp}"
+    );
+    assert!(
+        v["plan"].as_array().map(|a| a.is_empty()).unwrap_or(false),
+        "unknown intent must return empty plan\nresponse: {resp}"
+    );
+}
+
 #[tokio::test]
-async fn a14_align_garbage_source_turtle_returns_ok_false() {
+async fn a16_align_garbage_source_turtle_returns_ok_false() {
     let (_tmp, _db, server) = build_server();
     let resp = server
         .onto_align(Parameters(OntoAlignInput {

@@ -363,6 +363,7 @@ fn read_only_tools_listed_in_allowlist() {
         "onto_cell8_attest",
         "onto_attestation_rotate_keys",
         "onto_ontostar_attest",
+        "onto_guide",
     ]
     .into_iter()
     .collect();

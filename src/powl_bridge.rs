@@ -75,7 +75,8 @@ impl PowlBridge {
     /// Parse a POWL string into the arena. Pure delegation to
     /// `wasm4pm::powl_parser::parse_powl_model_string`.
     pub fn parse(&mut self, powl_string: &str) -> Result<u32, String> {
-        let root = wasm4pm::powl_parser::parse_powl_model_string(powl_string, &mut self.arena)?;
+        let root = wasm4pm::powl_parser::parse_powl_model_string(powl_string, &mut self.arena)
+            .map_err(|e| format!("{e:?}"))?;
         // Cache the Petri-net projection so replay/fitness are pure delegations.
         let pn = wasm4pm::powl::conversion::to_petri_net::apply(&self.arena, root);
         self.parsed.insert(

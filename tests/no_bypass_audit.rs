@@ -99,6 +99,7 @@ pub fn read_only_allowlist() -> HashSet<(&'static str, &'static str)> {
         ("onto_cell8_attest",         "READ-ONLY: Cell8 13-gate attestation read-only inspection"),
         ("onto_attestation_rotate_keys", "READ-ONLY: admin-gated trust-set reload; writes only to trusted_keys_history (closed-by-default via OPEN_ONTOLOGIES_ADMIN_PRINCIPALS)"),
         ("onto_ontostar_attest",      "READ-ONLY: R10-2 OntoStar integration seal — verifies external Ed25519 receipt, records fingerprint in trusted_keys_history, no admission path mutation"),
+        ("onto_guide",                "READ-ONLY: static workflow planner — pure function returning a step-by-step plan from intent keywords; no DB writes, no admission path mutation"),
     ]
     .into_iter()
     .collect()

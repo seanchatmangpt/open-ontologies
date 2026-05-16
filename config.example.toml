@@ -1,0 +1,126 @@
+# config.example.toml — open-ontologies reference configuration
+#
+# Copy this file to config.toml and uncomment/adjust what you need.
+# All sections are optional; built-in defaults work for local development.
+#
+# Env-var overrides: most fields can also be set via environment variables
+# (OPEN_ONTOLOGIES_* prefix). Check src/config.rs for the full list.
+# Env vars take precedence over TOML values.
+#
+# Minimal working setup (stdio MCP):
+#   1. cargo build --release
+#   2. ./target/release/open-ontologies serve
+#   (No config.toml needed for basic use.)
+
+# ─── General ──────────────────────────────────────────────────────────────
+
+[general]
+# Working directory for state files (SQLite DB, receipts, cache).
+# Default: ~/.open-ontologies
+data_dir = "~/.open-ontologies"
+
+# Directories scanned by onto_repo_list / onto_repo_load.
+# Add paths to directories containing .ttl / .nt / .owl files.
+# ontology_dirs = ["/path/to/my/ontologies", "~/ontologies"]
+ontology_dirs = []
+
+# ─── HTTP server ──────────────────────────────────────────────────────────
+
+[http]
+# TCP address for serve_http. Default: 127.0.0.1:3050
+# host = "0.0.0.0"
+# port = 3050
+
+# ─── Embeddings (onto_embed / onto_search / onto_align) ───────────────────
+
+[embeddings]
+# Provider: "local" (ONNX model on disk) or "openai" (any OpenAI-compatible API).
+# Default: "local". Override with OPEN_ONTOLOGIES_EMBEDDINGS_PROVIDER env var.
+# provider = "local"
+
+# Local ONNX paths (only needed when provider = "local"):
+# model_path     = "~/.open-ontologies/models/bge-small-en-v1.5.onnx"
+# tokenizer_path = "~/.open-ontologies/models/tokenizer.json"
+
+# OpenAI-compatible (provider = "openai"):
+# api_base = "https://api.openai.com/v1"   # or Ollama, vLLM, LocalAI, etc.
+# api_key  = ""  # or set OPEN_ONTOLOGIES_EMBEDDINGS_API_KEY / OPENAI_API_KEY
+# model    = "text-embedding-3-small"
+
+# ─── LLM (onto_translate_candidate / onto_groq_status) ───────────────────
+
+[llm]
+# Groq API key. Set GROQ_API_KEY env var — never put secrets in config files.
+# api_key = ""  # use env var instead
+# model   = "llama3-8b-8192"
+# base_url = "https://api.groq.com/openai/v1"
+# subprocess_timeout_secs = 30
+
+# ─── Cache (compile cache for loaded ontologies) ──────────────────────────
+
+[cache]
+# Enable N-Triples compile cache (faster re-loads). Default: true
+# enabled = true
+# dir     = "~/.open-ontologies/cache"
+# idle_ttl_secs = 86400          # evict entries unused for 24h
+# evictor_interval_secs = 3600   # check every hour
+# auto_refresh = false           # reload on source TTL mtime change
+
+# ─── Signing keys (receipts + attestation) ────────────────────────────────
+#
+# Ed25519 signing key path. Set via OPEN_ONTOLOGIES_SIGNING_KEY_PATH env var.
+# When set, every receipt and attestation is Ed25519-signed.
+# Generate a key:  openssl genpkey -algorithm ED25519 -out signing.pem
+#
+# OPEN_ONTOLOGIES_SIGNING_KEY_PATH=~/.open-ontologies/keys/signing.pem
+#
+# mcpp proof gating (if compiled with --features mcpp):
+# MCPP_SIGNING_KEY_PATH=~/.mcpp/keys/signing.pem
+
+# ─── Monitor (onto_monitor background watchers) ───────────────────────────
+
+[monitor]
+# How often the monitor loop fires. Default: 60 seconds.
+# interval_secs = 60
+
+# ─── Retention (automatic pruning of old OCEL events / receipts) ──────────
+
+[retention]
+# How long to keep OCEL events. Default: 30 days.
+# ocel_ttl_days    = 30
+# receipt_ttl_days = 90
+# enabled          = true
+
+# ─── Reasoning (onto_reason) ──────────────────────────────────────────────
+
+[reasoner]
+# Default reasoning profile: "rdfs" or "owl-rl". Default: "rdfs"
+# default_profile = "rdfs"
+
+# ─── Webhooks (onto_monitor webhook notifications) ────────────────────────
+
+[webhook]
+# Optional endpoint for monitor alerts. Leave blank to disable.
+# endpoint = "https://hooks.slack.com/services/..."
+# timeout_secs = 5
+
+# ─── Telemetry (OpenTelemetry traces) ─────────────────────────────────────
+
+[telemetry]
+# OTLP endpoint. Set OTEL_EXPORTER_OTLP_ENDPOINT env var instead.
+# endpoint = "http://localhost:4317"
+# enabled  = false
+
+# ─── Authority (admission gate thresholds) ────────────────────────────────
+
+[authority]
+# Minimum POWL replay fitness / precision for admission. Default: 0.95 / 0.85
+# fitness_threshold   = 0.95
+# precision_threshold = 0.85
+
+# ─── Multi-tenancy ────────────────────────────────────────────────────────
+#
+# Single-tenant by default. To enable multi-tenant isolation:
+#   HTTP header:  X-Ontostar-Tenant: <tenant-id>
+#   Stdio env:    OPEN_ONTOLOGIES_TENANT_ID=<tenant-id>
+# Tenant IDs must match: ^[a-z][a-z0-9_-]{0,63}$

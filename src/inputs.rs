@@ -946,6 +946,19 @@ pub struct OntoRetentionPauseInput {
     pub minutes: u64,
 }
 
+/// `onto_guide` input. Accepts a plain-language intent and returns a
+/// step-by-step tool plan for the matching builtin workflow.
+#[derive(Deserialize, JsonSchema)]
+pub struct OntoGuideInput {
+    /// Plain-language description of what you want to accomplish.
+    /// Examples: "load and validate an ontology", "ingest CSV data",
+    /// "align two ontologies", "manufacture a solution".
+    pub intent: String,
+    /// When true, include the POWL string for the matched workflow in the
+    /// response (useful for onto_declare_workflow). Default: false.
+    pub include_powl: Option<bool>,
+}
+
 /// R10-2: `onto_ontostar_attest` input. Verifies an external OntoStar
 /// Ed25519 receipt and seals the key fingerprint into `trusted_keys_history`.
 #[derive(Deserialize, JsonSchema)]

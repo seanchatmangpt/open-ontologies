@@ -44,6 +44,7 @@ pub mod receipt_archive;
 pub mod receipt_chain;
 pub mod repo;
 pub mod runtime;
+pub mod guide;
 pub mod mcpp_gate;
 pub mod server;
 pub mod shacl;
@@ -114,3 +115,9 @@ pub mod verifier_worker;
 // R8-3 — Telemetry initialisation. Reads TelemetryConfig from Config and
 // wires tracing-subscriber; OTLP layer extension point for R9-3.
 pub mod telemetry;
+
+// Tier 3 — Background Health Guardian. Periodic 60 s tick checks for open
+// workflow scope leaks (>30 min unclosed) and receipt chain sequence gaps.
+// Emits idempotent OCEL events and tracing::warn on findings; heartbeat
+// on clean ticks so monitors can detect a silent guardian.
+pub mod health_guardian;

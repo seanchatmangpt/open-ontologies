@@ -174,11 +174,16 @@ fn run_stdio_server(cfg: Config, db: StateDb, graph: Arc<GraphStore>, governance
     );
     let (_verifier, _verifier_cursor) =
         open_ontologies::verifier_worker::VerifierWorker::spawn_with_cursor(
-            db,
+            db.clone(),
             verifier_ocel,
             cfg.verifier.clone(),
             pause_handle,
         );
+    // Tier 3 — Health Guardian. Periodic scope-leak and receipt-chain-gap
+    // checks. Shares the StateDb but holds no other shared state. Dropped
+    // with the server — the tokio task exits when the handle is dropped.
+    let _health_guardian =
+        open_ontologies::health_guardian::HealthGuardian::spawn(db);
     tokio::runtime::Handle::current().block_on(async {
         let service = server.serve(rmcp::transport::stdio()).await
             .map_err(|e| anyhow::anyhow!(e))?;

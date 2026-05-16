@@ -119,6 +119,24 @@ docker-run:
 init:
 	cargo run --release -- init
 
+# ─── ggen pipeline ─────────────────────────────────────────────────────────
+# Full regeneration: validate TTL → ggen sync → compile check → test.
+# Run after every edit to ontology/cli-open-ontologies.ttl.
+ggen-sync-full:
+	@echo "Step 1/4: validate source TTL..."
+	cargo run --release -- ontology validate --input ontology/cli-open-ontologies.ttl
+	@echo "Step 2/4: ggen sync..."
+	cargo run --release -- ggen sync
+	@echo "Step 3/4: compile check..."
+	$(MAKE) check
+	@echo "Step 4/4: test suite..."
+	$(MAKE) test
+	@echo "✓ ggen-sync-full complete"
+
+# Quick setup verification — checks path deps, binary health, config.
+verify-setup:
+	bash scripts/verify-setup.sh
+
 serve:
 	cargo run --release -- serve
 

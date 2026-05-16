@@ -544,6 +544,14 @@ impl OpenOntologiesServer {
                     "admission": "denied",
                     "defect": { "kind": "FalsePass" },
                     "reason": "bypass_admission=true requires a non-empty bypass_reason",
+                    "remediation": {
+                        "explanation": "bypass_admission=true requires a non-empty bypass_reason. \
+                                        Provide bypass_reason with a justification string.",
+                        "next_tool": null,
+                        "next_params": null,
+                        "severity": "blocking",
+                        "auto_retry": false,
+                    },
                 }).to_string());
             }
             // R4 WE — §14: bypass self-attribution. The audit emission MUST
@@ -636,10 +644,13 @@ impl OpenOntologiesServer {
                     None,
                 );
                 self.lineage().record_admission_denied(&self.session_id, "scope_unclosed");
+                let remediation =
+                    crate::defects::DefectClass::ScopeUnclosed.remediation();
                 return Err(serde_json::json!({
                     "ok": false,
                     "admission": "denied",
                     "defect": { "kind": "ScopeUnclosed" },
+                    "remediation": remediation,
                 }).to_string());
             }
         };
@@ -710,10 +721,12 @@ impl OpenOntologiesServer {
             }
             Err((defect, _devs)) => {
                 self.lineage().record_admission_denied(&self.session_id, defect.tag());
+                let remediation = defect.remediation();
                 Err(serde_json::json!({
                     "ok": false,
                     "admission": "denied",
                     "defect": defect,
+                    "remediation": remediation,
                 }).to_string())
             }
         }
@@ -6038,6 +6051,24 @@ impl OpenOntologiesServer {
             "fingerprint": fpr_hex,
             "recorded": recorded > 0,
         }).to_string()
+    }
+
+    #[tool(
+        name = "onto_guide",
+        description = "Workflow planner. Given a plain-language intent, returns a step-by-step \
+        tool plan for the matching builtin workflow. Supported intents: 'load and validate an \
+        ontology', 'ontology authoring', 'ingest CSV data', 'apply lifecycle changes', \
+        'align two ontologies', 'generate code', 'requirements ctq', 'manufacture a solution', \
+        'semantic search'. Set include_powl=true to also receive the POWL string for \
+        onto_declare_workflow. Unknown intents return a list of known workflow names."
+    )]
+    pub fn onto_guide(&self, Parameters(input): Parameters<crate::inputs::OntoGuideInput>) -> String {
+        let plan = crate::guide::plan_for_intent(
+            &input.intent,
+            input.include_powl.unwrap_or(false),
+        );
+        serde_json::to_string(&plan)
+            .unwrap_or_else(|e| format!(r#"{{"ok":false,"error":"{}"}}"#, e))
     }
 }
 
