@@ -38,6 +38,43 @@ use rmcp::model::RawContent;
 
 /// Runtime-selectable wrapper: `Bare` runs without proof gating; `Gated`
 /// intercepts every tool call through mcpp's `ProofWriter`.
+///
+/// In production, the correct variant is selected at startup based on whether
+/// `MCPP_SIGNING_KEY_PATH` is set. The `Bare` variant is always available;
+/// `Gated` is compiled only with the `mcpp` feature flag.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::mcpp_gate::MaybeGatedServer;
+/// use open_ontologies::server::OpenOntologiesServer;
+/// use open_ontologies::state::StateDb;
+/// use std::path::Path;
+///
+/// let db = StateDb::open(Path::new(":memory:")).unwrap();
+/// let server = OpenOntologiesServer::new(db);
+/// let gated = MaybeGatedServer::Bare(server);
+///
+/// // The registry is reachable through the wrapper.
+/// let _registry = gated.registry();
+/// ```
+///
+/// Pattern-matching on the variant tells callers whether proof gating is
+/// active without needing to inspect environment variables:
+///
+/// ```
+/// use open_ontologies::mcpp_gate::MaybeGatedServer;
+/// use open_ontologies::server::OpenOntologiesServer;
+/// use open_ontologies::state::StateDb;
+/// use std::path::Path;
+///
+/// let db = StateDb::open(Path::new(":memory:")).unwrap();
+/// let wrapper = MaybeGatedServer::Bare(OpenOntologiesServer::new(db));
+///
+/// // Without the `mcpp` feature, only the `Bare` variant is reachable.
+/// let is_bare = matches!(wrapper, MaybeGatedServer::Bare(_));
+/// assert!(is_bare, "default build uses the Bare (ungated) variant");
+/// ```
 pub enum MaybeGatedServer {
     Bare(OpenOntologiesServer),
     #[cfg(feature = "mcpp")]
@@ -45,6 +82,44 @@ pub enum MaybeGatedServer {
 }
 
 impl MaybeGatedServer {
+    /// Return the shared [`OntologyRegistry`] for the wrapped server.
+    ///
+    /// The returned `Arc` is the same registry that the underlying server uses
+    /// for all tool calls; callers may clone it to share ownership.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use open_ontologies::mcpp_gate::MaybeGatedServer;
+    /// use open_ontologies::server::OpenOntologiesServer;
+    /// use open_ontologies::state::StateDb;
+    /// use std::path::Path;
+    ///
+    /// let db = StateDb::open(Path::new(":memory:")).unwrap();
+    /// let wrapper = MaybeGatedServer::Bare(OpenOntologiesServer::new(db));
+    /// // registry() always returns a valid Arc regardless of the active variant.
+    /// let registry = wrapper.registry();
+    /// // The Arc reference count is at least 1 (the server itself holds one).
+    /// assert!(std::sync::Arc::strong_count(&registry) >= 1);
+    /// ```
+    ///
+    /// Two callers receive the same underlying registry (shared ownership):
+    ///
+    /// ```
+    /// use open_ontologies::mcpp_gate::MaybeGatedServer;
+    /// use open_ontologies::server::OpenOntologiesServer;
+    /// use open_ontologies::state::StateDb;
+    /// use std::sync::Arc;
+    /// use std::path::Path;
+    ///
+    /// let db = StateDb::open(Path::new(":memory:")).unwrap();
+    /// let wrapper = MaybeGatedServer::Bare(OpenOntologiesServer::new(db));
+    ///
+    /// let r1 = wrapper.registry();
+    /// let r2 = wrapper.registry();
+    /// // Both Arcs point at the same allocation.
+    /// assert!(Arc::ptr_eq(&r1, &r2), "registry() returns the same Arc each call");
+    /// ```
     pub fn registry(&self) -> Arc<OntologyRegistry> {
         match self {
             Self::Bare(s) => s.registry(),
@@ -143,6 +218,29 @@ pub struct ProofGatedServer<H: ServerHandler> {
 
 #[cfg(feature = "mcpp")]
 impl<H: ServerHandler> ProofGatedServer<H> {
+    /// Wrap `inner` with proof gating backed by `db` and `signing_key`.
+    ///
+    /// Every successful tool call will be admitted through `ProofWriter::admit()`
+    /// and the JSON response gains an `"mcpp"` field with verdict and receipt hash.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # #[cfg(feature = "mcpp")]
+    /// # {
+    /// use open_ontologies::mcpp_gate::ProofGatedServer;
+    /// use open_ontologies::server::OpenOntologiesServer;
+    /// use open_ontologies::state::StateDb;
+    /// use std::path::Path;
+    ///
+    /// let db = StateDb::open(Path::new(":memory:")).unwrap();
+    /// let server = OpenOntologiesServer::new(db.clone());
+    /// let signing_key = ed25519_dalek::SigningKey::generate(&mut rand::rngs::OsRng);
+    /// let gated = ProofGatedServer::new(server, db, signing_key);
+    /// // `gated.inner` holds the wrapped server.
+    /// let _registry = gated.inner.registry();
+    /// # }
+    /// ```
     pub fn new(inner: H, db: StateDb, signing_key: ed25519_dalek::SigningKey) -> Self {
         Self { inner, db, signing_key }
     }

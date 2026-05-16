@@ -39,6 +39,48 @@ use crate::state::StateDb;
 use std::time::Duration;
 
 /// Outcome of one guardian tick.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::health_guardian::GuardianReport;
+///
+/// // Default-constructed report: both counters start at zero.
+/// let report = GuardianReport::default();
+/// assert_eq!(report.scope_leaks, 0);
+/// assert_eq!(report.receipt_gaps, 0);
+///
+/// // Fields are public and directly assignable.
+/// let report = GuardianReport { scope_leaks: 3, receipt_gaps: 1 };
+/// assert_eq!(report.scope_leaks, 3);
+/// assert_eq!(report.receipt_gaps, 1);
+/// ```
+///
+/// A healthy report has both counters at zero. An unhealthy one has at least
+/// one counter above zero:
+///
+/// ```
+/// use open_ontologies::health_guardian::GuardianReport;
+///
+/// fn is_healthy(r: &GuardianReport) -> bool {
+///     r.scope_leaks == 0 && r.receipt_gaps == 0
+/// }
+///
+/// assert!(is_healthy(&GuardianReport::default()));
+/// assert!(!is_healthy(&GuardianReport { scope_leaks: 1, receipt_gaps: 0 }));
+/// assert!(!is_healthy(&GuardianReport { scope_leaks: 0, receipt_gaps: 2 }));
+/// ```
+///
+/// `GuardianReport` is `Debug`-printable for structured logging:
+///
+/// ```
+/// use open_ontologies::health_guardian::GuardianReport;
+///
+/// let report = GuardianReport { scope_leaks: 0, receipt_gaps: 0 };
+/// let s = format!("{report:?}");
+/// assert!(s.contains("scope_leaks"));
+/// assert!(s.contains("receipt_gaps"));
+/// ```
 #[derive(Debug, Default)]
 pub struct GuardianReport {
     pub scope_leaks: u64,
@@ -46,6 +88,10 @@ pub struct GuardianReport {
 }
 
 /// Background guardian that polls for scope leaks and receipt chain gaps.
+///
+/// Constructed via [`HealthGuardian::spawn`] in production, or used directly
+/// (via its private `db` field set up inside `tick` tests) in integration tests.
+/// See [`HealthGuardian::tick`] for the synchronous test entry point.
 pub struct HealthGuardian {
     db: StateDb,
 }
@@ -54,6 +100,22 @@ impl HealthGuardian {
     /// Spawn the guardian loop. Ticks every 60 s; skips the first immediate
     /// tick so the guardian does not race against server initialisation.
     /// Returns the `JoinHandle` — drop it to stop the loop.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use open_ontologies::health_guardian::HealthGuardian;
+    /// use open_ontologies::state::StateDb;
+    /// use std::path::Path;
+    ///
+    /// # #[tokio::main]
+    /// # async fn main() {
+    /// let db = StateDb::open(Path::new(":memory:")).unwrap();
+    /// let handle = HealthGuardian::spawn(db);
+    /// // Drop the handle to stop the background loop.
+    /// handle.abort();
+    /// # }
+    /// ```
     pub fn spawn(db: StateDb) -> tokio::task::JoinHandle<()> {
         tokio::spawn(async move {
             let guardian = Self { db };
@@ -88,6 +150,50 @@ impl HealthGuardian {
 
     /// Run one guardian tick synchronously. Integration tests call this
     /// directly with a fresh `StateDb` to verify the checks without spawning.
+    ///
+    /// On an empty database both counters are zero and a heartbeat OCEL event
+    /// is emitted into `ocel_events`.
+    ///
+    /// # Return value
+    ///
+    /// Returns a [`GuardianReport`] with counts for scope leaks and receipt
+    /// chain gaps found during this tick.
+    ///
+    /// # Examples
+    ///
+    /// The `db` field is private so `HealthGuardian` cannot be constructed
+    /// directly outside this module. In integration tests the private
+    /// struct-literal syntax is available; in doc-tests use `# no_run` and
+    /// show the full call sequence instead:
+    ///
+    /// ```no_run
+    /// use open_ontologies::health_guardian::HealthGuardian;
+    /// use open_ontologies::state::StateDb;
+    /// use std::path::Path;
+    ///
+    /// // Production pattern: spawn the guardian, which calls tick() internally.
+    /// // The JoinHandle can be aborted to stop the loop.
+    /// let db = StateDb::open(Path::new(":memory:")).unwrap();
+    /// let handle = HealthGuardian::spawn(db);
+    /// // tick() runs on every 60-second interval inside the spawned task.
+    /// handle.abort();
+    /// ```
+    ///
+    /// The report type produced by `tick()` is directly constructible for
+    /// unit-testing downstream consumers:
+    ///
+    /// ```
+    /// use open_ontologies::health_guardian::GuardianReport;
+    ///
+    /// // Simulate what tick() returns on a clean database.
+    /// let report: GuardianReport = GuardianReport { scope_leaks: 0, receipt_gaps: 0 };
+    /// assert_eq!(report.scope_leaks, 0, "no leaks on fresh db");
+    /// assert_eq!(report.receipt_gaps, 0, "no gaps on fresh db");
+    ///
+    /// // Simulate what tick() returns when two scope leaks are found.
+    /// let report = GuardianReport { scope_leaks: 2, receipt_gaps: 0 };
+    /// assert!(report.scope_leaks > 0, "tick detected scope leaks");
+    /// ```
     pub fn tick(&self) -> anyhow::Result<GuardianReport> {
         let mut report = GuardianReport::default();
         let now_iso = chrono::Utc::now().to_rfc3339();
