@@ -95,6 +95,90 @@ pub enum Concept {
 
 impl Concept {
     /// Push negation inward to produce NNF.
+    ///
+    /// # Examples
+    ///
+    /// Top and Bottom are duals:
+    ///
+    /// ```
+    /// use open_ontologies::tableaux::Concept;
+    ///
+    /// assert_eq!(Concept::Top.negate(), Concept::Bottom);
+    /// assert_eq!(Concept::Bottom.negate(), Concept::Top);
+    /// ```
+    ///
+    /// Atomic concept negation yields NegAtom, and double-negation restores
+    /// the original (idempotency through NNF):
+    ///
+    /// ```
+    /// use open_ontologies::tableaux::Concept;
+    ///
+    /// assert_eq!(Concept::Atom(0).negate(), Concept::NegAtom(0));
+    /// assert_eq!(Concept::NegAtom(0).negate(), Concept::Atom(0));
+    /// assert_eq!(Concept::Atom(0).negate().negate(), Concept::Atom(0));
+    /// ```
+    ///
+    /// De Morgan's law: negating a conjunction produces a disjunction (with
+    /// each conjunct negated), and vice versa:
+    ///
+    /// ```
+    /// use open_ontologies::tableaux::Concept;
+    ///
+    /// let conj = Concept::And(vec![Concept::Atom(0), Concept::Atom(1)]);
+    /// assert_eq!(
+    ///     conj.negate(),
+    ///     Concept::Or(vec![Concept::NegAtom(0), Concept::NegAtom(1)]),
+    /// );
+    ///
+    /// let disj = Concept::Or(vec![Concept::Atom(0), Concept::Atom(1)]);
+    /// assert_eq!(
+    ///     disj.negate(),
+    ///     Concept::And(vec![Concept::NegAtom(0), Concept::NegAtom(1)]),
+    /// );
+    /// ```
+    ///
+    /// Existential and universal quantifiers are duals under negation:
+    ///
+    /// ```
+    /// use open_ontologies::tableaux::Concept;
+    ///
+    /// let exists = Concept::Exists(7, Box::new(Concept::Atom(3)));
+    /// assert_eq!(
+    ///     exists.negate(),
+    ///     Concept::ForAll(7, Box::new(Concept::NegAtom(3))),
+    /// );
+    ///
+    /// let forall = Concept::ForAll(7, Box::new(Concept::Atom(3)));
+    /// assert_eq!(
+    ///     forall.negate(),
+    ///     Concept::Exists(7, Box::new(Concept::NegAtom(3))),
+    /// );
+    /// ```
+    ///
+    /// Qualified cardinality constraints: ¬(≥n R.C) = ≤(n−1) R.C, with the
+    /// special case ¬(≥0 R.C) = ⊥ because ≥0 is a tautology:
+    ///
+    /// ```
+    /// use open_ontologies::tableaux::Concept;
+    ///
+    /// // General case: ¬(≥2 R.C) = ≤1 R.C
+    /// let min2 = Concept::MinCard(5, 2, Box::new(Concept::Top));
+    /// assert_eq!(
+    ///     min2.negate(),
+    ///     Concept::MaxCard(5, 1, Box::new(Concept::Top)),
+    /// );
+    ///
+    /// // Edge case: ¬(≥0 R.C) = ⊥  (≥0 is tautologous, its negation is ⊥)
+    /// let min0 = Concept::MinCard(5, 0, Box::new(Concept::Top));
+    /// assert_eq!(min0.negate(), Concept::Bottom);
+    ///
+    /// // ¬(≤n R.C) = ≥(n+1) R.C
+    /// let max1 = Concept::MaxCard(5, 1, Box::new(Concept::Top));
+    /// assert_eq!(
+    ///     max1.negate(),
+    ///     Concept::MinCard(5, 2, Box::new(Concept::Top)),
+    /// );
+    /// ```
     pub fn negate(&self) -> Concept {
         match self {
             Concept::Top => Concept::Bottom,
