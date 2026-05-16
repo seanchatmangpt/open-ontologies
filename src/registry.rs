@@ -27,11 +27,25 @@ use crate::state::StateDb;
 
 /// RDF serialization format used for the compile cache (N-Triples).
 /// Passed to `GraphStore::serialize` and friends wherever the cache is written.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::registry::NTRIPLES_FORMAT;
+/// assert_eq!(NTRIPLES_FORMAT, "ntriples");
+/// ```
 pub const NTRIPLES_FORMAT: &str = "ntriples";
 
 /// RDF serialization format string for Turtle (`.ttl`).
 /// Passed to `GraphStore::serialize` and `GraphStore::save_file` at 3 sites in
 /// server.rs; a typo here produces an unserializable artifact silently.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::registry::TURTLE_FORMAT;
+/// assert_eq!(TURTLE_FORMAT, "turtle");
+/// ```
 pub const TURTLE_FORMAT: &str = "turtle";
 
 /// Options accepted by `OntologyRegistry::load_file`.
@@ -199,6 +213,31 @@ impl OntologyRegistry {
     }
 
     /// Update `last_access` if there is an active entry.
+    ///
+    /// Calling `touch` on a registry with no active entry is a no-op — the
+    /// registry stays in its empty state.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use std::sync::Arc;
+    /// # use open_ontologies::graph::GraphStore;
+    /// # use open_ontologies::state::StateDb;
+    /// # use open_ontologies::registry::OntologyRegistry;
+    /// # use open_ontologies::config::CacheConfig;
+    /// # let tmp = tempfile::tempdir().unwrap();
+    /// # let store = Arc::new(GraphStore::new());
+    /// # let db = StateDb::open(std::path::Path::new(":memory:")).unwrap();
+    /// # let config = CacheConfig {
+    /// #     dir: tmp.path().to_string_lossy().into_owned(),
+    /// #     ..CacheConfig::default()
+    /// # };
+    /// # let reg = OntologyRegistry::new(store, db, config).unwrap();
+    /// // No active entry — touch is a no-op, registry remains empty.
+    /// reg.touch();
+    /// let s = reg.status();
+    /// assert!(s["active"].is_null());
+    /// ```
     pub fn touch(&self) {
         if let Some(entry) = &*self.active.lock().unwrap() {
             *entry.last_access.lock().unwrap() = Instant::now();
@@ -208,6 +247,29 @@ impl OntologyRegistry {
     /// Make sure the in-memory store reflects the active entry.
     /// If the store was evicted, reload from cache (or source on refresh).
     /// No-op if no active entry exists.
+    ///
+    /// # Examples
+    ///
+    /// With no active entry, `ensure_loaded` succeeds and leaves the registry
+    /// in an empty state:
+    ///
+    /// ```
+    /// # use std::sync::Arc;
+    /// # use open_ontologies::graph::GraphStore;
+    /// # use open_ontologies::state::StateDb;
+    /// # use open_ontologies::registry::OntologyRegistry;
+    /// # use open_ontologies::config::CacheConfig;
+    /// # let tmp = tempfile::tempdir().unwrap();
+    /// # let store = Arc::new(GraphStore::new());
+    /// # let db = StateDb::open(std::path::Path::new(":memory:")).unwrap();
+    /// # let config = CacheConfig {
+    /// #     dir: tmp.path().to_string_lossy().into_owned(),
+    /// #     ..CacheConfig::default()
+    /// # };
+    /// # let reg = OntologyRegistry::new(store, db, config).unwrap();
+    /// reg.ensure_loaded().unwrap(); // no-op, no error
+    /// assert!(reg.status()["active"].is_null());
+    /// ```
     pub fn ensure_loaded(&self) -> Result<()> {
         // Single-flight guard.
         let _g = self.reload_lock.lock().unwrap();
@@ -285,6 +347,32 @@ impl OntologyRegistry {
 
     /// Evict the active entry if idle longer than `idle_ttl_secs`.
     /// Returns `true` when an eviction took place.
+    ///
+    /// When there is no active entry, or when the cache is disabled, or when
+    /// `idle_ttl_secs` is 0, the tick is always a no-op.
+    ///
+    /// # Examples
+    ///
+    /// A registry with `idle_ttl_secs = 0` (default) never evicts:
+    ///
+    /// ```
+    /// # use std::sync::Arc;
+    /// # use open_ontologies::graph::GraphStore;
+    /// # use open_ontologies::state::StateDb;
+    /// # use open_ontologies::registry::OntologyRegistry;
+    /// # use open_ontologies::config::CacheConfig;
+    /// # let tmp = tempfile::tempdir().unwrap();
+    /// # let store = Arc::new(GraphStore::new());
+    /// # let db = StateDb::open(std::path::Path::new(":memory:")).unwrap();
+    /// # let config = CacheConfig {
+    /// #     dir: tmp.path().to_string_lossy().into_owned(),
+    /// #     idle_ttl_secs: 0,
+    /// #     ..CacheConfig::default()
+    /// # };
+    /// # let reg = OntologyRegistry::new(store, db, config).unwrap();
+    /// // idle_ttl_secs == 0 disables eviction entirely.
+    /// assert_eq!(reg.evictor_tick().unwrap(), false);
+    /// ```
     pub fn evictor_tick(&self) -> Result<bool> {
         if !self.config.enabled || self.config.idle_ttl_secs == 0 {
             return Ok(false);
@@ -308,6 +396,30 @@ impl OntologyRegistry {
 
     /// Manually unload the active ontology (clear graph + drop active slot).
     /// The cache file is preserved unless `delete_cache` is true.
+    ///
+    /// Returns `None` when there was nothing to unload.
+    ///
+    /// # Examples
+    ///
+    /// Unloading a registry with no active entry returns `None`:
+    ///
+    /// ```
+    /// # use std::sync::Arc;
+    /// # use open_ontologies::graph::GraphStore;
+    /// # use open_ontologies::state::StateDb;
+    /// # use open_ontologies::registry::OntologyRegistry;
+    /// # use open_ontologies::config::CacheConfig;
+    /// # let tmp = tempfile::tempdir().unwrap();
+    /// # let store = Arc::new(GraphStore::new());
+    /// # let db = StateDb::open(std::path::Path::new(":memory:")).unwrap();
+    /// # let config = CacheConfig {
+    /// #     dir: tmp.path().to_string_lossy().into_owned(),
+    /// #     ..CacheConfig::default()
+    /// # };
+    /// # let reg = OntologyRegistry::new(store, db, config).unwrap();
+    /// let result = reg.unload(false).unwrap();
+    /// assert!(result.is_none());
+    /// ```
     pub fn unload(&self, delete_cache: bool) -> Result<Option<String>> {
         let mut active = self.active.lock().unwrap();
         let Some(entry) = active.take() else { return Ok(None) };
