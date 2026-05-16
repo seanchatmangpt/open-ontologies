@@ -343,6 +343,54 @@ impl AlignmentEngine {
     #[cfg(feature = "embeddings")]
     const DEFAULT_WEIGHTS: [f64; 7] = [0.20, 0.15, 0.12, 0.12, 0.12, 0.09, 0.20];
 
+    /// Returns the default signal weights as a slice.
+    ///
+    /// Without the `embeddings` feature there are 6 structural signals; with it
+    /// a 7th embedding-similarity signal is appended. In both configurations the
+    /// weights must sum to 1.0 (within floating-point rounding).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use open_ontologies::align::AlignmentEngine;
+    ///
+    /// let weights = AlignmentEngine::default_weights();
+    ///
+    /// // At least 6 structural signals are always present.
+    /// assert!(weights.len() >= 6, "expected at least 6 signals, got {}", weights.len());
+    ///
+    /// // Weights must sum to 1.0 (within floating-point tolerance).
+    /// let sum: f64 = weights.iter().sum();
+    /// assert!((sum - 1.0).abs() < 0.001, "weights must sum to 1.0, got {sum}");
+    ///
+    /// // Every individual weight must be positive.
+    /// for w in weights {
+    ///     assert!(*w > 0.0, "all weights must be positive, found {w}");
+    /// }
+    /// ```
+    pub fn default_weights() -> &'static [f64] {
+        &Self::DEFAULT_WEIGHTS
+    }
+
+    /// Returns the number of alignment signals used by this engine.
+    ///
+    /// Without the `embeddings` feature the count is 6; with it the count is 7.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use open_ontologies::align::AlignmentEngine;
+    ///
+    /// // At least 6 structural signals must be configured.
+    /// assert!(AlignmentEngine::signal_count() >= 6);
+    ///
+    /// // Signal count must match the default weights vector length.
+    /// assert_eq!(AlignmentEngine::signal_count(), AlignmentEngine::default_weights().len());
+    /// ```
+    pub fn signal_count() -> usize {
+        Self::DEFAULT_WEIGHTS.len()
+    }
+
     /// Compute embedding similarity score using cosine similarity on text vectors.
     ///
     /// Returns a value in [0.0, 1.0] where 1.0 means identical direction and

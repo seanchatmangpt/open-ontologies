@@ -31,8 +31,8 @@ pub struct MarketplaceEntry {
 /// ```
 /// use open_ontologies::marketplace::CATALOGUE;
 ///
-/// // The catalogue holds at least 29 entries (was extended from 29 to 32).
-/// assert!(CATALOGUE.len() >= 29, "expected at least 29 catalogue entries, got {}", CATALOGUE.len());
+/// // The catalogue must contain exactly 32 standard ontologies — pinned invariant.
+/// assert_eq!(CATALOGUE.len(), 32, "catalogue must have exactly 32 standard ontologies");
 ///
 /// // Every entry must have a non-empty id and url.
 /// for entry in CATALOGUE {

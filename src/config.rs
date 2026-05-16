@@ -526,6 +526,27 @@ pub const ENGINE_GROQ_PM4PY: &str = "groq_pm4py";
 /// ```
 pub const ENGINE_GEMINI: &str = "gemini";
 
+/// Default Gemini model name passed to the `gemini` CLI binary via `--model`.
+///
+/// Operators may override this by setting the `GEMINI_MODEL` environment variable.
+/// All Gemini model identifiers begin with the prefix `"gemini-"` by convention.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::config::GEMINI_DEFAULT_MODEL;
+///
+/// // The constant must start with the "gemini-" namespace prefix.
+/// assert!(
+///     GEMINI_DEFAULT_MODEL.starts_with("gemini-"),
+///     "model name must start with 'gemini-', got '{GEMINI_DEFAULT_MODEL}'"
+/// );
+///
+/// // The constant must be non-empty.
+/// assert!(!GEMINI_DEFAULT_MODEL.is_empty(), "model name must not be empty");
+/// ```
+pub const GEMINI_DEFAULT_MODEL: &str = "gemini-2.0-flash-lite";
+
 /// Return `true` when the Gemini CLI binary is available.
 ///
 /// Checks in order:
