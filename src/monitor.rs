@@ -6,6 +6,31 @@ use std::sync::Arc;
 use std::time::Duration;
 
 
+/// The action taken when a watcher's measured value exceeds its threshold.
+///
+/// Actions are persisted in SQLite as plain strings and round-trip correctly
+/// through `serde_json`. The mapping is:
+///
+/// | Variant | JSON string |
+/// |---------|-------------|
+/// | `Notify` | `"notify"` |
+/// | `BlockNextApply` | `"block_next_apply"` |
+/// | `AutoRollback` | `"auto_rollback"` |
+/// | `Log` | `"log"` |
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::monitor::WatcherAction;
+///
+/// // Round-trip through JSON.
+/// let action = WatcherAction::BlockNextApply;
+/// let json   = serde_json::to_string(&action).unwrap();
+/// assert_eq!(json, r#""block_next_apply""#);
+///
+/// let back: WatcherAction = serde_json::from_str(&json).unwrap();
+/// assert!(matches!(back, WatcherAction::BlockNextApply));
+/// ```
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum WatcherAction {
     #[serde(rename = "notify")]
@@ -33,6 +58,27 @@ pub struct Watcher {
     pub webhook_headers: Option<String>,
 }
 
+/// A fired alert returned inside [`MonitorResult`] when a watcher's value
+/// exceeds its threshold.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::monitor::Alert;
+///
+/// // Construct directly — useful for testing downstream code that inspects alerts.
+/// let alert = Alert {
+///     watcher:   "class-count-gate".to_string(),
+///     severity:  "warning".to_string(),
+///     value:     150.0,
+///     threshold: 100.0,
+///     action:    "notify".to_string(),
+///     detail:    "Class count exceeded threshold".to_string(),
+/// };
+///
+/// assert!(alert.value > alert.threshold);
+/// assert_eq!(alert.action, "notify");
+/// ```
 #[derive(Debug, Clone, Serialize)]
 pub struct Alert {
     pub watcher: String,
@@ -43,6 +89,43 @@ pub struct Alert {
     pub detail: String,
 }
 
+/// Aggregated result of a single [`Monitor::run_watchers`] sweep.
+///
+/// `status` is one of `"ok"`, `"alert"`, `"blocked"`, or
+/// `"auto_rolled_back"`. `alerts` collects every watcher that fired;
+/// `passed` collects every watcher that did not.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::monitor::{Alert, MonitorResult};
+///
+/// // Healthy result — no alerts, no failures.
+/// let ok = MonitorResult {
+///     status: "ok".to_string(),
+///     alerts: vec![],
+///     passed: vec!["class-count-gate".to_string()],
+/// };
+/// assert_eq!(ok.status, "ok");
+/// assert!(ok.alerts.is_empty());
+/// assert_eq!(ok.passed.len(), 1);
+///
+/// // Alert result.
+/// let alerted = MonitorResult {
+///     status: "alert".to_string(),
+///     alerts: vec![Alert {
+///         watcher:   "size-gate".to_string(),
+///         severity:  "warning".to_string(),
+///         value:     200.0,
+///         threshold: 100.0,
+///         action:    "notify".to_string(),
+///         detail:    "".to_string(),
+///     }],
+///     passed: vec![],
+/// };
+/// assert_eq!(alerted.status, "alert");
+/// assert_eq!(alerted.alerts.len(), 1);
+/// ```
 #[derive(Debug, Clone, Serialize)]
 pub struct MonitorResult {
     pub status: String,
@@ -119,6 +202,43 @@ impl Monitor {
     ///     |row| row.get(0),
     /// ).unwrap();
     /// assert_eq!(stored_id, "class-count-gate");
+    /// ```
+    ///
+    /// After registering, `run_watchers` evaluates the watcher. An empty graph
+    /// returns 0 classes, which is below the threshold of 100, so the watcher
+    /// appears in `passed` and `status` remains `"ok"`.
+    ///
+    /// ```
+    /// use open_ontologies::monitor::{Monitor, Watcher, WatcherAction};
+    /// use open_ontologies::state::StateDb;
+    /// use open_ontologies::graph::GraphStore;
+    /// use std::path::Path;
+    /// use std::sync::Arc;
+    ///
+    /// let db    = StateDb::open(Path::new(":memory:")).unwrap();
+    /// let graph = Arc::new(GraphStore::new());
+    /// let monitor = Monitor::new(db, graph);
+    ///
+    /// monitor.add_watcher(Watcher {
+    ///     id:              "empty-graph-gate".to_string(),
+    ///     check_type:      "sparql".to_string(),
+    ///     threshold:       100.0,
+    ///     severity:        "warning".to_string(),
+    ///     action:          WatcherAction::Notify,
+    ///     query:           Some(
+    ///         "SELECT (COUNT(?c) AS ?count) WHERE { ?c a <http://www.w3.org/2002/07/owl#Class> }"
+    ///             .to_string(),
+    ///     ),
+    ///     message:         None,
+    ///     webhook_url:     None,
+    ///     webhook_headers: None,
+    /// });
+    ///
+    /// // Empty graph → count=0 → below threshold → watcher passes.
+    /// let result = monitor.run_watchers();
+    /// assert_eq!(result.status, "ok");
+    /// assert!(result.alerts.is_empty());
+    /// assert!(result.passed.contains(&"empty-graph-gate".to_string()));
     /// ```
     pub fn add_watcher(&self, watcher: Watcher) {
         let conn = self.db.conn();
