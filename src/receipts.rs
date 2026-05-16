@@ -14,6 +14,17 @@ use serde::{Deserialize, Serialize};
 /// risking a conflict against Stream 1's authoritative schema (which now lives
 /// in `state.rs`). Kept as a public constant for compatibility with earlier
 /// branches of Stream 3 that referenced it.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::receipts::STREAM3_STUB_MIGRATION;
+///
+/// // The constant is a valid SQL comment — starts with `--`.
+/// assert!(STREAM3_STUB_MIGRATION.starts_with("--"));
+/// // It is non-empty and safe to pass to `execute_batch`.
+/// assert!(!STREAM3_STUB_MIGRATION.trim().is_empty());
+/// ```
 pub const STREAM3_STUB_MIGRATION: &str = "-- stream-3 backstop: schema lives in state.rs\n";
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -24,12 +35,83 @@ pub struct Receipt {
 }
 
 impl Receipt {
+    /// Hex-encode the 32-byte BLAKE3 receipt hash as a 64-character lowercase string.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use open_ontologies::receipts::build;
+    /// use open_ontologies::production_record::ProductionRecord;
+    ///
+    /// let record = ProductionRecord {
+    ///     artifact_hash:            [0u8; 32],
+    ///     scope_token:              "test-scope".into(),
+    ///     declared_powl_hash:       [0u8; 32],
+    ///     ocel_canonical_hash:      [0u8; 32],
+    ///     conformance_run_id:       "run-1".into(),
+    ///     gate_config_hash:         [0u8; 32],
+    ///     production_law_version:   "ontostar-1.0.0".into(),
+    ///     defects_taxonomy_version: "ontostar-defects-1.0.0".into(),
+    ///     gates_passed:             vec![],
+    ///     gates_refused:            vec![],
+    ///     prior_receipt:            None,
+    ///     signature:                None,
+    ///     signing_key_fpr:          None,
+    /// };
+    /// let receipt = build(record);
+    /// let hex = receipt.hex();
+    ///
+    /// // A BLAKE3 output is always 32 bytes → 64 lowercase hex characters.
+    /// assert_eq!(hex.len(), 64);
+    /// assert!(hex.chars().all(|c| c.is_ascii_hexdigit()));
+    /// // Identical call returns same string (deterministic).
+    /// assert_eq!(hex, receipt.hex());
+    /// ```
     pub fn hex(&self) -> String {
         hex32_pub(&self.bytes)
     }
 }
 
 /// Build a `Receipt` by hashing the canonical bytes of the production record.
+///
+/// The receipt hash is a BLAKE3 digest of the deterministic JSON serialisation
+/// produced by [`ProductionRecord::canonical_bytes`]. Two `ProductionRecord`
+/// values that differ in any field will produce distinct receipt hashes.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::receipts::build;
+/// use open_ontologies::production_record::ProductionRecord;
+///
+/// fn zero_record(scope: &str) -> ProductionRecord {
+///     ProductionRecord {
+///         artifact_hash:            [0u8; 32],
+///         scope_token:              scope.into(),
+///         declared_powl_hash:       [0u8; 32],
+///         ocel_canonical_hash:      [0u8; 32],
+///         conformance_run_id:       "run-1".into(),
+///         gate_config_hash:         [0u8; 32],
+///         production_law_version:   "ontostar-1.0.0".into(),
+///         defects_taxonomy_version: "ontostar-defects-1.0.0".into(),
+///         gates_passed:             vec![],
+///         gates_refused:            vec![],
+///         prior_receipt:            None,
+///         signature:                None,
+///         signing_key_fpr:          None,
+///     }
+/// }
+///
+/// let r1 = build(zero_record("scope-a"));
+/// let r2 = build(zero_record("scope-b"));
+///
+/// // Each receipt carries a 32-byte hash.
+/// assert_eq!(r1.bytes.len(), 32);
+/// // Different scope_token → different receipt hash.
+/// assert_ne!(r1.bytes, r2.bytes);
+/// // hex() is the lowercase hex rendering of those 32 bytes.
+/// assert_eq!(r1.hex().len(), 64);
+/// ```
 pub fn build(record: ProductionRecord) -> Receipt {
     let bytes_in = record.canonical_bytes();
     let h = blake3::hash(&bytes_in);
@@ -45,11 +127,84 @@ pub fn build(record: ProductionRecord) -> Receipt {
 ///
 /// Phase 11: defaults `tenant_id = "default"` for backwards compat. Use
 /// [`persist_with_tenant`] to associate the receipt with a non-default tenant.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::receipts::{build, persist, latest_for_session};
+/// use open_ontologies::production_record::ProductionRecord;
+/// use open_ontologies::state::StateDb;
+/// use std::path::Path;
+///
+/// let db = StateDb::open(Path::new(":memory:")).unwrap();
+///
+/// let record = ProductionRecord {
+///     artifact_hash:            [1u8; 32],
+///     scope_token:              "order-to-cash".into(),
+///     declared_powl_hash:       [2u8; 32],
+///     ocel_canonical_hash:      [3u8; 32],
+///     conformance_run_id:       "run-42".into(),
+///     gate_config_hash:         [4u8; 32],
+///     production_law_version:   "seed-v0".into(),
+///     defects_taxonomy_version: "ontostar-defects-4.8.0".into(),
+///     gates_passed:             vec!["A1_WorkflowDeclared".into()],
+///     gates_refused:            vec![],
+///     prior_receipt:            None,
+///     signature:                None,
+///     signing_key_fpr:          None,
+/// };
+/// let receipt = build(record);
+/// let expected_hex = receipt.hex();
+///
+/// persist(&receipt, &db, "session-1").unwrap();
+///
+/// // After persisting, the receipt can be retrieved as the chain tip.
+/// let tip = latest_for_session(&db, "session-1").unwrap();
+/// assert_eq!(tip.len(), 32);
+/// // The bytes retrieved from the DB round-trip through hex encoding.
+/// let tip_hex: String = tip.iter().map(|b| format!("{:02x}", b)).collect();
+/// assert_eq!(tip_hex, expected_hex);
+/// ```
 pub fn persist(receipt: &Receipt, db: &StateDb, session_id: &str) -> Result<()> {
     persist_with_tenant(receipt, db, session_id, "default")
 }
 
 /// Tenant-aware variant of [`persist`].
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::receipts::{build, persist_with_tenant, latest_for_session_in_tenant};
+/// use open_ontologies::production_record::ProductionRecord;
+/// use open_ontologies::state::StateDb;
+/// use std::path::Path;
+///
+/// let db = StateDb::open(Path::new(":memory:")).unwrap();
+///
+/// let record = ProductionRecord {
+///     artifact_hash:            [5u8; 32],
+///     scope_token:              "p2p".into(),
+///     declared_powl_hash:       [0u8; 32],
+///     ocel_canonical_hash:      [0u8; 32],
+///     conformance_run_id:       "run-99".into(),
+///     gate_config_hash:         [0u8; 32],
+///     production_law_version:   "seed-v0".into(),
+///     defects_taxonomy_version: "ontostar-defects-4.8.0".into(),
+///     gates_passed:             vec![],
+///     gates_refused:            vec![],
+///     prior_receipt:            None,
+///     signature:                None,
+///     signing_key_fpr:          None,
+/// };
+/// let receipt = build(record);
+///
+/// persist_with_tenant(&receipt, &db, "session-x", "tenant-alpha").unwrap();
+///
+/// // Visible under the correct tenant.
+/// assert!(latest_for_session_in_tenant(&db, "session-x", "tenant-alpha").is_some());
+/// // Invisible to a different tenant — cross-tenant isolation.
+/// assert!(latest_for_session_in_tenant(&db, "session-x", "tenant-beta").is_none());
+/// ```
 pub fn persist_with_tenant(
     receipt: &Receipt,
     db: &StateDb,
@@ -160,6 +315,43 @@ pub fn persist_with_tenant_in_tx(
 ///
 /// Phase 11: backwards-compat shim — defaults to `tenant_id = "default"`.
 /// Tenant-aware callers must use [`latest_for_session_in_tenant`].
+///
+/// Returns `None` when no receipt has been persisted for the session yet.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::receipts::{build, persist, latest_for_session};
+/// use open_ontologies::production_record::ProductionRecord;
+/// use open_ontologies::state::StateDb;
+/// use std::path::Path;
+///
+/// let db = StateDb::open(Path::new(":memory:")).unwrap();
+///
+/// // Before any receipt is persisted, the session has no chain tip.
+/// assert!(latest_for_session(&db, "session-new").is_none());
+///
+/// let record = ProductionRecord {
+///     artifact_hash:            [7u8; 32],
+///     scope_token:              "hire-to-retire".into(),
+///     declared_powl_hash:       [0u8; 32],
+///     ocel_canonical_hash:      [0u8; 32],
+///     conformance_run_id:       "run-7".into(),
+///     gate_config_hash:         [0u8; 32],
+///     production_law_version:   "seed-v0".into(),
+///     defects_taxonomy_version: "ontostar-defects-4.8.0".into(),
+///     gates_passed:             vec![],
+///     gates_refused:            vec![],
+///     prior_receipt:            None,
+///     signature:                None,
+///     signing_key_fpr:          None,
+/// };
+/// persist(&build(record), &db, "session-new").unwrap();
+///
+/// // Now the chain tip is present and is exactly 32 bytes.
+/// let tip = latest_for_session(&db, "session-new").unwrap();
+/// assert_eq!(tip.len(), 32);
+/// ```
 pub fn latest_for_session(db: &StateDb, session_id: &str) -> Option<[u8; 32]> {
     latest_for_session_in_tenant(db, session_id, "default")
 }
@@ -167,6 +359,42 @@ pub fn latest_for_session(db: &StateDb, session_id: &str) -> Option<[u8; 32]> {
 /// Tenant-scoped variant of [`latest_for_session`]. Cross-tenant rows are
 /// invisible to the chain — a receipt persisted under `tenant_id = "alpha"`
 /// will NEVER be returned to a caller asking under `tenant_id = "beta"`.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::receipts::{build, persist_with_tenant, latest_for_session_in_tenant};
+/// use open_ontologies::production_record::ProductionRecord;
+/// use open_ontologies::state::StateDb;
+/// use std::path::Path;
+///
+/// let db = StateDb::open(Path::new(":memory:")).unwrap();
+///
+/// // Empty session: no tip for any tenant.
+/// assert!(latest_for_session_in_tenant(&db, "s1", "alpha").is_none());
+/// assert!(latest_for_session_in_tenant(&db, "s1", "beta").is_none());
+///
+/// let record = ProductionRecord {
+///     artifact_hash:            [9u8; 32],
+///     scope_token:              "procure-to-pay".into(),
+///     declared_powl_hash:       [0u8; 32],
+///     ocel_canonical_hash:      [0u8; 32],
+///     conformance_run_id:       "run-9".into(),
+///     gate_config_hash:         [0u8; 32],
+///     production_law_version:   "seed-v0".into(),
+///     defects_taxonomy_version: "ontostar-defects-4.8.0".into(),
+///     gates_passed:             vec![],
+///     gates_refused:            vec![],
+///     prior_receipt:            None,
+///     signature:                None,
+///     signing_key_fpr:          None,
+/// };
+/// persist_with_tenant(&build(record), &db, "s1", "alpha").unwrap();
+///
+/// // Visible only to tenant "alpha".
+/// assert!(latest_for_session_in_tenant(&db, "s1", "alpha").is_some());
+/// assert!(latest_for_session_in_tenant(&db, "s1", "beta").is_none());
+/// ```
 pub fn latest_for_session_in_tenant(
     db: &StateDb,
     session_id: &str,
@@ -192,6 +420,43 @@ pub fn latest_for_session_in_tenant(
 /// any line matching `^# ostar-[a-z-]+: .+$` from the file head, BLAKE3-hashes
 /// the remainder, and asserts equality with `ostar-artifact-hash`. Receipts
 /// commit to the **header-less** body, so the verifier's stripping is sound.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::receipts::{build, ttl_header};
+/// use open_ontologies::production_record::ProductionRecord;
+///
+/// let record = ProductionRecord {
+///     artifact_hash:            [0u8; 32],
+///     scope_token:              "test-scope".into(),
+///     declared_powl_hash:       [0u8; 32],
+///     ocel_canonical_hash:      [0u8; 32],
+///     conformance_run_id:       "run-1".into(),
+///     gate_config_hash:         [0u8; 32],
+///     production_law_version:   "ontostar-1.0.0".into(),
+///     defects_taxonomy_version: "ontostar-defects-4.8.0".into(),
+///     gates_passed:             vec![],
+///     gates_refused:            vec![],
+///     prior_receipt:            None,
+///     signature:                None,
+///     signing_key_fpr:          None,
+/// };
+/// let receipt = build(record);
+/// let header = ttl_header(&receipt);
+///
+/// // Six mandatory lines, each prefixed with `# ostar-`.
+/// let lines: Vec<&str> = header.lines().collect();
+/// assert_eq!(lines.len(), 6);
+/// assert!(lines.iter().all(|l| l.starts_with("# ostar-")));
+///
+/// // When there is no prior receipt the sentinel value is "none".
+/// assert!(header.contains("# ostar-prior-receipt: none"));
+///
+/// // The receipt hash embedded in the header matches Receipt::hex().
+/// let expected = format!("# ostar-receipt-hash: {}", receipt.hex());
+/// assert!(header.contains(&expected));
+/// ```
 pub fn ttl_header(r: &Receipt) -> String {
     let prior = r
         .record
