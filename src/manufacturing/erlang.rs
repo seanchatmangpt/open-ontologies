@@ -7,6 +7,43 @@
 
 use super::{with_header, ManufacturedFile, SolutionSpec};
 
+/// Generate Erlang/OTP supervision-tree files for the given spec.
+///
+/// Always returns exactly four files: `_app.erl`, `_sup.erl`, `_worker.erl`,
+/// and `rebar.config`. The supervisor initialises `supervisor_children`
+/// child specs under a `one_for_one` strategy.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::manufacturing::{erlang, SolutionSpec};
+///
+/// let spec = SolutionSpec {
+///     name: "revops".into(),
+///     description: "RevOps pipeline".into(),
+///     iac_target: "aws".into(),
+///     region: "eu-west-1".into(),
+///     supervisor_children: 3,
+///     mcu_target: "esp32".into(),
+///     work_order_receipt_hash: "c".repeat(64),
+/// };
+/// let files = erlang::generate(&spec);
+/// assert_eq!(files.len(), 4);
+///
+/// // All four expected file suffixes are present.
+/// let paths: Vec<&str> = files.iter().map(|f| f.path.as_str()).collect();
+/// assert!(paths.iter().any(|p| p.ends_with("_app.erl")));
+/// assert!(paths.iter().any(|p| p.ends_with("_sup.erl")));
+/// assert!(paths.iter().any(|p| p.ends_with("_worker.erl")));
+/// assert!(paths.iter().any(|p| p.ends_with("rebar.config")));
+///
+/// // Supervisor file contains correct child count.
+/// let sup = files.iter().find(|f| f.path.ends_with("_sup.erl")).unwrap();
+/// assert!(sup.contents.contains("worker_2"));
+///
+/// // All files are tagged for the "erlang" target.
+/// assert!(files.iter().all(|f| f.target == "erlang"));
+/// ```
 pub fn generate(spec: &SolutionSpec) -> Vec<ManufacturedFile> {
     vec![
         file(

@@ -14,9 +14,40 @@ use crate::ocel_store::OcelStore;
 use anyhow::Result;
 use chrono::{DateTime, Duration, Utc};
 
+/// Minimum age in days before a `bypass_admission` event is acted on.
+///
+/// # Example
+///
+/// ```
+/// assert_eq!(open_ontologies::feedback::thresholds::DEFAULT_AGE_DAYS, 7);
+/// ```
 pub const DEFAULT_AGE_DAYS: i64 = 7;
+
+/// Amount by which the precision threshold is nudged per calibration cycle.
+///
+/// # Example
+///
+/// ```
+/// assert!((open_ontologies::feedback::thresholds::DEFAULT_DELTA - 0.02).abs() < f64::EPSILON);
+/// ```
 pub const DEFAULT_DELTA: f64 = 0.02;
+
+/// Lowest precision threshold that calibration will ever set.
+///
+/// # Example
+///
+/// ```
+/// assert!((open_ontologies::feedback::thresholds::PRECISION_FLOOR - 0.70).abs() < f64::EPSILON);
+/// ```
 pub const PRECISION_FLOOR: f64 = 0.70;
+
+/// Highest precision threshold that calibration will ever set.
+///
+/// # Example
+///
+/// ```
+/// assert!((open_ontologies::feedback::thresholds::PRECISION_CEIL - 0.99).abs() < f64::EPSILON);
+/// ```
 pub const PRECISION_CEIL: f64 = 0.99;
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -48,10 +79,43 @@ pub struct ThresholdRow {
 /// precision thresholds by ±δ. Idempotent: each event is acted on once,
 /// tracked by inserting a synthetic OCEL event `threshold_calibrated` keyed
 /// to the original event id.
+///
+/// # Example
+///
+/// ```
+/// use open_ontologies::state::StateDb;
+/// use open_ontologies::ocel_store::OcelStore;
+/// use open_ontologies::feedback::thresholds::sweep;
+///
+/// let db = StateDb::open(std::path::Path::new(":memory:")).unwrap();
+/// let store = OcelStore::new(db);
+///
+/// // No bypass_admission events — sweep examines zero events.
+/// let result = sweep(&store).unwrap();
+/// assert_eq!(result.examined, 0);
+/// assert_eq!(result.adjusted, 0);
+/// assert!(result.adjustments.is_empty());
+/// ```
 pub fn sweep(store: &OcelStore) -> Result<ThresholdSweepResult> {
     sweep_with(store, DEFAULT_AGE_DAYS, DEFAULT_DELTA)
 }
 
+/// Like [`sweep`] but with explicit age and delta parameters.
+///
+/// # Example
+///
+/// ```
+/// use open_ontologies::state::StateDb;
+/// use open_ontologies::ocel_store::OcelStore;
+/// use open_ontologies::feedback::thresholds::sweep_with;
+///
+/// let db = StateDb::open(std::path::Path::new(":memory:")).unwrap();
+/// let store = OcelStore::new(db);
+///
+/// // Sweep with a 1-day window and 0.05 delta — still zero events in empty DB.
+/// let result = sweep_with(&store, 1, 0.05).unwrap();
+/// assert_eq!(result.examined, 0);
+/// ```
 pub fn sweep_with(
     store: &OcelStore,
     age_days: i64,
@@ -173,6 +237,21 @@ fn adjust_one(
 }
 
 /// Read all threshold rows for the `onto_threshold_status` MCP handler.
+///
+/// # Example
+///
+/// ```
+/// use open_ontologies::state::StateDb;
+/// use open_ontologies::ocel_store::OcelStore;
+/// use open_ontologies::feedback::thresholds::list_all;
+///
+/// let db = StateDb::open(std::path::Path::new(":memory:")).unwrap();
+/// let store = OcelStore::new(db);
+///
+/// // A fresh database has no threshold rows.
+/// let rows = list_all(&store).unwrap();
+/// assert!(rows.is_empty());
+/// ```
 pub fn list_all(store: &OcelStore) -> Result<Vec<ThresholdRow>> {
     let conn = store.db().conn();
     let mut stmt = conn.prepare(

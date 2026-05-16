@@ -1,5 +1,36 @@
 //! In-memory vector store with dual-space search (cosine + Poincaré)
 //! and SQLite persistence.
+//!
+//! # Overview
+//!
+//! [`VecStore`] holds text embeddings (L2-normalised for cosine search) and
+//! structural embeddings (Poincaré ball coordinates for hyperbolic search)
+//! keyed by class IRI.  The three search modes are:
+//!
+//! - [`VecStore::search_cosine`] — standard inner-product ranking on text vecs
+//! - [`VecStore::search_poincare`] — hyperbolic distance ranking on struct vecs
+//! - [`VecStore::search_product`] — weighted combination of both spaces
+//!
+//! # Quick-start
+//!
+//! ```no_run
+//! // Requires `embeddings` feature
+//! use open_ontologies::state::StateDb;
+//! use open_ontologies::vecstore::VecStore;
+//! use std::path::Path;
+//!
+//! let db = StateDb::open(Path::new(":memory:")).unwrap();
+//! let mut store = VecStore::new(db);
+//!
+//! store.upsert("urn:ex:Dog",  &[1.0, 0.0, 0.0], &[0.1, 0.0, 0.0]);
+//! store.upsert("urn:ex:Cat",  &[0.9, 0.1, 0.0], &[0.15, 0.0, 0.0]);
+//! store.upsert("urn:ex:Fish", &[0.0, 0.0, 1.0], &[0.5, 0.0, 0.0]);
+//!
+//! // Text search: query most similar to Dog
+//! let hits = store.search_cosine(&[1.0, 0.0, 0.0], 2);
+//! assert_eq!(hits[0].0, "urn:ex:Dog");
+//! assert_eq!(hits.len(), 2);
+//! ```
 
 use crate::poincare::{cosine_similarity, l2_normalize, poincare_distance};
 use crate::state::StateDb;
@@ -125,6 +156,26 @@ impl VecStore {
     /// assert_eq!(results[0].0, "urn:ex:X");
     /// assert!(results[0].1 > results[1].1);
     /// ```
+    ///
+    /// ```
+    /// use open_ontologies::state::StateDb;
+    /// use open_ontologies::vecstore::VecStore;
+    /// use std::path::Path;
+    ///
+    /// let db = StateDb::open(Path::new(":memory:")).unwrap();
+    /// let mut store = VecStore::new(db);
+    ///
+    /// store.upsert("urn:ex:Z", &[1.0, 0.0], &[0.0, 0.0]);
+    ///
+    /// // Requesting more results than entries returns only what is available.
+    /// let results = store.search_cosine(&[1.0, 0.0], 100);
+    /// assert_eq!(results.len(), 1);
+    ///
+    /// // An empty store returns an empty result.
+    /// let empty_db = StateDb::open(Path::new(":memory:")).unwrap();
+    /// let empty = VecStore::new(empty_db);
+    /// assert_eq!(empty.search_cosine(&[1.0, 0.0], 5).len(), 0);
+    /// ```
     pub fn search_cosine(&self, query: &[f32], top_k: usize) -> Vec<(String, f32)> {
         let query_norm = l2_normalize(query);
         let mut scores: Vec<(String, f32)> = self.entries.iter()
@@ -192,6 +243,23 @@ impl VecStore {
     /// // Results are in descending combined-score order.
     /// assert!(results[0].1 >= results[1].1);
     /// ```
+    ///
+    /// ```
+    /// use open_ontologies::state::StateDb;
+    /// use open_ontologies::vecstore::VecStore;
+    /// use std::path::Path;
+    ///
+    /// let db = StateDb::open(Path::new(":memory:")).unwrap();
+    /// let mut store = VecStore::new(db);
+    ///
+    /// store.upsert("urn:ex:O", &[1.0, 0.0], &[0.1, 0.0]);
+    /// store.upsert("urn:ex:P2", &[0.0, 1.0], &[0.4, 0.0]);
+    ///
+    /// // alpha=1.0 is identical to search_cosine: only text similarity matters.
+    /// let product = store.search_product(&[1.0, 0.0], &[0.0, 0.0], 2, 1.0);
+    /// let cosine  = store.search_cosine(&[1.0, 0.0], 2);
+    /// assert_eq!(product[0].0, cosine[0].0);
+    /// ```
     pub fn search_product(
         &self,
         text_query: &[f32],
@@ -214,6 +282,32 @@ impl VecStore {
         scores
     }
 
+    /// Persists all in-memory entries to the backing SQLite database.
+    ///
+    /// The operation runs inside a transaction: the `embeddings` table is
+    /// cleared first, then all current entries are inserted.  On error the
+    /// transaction is rolled back and no partial state is written.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// // Requires `embeddings` feature
+    /// use open_ontologies::state::StateDb;
+    /// use open_ontologies::vecstore::VecStore;
+    /// use std::path::Path;
+    ///
+    /// let db = StateDb::open(Path::new(":memory:")).unwrap();
+    /// let mut store = VecStore::new(db);
+    ///
+    /// store.upsert("urn:ex:H", &[1.0, 0.0], &[0.1, 0.2]);
+    /// store.upsert("urn:ex:I", &[0.0, 1.0], &[0.3, 0.4]);
+    ///
+    /// // Persist to SQLite.
+    /// store.persist().unwrap();
+    ///
+    /// // In-memory state is unchanged after persisting.
+    /// assert_eq!(store.len(), 2);
+    /// ```
     pub fn persist(&self) -> anyhow::Result<()> {
         let conn = self.db.conn();
         let tx = conn.unchecked_transaction()?;
@@ -238,6 +332,34 @@ impl VecStore {
         Ok(())
     }
 
+    /// Loads all entries from the backing SQLite database into memory,
+    /// replacing any entries already in the store.
+    ///
+    /// Complements [`persist`](VecStore::persist): call `persist` to save,
+    /// then reconstruct a store via `new` + `load_from_db` to restore.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// // Requires `embeddings` feature
+    /// use open_ontologies::state::StateDb;
+    /// use open_ontologies::vecstore::VecStore;
+    /// use std::path::Path;
+    ///
+    /// // Build and persist a store.
+    /// let db = StateDb::open(Path::new(":memory:")).unwrap();
+    /// let mut store = VecStore::new(db);
+    /// store.upsert("urn:ex:J", &[1.0, 0.0], &[0.1, 0.0]);
+    /// store.upsert("urn:ex:K", &[0.0, 1.0], &[0.2, 0.0]);
+    /// store.persist().unwrap();
+    ///
+    /// // `load_from_db` populates an empty store from SQLite.
+    /// store.remove("urn:ex:J");
+    /// store.remove("urn:ex:K");
+    /// assert!(store.is_empty());
+    /// store.load_from_db().unwrap();
+    /// assert_eq!(store.len(), 2);
+    /// ```
     pub fn load_from_db(&mut self) -> anyhow::Result<()> {
         let conn = self.db.conn();
         let mut stmt = conn.prepare("SELECT iri, text_vec, struct_vec FROM embeddings")?;

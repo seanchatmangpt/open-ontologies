@@ -491,7 +491,7 @@ pub fn resolve_llm_model(cfg: &LlmConfig) -> String {
 /// assert!(VALID_LLM_ENGINES.contains(&"gemini"));
 /// assert!(!VALID_LLM_ENGINES.contains(&"openai"));
 /// ```
-pub const VALID_LLM_ENGINES: &[&str] = &["inproc", "groq_pm4py", "gemini"];
+pub const VALID_LLM_ENGINES: &[&str] = &[ENGINE_INPROC, ENGINE_GROQ_PM4PY, ENGINE_GEMINI];
 
 /// LLM engine identifier: in-process `GroqTranslator` (HTTP via reqwest).
 /// Appears in OCEL `"engine"` attribute positions and engine-dispatch
@@ -502,6 +502,19 @@ pub const ENGINE_INPROC: &str = "inproc";
 /// Appears in OCEL `"engine"` attribute positions and engine-dispatch
 /// branches. Extracted from 14 sites in server.rs.
 pub const ENGINE_GROQ_PM4PY: &str = "groq_pm4py";
+
+/// LLM engine identifier: delegate to the `gemini` CLI binary.
+/// Appears in OCEL `"engine"` attribute positions and engine-dispatch
+/// branches. Extracted from 2 sites in config.rs.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::config::ENGINE_GEMINI;
+///
+/// assert_eq!(ENGINE_GEMINI, "gemini");
+/// ```
+pub const ENGINE_GEMINI: &str = "gemini";
 
 /// Resolve the default LLM engine for unparametrised tool calls.
 ///
@@ -541,9 +554,9 @@ pub fn resolve_llm_engine(cfg: &LlmConfig) -> String {
         return v;
     }
     if resolve_llm_api_key(cfg).is_some() {
-        "groq_pm4py".to_string()
+        ENGINE_GROQ_PM4PY.to_string()
     } else {
-        "inproc".to_string()
+        ENGINE_INPROC.to_string()
     }
 }
 
@@ -589,7 +602,7 @@ pub fn resolve_gemini_bin() -> String {
     std::env::var("GEMINI_BIN")
         .ok()
         .filter(|v| !v.trim().is_empty())
-        .unwrap_or_else(|| "gemini".to_string())
+        .unwrap_or_else(|| ENGINE_GEMINI.to_string())
 }
 
 /// R7 WB-1 — resolve the subprocess wall-clock timeout in seconds.
