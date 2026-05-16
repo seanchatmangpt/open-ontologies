@@ -266,7 +266,39 @@ fn graph_sparql_select(
 }
 
 /// Trim angle brackets from IRI strings like `<http://example.org/foo>`.
-fn strip_angle_brackets(s: &str) -> String {
+///
+/// # Examples
+///
+/// A well-formed IRI literal has its angle brackets stripped:
+///
+/// ```
+/// use open_ontologies::shacl::strip_angle_brackets;
+///
+/// assert_eq!(
+///     strip_angle_brackets("<http://www.w3.org/ns/shacl#NodeShape>"),
+///     "http://www.w3.org/ns/shacl#NodeShape"
+/// );
+/// ```
+///
+/// A plain string without angle brackets is returned unchanged:
+///
+/// ```
+/// use open_ontologies::shacl::strip_angle_brackets;
+///
+/// assert_eq!(strip_angle_brackets("plain-string"), "plain-string");
+/// ```
+///
+/// Leading and trailing whitespace is trimmed before bracket removal:
+///
+/// ```
+/// use open_ontologies::shacl::strip_angle_brackets;
+///
+/// assert_eq!(
+///     strip_angle_brackets("  <http://example.org/Foo>  "),
+///     "http://example.org/Foo"
+/// );
+/// ```
+pub fn strip_angle_brackets(s: &str) -> String {
     let s = s.trim();
     if s.starts_with('<') && s.ends_with('>') {
         s[1..s.len() - 1].to_string()
@@ -276,7 +308,44 @@ fn strip_angle_brackets(s: &str) -> String {
 }
 
 /// Trim quotes and handle typed literals like `"1"^^<http://...>`.
-fn strip_quotes(s: &str) -> String {
+///
+/// # Examples
+///
+/// A bare quoted string has its double-quotes stripped:
+///
+/// ```
+/// use open_ontologies::shacl::strip_quotes;
+///
+/// assert_eq!(strip_quotes("\"hello\""), "hello");
+/// ```
+///
+/// A typed RDF literal (`"value"^^<datatype>`) returns just the value:
+///
+/// ```
+/// use open_ontologies::shacl::strip_quotes;
+///
+/// assert_eq!(
+///     strip_quotes("\"1\"^^<http://www.w3.org/2001/XMLSchema#integer>"),
+///     "1"
+/// );
+/// ```
+///
+/// A language-tagged literal (`"value"@en`) returns just the value:
+///
+/// ```
+/// use open_ontologies::shacl::strip_quotes;
+///
+/// assert_eq!(strip_quotes("\"label\"@en"), "label");
+/// ```
+///
+/// A plain unquoted string (e.g. an IRI term) passes through unchanged:
+///
+/// ```
+/// use open_ontologies::shacl::strip_quotes;
+///
+/// assert_eq!(strip_quotes("plain"), "plain");
+/// ```
+pub fn strip_quotes(s: &str) -> String {
     let s = s.trim();
     // Handle typed literals: "value"^^<datatype>
     let s = if let Some(idx) = s.find("^^") {
