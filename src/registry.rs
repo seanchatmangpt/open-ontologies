@@ -24,6 +24,10 @@ use crate::config::CacheConfig;
 use crate::graph::GraphStore;
 use crate::state::StateDb;
 
+/// RDF serialization format used for the compile cache (N-Triples).
+/// Passed to `GraphStore::serialize` and friends wherever the cache is written.
+pub const NTRIPLES_FORMAT: &str = "ntriples";
+
 /// Options accepted by `OntologyRegistry::load_file`.
 #[derive(Debug, Clone, Default)]
 pub struct LoadOptions {
@@ -133,7 +137,7 @@ impl OntologyRegistry {
                 .with_context(|| format!("parse source {}", path))?;
             let cache_path = if self.config.enabled {
                 let cp = self.cache.cache_path_for(&name, &fp.sha_prefix);
-                let nt = self.graph.serialize("ntriples")?;
+                let nt = self.graph.serialize(NTRIPLES_FORMAT)?;
                 CacheManager::atomic_write(&cp, &nt)?;
                 self.cache.upsert(&name, path, &fp, &cp, count)?;
                 cp
@@ -209,7 +213,7 @@ impl OntologyRegistry {
                 self.graph.clear()?;
                 let count = self.graph.load_file(&source_path)?;
                 let new_cache = self.cache.cache_path_for(&name, &cur.sha_prefix);
-                let nt = self.graph.serialize("ntriples")?;
+                let nt = self.graph.serialize(NTRIPLES_FORMAT)?;
                 CacheManager::atomic_write(&new_cache, &nt)?;
                 self.cache.upsert(&name, &source_path, &cur, &new_cache, count)?;
 
@@ -364,7 +368,7 @@ impl OntologyRegistry {
             .with_context(|| format!("parse source {}", entry.source_path))?;
         let fp = SourceFingerprint::from_path(path)?;
         let cache_path = self.cache.cache_path_for(name, &fp.sha_prefix);
-        let nt = isolated_graph.serialize("ntriples")?;
+        let nt = isolated_graph.serialize(NTRIPLES_FORMAT)?;
         CacheManager::atomic_write(&cache_path, &nt)?;
         // If the sha-prefix changed, the new cache_path differs from the old
         // one. Remove the old file to avoid leaking stale .nt files.
