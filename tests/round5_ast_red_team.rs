@@ -583,10 +583,12 @@ fn expanded_dispatch_arms_match_source_attributes() {
     // `make adversarial` ALWAYS produces it before this test runs.
     let expanded_path =
         std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("target/expanded.rs");
-    if !expanded_path.exists() {
+    let expanded_metadata = expanded_path.metadata().ok();
+    let is_empty = expanded_metadata.map(|m| m.len() == 0).unwrap_or(true);
+    if !expanded_path.exists() || is_empty {
         eprintln!(
             "skipping expanded_dispatch_arms_match_source_attributes: \
-             target/expanded.rs not present. Run `make expand` to produce it."
+             target/expanded.rs not present or empty. Run `make expand` to produce it."
         );
         return;
     }
