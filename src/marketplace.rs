@@ -304,11 +304,46 @@ pub static CATALOGUE: &[MarketplaceEntry] = &[
 ];
 
 /// Look up a marketplace entry by ID.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::marketplace;
+///
+/// let entry = marketplace::find("prov-o");
+/// assert!(entry.is_some());
+/// assert_eq!(entry.unwrap().id, "prov-o");
+///
+/// let entry = marketplace::find("owl");
+/// assert!(entry.is_some());
+/// assert_eq!(entry.unwrap().domain, "foundational");
+///
+/// assert!(marketplace::find("nonexistent-id-xyz").is_none());
+/// ```
 pub fn find(id: &str) -> Option<&'static MarketplaceEntry> {
     CATALOGUE.iter().find(|e| e.id == id)
 }
 
 /// List all entries, optionally filtered by domain.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::marketplace;
+///
+/// // All entries are returned when no domain filter is supplied.
+/// let all = marketplace::list(None);
+/// assert!(!all.is_empty());
+///
+/// // Domain filter returns only matching entries.
+/// let provenance = marketplace::list(Some("provenance"));
+/// assert!(!provenance.is_empty());
+/// assert!(provenance.iter().all(|e| e.domain == "provenance"));
+///
+/// // Unknown domain returns an empty list.
+/// let empty = marketplace::list(Some("no-such-domain"));
+/// assert!(empty.is_empty());
+/// ```
 pub fn list(domain: Option<&str>) -> Vec<&'static MarketplaceEntry> {
     match domain {
         Some(d) => CATALOGUE.iter().filter(|e| e.domain == d).collect(),
@@ -317,6 +352,19 @@ pub fn list(domain: Option<&str>) -> Vec<&'static MarketplaceEntry> {
 }
 
 /// Format name for the RDF format.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::marketplace;
+/// use oxigraph::io::RdfFormat;
+///
+/// assert_eq!(marketplace::format_name(RdfFormat::Turtle),   "turtle");
+/// assert_eq!(marketplace::format_name(RdfFormat::RdfXml),   "rdfxml");
+/// assert_eq!(marketplace::format_name(RdfFormat::NTriples), "ntriples");
+/// assert_eq!(marketplace::format_name(RdfFormat::NQuads),   "nquads");
+/// assert_eq!(marketplace::format_name(RdfFormat::TriG),     "trig");
+/// ```
 pub fn format_name(fmt: RdfFormat) -> &'static str {
     match fmt {
         RdfFormat::Turtle => "turtle",
