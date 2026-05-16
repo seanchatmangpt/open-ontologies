@@ -2,6 +2,41 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 /// A single field-to-predicate mapping within a `MappingConfig`.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::mapping::FieldMapping;
+///
+/// // Construct a typed literal field mapping
+/// let fm = FieldMapping {
+///     field: "name".to_string(),
+///     predicate: "https://schema.org/name".to_string(),
+///     datatype: Some("http://www.w3.org/2001/XMLSchema#string".to_string()),
+///     class: None,
+///     lookup: false,
+/// };
+/// assert_eq!(fm.field, "name");
+/// assert_eq!(fm.predicate, "https://schema.org/name");
+/// assert!(fm.datatype.is_some());
+/// assert!(!fm.lookup);
+/// ```
+///
+/// A lookup field produces an IRI object rather than a literal:
+///
+/// ```
+/// use open_ontologies::mapping::FieldMapping;
+///
+/// let lookup = FieldMapping {
+///     field: "category_id".to_string(),
+///     predicate: "https://schema.org/category".to_string(),
+///     datatype: None,
+///     class: Some("https://schema.org/Category".to_string()),
+///     lookup: true,
+/// };
+/// assert!(lookup.lookup);
+/// assert_eq!(lookup.class.as_deref(), Some("https://schema.org/Category"));
+/// ```
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FieldMapping {
     pub field: String,
@@ -15,6 +50,46 @@ pub struct FieldMapping {
 }
 
 /// Configuration that describes how structured data rows map to RDF triples.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::mapping::{FieldMapping, MappingConfig};
+///
+/// // Directly construct a MappingConfig with two field entries
+/// let cfg = MappingConfig {
+///     base_iri: "https://example.org/data/".to_string(),
+///     id_field: "id".to_string(),
+///     class: "https://example.org/schema#Person".to_string(),
+///     mappings: vec![
+///         FieldMapping {
+///             field: "id".to_string(),
+///             predicate: "https://example.org/data/ont#id".to_string(),
+///             datatype: Some("http://www.w3.org/2001/XMLSchema#string".to_string()),
+///             class: None,
+///             lookup: false,
+///         },
+///         FieldMapping {
+///             field: "name".to_string(),
+///             predicate: "https://example.org/data/ont#name".to_string(),
+///             datatype: Some("http://www.w3.org/2001/XMLSchema#string".to_string()),
+///             class: None,
+///             lookup: false,
+///         },
+///     ],
+/// };
+/// assert_eq!(cfg.id_field, "id");
+/// assert_eq!(cfg.mappings.len(), 2);
+/// assert_eq!(cfg.class, "https://example.org/schema#Person");
+///
+/// // find_by_source_field returns the first mapping with the given field name
+/// let found = cfg.find_by_source_field("name");
+/// assert!(found.is_some());
+/// assert_eq!(found.unwrap().predicate, "https://example.org/data/ont#name");
+///
+/// // Returns None for an unknown field
+/// assert!(cfg.find_by_source_field("unknown").is_none());
+/// ```
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MappingConfig {
     pub base_iri: String,
@@ -27,6 +102,34 @@ const RDF_TYPE: &str = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type";
 const XSD_STRING: &str = "http://www.w3.org/2001/XMLSchema#string";
 
 impl MappingConfig {
+    /// Return the first [`FieldMapping`] whose `field` name matches `source_field`.
+    ///
+    /// This is a pure O(n) scan; `None` is returned when no mapping matches.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use open_ontologies::mapping::MappingConfig;
+    ///
+    /// let headers: Vec<String> = vec!["id".into(), "name".into(), "email".into()];
+    /// let cfg = MappingConfig::from_headers(
+    ///     &headers,
+    ///     "https://example.org/",
+    ///     "https://example.org/schema#Contact",
+    /// );
+    ///
+    /// // Hit: "name" is in the mapping
+    /// let m = cfg.find_by_source_field("name").expect("name must be mapped");
+    /// assert_eq!(m.field, "name");
+    /// assert!(m.predicate.contains("name"));
+    ///
+    /// // Miss: "phone" was never declared
+    /// assert!(cfg.find_by_source_field("phone").is_none());
+    /// ```
+    pub fn find_by_source_field(&self, source_field: &str) -> Option<&FieldMapping> {
+        self.mappings.iter().find(|m| m.field == source_field)
+    }
+
     /// Generate a naive 1:1 mapping from column headers.
     ///
     /// The first column becomes the `id_field`. Every column gets an
