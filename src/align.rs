@@ -4,6 +4,14 @@ use crate::drift::jaro_winkler;
 use crate::graph::GraphStore;
 use crate::state::StateDb;
 
+/// SPARQL 1.1 JSON results envelope key (RFC mandated, never changes).
+pub const SPARQL_RESULTS_KEY: &str = "results";
+
+/// JSON field keys for alignment candidate objects.
+pub const FIELD_SOURCE_IRI: &str = "source_iri";
+pub const FIELD_TARGET_IRI: &str = "target_iri";
+pub const FIELD_CONFIDENCE: &str = "confidence";
+
 /// Schema alignment engine — detects equivalentClass/exactMatch/subClassOf
 /// candidates between two ontologies using weighted signals.
 pub struct AlignmentEngine {
@@ -73,7 +81,7 @@ impl AlignmentEngine {
         let mut class_map: std::collections::HashMap<String, ClassInfo> =
             std::collections::HashMap::new();
 
-        if let Some(rows) = parsed["results"].as_array() {
+        if let Some(rows) = parsed[SPARQL_RESULTS_KEY].as_array() {
             for row in rows {
                 let iri = match row["class"].as_str() {
                     Some(s) => s.trim_matches(|c| c == '<' || c == '>').to_string(),
@@ -152,7 +160,7 @@ impl AlignmentEngine {
             Ok(v) => v,
             Err(_) => return Vec::new(),
         };
-        parsed["results"]
+        parsed[SPARQL_RESULTS_KEY]
             .as_array()
             .unwrap_or(&Vec::new())
             .iter()
@@ -227,7 +235,7 @@ impl AlignmentEngine {
                 Ok(v) => v,
                 Err(_) => return Vec::new(),
             };
-            parsed["results"]
+            parsed[SPARQL_RESULTS_KEY]
                 .as_array()
                 .unwrap_or(&Vec::new())
                 .iter()
@@ -425,10 +433,10 @@ impl AlignmentEngine {
                 }
 
                 candidates.push(serde_json::json!({
-                    "source_iri": sc.iri,
-                    "target_iri": tc.iri,
+                    FIELD_SOURCE_IRI: sc.iri,
+                    FIELD_TARGET_IRI: tc.iri,
                     "relation": relation,
-                    "confidence": (confidence * 1000.0).round() / 1000.0,
+                    FIELD_CONFIDENCE: (confidence * 1000.0).round() / 1000.0,
                     "signals": signals_json,
                     "applied": false,
                 }));
@@ -437,8 +445,8 @@ impl AlignmentEngine {
 
         // Sort by confidence descending
         candidates.sort_by(|a, b| {
-            b["confidence"].as_f64().unwrap_or(0.0)
-                .partial_cmp(&a["confidence"].as_f64().unwrap_or(0.0))
+            b[FIELD_CONFIDENCE].as_f64().unwrap_or(0.0)
+                .partial_cmp(&a[FIELD_CONFIDENCE].as_f64().unwrap_or(0.0))
                 .unwrap_or(std::cmp::Ordering::Equal)
         });
 
@@ -450,8 +458,8 @@ impl AlignmentEngine {
             let mut used_sources: std::collections::HashSet<String> = std::collections::HashSet::new();
             let mut used_targets: std::collections::HashSet<String> = std::collections::HashSet::new();
             candidates.retain(|c| {
-                let src = c["source_iri"].as_str().unwrap_or("").to_string();
-                let tgt = c["target_iri"].as_str().unwrap_or("").to_string();
+                let src = c[FIELD_SOURCE_IRI].as_str().unwrap_or("").to_string();
+                let tgt = c[FIELD_TARGET_IRI].as_str().unwrap_or("").to_string();
                 if used_sources.contains(&src) || used_targets.contains(&tgt) {
                     false
                 } else {
@@ -466,10 +474,10 @@ impl AlignmentEngine {
         let mut applied_count = 0;
         if !dry_run {
             for candidate in &mut candidates {
-                let conf = candidate["confidence"].as_f64().unwrap_or(0.0);
+                let conf = candidate[FIELD_CONFIDENCE].as_f64().unwrap_or(0.0);
                 if conf >= min_confidence {
-                    let source_iri = candidate["source_iri"].as_str().unwrap();
-                    let target_iri = candidate["target_iri"].as_str().unwrap();
+                    let source_iri = candidate[FIELD_SOURCE_IRI].as_str().unwrap();
+                    let target_iri = candidate[FIELD_TARGET_IRI].as_str().unwrap();
                     let relation = candidate["relation"].as_str().unwrap();
 
                     let triple = Self::relation_to_triple(source_iri, target_iri, relation);
@@ -659,8 +667,8 @@ impl AlignmentEngine {
 
         Ok(serde_json::json!({
             "ok": true,
-            "source_iri": source_iri,
-            "target_iri": target_iri,
+            FIELD_SOURCE_IRI: source_iri,
+            FIELD_TARGET_IRI: target_iri,
             "predicted_relation": predicted_relation,
             "accepted": accepted,
             "feedback_count": feedback_count,
