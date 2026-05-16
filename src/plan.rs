@@ -229,7 +229,6 @@ impl Planner {
     /// let err = planner.apply("safe").unwrap_err();
     /// assert!(err.to_string().contains("No plan found"));
     /// ```
-
     /// Apply the last planned changes.
     /// Modes: "safe" (clear + reload), "force" (same but ignores monitor), "migrate" (adds bridges)
     pub fn apply(&self, mode: &str) -> anyhow::Result<String> {
