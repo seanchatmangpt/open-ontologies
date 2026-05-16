@@ -90,6 +90,61 @@ pub(crate) const ADMISSION_VERDICT_DENIED: &str = "denied";
 /// `OPEN_ONTOLOGIES_ADMIN_PRINCIPALS`. Consolidated from 6 literal sites.
 pub(crate) const DEFECT_REASON_NOT_ADMIN: &str = "not_admin";
 
+// ─── OCEL event type constants — emit_tool_ocel tool-name strings ────────────
+//
+// These string literals are passed as the first argument to `emit_tool_ocel`
+// and become the OCEL event type for every tool call.  Each constant below
+// appears ≥ 3 times in this file; extracting them prevents silent event-log
+// gaps caused by a typo in one of many call sites.
+
+/// Tool name / OCEL event type for `onto_executive_projection` (14 call sites).
+pub(crate) const TOOL_EXECUTIVE_PROJECTION: &str = "onto_executive_projection";
+/// Tool name / OCEL event type for `onto_translate_candidate` (11 call sites).
+pub(crate) const TOOL_TRANSLATE_CANDIDATE: &str = "onto_translate_candidate";
+/// Tool name / OCEL event type for `onto_manufacture_solution` (4 call sites).
+pub(crate) const TOOL_MANUFACTURE_SOLUTION: &str = "onto_manufacture_solution";
+/// Tool name / OCEL event type for `onto_admit_work_order` (4 call sites).
+pub(crate) const TOOL_ADMIT_WORK_ORDER: &str = "onto_admit_work_order";
+/// Tool name / OCEL event type for `onto_shacl` (5 call sites).
+pub(crate) const TOOL_SHACL: &str = "onto_shacl";
+/// Tool name / OCEL event type for `onto_validate` (4 call sites).
+pub(crate) const TOOL_VALIDATE: &str = "onto_validate";
+/// Tool name / OCEL event type for `onto_admit_ctq` (3 call sites).
+pub(crate) const TOOL_ADMIT_CTQ: &str = "onto_admit_ctq";
+/// Tool name / OCEL event type for `onto_propose_requirement` (3 call sites).
+pub(crate) const TOOL_PROPOSE_REQUIREMENT: &str = "onto_propose_requirement";
+/// Tool name / OCEL event type for `onto_propose_work_order` (3 call sites).
+pub(crate) const TOOL_PROPOSE_WORK_ORDER: &str = "onto_propose_work_order";
+/// Tool name / OCEL event type for `onto_query` (3 call sites).
+pub(crate) const TOOL_QUERY: &str = "onto_query";
+/// Tool name / OCEL event type for `onto_reason` (3 call sites).
+pub(crate) const TOOL_REASON: &str = "onto_reason";
+/// Tool name / OCEL event type for `onto_save` (3 call sites).
+pub(crate) const TOOL_SAVE: &str = "onto_save";
+/// Tool name / OCEL event type for `onto_version` (3 call sites).
+pub(crate) const TOOL_VERSION: &str = "onto_version";
+/// Tool name / OCEL event type for `onto_retention_pause` (3 call sites).
+pub(crate) const TOOL_RETENTION_PAUSE: &str = "onto_retention_pause";
+/// Tool name / OCEL event type for `onto_bootstrap_unlock` (3 call sites).
+pub(crate) const TOOL_BOOTSTRAP_UNLOCK: &str = "onto_bootstrap_unlock";
+/// Tool name / OCEL event type for `onto_groq_status` (3 call sites).
+pub(crate) const TOOL_GROQ_STATUS: &str = "onto_groq_status";
+/// Tool name / OCEL event type for `onto_old_ai_station` (3 call sites).
+pub(crate) const TOOL_OLD_AI_STATION: &str = "onto_old_ai_station";
+
+// ─── OCEL emit_event attribute key constants ─────────────────────────────────
+//
+// Keys used in the (&str, &str) attribute tuples passed to emit_event /
+// emit_event_in_tenant.  Centralised here so a rename of an attribute key
+// propagates to all call sites without grep.
+
+/// OCEL attribute key for the LLM engine name (`"inproc"`, `"groq_pm4py"`, …).
+/// 8 occurrences in emit_event attr arrays.
+pub(crate) const OCEL_KEY_ENGINE: &str = "engine";
+/// OCEL attribute key for the LLM model identifier string.
+/// 7 occurrences in emit_event attr arrays.
+pub(crate) const OCEL_KEY_MODEL: &str = "model";
+
 // ─── HTTP-scoped LLM engine override (task-local) ───────────────────────────
 //
 // The HTTP middleware in `src/cmds/server.rs` reads the
@@ -571,7 +626,7 @@ impl OpenOntologiesServer {
                 &ts,
                 &self.session_id,
                 &[
-                    ("model", model),
+                    (OCEL_KEY_MODEL, model),
                     ("elapsed_ms", elapsed_str.as_str()),
                     ("limit_ms", limit_str.as_str()),
                     ("tenant_id", tenant_id),
@@ -1014,7 +1069,7 @@ impl OpenOntologiesServer {
                     "triple_count": 0,
                     "errors": [msg]
                 }).to_string();
-                self.emit_tool_ocel("onto_validate", started, false, &[]);
+                self.emit_tool_ocel(TOOL_VALIDATE, started, false, &[]);
                 return out;
             }
             // Check for a recognized RDF extension; unknown extensions are
@@ -1047,11 +1102,11 @@ impl OpenOntologiesServer {
                         arr.insert(0, serde_json::Value::String(msg));
                     }
                     let ok = v.get("valid").and_then(|b| b.as_bool()).unwrap_or(false);
-                    self.emit_tool_ocel("onto_validate", started, ok, &[]);
+                    self.emit_tool_ocel(TOOL_VALIDATE, started, ok, &[]);
                     return v.to_string();
                 }
                 let ok = !result.contains(r#""error""#);
-                self.emit_tool_ocel("onto_validate", started, ok, &[]);
+                self.emit_tool_ocel(TOOL_VALIDATE, started, ok, &[]);
                 return result;
             }
             OntologyService::validate_file(path).unwrap_or_else(|e| {
@@ -1063,7 +1118,7 @@ impl OpenOntologiesServer {
             })
         };
         let ok = !out.contains(r#""error""#);
-        self.emit_tool_ocel("onto_validate", started, ok, &[]);
+        self.emit_tool_ocel(TOOL_VALIDATE, started, ok, &[]);
         out
     }
 
@@ -1356,7 +1411,7 @@ impl OpenOntologiesServer {
         let started = std::time::Instant::now();
         if let Err(e) = self.registry.ensure_loaded() {
             let out = format!(r#"{{"error":"Ontology not loaded: {}. Call onto_load first."}}"#, e.to_string().replace('"', "'"));
-            self.emit_tool_ocel("onto_query", started, false, &[]);
+            self.emit_tool_ocel(TOOL_QUERY, started, false, &[]);
             return out;
         }
 
@@ -1393,7 +1448,7 @@ impl OpenOntologiesServer {
                 "query_type": query_type,
                 "hint": "Call onto_load with a .ttl/.nt/.rdf file path, or use onto_repo_list to discover available ontologies."
             }).to_string();
-            self.emit_tool_ocel("onto_query", started, false, &[]);
+            self.emit_tool_ocel(TOOL_QUERY, started, false, &[]);
             return out;
         }
 
@@ -1429,7 +1484,7 @@ impl OpenOntologiesServer {
             }
         };
         let ok = !out.contains(r#""error""#);
-        self.emit_tool_ocel("onto_query", started, ok, &[]);
+        self.emit_tool_ocel(TOOL_QUERY, started, ok, &[]);
         out
     }
 
@@ -1438,7 +1493,7 @@ impl OpenOntologiesServer {
         let started = std::time::Instant::now();
         if let Err(e) = self.registry.ensure_loaded() {
             let out = format!(r#"{{"error":"Ontology not loaded: {}. Call onto_load first."}}"#, e.to_string().replace('"', "'"));
-            self.emit_tool_ocel("onto_save", started, false, &[]);
+            self.emit_tool_ocel(TOOL_SAVE, started, false, &[]);
             return out;
         }
         let format = input.format.as_deref().unwrap_or(TURTLE_FORMAT);
@@ -1457,7 +1512,7 @@ impl OpenOntologiesServer {
         ) {
             Ok(r) => r,
             Err(denial) => {
-                self.emit_tool_ocel("onto_save", started, false, &[]);
+                self.emit_tool_ocel(TOOL_SAVE, started, false, &[]);
                 return denial;
             }
         };
@@ -1488,7 +1543,7 @@ impl OpenOntologiesServer {
             Err(e) => format!(r#"{{"error":"{}"}}"#, e.to_string().replace('"', "'")),
         };
         let ok = !out.contains(r#""error""#);
-        self.emit_tool_ocel("onto_save", started, ok, &[]);
+        self.emit_tool_ocel(TOOL_SAVE, started, ok, &[]);
         out
     }
 
@@ -2044,13 +2099,13 @@ impl OpenOntologiesServer {
         // Guard: reject empty label before touching the store.
         if input.label.trim().is_empty() {
             let out = r#"{"error":"Version label must not be empty. Provide a name such as \"v1.0\" or \"pre-refactor-2026-05-16\"."}"#.to_string();
-            self.emit_tool_ocel("onto_version", started, false, &[]);
+            self.emit_tool_ocel(TOOL_VERSION, started, false, &[]);
             return out;
         }
         // Guard: saving a snapshot of an empty store is almost certainly a mistake.
         if self.graph.triple_count() == 0 {
             let out = r#"{"error":"No ontology loaded. Call onto_load first, then onto_version to save a snapshot."}"#.to_string();
-            self.emit_tool_ocel("onto_version", started, false, &[]);
+            self.emit_tool_ocel(TOOL_VERSION, started, false, &[]);
             return out;
         }
         // Audit-only: snapshot creation produces tamper-evident OCEL trail
@@ -2065,7 +2120,7 @@ impl OpenOntologiesServer {
         let out = OntologyService::save_version(&self.db, &self.graph, &input.label)
             .unwrap_or_else(|e| format!(r#"{{"error":"{}"}}"#, e));
         let ok = !out.contains(r#""error""#);
-        self.emit_tool_ocel("onto_version", started, ok, &[]);
+        self.emit_tool_ocel(TOOL_VERSION, started, ok, &[]);
         out
     }
 
@@ -2329,7 +2384,7 @@ impl OpenOntologiesServer {
         // Guard: no data in the store means validation has nothing to check.
         if self.graph.triple_count() == 0 {
             let out = r#"{"error":"No data loaded. Call onto_load or onto_ingest to load data into the store, then call onto_shacl with a 'shapes' SHACL shapes graph."}"#.to_string();
-            self.emit_tool_ocel("onto_shacl", started, false, &[]);
+            self.emit_tool_ocel(TOOL_SHACL, started, false, &[]);
             return out;
         }
 
@@ -2337,7 +2392,7 @@ impl OpenOntologiesServer {
         // from the validator; surface a clear message up front.
         if input.shapes.trim().is_empty() {
             let out = r#"{"error":"'shapes' is required — provide inline Turtle with sh:NodeShape definitions (and set 'inline: true'), or a file path to a .ttl shapes file."}"#.to_string();
-            self.emit_tool_ocel("onto_shacl", started, false, &[]);
+            self.emit_tool_ocel(TOOL_SHACL, started, false, &[]);
             return out;
         }
 
@@ -2350,14 +2405,14 @@ impl OpenOntologiesServer {
                     r#"{{"error":"Shapes file not found: '{}'. Provide inline Turtle via 'shapes' with 'inline: true', or verify the file path points to a valid .ttl shapes file."}}"#,
                     input.shapes
                 );
-                self.emit_tool_ocel("onto_shacl", started, false, &[]);
+                self.emit_tool_ocel(TOOL_SHACL, started, false, &[]);
                 return out;
             }
             match std::fs::read_to_string(&input.shapes) {
                 Ok(c) => c,
                 Err(e) => {
                     let out = format!(r#"{{"error":"Cannot read shapes file '{}': {}"}}"#, input.shapes, e);
-                    self.emit_tool_ocel("onto_shacl", started, false, &[]);
+                    self.emit_tool_ocel(TOOL_SHACL, started, false, &[]);
                     return out;
                 }
             }
@@ -2365,7 +2420,7 @@ impl OpenOntologiesServer {
         let out = ShaclValidator::validate(&self.graph, &shapes)
             .unwrap_or_else(|e| format!(r#"{{"error":"{}"}}"#, e));
         let ok = !out.contains(r#""error""#);
-        self.emit_tool_ocel("onto_shacl", started, ok, &[]);
+        self.emit_tool_ocel(TOOL_SHACL, started, ok, &[]);
         out
     }
 
@@ -2377,7 +2432,7 @@ impl OpenOntologiesServer {
         // Guard: no triples means reasoning has nothing to work with.
         if self.graph.triple_count() == 0 {
             let out = r#"{"ok":false,"error":"No ontology loaded. Call onto_load first, then use onto_reason to materialize inferred triples.","hint":"Example: onto_load with a .ttl file, then onto_reason with profile='rdfs' or 'owl-rl'."}"#.to_string();
-            self.emit_tool_ocel("onto_reason", started, false, &[]);
+            self.emit_tool_ocel(TOOL_REASON, started, false, &[]);
             return out;
         }
 
@@ -2390,7 +2445,7 @@ impl OpenOntologiesServer {
                 r#"{{"ok":false,"error":"Unknown reasoning profile '{}'. Valid profiles: rdfs, owl-rl, owl-rl-ext, owl-dl.","hint":"Use 'rdfs' for subclass/domain/range inference, 'owl-rl' to also handle transitive/symmetric/inverse properties, 'owl-rl-ext' for existential/universal restrictions, or 'owl-dl' for full OWL2-DL tableaux."}}"#,
                 profile
             );
-            self.emit_tool_ocel("onto_reason", started, false, &[]);
+            self.emit_tool_ocel(TOOL_REASON, started, false, &[]);
             return out;
         }
 
@@ -2398,7 +2453,7 @@ impl OpenOntologiesServer {
         let out = Reasoner::run(&self.graph, profile, materialize)
             .unwrap_or_else(|e| format!(r#"{{"error":"{}"}}"#, e));
         let ok = !out.contains(r#""error""#);
-        self.emit_tool_ocel("onto_reason", started, ok, &[]);
+        self.emit_tool_ocel(TOOL_REASON, started, ok, &[]);
         out
     }
 
@@ -5065,7 +5120,7 @@ impl OpenOntologiesServer {
         if voice.is_empty() {
             // Pre-gate denial — source signal is mandatory.
             self.lineage().record_admission_denied(&self.session_id, "requirement_without_source");
-            self.emit_tool_ocel("onto_propose_requirement", started, false, &[]);
+            self.emit_tool_ocel(TOOL_PROPOSE_REQUIREMENT, started, false, &[]);
             return serde_json::json!({
                 "ok": false,
                 "admission": ADMISSION_VERDICT_DENIED,
@@ -5105,7 +5160,7 @@ impl OpenOntologiesServer {
         ) {
             Ok(r) => r,
             Err(denial) => {
-                self.emit_tool_ocel("onto_propose_requirement", started, false, &[]);
+                self.emit_tool_ocel(TOOL_PROPOSE_REQUIREMENT, started, false, &[]);
                 return denial;
             }
         };
@@ -5117,7 +5172,7 @@ impl OpenOntologiesServer {
             "defects_taxonomy_version": receipt.record.defects_taxonomy_version,
             "voice_kind": voice_kind,
         }).to_string();
-        self.emit_tool_ocel("onto_propose_requirement", started, true, &[]);
+        self.emit_tool_ocel(TOOL_PROPOSE_REQUIREMENT, started, true, &[]);
         out
     }
 
@@ -5165,14 +5220,14 @@ impl OpenOntologiesServer {
             let out = match self.run_subprocess_with_timeout(&mut cmd, ENGINE_GROQ_PM4PY, &script_str) {
                 Ok(timed) => timed.output,
                 Err(crate::subprocess::SubprocessError::LlmTimeout { elapsed_ms, limit_ms, .. }) => {
-                    self.emit_tool_ocel("onto_translate_candidate", started, false, &[]);
+                    self.emit_tool_ocel(TOOL_TRANSLATE_CANDIDATE, started, false, &[]);
                     return format!(
                         r#"{{"ok":false,"error":"ctq_from_voice.py timed out after {}ms (limit {}ms)"}}"#,
                         elapsed_ms, limit_ms
                     );
                 }
                 Err(crate::subprocess::SubprocessError::SpawnFailed(e)) => {
-                    self.emit_tool_ocel("onto_translate_candidate", started, false, &[]);
+                    self.emit_tool_ocel(TOOL_TRANSLATE_CANDIDATE, started, false, &[]);
                     return format!(
                         r#"{{"ok":false,"error":"failed to spawn ctq_from_voice.py: {}"}}"#,
                         e.to_string().replace('"', "'")
@@ -5181,7 +5236,7 @@ impl OpenOntologiesServer {
             };
             if !out.status.success() {
                 let stderr = String::from_utf8_lossy(&out.stderr);
-                self.emit_tool_ocel("onto_translate_candidate", started, false, &[]);
+                self.emit_tool_ocel(TOOL_TRANSLATE_CANDIDATE, started, false, &[]);
                 return format!(
                     r#"{{"ok":false,"error":"ctq_from_voice.py exit nonzero: {}"}}"#,
                     stderr.replace('"', "'").replace('\n', " ")
@@ -5195,7 +5250,7 @@ impl OpenOntologiesServer {
             {
                 Some(l) => l.trim().to_string(),
                 None => {
-                    self.emit_tool_ocel("onto_translate_candidate", started, false, &[]);
+                    self.emit_tool_ocel(TOOL_TRANSLATE_CANDIDATE, started, false, &[]);
                     return format!(
                         r#"{{"ok":false,"error":"ctq_from_voice.py produced no JSON line: {}"}}"#,
                         stdout.replace('"', "'").replace('\n', " ")
@@ -5205,7 +5260,7 @@ impl OpenOntologiesServer {
             let result: serde_json::Value = match serde_json::from_str(&json_line) {
                 Ok(v) => v,
                 Err(e) => {
-                    self.emit_tool_ocel("onto_translate_candidate", started, false, &[]);
+                    self.emit_tool_ocel(TOOL_TRANSLATE_CANDIDATE, started, false, &[]);
                     return format!(
                         r#"{{"ok":false,"error":"ctq_from_voice.py non-JSON: {} (raw={})"}}"#,
                         e,
@@ -5243,7 +5298,7 @@ impl OpenOntologiesServer {
                     &now_pre,
                     &self.session_id,
                     &[
-                        ("engine", ENGINE_GROQ_PM4PY),
+                        (OCEL_KEY_ENGINE, ENGINE_GROQ_PM4PY),
                         ("defect_class", OCEL_EVENT_LLM_AUTHORITY_CLAIMED),
                         ("provisional_forced_to", "true"),
                     ],
@@ -5278,9 +5333,9 @@ impl OpenOntologiesServer {
                 &self.session_id,
                 &[
                     ("candidate_ctq_id", &candidate_id_hex[..16]),
-                    ("model", &model),
+                    (OCEL_KEY_MODEL, &model),
                     (OCEL_KEY_PROVISIONAL, "true"),
-                    ("engine", ENGINE_GROQ_PM4PY),
+                    (OCEL_KEY_ENGINE, ENGINE_GROQ_PM4PY),
                 ],
                 &[],
                 Some(&input.scope_token),
@@ -5293,10 +5348,10 @@ impl OpenOntologiesServer {
                 &now,
                 &self.session_id,
                 &[
-                    ("model", &model),
+                    (OCEL_KEY_MODEL, &model),
                     (OCEL_KEY_LATENCY_MS, &latency_str),
                     (OCEL_KEY_REFINEMENTS, &refinements_str),
-                    ("engine", ENGINE_GROQ_PM4PY),
+                    (OCEL_KEY_ENGINE, ENGINE_GROQ_PM4PY),
                 ],
                 &[],
                 Some(&input.scope_token),
@@ -5333,7 +5388,7 @@ impl OpenOntologiesServer {
                 "latency_ms": latency_ms,
                 "llm_claimed_authority": llm_claimed_authority_pm4py,
             }).to_string();
-            self.emit_tool_ocel("onto_translate_candidate", started, true, &[]);
+            self.emit_tool_ocel(TOOL_TRANSLATE_CANDIDATE, started, true, &[]);
             return response;
         }
 
@@ -5343,7 +5398,7 @@ impl OpenOntologiesServer {
         let translator = match crate::llm_translator::GroqTranslator::from_config(&llm_cfg) {
             Ok(t) => t,
             Err(e) => {
-                self.emit_tool_ocel("onto_translate_candidate", started, false, &[]);
+                self.emit_tool_ocel(TOOL_TRANSLATE_CANDIDATE, started, false, &[]);
                 return format!(r#"{{"error":"failed to build translator: {}"}}"#, e.to_string().replace('"', "'"));
             }
         };
@@ -5358,7 +5413,7 @@ impl OpenOntologiesServer {
                 "llm-translate-no-key",
                 input.source_voice.as_bytes(),
             );
-            self.emit_tool_ocel("onto_translate_candidate", started, false, &[]);
+            self.emit_tool_ocel(TOOL_TRANSLATE_CANDIDATE, started, false, &[]);
             return serde_json::json!({
                 "ok": false,
                 "provisional": true,
@@ -5381,7 +5436,7 @@ impl OpenOntologiesServer {
         ) {
             Ok(v) => v,
             Err(e) => {
-                self.emit_tool_ocel("onto_translate_candidate", started, false, &[]);
+                self.emit_tool_ocel(TOOL_TRANSLATE_CANDIDATE, started, false, &[]);
                 return format!(
                     r#"{{"ok":false,"error":"LlmInput sanitize failed: {}"}}"#,
                     e.to_string().replace('"', "'")
@@ -5403,7 +5458,7 @@ impl OpenOntologiesServer {
         {
             Ok(p) => p,
             Err(e) => {
-                self.emit_tool_ocel("onto_translate_candidate", started, false, &[]);
+                self.emit_tool_ocel(TOOL_TRANSLATE_CANDIDATE, started, false, &[]);
                 return format!(r#"{{"error":"shaped translation failed: {}"}}"#, e.to_string().replace('"', "'"));
             }
         };
@@ -5423,7 +5478,7 @@ impl OpenOntologiesServer {
                 &now_pre,
                 &self.session_id,
                 &[
-                    ("engine", ENGINE_INPROC),
+                    (OCEL_KEY_ENGINE, ENGINE_INPROC),
                     ("defect_class", OCEL_EVENT_LLM_AUTHORITY_CLAIMED),
                     ("provisional_forced_to", "true"),
                 ],
@@ -5462,9 +5517,9 @@ impl OpenOntologiesServer {
             &self.session_id,
             &[
                 ("candidate_ctq_id", &candidate_id_hex[..16]),
-                ("model", translator.model()),
+                (OCEL_KEY_MODEL, translator.model()),
                 (OCEL_KEY_PROVISIONAL, "true"),
-                ("engine", ENGINE_INPROC),
+                (OCEL_KEY_ENGINE, ENGINE_INPROC),
             ],
             &[],
             Some(&input.scope_token),
@@ -5476,10 +5531,10 @@ impl OpenOntologiesServer {
             &now,
             &self.session_id,
             &[
-                ("model", translator.model()),
+                (OCEL_KEY_MODEL, translator.model()),
                 (OCEL_KEY_LATENCY_MS, &latency_str),
                 (OCEL_KEY_REFINEMENTS, "0"),
-                ("engine", ENGINE_INPROC),
+                (OCEL_KEY_ENGINE, ENGINE_INPROC),
             ],
             &[],
             Some(&input.scope_token),
@@ -5513,7 +5568,7 @@ impl OpenOntologiesServer {
             "candidate": candidate,
             "llm_claimed_authority": parsed.llm_claimed_authority,
         }).to_string();
-        self.emit_tool_ocel("onto_translate_candidate", started, true, &[]);
+        self.emit_tool_ocel(TOOL_TRANSLATE_CANDIDATE, started, true, &[]);
         out
     }
 
@@ -5538,7 +5593,7 @@ impl OpenOntologiesServer {
         }
         if let Some(m) = missing {
             self.lineage().record_admission_denied(&self.session_id, "ctq_incomplete");
-            self.emit_tool_ocel("onto_admit_ctq", started, false, &[]);
+            self.emit_tool_ocel(TOOL_ADMIT_CTQ, started, false, &[]);
             return serde_json::json!({
                 "ok": false,
                 "admission": ADMISSION_VERDICT_DENIED,
@@ -5588,7 +5643,7 @@ impl OpenOntologiesServer {
         ) {
             Ok(r) => r,
             Err(denial) => {
-                self.emit_tool_ocel("onto_admit_ctq", started, false, &[]);
+                self.emit_tool_ocel(TOOL_ADMIT_CTQ, started, false, &[]);
                 return denial;
             }
         };
@@ -5612,7 +5667,7 @@ impl OpenOntologiesServer {
             // stream-2 integration is complete.
             "powl_stub": powl_stub,
         }).to_string();
-        self.emit_tool_ocel("onto_admit_ctq", started, true, &[]);
+        self.emit_tool_ocel(TOOL_ADMIT_CTQ, started, true, &[]);
         out
     }
 
@@ -5623,7 +5678,7 @@ impl OpenOntologiesServer {
         let h = input.ctq_receipt_hash.trim();
         let hex_ok = h.len() == 64 && h.chars().all(|c| c.is_ascii_hexdigit());
         if !hex_ok {
-            self.emit_tool_ocel("onto_propose_work_order", started, false, &[]);
+            self.emit_tool_ocel(TOOL_PROPOSE_WORK_ORDER, started, false, &[]);
             return serde_json::json!({
                 "ok": false,
                 "error": "ctq_receipt_hash must be a 64-char lowercase hex string",
@@ -5641,7 +5696,7 @@ impl OpenOntologiesServer {
             }
         }
         if let Some(m) = missing {
-            self.emit_tool_ocel("onto_propose_work_order", started, false, &[]);
+            self.emit_tool_ocel(TOOL_PROPOSE_WORK_ORDER, started, false, &[]);
             return serde_json::json!({
                 "ok": false,
                 "error": format!("required field is empty: {m}"),
@@ -5661,7 +5716,7 @@ impl OpenOntologiesServer {
             "scope_token": input.scope_token,
             "ctq_receipt_hash": h,
         }).to_string();
-        self.emit_tool_ocel("onto_propose_work_order", started, true, &[]);
+        self.emit_tool_ocel(TOOL_PROPOSE_WORK_ORDER, started, true, &[]);
         out
     }
 
@@ -5672,7 +5727,7 @@ impl OpenOntologiesServer {
         let hex_ok = h.len() == 64 && h.chars().all(|c| c.is_ascii_hexdigit());
         if !hex_ok {
             self.lineage().record_admission_denied(&self.session_id, "ctq_incomplete");
-            self.emit_tool_ocel("onto_admit_work_order", started, false, &[]);
+            self.emit_tool_ocel(TOOL_ADMIT_WORK_ORDER, started, false, &[]);
             return serde_json::json!({
                 "ok": false,
                 "admission": ADMISSION_VERDICT_DENIED,
@@ -5684,7 +5739,7 @@ impl OpenOntologiesServer {
         let delta = input.counterfactual_delta.trim();
         if naked.is_empty() || mfg.is_empty() || delta.is_empty() {
             self.lineage().record_admission_denied(&self.session_id, "work_order_missing_counterfactual");
-            self.emit_tool_ocel("onto_admit_work_order", started, false, &[]);
+            self.emit_tool_ocel(TOOL_ADMIT_WORK_ORDER, started, false, &[]);
             return serde_json::json!({
                 "ok": false,
                 "admission": ADMISSION_VERDICT_DENIED,
@@ -5725,7 +5780,7 @@ impl OpenOntologiesServer {
         ) {
             Ok(r) => r,
             Err(denial) => {
-                self.emit_tool_ocel("onto_admit_work_order", started, false, &[]);
+                self.emit_tool_ocel(TOOL_ADMIT_WORK_ORDER, started, false, &[]);
                 return denial;
             }
         };
@@ -5737,7 +5792,7 @@ impl OpenOntologiesServer {
             "production_law_version": receipt.record.production_law_version,
             "defects_taxonomy_version": receipt.record.defects_taxonomy_version,
         }).to_string();
-        self.emit_tool_ocel("onto_admit_work_order", started, true, &[]);
+        self.emit_tool_ocel(TOOL_ADMIT_WORK_ORDER, started, true, &[]);
         out
     }
 
@@ -5759,7 +5814,7 @@ impl OpenOntologiesServer {
         // so the caller sees the same defect class the gate would.
         if let Err(d) = crate::manufacturing::validate_spec(&spec) {
             self.lineage().record_admission_denied(&self.session_id, d.tag());
-            self.emit_tool_ocel("onto_manufacture_solution", started, false, &[]);
+            self.emit_tool_ocel(TOOL_MANUFACTURE_SOLUTION, started, false, &[]);
             return serde_json::json!({
                 "ok": false,
                 "admission": ADMISSION_VERDICT_DENIED,
@@ -5802,7 +5857,7 @@ impl OpenOntologiesServer {
             Ok(b) => b,
             Err(d) => {
                 self.lineage().record_admission_denied(&self.session_id, d.tag());
-                self.emit_tool_ocel("onto_manufacture_solution", started, false, &[]);
+                self.emit_tool_ocel(TOOL_MANUFACTURE_SOLUTION, started, false, &[]);
                 return serde_json::json!({
                     "ok": false,
                     "admission": ADMISSION_VERDICT_DENIED,
@@ -5836,7 +5891,7 @@ impl OpenOntologiesServer {
         ) {
             Ok(r) => r,
             Err(denial) => {
-                self.emit_tool_ocel("onto_manufacture_solution", started, false, &[]);
+                self.emit_tool_ocel(TOOL_MANUFACTURE_SOLUTION, started, false, &[]);
                 return denial;
             }
         };
@@ -5874,7 +5929,7 @@ impl OpenOntologiesServer {
             },
             "files_written": written,
         }).to_string();
-        self.emit_tool_ocel("onto_manufacture_solution", started, true, &[]);
+        self.emit_tool_ocel(TOOL_MANUFACTURE_SOLUTION, started, true, &[]);
         out
     }
 
@@ -5888,7 +5943,7 @@ impl OpenOntologiesServer {
             match serde_json::from_str(&input.input_json) {
                 Ok(b) => b,
                 Err(e) => {
-                    self.emit_tool_ocel("onto_old_ai_station", started, false, &[]);
+                    self.emit_tool_ocel(TOOL_OLD_AI_STATION, started, false, &[]);
                     return format!(r#"{{"error":"invalid input_json: {}"}}"#, e.to_string().replace('"', "'"));
                 }
             };
@@ -5897,7 +5952,7 @@ impl OpenOntologiesServer {
         let breed_output = match dispatched {
             Ok(o) => o,
             Err(e) => {
-                self.emit_tool_ocel("onto_old_ai_station", started, false, &[]);
+                self.emit_tool_ocel(TOOL_OLD_AI_STATION, started, false, &[]);
                 return format!(r#"{{"error":"breed run failed: {}"}}"#, e.replace('"', "'"));
             }
         };
@@ -5941,7 +5996,7 @@ impl OpenOntologiesServer {
             });
             response["ok"] = serde_json::json!(false);
         }
-        self.emit_tool_ocel("onto_old_ai_station", started, trace_len > 0, &[]);
+        self.emit_tool_ocel(TOOL_OLD_AI_STATION, started, trace_len > 0, &[]);
         response.to_string()
     }
 
@@ -5950,7 +6005,7 @@ impl OpenOntologiesServer {
         let started = std::time::Instant::now();
         let evidence = input.admitted_evidence.trim();
         if evidence.is_empty() {
-            self.emit_tool_ocel("onto_executive_projection", started, false, &[]);
+            self.emit_tool_ocel(TOOL_EXECUTIVE_PROJECTION, started, false, &[]);
             return serde_json::json!({
                 "ok": false,
                 "error": "admitted_evidence is empty",
@@ -5971,14 +6026,14 @@ impl OpenOntologiesServer {
             let out = match self.run_subprocess_with_timeout(&mut cmd, ENGINE_GROQ_PM4PY, &script_str) {
                 Ok(timed) => timed.output,
                 Err(crate::subprocess::SubprocessError::LlmTimeout { elapsed_ms, limit_ms, .. }) => {
-                    self.emit_tool_ocel("onto_executive_projection", started, false, &[]);
+                    self.emit_tool_ocel(TOOL_EXECUTIVE_PROJECTION, started, false, &[]);
                     return format!(
                         r#"{{"ok":false,"error":"executive_projection.py timed out after {}ms (limit {}ms)"}}"#,
                         elapsed_ms, limit_ms
                     );
                 }
                 Err(crate::subprocess::SubprocessError::SpawnFailed(e)) => {
-                    self.emit_tool_ocel("onto_executive_projection", started, false, &[]);
+                    self.emit_tool_ocel(TOOL_EXECUTIVE_PROJECTION, started, false, &[]);
                     return format!(
                         r#"{{"ok":false,"error":"failed to spawn executive_projection.py: {}"}}"#,
                         e.to_string().replace('"', "'")
@@ -5987,7 +6042,7 @@ impl OpenOntologiesServer {
             };
             if !out.status.success() {
                 let stderr = String::from_utf8_lossy(&out.stderr);
-                self.emit_tool_ocel("onto_executive_projection", started, false, &[]);
+                self.emit_tool_ocel(TOOL_EXECUTIVE_PROJECTION, started, false, &[]);
                 return format!(
                     r#"{{"ok":false,"error":"executive_projection.py exit nonzero: {}"}}"#,
                     stderr.replace('"', "'").replace('\n', " ")
@@ -6001,7 +6056,7 @@ impl OpenOntologiesServer {
             {
                 Some(l) => l.trim().to_string(),
                 None => {
-                    self.emit_tool_ocel("onto_executive_projection", started, false, &[]);
+                    self.emit_tool_ocel(TOOL_EXECUTIVE_PROJECTION, started, false, &[]);
                     return format!(
                         r#"{{"ok":false,"error":"executive_projection.py produced no JSON: {}"}}"#,
                         stdout.replace('"', "'").replace('\n', " ")
@@ -6011,7 +6066,7 @@ impl OpenOntologiesServer {
             let result: serde_json::Value = match serde_json::from_str(&json_line) {
                 Ok(v) => v,
                 Err(e) => {
-                    self.emit_tool_ocel("onto_executive_projection", started, false, &[]);
+                    self.emit_tool_ocel(TOOL_EXECUTIVE_PROJECTION, started, false, &[]);
                     return format!(
                         r#"{{"ok":false,"error":"executive_projection.py non-JSON: {}"}}"#,
                         e
@@ -6036,10 +6091,10 @@ impl OpenOntologiesServer {
                 &now,
                 &self.session_id,
                 &[
-                    ("model", &model),
+                    (OCEL_KEY_MODEL, &model),
                     (OCEL_KEY_LATENCY_MS, &latency_str),
                     (OCEL_KEY_REFINEMENTS, &refinements_str),
-                    ("engine", ENGINE_GROQ_PM4PY),
+                    (OCEL_KEY_ENGINE, ENGINE_GROQ_PM4PY),
                 ],
                 &[],
                 Some(&input.scope_token),
@@ -6054,7 +6109,7 @@ impl OpenOntologiesServer {
                 ),
             );
             if !verdict {
-                self.emit_tool_ocel("onto_executive_projection", started, false, &[]);
+                self.emit_tool_ocel(TOOL_EXECUTIVE_PROJECTION, started, false, &[]);
                 return serde_json::json!({
                     "ok": false,
                     "engine": ENGINE_GROQ_PM4PY,
@@ -6065,7 +6120,7 @@ impl OpenOntologiesServer {
                     "refinements": refinements,
                 }).to_string();
             }
-            self.emit_tool_ocel("onto_executive_projection", started, true, &[]);
+            self.emit_tool_ocel(TOOL_EXECUTIVE_PROJECTION, started, true, &[]);
             return serde_json::json!({
                 "ok": true,
                 "engine": ENGINE_GROQ_PM4PY,
@@ -6080,12 +6135,12 @@ impl OpenOntologiesServer {
         let translator = match crate::llm_translator::GroqTranslator::from_config(&llm_cfg) {
             Ok(t) => t,
             Err(e) => {
-                self.emit_tool_ocel("onto_executive_projection", started, false, &[]);
+                self.emit_tool_ocel(TOOL_EXECUTIVE_PROJECTION, started, false, &[]);
                 return format!(r#"{{"error":"failed to build translator: {}"}}"#, e.to_string().replace('"', "'"));
             }
         };
         if !translator.is_configured() {
-            self.emit_tool_ocel("onto_executive_projection", started, false, &[]);
+            self.emit_tool_ocel(TOOL_EXECUTIVE_PROJECTION, started, false, &[]);
             return serde_json::json!({
                 "ok": false,
                 "error": "NoLlmConfigured: GROQ_API_KEY is not set",
@@ -6106,7 +6161,7 @@ impl OpenOntologiesServer {
         ) {
             Ok(v) => v,
             Err(e) => {
-                self.emit_tool_ocel("onto_executive_projection", started, false, &[]);
+                self.emit_tool_ocel(TOOL_EXECUTIVE_PROJECTION, started, false, &[]);
                 return format!(
                     r#"{{"ok":false,"error":"LlmInput sanitize failed: {}"}}"#,
                     e.to_string().replace('"', "'")
@@ -6134,7 +6189,7 @@ impl OpenOntologiesServer {
         {
             Ok(c) => c,
             Err(e) => {
-                self.emit_tool_ocel("onto_executive_projection", started, false, &[]);
+                self.emit_tool_ocel(TOOL_EXECUTIVE_PROJECTION, started, false, &[]);
                 return format!(r#"{{"error":"projection failed: {}"}}"#, e.to_string().replace('"', "'"));
             }
         };
@@ -6154,7 +6209,7 @@ impl OpenOntologiesServer {
         );
         let invented = crate::projection_check::invented_tokens(&summary, evidence);
         if !invented.is_empty() {
-            self.emit_tool_ocel("onto_executive_projection", started, false, &[]);
+            self.emit_tool_ocel(TOOL_EXECUTIVE_PROJECTION, started, false, &[]);
             return serde_json::json!({
                 "ok": false,
                 "defect": { "kind": "FalsePass" },
@@ -6172,10 +6227,10 @@ impl OpenOntologiesServer {
             &now,
             &self.session_id,
             &[
-                ("model", translator.model()),
+                (OCEL_KEY_MODEL, translator.model()),
                 (OCEL_KEY_LATENCY_MS, &latency_str),
                 (OCEL_KEY_REFINEMENTS, "0"),
-                ("engine", ENGINE_INPROC),
+                (OCEL_KEY_ENGINE, ENGINE_INPROC),
             ],
             &[],
             Some(&input.scope_token),
@@ -6202,7 +6257,7 @@ impl OpenOntologiesServer {
                 "control_plan_text": candidate.control_plan_text,
             },
         }).to_string();
-        self.emit_tool_ocel("onto_executive_projection", started, true, &[]);
+        self.emit_tool_ocel(TOOL_EXECUTIVE_PROJECTION, started, true, &[]);
         out
     }
 
@@ -6217,7 +6272,7 @@ impl OpenOntologiesServer {
         let header_engine = current_llm_engine_override();
         let engine = self.resolve_engine(None, header_engine.as_deref());
         if engine != ENGINE_GROQ_PM4PY {
-            self.emit_tool_ocel("onto_groq_status", started, true, &[]);
+            self.emit_tool_ocel(TOOL_GROQ_STATUS, started, true, &[]);
             let key_present =
                 crate::config::resolve_llm_api_key(&crate::config::LlmConfig::default()).is_some();
             return serde_json::json!({
@@ -6236,7 +6291,7 @@ impl OpenOntologiesServer {
         let out = match std::process::Command::new(&python).arg(&script).output() {
             Ok(o) => o,
             Err(e) => {
-                self.emit_tool_ocel("onto_groq_status", started, false, &[]);
+                self.emit_tool_ocel(TOOL_GROQ_STATUS, started, false, &[]);
                 return serde_json::json!({
                     "ok": false,
                     "model_reachable": false,
@@ -6265,7 +6320,7 @@ impl OpenOntologiesServer {
             }),
         };
         let ok_flag = resp.get("ok").and_then(|v| v.as_bool()).unwrap_or(false);
-        self.emit_tool_ocel("onto_groq_status", started, ok_flag, &[]);
+        self.emit_tool_ocel(TOOL_GROQ_STATUS, started, ok_flag, &[]);
         resp.to_string()
     }
 
@@ -6392,7 +6447,7 @@ impl OpenOntologiesServer {
     pub fn onto_bootstrap_unlock(&self) -> String {
         let started = std::time::Instant::now();
         if !self.is_admin_principal() {
-            self.emit_tool_ocel("onto_bootstrap_unlock", started, false, &[]);
+            self.emit_tool_ocel(TOOL_BOOTSTRAP_UNLOCK, started, false, &[]);
             return serde_json::json!({
                 "ok": false,
                 "defect": { "kind": "FalsePass", "reason": DEFECT_REASON_NOT_ADMIN },
@@ -6417,7 +6472,7 @@ impl OpenOntologiesServer {
                 Ok(n) => n as u64,
                 Err(e) => {
                     drop(conn);
-                    self.emit_tool_ocel("onto_bootstrap_unlock", started, false, &[]);
+                    self.emit_tool_ocel(TOOL_BOOTSTRAP_UNLOCK, started, false, &[]);
                     return serde_json::json!({
                         "ok": false,
                         "error": format!("DELETE failed: {}", e.to_string().replace('"', "'")),
@@ -6432,7 +6487,7 @@ impl OpenOntologiesServer {
             "bootstrap_unlocked",
             &format!("rows_deleted={deleted}"),
         );
-        self.emit_tool_ocel("onto_bootstrap_unlock", started, true, &[]);
+        self.emit_tool_ocel(TOOL_BOOTSTRAP_UNLOCK, started, true, &[]);
         serde_json::json!({
             "ok": true,
             "rows_deleted": deleted,
@@ -6698,7 +6753,7 @@ impl OpenOntologiesServer {
     ) -> String {
         let started = std::time::Instant::now();
         if !self.is_admin_principal() {
-            self.emit_tool_ocel("onto_retention_pause", started, false, &[]);
+            self.emit_tool_ocel(TOOL_RETENTION_PAUSE, started, false, &[]);
             return serde_json::json!({
                 "ok": false,
                 "defect": { "kind": "FalsePass", "reason": DEFECT_REASON_NOT_ADMIN },
@@ -6708,7 +6763,7 @@ impl OpenOntologiesServer {
         }
         let minutes = input.minutes;
         if minutes == 0 || minutes > 10080 {
-            self.emit_tool_ocel("onto_retention_pause", started, false, &[]);
+            self.emit_tool_ocel(TOOL_RETENTION_PAUSE, started, false, &[]);
             return serde_json::json!({
                 "ok": false,
                 "error": "minutes must be in 1..=10080 (max 1 week)",
@@ -6732,7 +6787,7 @@ impl OpenOntologiesServer {
             "retention_paused",
             &format!("minutes={};until_epoch={}", minutes, until),
         );
-        self.emit_tool_ocel("onto_retention_pause", started, true, &[]);
+        self.emit_tool_ocel(TOOL_RETENTION_PAUSE, started, true, &[]);
         serde_json::json!({
             "ok": true,
             "minutes": minutes,
