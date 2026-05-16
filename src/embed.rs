@@ -23,6 +23,19 @@ pub struct TextEmbedder {
 
 impl TextEmbedder {
     /// Load an ONNX model and tokenizer from disk.
+    ///
+    /// Requires the `embeddings` feature and model files on disk.
+    ///
+    /// ```no_run
+    /// # use std::path::Path;
+    /// # use open_ontologies::embed::TextEmbedder;
+    /// // Model files are typically downloaded via `open-ontologies init`.
+    /// let embedder = TextEmbedder::load(
+    ///     Path::new("~/.open-ontologies/models/bge-small-en-v1.5.onnx"),
+    ///     Path::new("~/.open-ontologies/models/tokenizer.json"),
+    /// ).expect("model files must exist");
+    /// assert_eq!(embedder.dim(), 384);
+    /// ```
     pub fn load(model_path: &Path, tokenizer_path: &Path) -> Result<Self> {
         let model = tract_onnx::onnx()
             .model_for_path(model_path)
@@ -51,6 +64,20 @@ impl TextEmbedder {
     }
 
     /// Embed a single text string. Returns L2-normalized vector.
+    ///
+    /// Requires the `embeddings` feature and a loaded model.
+    ///
+    /// ```no_run
+    /// # use std::path::Path;
+    /// # use open_ontologies::embed::TextEmbedder;
+    /// # let embedder = TextEmbedder::load(
+    /// #     Path::new("model.onnx"), Path::new("tokenizer.json")
+    /// # ).unwrap();
+    /// let vec = embedder.embed("ontology class").unwrap();
+    /// // Output is L2-normalised: magnitude ≈ 1.0.
+    /// let magnitude: f32 = vec.iter().map(|v| v * v).sum::<f32>().sqrt();
+    /// assert!((magnitude - 1.0).abs() < 1e-5);
+    /// ```
     pub fn embed(&self, text: &str) -> Result<Vec<f32>> {
         let encoding = self
             .tokenizer
@@ -105,11 +132,34 @@ impl TextEmbedder {
     }
 
     /// Embed multiple texts. Returns Vec of L2-normalized vectors.
+    ///
+    /// Requires the `embeddings` feature and a loaded model.
+    ///
+    /// ```no_run
+    /// # use std::path::Path;
+    /// # use open_ontologies::embed::TextEmbedder;
+    /// # let embedder = TextEmbedder::load(
+    /// #     Path::new("model.onnx"), Path::new("tokenizer.json")
+    /// # ).unwrap();
+    /// let vecs = embedder.embed_batch(&["class", "property"]).unwrap();
+    /// assert_eq!(vecs.len(), 2);
+    /// ```
     pub fn embed_batch(&self, texts: &[&str]) -> Result<Vec<Vec<f32>>> {
         texts.iter().map(|t| self.embed(t)).collect()
     }
 
     /// Output dimension of the model.
+    ///
+    /// For the default `bge-small-en-v1.5` model this is `384`.
+    ///
+    /// ```no_run
+    /// # use std::path::Path;
+    /// # use open_ontologies::embed::TextEmbedder;
+    /// # let embedder = TextEmbedder::load(
+    /// #     Path::new("model.onnx"), Path::new("tokenizer.json")
+    /// # ).unwrap();
+    /// assert_eq!(embedder.dim(), 384);
+    /// ```
     pub fn dim(&self) -> usize {
         self.dim
     }
@@ -126,6 +176,16 @@ impl TextEmbedderProvider {
     /// Build a provider from runtime configuration. Returns `Ok(None)` when
     /// the configured provider cannot be initialised (e.g. local model files
     /// missing) so the server can start without embedding tools wired up.
+    ///
+    /// ```no_run
+    /// # use open_ontologies::embed::TextEmbedderProvider;
+    /// # use open_ontologies::config::EmbeddingsConfig;
+    /// // A default config with no model files on disk returns Ok(None).
+    /// let cfg = EmbeddingsConfig::default();
+    /// let provider = TextEmbedderProvider::from_config(&cfg).unwrap();
+    /// // provider is None when model files are absent.
+    /// assert!(provider.is_none());
+    /// ```
     pub fn from_config(cfg: &crate::config::EmbeddingsConfig) -> anyhow::Result<Option<Self>> {
         let provider = crate::config::resolve_embeddings_provider(cfg);
         match provider.as_str() {

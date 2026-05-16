@@ -20,6 +20,16 @@ pub const RDF_EXTENSIONS: &[&str] = &[
 ];
 
 /// True if `path`'s extension is one of `RDF_EXTENSIONS` (case-insensitive).
+///
+/// ```
+/// use std::path::Path;
+/// use open_ontologies::repo::has_rdf_extension;
+///
+/// assert!(has_rdf_extension(Path::new("pizza.ttl")));
+/// assert!(has_rdf_extension(Path::new("schema.OWL")));
+/// assert!(!has_rdf_extension(Path::new("notes.txt")));
+/// assert!(!has_rdf_extension(Path::new("no_extension")));
+/// ```
 pub fn has_rdf_extension(path: &Path) -> bool {
     path.extension()
         .and_then(|e| e.to_str())
@@ -48,6 +58,17 @@ pub struct RepoEntry {
 /// Minimal fnmatch-style glob: supports `*` and `?` against a single filename
 /// (no path separators). This is intentionally tiny so we don't pull in a
 /// glob crate just for filtering tool output.
+///
+/// ```
+/// use open_ontologies::repo::glob_match;
+///
+/// assert!(glob_match("*.ttl", "pizza.ttl"));
+/// assert!(glob_match("cell?-*.ttl", "cell8-manufacturing.ttl"));
+/// assert!(!glob_match("*.ttl", "pizza.nt"));
+/// assert!(glob_match("*", "anything-at-all"));
+/// // Matching is case-insensitive for ASCII letters.
+/// assert!(glob_match("PIZZA*", "pizza.ttl"));
+/// ```
 pub fn glob_match(pattern: &str, name: &str) -> bool {
     fn helper(p: &[u8], n: &[u8]) -> bool {
         match (p.first(), n.first()) {
@@ -75,6 +96,14 @@ pub fn glob_match(pattern: &str, name: &str) -> bool {
 ///
 /// This is the path-traversal guard: callers cannot pass arbitrary host
 /// paths via the `dir` argument of `onto_repo_list`.
+///
+/// ```
+/// use open_ontologies::repo::resolve_within_repos;
+///
+/// // Empty repos slice always returns an error.
+/// let result = resolve_within_repos("ontology", &[]);
+/// assert!(result.is_err());
+/// ```
 pub fn resolve_within_repos(dir: &str, repos: &[PathBuf]) -> Result<(PathBuf, PathBuf)> {
     if repos.is_empty() {
         return Err(anyhow!(
@@ -161,6 +190,22 @@ fn walk(repo_dir: &Path, start: &Path, recursive: bool, out: &mut Vec<RepoEntry>
 }
 
 /// List RDF files under one repo directory.
+///
+/// Returns entries sorted by their path relative to `repo_dir`.
+/// An empty or non-existent directory yields an empty `Vec`.
+///
+/// ```
+/// use std::path::Path;
+/// use open_ontologies::repo::list_one;
+///
+/// // A directory that does not exist yields no entries.
+/// let entries = list_one(
+///     Path::new("/nonexistent/repo"),
+///     Path::new("/nonexistent/repo"),
+///     false,
+/// );
+/// assert!(entries.is_empty());
+/// ```
 pub fn list_one(repo_dir: &Path, start: &Path, recursive: bool) -> Vec<RepoEntry> {
     let mut out = Vec::new();
     walk(repo_dir, start, recursive, &mut out);
@@ -170,6 +215,17 @@ pub fn list_one(repo_dir: &Path, start: &Path, recursive: bool) -> Vec<RepoEntry
 }
 
 /// List RDF files across all configured repo directories.
+///
+/// Entries are sorted first by repo dir, then by relative path within each
+/// repo. An empty `repos` slice or dirs that do not exist yields an empty
+/// `Vec`.
+///
+/// ```
+/// use open_ontologies::repo::list_all;
+///
+/// // No configured repos → no entries.
+/// assert!(list_all(&[], false).is_empty());
+/// ```
 pub fn list_all(repos: &[PathBuf], recursive: bool) -> Vec<RepoEntry> {
     let mut out = Vec::new();
     for repo in repos {
@@ -191,6 +247,16 @@ pub fn list_all(repos: &[PathBuf], recursive: bool) -> Vec<RepoEntry> {
 ///     for a file whose stem matches and whose extension is in
 ///     `RDF_EXTENSIONS`. If multiple files match, return an error listing
 ///     all candidates.
+///
+/// ```
+/// use open_ontologies::repo::resolve_load_target;
+///
+/// // No configured repos → error regardless of name.
+/// assert!(resolve_load_target("pizza", &[]).is_err());
+///
+/// // Empty name → error.
+/// assert!(resolve_load_target("  ", &[std::path::PathBuf::from("/tmp")]).is_err());
+/// ```
 pub fn resolve_load_target(name: &str, repos: &[PathBuf]) -> Result<PathBuf> {
     if repos.is_empty() {
         return Err(anyhow!(
