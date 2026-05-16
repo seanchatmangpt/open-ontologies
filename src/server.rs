@@ -11,10 +11,42 @@ use rmcp::{
     },
     service::RequestContext,
 };
-use crate::config::expand_tilde;
+use crate::config::{expand_tilde, ENGINE_INPROC, ENGINE_GROQ_PM4PY};
+use crate::admission::{
+    OCEL_KEY_SCOPE_TOKEN, OCEL_KEY_RECEIPT_HASH, OCEL_KEY_DEFECTS_TAXONOMY_VERSION,
+    OCEL_KEY_FITNESS, OCEL_KEY_PRECISION, OCEL_KEY_POWL_STUB,
+};
 use crate::graph::GraphStore;
 use crate::inputs::*;
 use crate::state::StateDb;
+
+// ─── OCEL attribute key constants ───────────────────────────────────────────
+//
+// Cross-file keys (`scope_token`, `receipt_hash`, `defects_taxonomy_version`,
+// `fitness`, `precision`, `powl_stub`) live in `admission.rs` so they can be
+// imported by both this module and `admission.rs` without a cycle.
+// Engine-name constants (`inproc`, `groq_pm4py`) live in `config.rs` because
+// that is where `VALID_LLM_ENGINES` is already defined.
+
+/// OCEL event attribute key for the LLM-invoked flag set after every
+/// translate_candidate / manufacture_solution call. 8 occurrences in server.rs.
+pub(crate) const OCEL_KEY_LLM_INVOKED: &str = "llm_invoked";
+
+/// OCEL event attribute key for the measured LLM call latency in milliseconds.
+/// 6 occurrences in server.rs.
+pub(crate) const OCEL_KEY_LATENCY_MS: &str = "latency_ms";
+
+/// OCEL event attribute key indicating the admission result is provisional
+/// (Stream-2 stub path; not backed by real POWL replay). 6 occurrences.
+pub(crate) const OCEL_KEY_PROVISIONAL: &str = "provisional";
+
+/// OCEL event attribute key for the triple count returned by load / import
+/// operations. 12 occurrences in server.rs.
+pub(crate) const OCEL_KEY_TRIPLES_LOADED: &str = "triples_loaded";
+
+/// OCEL event attribute key for the number of swarm refinement cycles run
+/// during manufacture_solution / executive_projection. 12 occurrences.
+pub(crate) const OCEL_KEY_REFINEMENTS: &str = "refinements";
 
 // ─── HTTP-scoped LLM engine override (task-local) ───────────────────────────
 //
@@ -1000,6 +1032,32 @@ impl OpenOntologiesServer {
 
     #[tool(name = "onto_convert", description = "Convert an RDF file between formats: turtle, ntriples, rdfxml, nquads, trig")]
     async fn onto_convert(&self, Parameters(input): Parameters<OntoConvertInput>) -> String {
+        // Validate target format before doing any IO so the error names the
+        // bad value and lists the accepted ones.
+        const KNOWN_FORMATS: &[&str] = &["turtle", "ntriples", "rdfxml", "nquads", "trig"];
+        if !KNOWN_FORMATS.contains(&input.to.to_lowercase().as_str()) {
+            return format!(
+                r#"{{"error":"Unknown format: '{}'. Supported formats: turtle, ntriples, rdfxml, nquads, trig. Use onto_convert with 'to' set to one of these values."}}"#,
+                input.to
+            );
+        }
+
+        // Give a targeted message when the source file is missing rather than
+        // letting load_file produce a generic OS error string.
+        if !input.path.is_empty() && !std::path::Path::new(&input.path).exists() {
+            // Distinguish "nothing to convert" (empty path) from "wrong path".
+            return format!(
+                r#"{{"error":"File not found: '{}'. Verify the path exists and the file is readable. Supported input formats: .ttl/.turtle (Turtle), .nt (N-Triples), .rdf/.xml/.owl (RDF/XML), .nq (N-Quads), .trig (TriG). Load an ontology with onto_load first, or pass a valid file path."}}"#,
+                input.path
+            );
+        }
+
+        // If path is empty and the in-memory store is also empty, there is
+        // nothing to convert.
+        if input.path.is_empty() && self.graph.triple_count() == 0 {
+            return r#"{"error":"Nothing to convert — load an ontology with onto_load first, or pass a file path via the 'path' field."}"#.to_string();
+        }
+
         let store = GraphStore::new();
         match store.load_file(&input.path) {
             Ok(_) => {
@@ -2045,14 +2103,26 @@ impl OpenOntologiesServer {
 
         let base_iri = input.base_iri.as_deref().unwrap_or("http://example.org/data/");
 
+        // Pre-flight: give a targeted message for a missing file rather than
+        // propagating a raw OS error from the parser.
+        if !std::path::Path::new(&input.path).exists() {
+            return format!(
+                r#"{{"error":"File not found: '{}'. Verify the path exists. Supported formats: csv, json, ndjson, xml, yaml, xlsx, parquet. Use onto_map to preview the mapping before ingesting."}}"#,
+                input.path
+            );
+        }
+
         // Parse data file
         let rows = match DataIngester::parse_file_with_format(&input.path, input.format.as_deref()) {
             Ok(r) => r,
-            Err(e) => return format!(r#"{{"error":"Failed to parse {}: {}"}}"#, input.path, e),
+            Err(e) => return format!(r#"{{"error":"Failed to parse '{}': {}. Check the file format or pass 'format' explicitly (csv, json, ndjson, xml, yaml, xlsx, parquet)."}}"#, input.path, e),
         };
 
         if rows.is_empty() {
-            return r#"{"ok":true,"triples_loaded":0,"warnings":["No data rows found"]}"#.to_string();
+            return format!(
+                r#"{{"error":"File is empty: '{}'. onto_ingest requires at least one row of data."}}"#,
+                input.path
+            );
         }
 
         // Get or generate mapping
@@ -2060,15 +2130,27 @@ impl OpenOntologiesServer {
             if input.inline_mapping.unwrap_or(false) {
                 match serde_json::from_str::<MappingConfig>(mapping_str) {
                     Ok(m) => m,
-                    Err(e) => return format!(r#"{{"error":"Invalid mapping JSON: {}"}}"#, e),
+                    Err(e) => return format!(
+                        r#"{{"error":"Mapping JSON is malformed: {}. Use onto_map with the same data file to generate a valid mapping, then pass it via 'mapping' with 'inline_mapping: true'."}}"#,
+                        e
+                    ),
                 }
             } else {
+                if !std::path::Path::new(mapping_str.as_str()).exists() {
+                    return format!(
+                        r#"{{"error":"Mapping file not found: '{}'. Use onto_map with the same data file to generate a valid mapping, save it, then pass the saved path via 'mapping'."}}"#,
+                        mapping_str
+                    );
+                }
                 match std::fs::read_to_string(mapping_str) {
                     Ok(content) => match serde_json::from_str::<MappingConfig>(&content) {
                         Ok(m) => m,
-                        Err(e) => return format!(r#"{{"error":"Invalid mapping file: {}"}}"#, e),
+                        Err(e) => return format!(
+                            r#"{{"error":"Mapping file '{}' is not valid JSON: {}. Use onto_map to regenerate a correct mapping."}}"#,
+                            mapping_str, e
+                        ),
                     },
-                    Err(e) => return format!(r#"{{"error":"Cannot read mapping file: {}"}}"#, e),
+                    Err(e) => return format!(r#"{{"error":"Cannot read mapping file '{}': {}"}}"#, mapping_str, e),
                 }
             }
         } else {
@@ -2175,13 +2257,38 @@ impl OpenOntologiesServer {
     async fn onto_shacl(&self, Parameters(input): Parameters<OntoShaclInput>) -> String {
         let started = std::time::Instant::now();
         use crate::shacl::ShaclValidator;
+
+        // Guard: no data in the store means validation has nothing to check.
+        if self.graph.triple_count() == 0 {
+            let out = r#"{"error":"No data loaded. Call onto_load or onto_ingest to load data into the store, then call onto_shacl with a 'shapes' SHACL shapes graph."}"#.to_string();
+            self.emit_tool_ocel("onto_shacl", started, false, &[]);
+            return out;
+        }
+
+        // Guard: a blank shapes value is useless and produces confusing errors
+        // from the validator; surface a clear message up front.
+        if input.shapes.trim().is_empty() {
+            let out = r#"{"error":"'shapes' is required — provide inline Turtle with sh:NodeShape definitions (and set 'inline: true'), or a file path to a .ttl shapes file."}"#.to_string();
+            self.emit_tool_ocel("onto_shacl", started, false, &[]);
+            return out;
+        }
+
         let shapes = if input.inline.unwrap_or(false) {
             input.shapes.clone()
         } else {
+            // Give a targeted "file not found" message instead of a raw IO error.
+            if !std::path::Path::new(&input.shapes).exists() {
+                let out = format!(
+                    r#"{{"error":"Shapes file not found: '{}'. Provide inline Turtle via 'shapes' with 'inline: true', or verify the file path points to a valid .ttl shapes file."}}"#,
+                    input.shapes
+                );
+                self.emit_tool_ocel("onto_shacl", started, false, &[]);
+                return out;
+            }
             match std::fs::read_to_string(&input.shapes) {
                 Ok(c) => c,
                 Err(e) => {
-                    let out = format!(r#"{{"error":"Cannot read shapes file: {}"}}"#, e);
+                    let out = format!(r#"{{"error":"Cannot read shapes file '{}': {}"}}"#, input.shapes, e);
                     self.emit_tool_ocel("onto_shacl", started, false, &[]);
                     return out;
                 }
@@ -3060,6 +3167,13 @@ impl OpenOntologiesServer {
             None
         };
 
+        // When no target is supplied the engine aligns against the in-memory
+        // store. Catch the case where no ontology has been loaded yet so the
+        // user knows what to do rather than receiving an empty candidates list.
+        if input.target.is_none() && self.graph.triple_count() == 0 {
+            return r#"{"error":"No ontology loaded. Call onto_load first, then call onto_align with 'target' pointing to the second ontology (as a file path or inline Turtle). The source ontology is the one supplied in the 'source' field; the target defaults to the currently loaded store."}"#.to_string();
+        }
+
         // Read source (file path or inline)
         let source = if std::path::Path::new(&input.source).exists() {
             match std::fs::read_to_string(&input.source) {
@@ -3073,6 +3187,20 @@ impl OpenOntologiesServer {
         // Read target (file path, inline, or None)
         let target = match input.target {
             Some(t) => {
+                // If the value looks like a file path (contains a path separator
+                // or a known RDF extension) but the file does not exist, surface
+                // a targeted error instead of treating the path string as inline
+                // Turtle content, which would silently produce zero candidates.
+                let looks_like_path = t.contains('/') || t.contains('\\')
+                    || t.ends_with(".ttl") || t.ends_with(".nt")
+                    || t.ends_with(".rdf") || t.ends_with(".owl")
+                    || t.ends_with(".nq") || t.ends_with(".trig");
+                if looks_like_path && !std::path::Path::new(&t).exists() {
+                    return format!(
+                        r#"{{"error":"Target ontology not found: '{}'. The source ontology is supplied via 'source'; the target must be a valid file path or inline Turtle content. Verify the path or pass inline Turtle directly."}}"#,
+                        t
+                    );
+                }
                 if std::path::Path::new(&t).exists() {
                     match std::fs::read_to_string(&t) {
                         Ok(s) => Some(s),
