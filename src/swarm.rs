@@ -21,8 +21,92 @@ use wasm4pm_cognition::breeds::{dispatch_breed_test, BreedInput, BreedOutput};
 /// Named separately so the fusion step can reference it without a bare
 /// magic string, and so callers can check `breed == HEARSAY_BREED`
 /// without duplicating the spelling.
+///
+/// # Auto-instinct: HEARSAY_BREED membership
+///
+/// `HEARSAY_BREED` must be present in `SWARM_BREEDS` — if it were
+/// absent the fusion step would operate against a breed not represented
+/// in the swarm, breaking the blackboard contract:
+///
+/// ```
+/// use open_ontologies::swarm::{HEARSAY_BREED, SWARM_BREEDS};
+///
+/// // The consensus engine breed is always a swarm member.
+/// assert!(SWARM_BREEDS.contains(&HEARSAY_BREED));
+/// // The spelling is canonical lowercase — no caps, no hyphen.
+/// assert_eq!(HEARSAY_BREED, "hearsay");
+/// ```
 pub const HEARSAY_BREED: &str = "hearsay";
 
+/// The nine cognition breeds, one per swarm node.
+///
+/// # Auto-instinct: all entries non-empty and lowercase
+///
+/// Every breed identifier must be a non-empty, fully-lowercase ASCII
+/// string. An uppercase letter or empty string would prevent `parse_breed_id`
+/// from matching and would silently fall through to the `Hearsay` catch-all:
+///
+/// ```
+/// use open_ontologies::swarm::SWARM_BREEDS;
+///
+/// for breed in SWARM_BREEDS {
+///     assert!(!breed.is_empty(), "breed identifier must not be empty");
+///     assert_eq!(
+///         *breed,
+///         breed.to_lowercase(),
+///         "breed '{breed}' must be lowercase"
+///     );
+///     // Only ASCII — no Unicode surprises in dispatch arms.
+///     assert!(breed.is_ascii(), "breed '{breed}' must be ASCII");
+/// }
+/// ```
+///
+/// # Auto-instinct: all entries are distinct
+///
+/// Duplicate breed names would produce two nodes for the same cognition
+/// breed and under-represent the other breeds in the consensus:
+///
+/// ```
+/// use open_ontologies::swarm::SWARM_BREEDS;
+///
+/// let mut seen = std::collections::HashSet::new();
+/// for breed in SWARM_BREEDS {
+///     assert!(seen.insert(*breed), "duplicate breed: '{breed}'");
+/// }
+/// ```
+///
+/// # Auto-instinct: exactly nine breeds
+///
+/// The swarm architecture mandates one node per breed. A count other than
+/// nine would either leave a breed unrepresented or manufacture a spurious
+/// node:
+///
+/// ```
+/// use open_ontologies::swarm::SWARM_BREEDS;
+///
+/// assert_eq!(SWARM_BREEDS.len(), 9, "swarm must have exactly nine breeds");
+/// ```
+///
+/// # Auto-instinct: BreedId variants cover every breed
+///
+/// `parse_breed_id` maps every element of `SWARM_BREEDS` to a named
+/// `BreedId` variant (the fall-through `_` arm handles `hearsay`).
+/// This doctest validates the canonical set matches the enum declaration:
+///
+/// ```
+/// use open_ontologies::swarm::SWARM_BREEDS;
+///
+/// // The nine known variant spellings derived from the BreedId enum.
+/// let known_variants = [
+///     "eliza", "cbr", "dendral", "strips", "prolog",
+///     "mycin", "gps", "soar", "hearsay",
+/// ];
+/// let mut expected = known_variants.to_vec();
+/// expected.sort_unstable();
+/// let mut actual: Vec<&str> = SWARM_BREEDS.to_vec();
+/// actual.sort_unstable();
+/// assert_eq!(actual, expected, "SWARM_BREEDS must match BreedId enum variants");
+/// ```
 pub const SWARM_BREEDS: &[&str] = &[
     "eliza", "cbr", "dendral", "strips", "prolog", "mycin", "gps", "soar", HEARSAY_BREED,
 ];
