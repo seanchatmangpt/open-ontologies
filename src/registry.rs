@@ -89,6 +89,30 @@ impl OntologyRegistry {
         })
     }
 
+    /// Return the effective cache configuration for this registry.
+    ///
+    /// # Examples
+    ///
+    /// A freshly constructed registry with a temporary cache directory exposes
+    /// the configuration that was passed to [`OntologyRegistry::new`]:
+    ///
+    /// ```
+    /// # use std::sync::Arc;
+    /// # use open_ontologies::graph::GraphStore;
+    /// # use open_ontologies::state::StateDb;
+    /// # use open_ontologies::registry::OntologyRegistry;
+    /// # use open_ontologies::config::CacheConfig;
+    /// # let tmp = tempfile::tempdir().unwrap();
+    /// # let store = Arc::new(GraphStore::new());
+    /// # let db = StateDb::open(std::path::Path::new(":memory:")).unwrap();
+    /// # let config = CacheConfig {
+    /// #     dir: tmp.path().to_string_lossy().into_owned(),
+    /// #     ..CacheConfig::default()
+    /// # };
+    /// # let reg = OntologyRegistry::new(store, db, config).unwrap();
+    /// let cfg = reg.config();
+    /// assert!(cfg.evictor_interval_secs >= 1);
+    /// ```
     pub fn config(&self) -> &CacheConfig {
         &self.config
     }
@@ -388,6 +412,28 @@ impl OntologyRegistry {
 
     /// Return all cached ontologies, with extra runtime flags
     /// (`is_active`, `in_memory`) so callers can present a single rich list.
+    ///
+    /// On a freshly constructed registry the list is empty.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use std::sync::Arc;
+    /// # use open_ontologies::graph::GraphStore;
+    /// # use open_ontologies::state::StateDb;
+    /// # use open_ontologies::registry::OntologyRegistry;
+    /// # use open_ontologies::config::CacheConfig;
+    /// # let tmp = tempfile::tempdir().unwrap();
+    /// # let store = Arc::new(GraphStore::new());
+    /// # let db = StateDb::open(std::path::Path::new(":memory:")).unwrap();
+    /// # let config = CacheConfig {
+    /// #     dir: tmp.path().to_string_lossy().into_owned(),
+    /// #     ..CacheConfig::default()
+    /// # };
+    /// # let reg = OntologyRegistry::new(store, db, config).unwrap();
+    /// let entries = reg.list_cached().unwrap();
+    /// assert!(entries.is_empty());
+    /// ```
     pub fn list_cached(&self) -> Result<Vec<serde_json::Value>> {
         let active_guard = self.active.lock().unwrap();
         let active_name = active_guard.as_ref().map(|e| e.name.clone());
@@ -421,6 +467,30 @@ impl OntologyRegistry {
     }
 
     /// Status snapshot for `onto_cache_status`.
+    ///
+    /// On a freshly constructed registry with no loaded ontology the `"active"`
+    /// key is `null` and `"cache_entries"` is an empty array.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use std::sync::Arc;
+    /// # use open_ontologies::graph::GraphStore;
+    /// # use open_ontologies::state::StateDb;
+    /// # use open_ontologies::registry::OntologyRegistry;
+    /// # use open_ontologies::config::CacheConfig;
+    /// # let tmp = tempfile::tempdir().unwrap();
+    /// # let store = Arc::new(GraphStore::new());
+    /// # let db = StateDb::open(std::path::Path::new(":memory:")).unwrap();
+    /// # let config = CacheConfig {
+    /// #     dir: tmp.path().to_string_lossy().into_owned(),
+    /// #     ..CacheConfig::default()
+    /// # };
+    /// # let reg = OntologyRegistry::new(store, db, config).unwrap();
+    /// let s = reg.status();
+    /// assert!(s["active"].is_null());
+    /// assert_eq!(s["cache_entries"].as_array().unwrap().len(), 0);
+    /// ```
     pub fn status(&self) -> serde_json::Value {
         let active = self.active.lock().unwrap();
         let active_json = if let Some(entry) = active.as_ref() {
@@ -470,6 +540,30 @@ impl OntologyRegistry {
 /// Spawn the background evictor task. Returns a `JoinHandle` that callers can
 /// keep alive; dropping it does NOT abort (the task is detached but will exit
 /// with the runtime).
+///
+/// # Examples
+///
+/// ```no_run
+/// # use std::sync::Arc;
+/// # use open_ontologies::graph::GraphStore;
+/// # use open_ontologies::state::StateDb;
+/// # use open_ontologies::registry::{OntologyRegistry, spawn_evictor};
+/// # use open_ontologies::config::CacheConfig;
+/// # #[tokio::main]
+/// # async fn main() {
+/// #     let tmp = tempfile::tempdir().unwrap();
+/// #     let store = Arc::new(GraphStore::new());
+/// #     let db = StateDb::open(std::path::Path::new(":memory:")).unwrap();
+/// #     let config = CacheConfig {
+/// #         dir: tmp.path().to_string_lossy().into_owned(),
+/// #         ..CacheConfig::default()
+/// #     };
+/// #     let reg = Arc::new(OntologyRegistry::new(store, db, config).unwrap());
+/// let handle = spawn_evictor(Arc::clone(&reg));
+/// // Keep `handle` alive for the duration of the server.
+/// drop(handle);
+/// # }
+/// ```
 pub fn spawn_evictor(registry: Arc<OntologyRegistry>) -> tokio::task::JoinHandle<()> {
     let interval_secs = registry.config().evictor_interval_secs.max(1);
     tokio::spawn(async move {
