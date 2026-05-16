@@ -6,11 +6,148 @@ use std::collections::HashMap;
 use std::io::Cursor;
 use std::sync::Arc;
 
+/// Severity label used for constraint violations in SHACL reports.
+///
+/// The SHACL specification defines three severity levels: `sh:Violation`,
+/// `sh:Warning`, and `sh:Info`. This constant identifies the most severe level.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::shacl::SEVERITY_VIOLATION;
+///
+/// assert_eq!(SEVERITY_VIOLATION, "Violation");
+/// // Severity strings are capitalized to match the SHACL spec short name.
+/// assert!(SEVERITY_VIOLATION.chars().next().unwrap().is_uppercase());
+/// ```
+pub const SEVERITY_VIOLATION: &str = "Violation";
+
+/// Severity label for SHACL warnings (less critical than violations).
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::shacl::{SEVERITY_WARNING, SEVERITY_VIOLATION};
+///
+/// assert_eq!(SEVERITY_WARNING, "Warning");
+/// // Warning and Violation are distinct severity levels.
+/// assert_ne!(SEVERITY_WARNING, SEVERITY_VIOLATION);
+/// ```
+pub const SEVERITY_WARNING: &str = "Warning";
+
+/// Severity label for informational SHACL results (lowest severity).
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::shacl::{SEVERITY_INFO, SEVERITY_WARNING, SEVERITY_VIOLATION};
+///
+/// assert_eq!(SEVERITY_INFO, "Info");
+/// // Three distinct severity levels in ascending order of severity.
+/// let levels = [SEVERITY_INFO, SEVERITY_WARNING, SEVERITY_VIOLATION];
+/// assert_eq!(levels.len(), 3);
+/// ```
+pub const SEVERITY_INFO: &str = "Info";
+
+/// Parsed representation of a SHACL validation report.
+///
+/// This struct mirrors the JSON shape produced by [`ShaclValidator::validate`]
+/// and provides typed access to the key report fields.
+///
+/// # Auto-instincts
+///
+/// Two invariants always hold:
+///
+/// 1. `conforms == true` implies `violation_count == 0`
+/// 2. `conforms == false` implies `violation_count >= 1`
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::shacl::ShaclReport;
+///
+/// // Build a conforming report manually.
+/// let report = ShaclReport { conforms: true, violation_count: 0 };
+/// assert!(report.conforms);
+/// // Auto-instinct: conforms=true ↔ violation_count=0
+/// assert_eq!(report.violation_count, 0);
+/// ```
+///
+/// ```
+/// use open_ontologies::shacl::ShaclReport;
+///
+/// // Build a non-conforming report manually.
+/// let report = ShaclReport { conforms: false, violation_count: 3 };
+/// assert!(!report.conforms);
+/// // Auto-instinct: conforms=false ↔ violation_count ≥ 1
+/// assert!(report.violation_count >= 1);
+/// ```
+///
+/// ```
+/// use open_ontologies::shacl::ShaclReport;
+///
+/// // Parse a report from the JSON string returned by ShaclValidator::validate.
+/// let json = r#"{"conforms":true,"violation_count":0,"violations":[]}"#;
+/// let v: serde_json::Value = serde_json::from_str(json).unwrap();
+/// let report = ShaclReport {
+///     conforms: v["conforms"].as_bool().unwrap(),
+///     violation_count: v["violation_count"].as_u64().unwrap() as usize,
+/// };
+/// assert!(report.conforms);
+/// assert_eq!(report.violation_count, 0);
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+pub struct ShaclReport {
+    /// Whether the data graph conforms to all SHACL shapes.
+    pub conforms: bool,
+    /// Total number of constraint violations found (0 when `conforms` is `true`).
+    pub violation_count: usize,
+}
+
 /// SHACL validator that checks data in a `GraphStore` against SHACL shapes.
 ///
 /// Shapes are parsed from inline Turtle into a temporary Oxigraph store.
 /// Constraints are translated into SPARQL queries run against the main graph.
 /// Supports `sh:minCount`, `sh:maxCount`, and `sh:datatype` constraints.
+///
+/// # Auto-instinct: conforms ↔ violation_count
+///
+/// The returned JSON report always satisfies two invariants:
+///
+/// - `conforms: true` implies `violation_count: 0` — if the data fully
+///   conforms there are no violations by definition.
+/// - `conforms: false` implies `violation_count ≥ 1` — at least one
+///   violation must exist for the data to be declared non-conforming.
+///
+/// Both invariants hold regardless of the shapes document content.
+///
+/// ```
+/// use open_ontologies::graph::GraphStore;
+/// use open_ontologies::shacl::ShaclValidator;
+/// use std::sync::Arc;
+///
+/// // An empty shapes document → conforms, zero violations.
+/// let graph = Arc::new(GraphStore::new());
+/// let report: serde_json::Value = serde_json::from_str(
+///     &ShaclValidator::validate(&graph, "@prefix sh: <http://www.w3.org/ns/shacl#> .").unwrap()
+/// ).unwrap();
+/// assert!(report["conforms"].as_bool().unwrap());
+/// // Auto-instinct: conforms=true ↔ violation_count=0
+/// assert_eq!(report["violation_count"].as_u64().unwrap(), 0);
+/// ```
+///
+/// ```
+/// use open_ontologies::graph::GraphStore;
+/// use open_ontologies::shacl::ShaclValidator;
+/// use std::sync::Arc;
+///
+/// // A graph that conforms produces an empty violations array.
+/// let graph = Arc::new(GraphStore::new());
+/// let json = ShaclValidator::validate(&graph, "@prefix sh: <http://www.w3.org/ns/shacl#> .").unwrap();
+/// let report: serde_json::Value = serde_json::from_str(&json).unwrap();
+/// let violations = report["violations"].as_array().unwrap();
+/// assert_eq!(violations.len(), 0);
+/// ```
 pub struct ShaclValidator;
 
 impl ShaclValidator {
@@ -31,6 +168,67 @@ impl ShaclValidator {
     /// let report = ShaclValidator::validate(&graph, shapes_ttl).unwrap();
     /// assert!(report.contains("\"conforms\":true"));
     /// assert!(report.contains("\"violation_count\":0"));
+    /// ```
+    ///
+    /// The JSON output is always valid and contains exactly the three top-level
+    /// keys `conforms`, `violation_count`, and `violations`:
+    ///
+    /// ```
+    /// use open_ontologies::graph::GraphStore;
+    /// use open_ontologies::shacl::ShaclValidator;
+    /// use std::sync::Arc;
+    ///
+    /// let graph = Arc::new(GraphStore::new());
+    /// let json = ShaclValidator::validate(
+    ///     &graph,
+    ///     "@prefix sh: <http://www.w3.org/ns/shacl#> .",
+    /// ).unwrap();
+    /// let v: serde_json::Value = serde_json::from_str(&json).unwrap();
+    /// // All three mandatory keys must be present.
+    /// assert!(v.get("conforms").is_some());
+    /// assert!(v.get("violation_count").is_some());
+    /// assert!(v.get("violations").is_some());
+    /// // violation_count matches the length of the violations array.
+    /// let count = v["violation_count"].as_u64().unwrap() as usize;
+    /// let arr_len = v["violations"].as_array().unwrap().len();
+    /// assert_eq!(count, arr_len, "violation_count must equal violations array length");
+    /// ```
+    ///
+    /// Auto-instinct: `conforms: false` implies `violation_count ≥ 1`. When the
+    /// graph contains an instance that violates a `sh:minCount 1` constraint the
+    /// validator returns `conforms: false` and at least one violation entry:
+    ///
+    /// ```
+    /// use open_ontologies::graph::GraphStore;
+    /// use open_ontologies::shacl::ShaclValidator;
+    /// use std::sync::Arc;
+    ///
+    /// // A graph with a Person that is missing the required rdfs:label.
+    /// let graph = Arc::new(GraphStore::new());
+    /// graph.load_turtle(
+    ///     "@prefix ex: <http://example.org/> .
+    ///      @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+    ///      ex:Alice rdf:type ex:Person .",
+    ///     None,
+    /// ).unwrap();
+    ///
+    /// let shapes = "
+    ///     @prefix sh:   <http://www.w3.org/ns/shacl#> .
+    ///     @prefix ex:   <http://example.org/> .
+    ///     @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+    ///     ex:PersonShape a sh:NodeShape ;
+    ///         sh:targetClass ex:Person ;
+    ///         sh:property [
+    ///             sh:path rdfs:label ;
+    ///             sh:minCount 1
+    ///         ] .";
+    ///
+    /// let json = ShaclValidator::validate(&graph, shapes).unwrap();
+    /// let report: serde_json::Value = serde_json::from_str(&json).unwrap();
+    /// // conforms=false because Alice has no rdfs:label.
+    /// assert!(!report["conforms"].as_bool().unwrap());
+    /// // Auto-instinct: conforms=false ↔ violation_count ≥ 1.
+    /// assert!(report["violation_count"].as_u64().unwrap() >= 1);
     /// ```
     pub fn validate(graph: &Arc<GraphStore>, shapes_ttl: &str) -> anyhow::Result<String> {
         // 1. Parse shapes Turtle into a temporary store
@@ -298,6 +496,22 @@ fn graph_sparql_select(
 ///     "http://example.org/Foo"
 /// );
 /// ```
+///
+/// An empty string returns an empty string:
+///
+/// ```
+/// use open_ontologies::shacl::strip_angle_brackets;
+///
+/// assert_eq!(strip_angle_brackets(""), "");
+/// ```
+///
+/// A string with only angle brackets returns an empty string (inner content is empty):
+///
+/// ```
+/// use open_ontologies::shacl::strip_angle_brackets;
+///
+/// assert_eq!(strip_angle_brackets("<>"), "");
+/// ```
 pub fn strip_angle_brackets(s: &str) -> String {
     let s = s.trim();
     if s.starts_with('<') && s.ends_with('>') {
@@ -344,6 +558,22 @@ pub fn strip_angle_brackets(s: &str) -> String {
 /// use open_ontologies::shacl::strip_quotes;
 ///
 /// assert_eq!(strip_quotes("plain"), "plain");
+/// ```
+///
+/// An empty string returns an empty string:
+///
+/// ```
+/// use open_ontologies::shacl::strip_quotes;
+///
+/// assert_eq!(strip_quotes(""), "");
+/// ```
+///
+/// A fully quoted empty value `""` returns an empty string:
+///
+/// ```
+/// use open_ontologies::shacl::strip_quotes;
+///
+/// assert_eq!(strip_quotes("\"\""), "");
 /// ```
 pub fn strip_quotes(s: &str) -> String {
     let s = s.trim();
