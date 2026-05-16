@@ -6,6 +6,80 @@ use oxigraph::model::*;
 use oxigraph::sparql::QueryResults;
 use oxigraph::store::Store;
 
+// ── Format token constants ────────────────────────────────────────────────────
+
+/// Canonical format token for Turtle RDF.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::graph::GRAPH_FORMAT_TURTLE;
+/// assert_eq!(GRAPH_FORMAT_TURTLE, "turtle");
+/// ```
+pub const GRAPH_FORMAT_TURTLE: &str = "turtle";
+
+/// Canonical format token for N-Triples RDF.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::graph::GRAPH_FORMAT_NTRIPLES;
+/// assert_eq!(GRAPH_FORMAT_NTRIPLES, "ntriples");
+/// ```
+pub const GRAPH_FORMAT_NTRIPLES: &str = "ntriples";
+
+/// Canonical format token for RDF/XML.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::graph::GRAPH_FORMAT_RDFXML;
+/// assert_eq!(GRAPH_FORMAT_RDFXML, "rdfxml");
+/// ```
+pub const GRAPH_FORMAT_RDFXML: &str = "rdfxml";
+
+/// Canonical format token for N-Quads RDF.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::graph::GRAPH_FORMAT_NQUADS;
+/// assert_eq!(GRAPH_FORMAT_NQUADS, "nquads");
+/// ```
+pub const GRAPH_FORMAT_NQUADS: &str = "nquads";
+
+/// Canonical format token for TriG RDF.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::graph::GRAPH_FORMAT_TRIG;
+/// assert_eq!(GRAPH_FORMAT_TRIG, "trig");
+/// ```
+pub const GRAPH_FORMAT_TRIG: &str = "trig";
+
+// ── Stats JSON key constants ──────────────────────────────────────────────────
+
+/// JSON key for the triple count in `stats()` and SPARQL CONSTRUCT results.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::graph::GRAPH_STAT_TRIPLES;
+/// assert_eq!(GRAPH_STAT_TRIPLES, "triples");
+/// ```
+pub const GRAPH_STAT_TRIPLES: &str = "triples";
+
+/// JSON key for the class count in `stats()` results.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::graph::GRAPH_STAT_CLASSES;
+/// assert_eq!(GRAPH_STAT_CLASSES, "classes");
+/// ```
+pub const GRAPH_STAT_CLASSES: &str = "classes";
+
 /// In-memory RDF graph store backed by Oxigraph.
 ///
 /// # Examples
@@ -909,11 +983,11 @@ impl GraphStore {
 
     fn parse_format(name: &str) -> anyhow::Result<RdfFormat> {
         match name.to_lowercase().as_str() {
-            "turtle" | "ttl" => Ok(RdfFormat::Turtle),
-            "ntriples" | "nt" => Ok(RdfFormat::NTriples),
-            "rdfxml" | "rdf" | "xml" | "owl" => Ok(RdfFormat::RdfXml),
-            "nquads" | "nq" => Ok(RdfFormat::NQuads),
-            "trig" => Ok(RdfFormat::TriG),
+            GRAPH_FORMAT_TURTLE | "ttl" => Ok(RdfFormat::Turtle),
+            GRAPH_FORMAT_NTRIPLES | "nt" => Ok(RdfFormat::NTriples),
+            GRAPH_FORMAT_RDFXML | "rdf" | "xml" | "owl" => Ok(RdfFormat::RdfXml),
+            GRAPH_FORMAT_NQUADS | "nq" => Ok(RdfFormat::NQuads),
+            GRAPH_FORMAT_TRIG => Ok(RdfFormat::TriG),
             _ => anyhow::bail!(
                 "Unknown format: {}. Supported: turtle, ntriples, rdfxml, nquads, trig",
                 name

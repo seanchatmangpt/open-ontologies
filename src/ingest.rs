@@ -657,33 +657,33 @@ impl DataIngester {
             }
         };
         match format {
-            "csv" => {
+            FORMAT_CSV => {
                 let content = fs::read_to_string(path)
                     .with_context(|| format!("Failed to read file: {path}"))?;
                 Self::parse_csv(&content)
             }
-            "json" => {
+            FORMAT_JSON => {
                 let content = fs::read_to_string(path)
                     .with_context(|| format!("Failed to read file: {path}"))?;
                 Self::parse_json(&content)
             }
-            "ndjson" => {
+            FORMAT_NDJSON => {
                 let content = fs::read_to_string(path)
                     .with_context(|| format!("Failed to read file: {path}"))?;
                 Self::parse_ndjson(&content)
             }
-            "yaml" => {
+            FORMAT_YAML => {
                 let content = fs::read_to_string(path)
                     .with_context(|| format!("Failed to read file: {path}"))?;
                 Self::parse_yaml(&content)
             }
-            "xml" => {
+            FORMAT_XML => {
                 let content = fs::read_to_string(path)
                     .with_context(|| format!("Failed to read file: {path}"))?;
                 Self::parse_xml(&content)
             }
-            "xlsx" => Self::parse_xlsx_file(path),
-            "parquet" => Self::parse_parquet_file(path),
+            FORMAT_XLSX => Self::parse_xlsx_file(path),
+            FORMAT_PARQUET => Self::parse_parquet_file(path),
             _ => {
                 let content = fs::read_to_string(path)
                     .with_context(|| format!("Failed to read file: {path}"))?;
