@@ -537,6 +537,24 @@ pub const STREAM3_STUB_POWL_REPLAY_MARKER: &str = "TODO(stream-2): replace NoopP
 /// ```
 pub const OCEL_KEY_PRODUCTION_LAW_VERSION: &str = "production_law_version";
 
+/// OCEL attribute key for scope token (admission gate identity token).
+pub const OCEL_KEY_SCOPE_TOKEN: &str = "scope_token";
+
+/// OCEL attribute key for receipt hash (cryptographic proof of admitted artifact).
+pub const OCEL_KEY_RECEIPT_HASH: &str = "receipt_hash";
+
+/// OCEL attribute key for defects taxonomy version.
+pub const OCEL_KEY_DEFECTS_TAXONOMY_VERSION: &str = "defects_taxonomy_version";
+
+/// OCEL attribute key for POWL replay fitness score.
+pub const OCEL_KEY_FITNESS: &str = "fitness";
+
+/// OCEL attribute key for POWL replay precision score.
+pub const OCEL_KEY_PRECISION: &str = "precision";
+
+/// OCEL attribute key indicating whether POWL replay used the stub path.
+pub const OCEL_KEY_POWL_STUB: &str = "powl_stub";
+
 impl PowlReplay for NoopPowlReplay {
     fn replay(&self, scope_token: &str, _powl_string: &str, _tenant_id: &str) -> ConformanceResult {
         // POWL replay is not yet integrated (stream-2 stub);
