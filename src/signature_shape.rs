@@ -69,6 +69,23 @@ impl FieldSpec {
         self.max_len = Some(n);
         self
     }
+    /// Restrict the field to a closed vocabulary, mirroring SHACL `sh:in`.
+    ///
+    /// The admission gate rejects any LLM reply whose trimmed value is not in
+    /// this list (case-sensitive). Use this to enforce precision constraints on
+    /// LLM output — exactly as a process model constrains which activities may
+    /// follow an event.
+    ///
+    /// # Examples
+    /// ```
+    /// # use open_ontologies::signature_shape::FieldSpec;
+    /// let f = FieldSpec::required("priority", "ticket priority level")
+    ///     .with_allowed_values(vec!["low", "medium", "high"]);
+    ///
+    /// let vals = f.allowed_values.as_deref().unwrap();
+    /// assert_eq!(vals, &["low", "medium", "high"]);
+    /// assert!(f.required);
+    /// ```
     pub fn with_allowed_values<S: Into<String>>(mut self, values: Vec<S>) -> Self {
         self.allowed_values = Some(values.into_iter().map(|s| s.into()).collect());
         self
