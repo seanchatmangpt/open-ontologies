@@ -858,18 +858,52 @@ pub struct OntoMarketplaceInput {
 
 // ─── Prompt input structs ───────────────────────────────────────────────────
 
+/// Input for building a new ontology from a domain description.
+///
+/// # Example
+///
+/// ```
+/// use open_ontologies::inputs::BuildOntologyInput;
+/// let inp = BuildOntologyInput {
+///     domain: "A pizza ontology with toppings, bases, and named pizzas".to_string(),
+/// };
+/// assert!(inp.domain.contains("pizza"));
+/// ```
 #[derive(Deserialize, JsonSchema)]
 pub struct BuildOntologyInput {
     /// Description of the domain to model (e.g. "A pizza ontology with toppings, bases, and named pizzas")
     pub domain: String,
 }
 
+/// Input for validating an ontology file against SHACL shapes.
+///
+/// # Example
+///
+/// ```
+/// use open_ontologies::inputs::ValidateOntologyInput;
+/// let inp = ValidateOntologyInput {
+///     path: "ontology/my-ontology.ttl".to_string(),
+/// };
+/// assert!(inp.path.ends_with(".ttl"));
+/// ```
 #[derive(Deserialize, JsonSchema)]
 pub struct ValidateOntologyInput {
     /// Path to the ontology file to validate
     pub path: String,
 }
 
+/// Input for comparing two ontology versions.
+///
+/// # Example
+///
+/// ```
+/// use open_ontologies::inputs::CompareOntologiesInput;
+/// let inp = CompareOntologiesInput {
+///     old_path: "ontology/v1.ttl".to_string(),
+///     new_path: "ontology/v2.ttl".to_string(),
+/// };
+/// assert_ne!(inp.old_path, inp.new_path);
+/// ```
 #[derive(Deserialize, JsonSchema)]
 pub struct CompareOntologiesInput {
     /// Path to the old/original ontology file
@@ -878,12 +912,35 @@ pub struct CompareOntologiesInput {
     pub new_path: String,
 }
 
+/// Input for ingesting structured data into the RDF store.
+///
+/// # Example
+///
+/// ```
+/// use open_ontologies::inputs::IngestDataInput;
+/// let inp = IngestDataInput {
+///     data_path: "data/patients.csv".to_string(),
+/// };
+/// assert!(inp.data_path.ends_with(".csv"));
+/// ```
 #[derive(Deserialize, JsonSchema)]
 pub struct IngestDataInput {
     /// Path to the data file (CSV, JSON, NDJSON, XML, YAML, XLSX, Parquet)
     pub data_path: String,
 }
 
+/// Input for aligning two ontologies using weighted similarity signals.
+///
+/// # Example
+///
+/// ```
+/// use open_ontologies::inputs::AlignOntologiesInput;
+/// let inp = AlignOntologiesInput {
+///     source_path: "ontology/source.ttl".to_string(),
+///     target_path: "ontology/target.ttl".to_string(),
+/// };
+/// assert_ne!(inp.source_path, inp.target_path);
+/// ```
 #[derive(Deserialize, JsonSchema)]
 pub struct AlignOntologiesInput {
     /// Path to the source ontology file
@@ -978,12 +1035,34 @@ pub struct OntoAdmissionCheckInput {
     pub scope_token: Option<String>,
 }
 
+/// Input for resetting a session by clearing its revoked-sessions row.
+///
+/// # Example
+///
+/// ```
+/// use open_ontologies::inputs::OntoSessionResetInput;
+/// let inp = OntoSessionResetInput {
+///     session_id: "sess-abc-123".to_string(),
+/// };
+/// assert!(!inp.session_id.is_empty());
+/// ```
 #[derive(Deserialize, JsonSchema)]
 pub struct OntoSessionResetInput {
     /// Session id whose `revoked_sessions` row should be cleared.
     pub session_id: String,
 }
 
+/// Input for running Cell8 A1-A13 conformance attestation on a scope's receipt.
+///
+/// # Example
+///
+/// ```
+/// use open_ontologies::inputs::OntoCell8AttestInput;
+/// let inp = OntoCell8AttestInput {
+///     scope_token: "scope-cell8-attest-001".to_string(),
+/// };
+/// assert!(inp.scope_token.starts_with("scope-"));
+/// ```
 #[derive(Deserialize, JsonSchema)]
 pub struct OntoCell8AttestInput {
     /// Scope token whose latest receipt (or current admission dry-run state)
@@ -1209,6 +1288,22 @@ pub struct OntoCounterfactualInput {
 /// Capture a source-voice signal and propose a requirement. The
 /// admission gate denies with `RequirementWithoutSource` if
 /// `source_voice` is empty.
+///
+/// # Example
+///
+/// ```
+/// use open_ontologies::inputs::OntoProposeRequirementInput;
+/// let inp = OntoProposeRequirementInput {
+///     source_voice: "Customer reports checkout latency exceeds 3 seconds".to_string(),
+///     voice_kind: Some("customer".to_string()),
+///     scope_token: None,
+///     bypass_admission: None,
+///     bypass_reason: None,
+/// };
+/// assert!(!inp.source_voice.is_empty());
+/// assert_eq!(inp.voice_kind.as_deref(), Some("customer"));
+/// assert!(inp.scope_token.is_none());
+/// ```
 #[derive(Deserialize, JsonSchema)]
 pub struct OntoProposeRequirementInput {
     /// Stakeholder voice / process evidence / defect log line. The
@@ -1307,6 +1402,21 @@ pub struct OntoAdmitCtqInput {
 /// Bind an admitted CTQ to a draft work order with a counterfactual
 /// delta. **Read-only / allowlisted** — no mutation; admission happens
 /// at `onto_admit_work_order`.
+///
+/// # Example
+///
+/// ```
+/// use open_ontologies::inputs::OntoProposeWorkOrderInput;
+/// let inp = OntoProposeWorkOrderInput {
+///     scope_token: "scope-wo-001".to_string(),
+///     ctq_receipt_hash: "deadbeef".to_string(),
+///     naked_craft_path: "prompt → code (no validation)".to_string(),
+///     manufacturing_path: "CTQ → admit → manufacture → attest".to_string(),
+///     counterfactual_delta: "Without admission: silent data corruption possible".to_string(),
+/// };
+/// assert_eq!(inp.scope_token, "scope-wo-001");
+/// assert!(!inp.counterfactual_delta.is_empty());
+/// ```
 #[derive(Deserialize, JsonSchema)]
 pub struct OntoProposeWorkOrderInput {
     pub scope_token: String,
@@ -1323,6 +1433,24 @@ pub struct OntoProposeWorkOrderInput {
 
 /// Admit a work order. Denies with `WorkOrderMissingCounterfactual` if
 /// the counterfactual fields are absent.
+///
+/// # Example
+///
+/// ```
+/// use open_ontologies::inputs::OntoAdmitWorkOrderInput;
+/// let inp = OntoAdmitWorkOrderInput {
+///     scope_token: "scope-admit-002".to_string(),
+///     ctq_receipt_hash: "cafebabe".to_string(),
+///     naked_craft_path: "raw LLM generation".to_string(),
+///     manufacturing_path: "CTQ-gated manufacture".to_string(),
+///     counterfactual_delta: "admission prevents unvalidated artifact release".to_string(),
+///     bypass_admission: None,
+///     bypass_reason: None,
+/// };
+/// assert_eq!(inp.scope_token, "scope-admit-002");
+/// assert!(inp.bypass_admission.is_none());
+/// assert!(!inp.counterfactual_delta.is_empty());
+/// ```
 #[derive(Deserialize, JsonSchema)]
 pub struct OntoAdmitWorkOrderInput {
     pub scope_token: String,
@@ -1409,6 +1537,28 @@ pub struct OntoGeminiStatusInput {
 /// not a valid 64-char hex; with `IacInvalid` / `RustInvalid` /
 /// `ErlangInvalid` / `AtomVmInvalid` when a target generator fails;
 /// with `ManufacturingChainBroken` when receipt headers are missing.
+///
+/// # Example
+///
+/// ```
+/// use open_ontologies::inputs::OntoManufactureSolutionInput;
+/// let inp = OntoManufactureSolutionInput {
+///     scope_token: "scope-mfg-001".to_string(),
+///     name: "latency_reducer".to_string(),
+///     description: "Reduce p99 API latency below 200ms".to_string(),
+///     iac_target: "aws".to_string(),
+///     region: "us-east-1".to_string(),
+///     supervisor_children: 4,
+///     mcu_target: "esp32".to_string(),
+///     work_order_receipt_hash: "a".repeat(64),
+///     output_dir: None,
+///     bypass_admission: None,
+///     bypass_reason: None,
+/// };
+/// assert_eq!(inp.iac_target, "aws");
+/// assert_eq!(inp.supervisor_children, 4);
+/// assert_eq!(inp.work_order_receipt_hash.len(), 64);
+/// ```
 #[derive(Deserialize, JsonSchema)]
 pub struct OntoManufactureSolutionInput {
     pub scope_token: String,
