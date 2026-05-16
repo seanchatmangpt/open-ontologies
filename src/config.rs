@@ -503,18 +503,50 @@ pub const ENGINE_GEMINI: &str = "gemini";
 /// Override via the `--model` flag or a future config key.
 pub const GEMINI_DEFAULT_MODEL: &str = "gemini-3.1-flash-lite-preview";
 
+/// Return `true` when the Gemini CLI binary is available.
+///
+/// Checks in order:
+/// 1. `GEMINI_BIN` env var — if set and non-empty the binary is assumed to
+///    exist (the caller configured it explicitly).
+/// 2. `which gemini` — PATH lookup; succeeds when a `gemini` binary is
+///    installed.
+fn gemini_available() -> bool {
+    if std::env::var("GEMINI_BIN").ok().filter(|v| !v.trim().is_empty()).is_some() {
+        return true;
+    }
+    std::process::Command::new("which")
+        .arg("gemini")
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false)
+}
+
 /// Resolve the default LLM engine for unparametrised tool calls.
 ///
 /// Precedence:
 /// 1. `OPEN_ONTOLOGIES_LLM_ENGINE` env var (validated against
 ///    [`VALID_LLM_ENGINES`]; unknown values are dropped).
 /// 2. `[llm] engine = "..."` in config (same validation).
-/// 3. Auto-detect: when an API key is resolvable via
-///    [`resolve_llm_api_key`], default to `"groq_pm4py"` — every
-///    real-Groq integration test in `tests/real_groq_*` proves the
-///    subprocess path. Otherwise fall back to `"inproc"` so the
-///    in-process translator still serves audit-only callers without
-///    requiring a python venv.
+/// 3. Auto-detect cascade — first available wins:
+///    - `"groq_pm4py"` when [`resolve_llm_api_key`] returns `Some` (i.e.
+///      `OPEN_ONTOLOGIES_LLM_API_KEY`, `GROQ_API_KEY`, or config key is set).
+///    - `"gemini"` when `GEMINI_BIN` is set and non-empty, or `which gemini`
+///      finds the binary on PATH.
+///    - `"inproc"` — always available; no external dependency required.
+///
+/// # Examples
+///
+/// ```
+/// // When neither GROQ_API_KEY nor GEMINI_BIN is set, defaults to inproc.
+/// # unsafe { std::env::remove_var("GROQ_API_KEY"); }
+/// # unsafe { std::env::remove_var("OPEN_ONTOLOGIES_LLM_API_KEY"); }
+/// # unsafe { std::env::remove_var("GEMINI_BIN"); }
+/// # unsafe { std::env::remove_var("OPEN_ONTOLOGIES_LLM_ENGINE"); }
+/// let cfg = open_ontologies::config::LlmConfig::default();
+/// // Result is one of the valid engines; inproc is the guaranteed fallback.
+/// let engine = open_ontologies::config::resolve_llm_engine(&cfg);
+/// assert!(open_ontologies::config::VALID_LLM_ENGINES.contains(&engine.as_str()));
+/// ```
 pub fn resolve_llm_engine(cfg: &LlmConfig) -> String {
     fn validated(v: String) -> Option<String> {
         let trimmed = v.trim().to_string();
@@ -540,11 +572,14 @@ pub fn resolve_llm_engine(cfg: &LlmConfig) -> String {
     {
         return v;
     }
+    // Auto-detect cascade: groq_pm4py → gemini → inproc
     if resolve_llm_api_key(cfg).is_some() {
-        ENGINE_GROQ_PM4PY.to_string()
-    } else {
-        ENGINE_INPROC.to_string()
+        return ENGINE_GROQ_PM4PY.to_string();
     }
+    if gemini_available() {
+        return ENGINE_GEMINI.to_string();
+    }
+    ENGINE_INPROC.to_string()
 }
 
 /// Resolve the Gemini CLI binary path for the `gemini` engine.
