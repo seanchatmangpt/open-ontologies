@@ -32,10 +32,65 @@ pub struct LineageLog {
 }
 
 impl LineageLog {
+    /// Create a new `LineageLog` backed by the given [`StateDb`].
+    ///
+    /// No governance webhook is configured; lineage events are written only to
+    /// the local SQLite store. To add webhook delivery, use
+    /// [`LineageLog::with_governance_webhook`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use open_ontologies::lineage::LineageLog;
+    /// use open_ontologies::state::StateDb;
+    /// use std::path::Path;
+    ///
+    /// let db = StateDb::open(Path::new(":memory:")).unwrap();
+    /// let log = LineageLog::new(db);
+    ///
+    /// // The log starts empty; get_compact returns only the trailing newline.
+    /// let compact = log.get_compact("no-events-yet");
+    /// assert_eq!(compact, "\n");
+    /// ```
     pub fn new(db: StateDb) -> Self {
         Self { db, governance_webhook: None }
     }
 
+    /// Create a `LineageLog` that also POSTs every event to a governance webhook.
+    ///
+    /// When `webhook_url` is `Some`, each call to [`LineageLog::record`] (and all
+    /// typed helpers) fires an asynchronous HTTP POST to the given URL after the
+    /// event is persisted to SQLite. The payload is a JSON object containing the
+    /// session ID, sequence number, event type, operation, details, and an RFC-3339
+    /// timestamp.
+    ///
+    /// Pass `None` to get the same behaviour as [`LineageLog::new`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use open_ontologies::lineage::LineageLog;
+    /// use open_ontologies::state::StateDb;
+    /// use std::path::Path;
+    ///
+    /// let db = StateDb::open(Path::new(":memory:")).unwrap();
+    ///
+    /// // Construction with a webhook URL — the URL is stored but not dispatched
+    /// // until the first event is recorded inside a Tokio runtime.
+    /// let _log_with_hook = LineageLog::with_governance_webhook(
+    ///     db.clone(),
+    ///     Some("http://localhost:9900/api/enforcer/event".to_string()),
+    /// );
+    ///
+    /// // Passing None disables webhook delivery. Events are written to SQLite
+    /// // only, exactly like LineageLog::new.
+    /// let log_no_hook = LineageLog::with_governance_webhook(db, None);
+    /// let session = "webhook-doctest-01";
+    /// log_no_hook.record(session, "S", "session_reset", "");
+    /// let compact = log_no_hook.get_compact(session);
+    /// assert!(compact.contains("session_reset"),
+    ///     "event must appear in lineage, got: {compact}");
+    /// ```
     pub fn with_governance_webhook(db: StateDb, webhook_url: Option<String>) -> Self {
         Self { db, governance_webhook: webhook_url }
     }
@@ -210,14 +265,105 @@ impl LineageLog {
         self.record(session_id, "D", "admission_denied", defect_tag);
     }
 
+    /// Persist an admission bypass event for the given session.
+    ///
+    /// Records event type `"B"` (bypass) with operation `"admission_bypass"`.
+    /// An admission bypass occurs when a conformance gate is explicitly overridden
+    /// by an authorised operator — for example, when a known-good artifact is
+    /// promoted without re-running the full proof chain. The `reason` field makes
+    /// the override auditable: a practitioner can later mine bypass events to
+    /// measure how often the authoritative path is circumvented, which is a
+    /// direct measure of process generalisation risk.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use open_ontologies::lineage::LineageLog;
+    /// use open_ontologies::state::StateDb;
+    /// use std::path::Path;
+    ///
+    /// let db = StateDb::open(Path::new(":memory:")).unwrap();
+    /// let log = LineageLog::new(db);
+    /// let session = "bypass-doctest-01";
+    ///
+    /// log.record_admission_bypass(session, "emergency-hotfix-approved-by-alice");
+    ///
+    /// // The compact view encodes the B event with the reason as details.
+    /// let compact = log.get_compact(session);
+    /// assert!(compact.contains("admission_bypass"), "operation must appear in lineage");
+    /// assert!(
+    ///     compact.contains("emergency-hotfix-approved-by-alice"),
+    ///     "reason must be persisted, got: {compact}",
+    /// );
+    /// ```
     pub fn record_admission_bypass(&self, session_id: &str, reason: &str) {
         self.record(session_id, "B", "admission_bypass", reason);
     }
 
+    /// Persist a session-revocation event.
+    ///
+    /// Records event type `"V"` (revoked) with operation `"session_revoked"`.
+    /// Session revocation is a governance action: an authorised operator or
+    /// automated policy engine invalidates an active session — for example, when
+    /// a principal's credentials are compromised or a running job must be halted
+    /// mid-flight. The `reason` field provides the audit trail entry that
+    /// satisfies Cell8 gate A11 (Governance): downstream process-mining queries
+    /// can count revocation events per principal to detect anomalous patterns.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use open_ontologies::lineage::LineageLog;
+    /// use open_ontologies::state::StateDb;
+    /// use std::path::Path;
+    ///
+    /// let db = StateDb::open(Path::new(":memory:")).unwrap();
+    /// let log = LineageLog::new(db);
+    /// let session = "revoke-doctest-01";
+    ///
+    /// log.record_session_revoked(session, "policy-violation:credential-expired");
+    ///
+    /// // The compact view encodes the V event with the reason as details.
+    /// let compact = log.get_compact(session);
+    /// assert!(compact.contains("session_revoked"), "operation must appear in lineage");
+    /// assert!(
+    ///     compact.contains("policy-violation:credential-expired"),
+    ///     "reason must be persisted, got: {compact}",
+    /// );
+    /// ```
     pub fn record_session_revoked(&self, session_id: &str, reason: &str) {
         self.record(session_id, "V", "session_revoked", reason);
     }
 
+    /// Persist a session-reset event.
+    ///
+    /// Records event type `"S"` (reset) with operation `"session_reset"` and no
+    /// additional detail payload. A session reset clears all transient state
+    /// accumulated during a session — for example, a practitioner who loaded a
+    /// wrong ontology and wants to start fresh. Unlike revocation, a reset is
+    /// operator-initiated and does not imply a policy violation; it is a normal
+    /// part of the PM lifecycle loop (van der Aalst, 2016) when iterating between
+    /// discovery and conformance phases.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use open_ontologies::lineage::LineageLog;
+    /// use open_ontologies::state::StateDb;
+    /// use std::path::Path;
+    ///
+    /// let db = StateDb::open(Path::new(":memory:")).unwrap();
+    /// let log = LineageLog::new(db);
+    /// let session = "reset-doctest-01";
+    ///
+    /// log.record_session_reset(session);
+    ///
+    /// // The compact view encodes the S event; the details field is empty.
+    /// let compact = log.get_compact(session);
+    /// assert!(compact.contains("session_reset"), "operation must appear in lineage");
+    /// // Details are empty, so the trailing colon is the last character before newline.
+    /// assert!(compact.contains(":S:session_reset:"), "event type and operation must be encoded");
+    /// ```
     pub fn record_session_reset(&self, session_id: &str) {
         self.record(session_id, "S", "session_reset", "");
     }
