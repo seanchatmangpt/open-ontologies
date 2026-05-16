@@ -22,6 +22,48 @@
 //! ```
 
 /// One entry in the built-in catalog.
+///
+/// # Examples
+///
+/// `BuiltinWorkflow` is `Copy`, so it can be compared field-by-field after
+/// passing through a function boundary without cloning:
+///
+/// ```
+/// use open_ontologies::workflows::builtin::by_name;
+///
+/// let a = *by_name("Codegen").unwrap();
+/// let b = *by_name("Codegen").unwrap();
+/// assert_eq!(a.name, b.name);
+/// assert_eq!(a.powl_string, b.powl_string);
+/// ```
+///
+/// The `Debug` implementation produces a non-empty string for every catalog entry:
+///
+/// ```
+/// use open_ontologies::workflows::builtin::BUILTIN_WORKFLOWS;
+///
+/// for w in BUILTIN_WORKFLOWS {
+///     let dbg = format!("{:?}", w);
+///     assert!(!dbg.is_empty(), "Debug output empty for workflow {}", w.name);
+///     // The workflow name always appears in the Debug output.
+///     assert!(dbg.contains(w.name), "name missing from Debug output: {}", w.name);
+/// }
+/// ```
+///
+/// All required stages and alphabet entries are non-empty strings:
+///
+/// ```
+/// use open_ontologies::workflows::builtin::BUILTIN_WORKFLOWS;
+///
+/// for w in BUILTIN_WORKFLOWS {
+///     for stage in w.required_stages {
+///         assert!(!stage.is_empty(), "empty required_stage in workflow {}", w.name);
+///     }
+///     for activity in w.alphabet {
+///         assert!(!activity.is_empty(), "empty alphabet entry in workflow {}", w.name);
+///     }
+/// }
+/// ```
 #[derive(Debug, Clone, Copy)]
 pub struct BuiltinWorkflow {
     pub name: &'static str,
@@ -274,6 +316,43 @@ pub static BUILTIN_WORKFLOWS: &[BuiltinWorkflow] = &[
 /// for target in &["iac_generated", "rust_generated", "erlang_generated", "atomvm_generated"] {
 ///     assert!(w.required_stages.contains(target), "missing target: {target}");
 /// }
+/// ```
+///
+/// All catalog names are unique — no two entries share the same name:
+///
+/// ```
+/// use open_ontologies::workflows::builtin::BUILTIN_WORKFLOWS;
+/// use std::collections::HashSet;
+///
+/// let names: Vec<&str> = BUILTIN_WORKFLOWS.iter().map(|w| w.name).collect();
+/// let unique: HashSet<&str> = names.iter().copied().collect();
+/// assert_eq!(names.len(), unique.len(), "duplicate workflow names detected");
+/// ```
+///
+/// Lookup is deterministic — repeated calls for the same name return identical results:
+///
+/// ```
+/// use open_ontologies::workflows::builtin::by_name;
+///
+/// let first = by_name("GovernedRelease").unwrap();
+/// let second = by_name("GovernedRelease").unwrap();
+/// assert_eq!(first.name, second.name);
+/// assert_eq!(first.powl_string, second.powl_string);
+/// assert_eq!(first.required_stages.len(), second.required_stages.len());
+/// ```
+///
+/// `GovernedRelease` is a composition — its required stages are the three
+/// sub-workflow names, not raw activity labels:
+///
+/// ```
+/// use open_ontologies::workflows::builtin::by_name;
+///
+/// let w = by_name("GovernedRelease").unwrap();
+/// assert!(w.required_stages.contains(&"OntologyAuthoring"));
+/// assert!(w.required_stages.contains(&"LifecycleApply"));
+/// assert!(w.required_stages.contains(&"Codegen"));
+/// // Composition workflows have exactly 3 required stages at the top level.
+/// assert_eq!(w.required_stages.len(), 3);
 /// ```
 pub fn by_name(name: &str) -> Option<&'static BuiltinWorkflow> {
     BUILTIN_WORKFLOWS.iter().find(|w| w.name == name)
