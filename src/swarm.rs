@@ -22,6 +22,19 @@ pub const SWARM_BREEDS: &[&str] = &[
 ];
 
 /// One node in the swarm: a breed name + its manufactured artifact bundle.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::swarm::{manufacture_swarm, SwarmNode};
+///
+/// let nodes = manufacture_swarm("demo", &"c".repeat(64)).unwrap();
+/// let node: &SwarmNode = &nodes[0];
+/// // The breed field matches one of the nine SWARM_BREEDS entries.
+/// assert!(!node.breed.is_empty());
+/// // The bundle always contains at least one file.
+/// assert!(!node.bundle.files.is_empty());
+/// ```
 #[derive(Debug, Clone)]
 pub struct SwarmNode {
     pub breed: String,
@@ -29,6 +42,23 @@ pub struct SwarmNode {
 }
 
 /// One node's run result: input scenario + breed output.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::swarm::NodeReport;
+///
+/// let report = NodeReport {
+///     breed: "eliza".into(),
+///     trace_steps: 3,
+///     explanation: "Pattern matched on leakage fact.".into(),
+///     selected: Some("centralized-revenue-engine".into()),
+///     fact_count: 2,
+/// };
+/// assert_eq!(report.breed, "eliza");
+/// assert_eq!(report.trace_steps, 3);
+/// assert!(report.selected.is_some());
+/// ```
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NodeReport {
     pub breed: String,
@@ -40,6 +70,30 @@ pub struct NodeReport {
 
 /// Swarm consensus produced by the Hearsay-II breed acting on the
 /// 9 individual reports.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::swarm::{SwarmConsensus, NodeReport};
+///
+/// let consensus = SwarmConsensus {
+///     node_reports: vec![NodeReport {
+///         breed: "hearsay".into(),
+///         trace_steps: 5,
+///         explanation: "Blackboard converged.".into(),
+///         selected: Some("edge-distributed-reconciliation".into()),
+///         fact_count: 4,
+///     }],
+///     consensus_explanation: "Hearsay-II majority vote resolved to edge architecture.".into(),
+///     consensus_selected: Some("edge-distributed-reconciliation".into()),
+///     consensus_trace_steps: 5,
+/// };
+/// assert_eq!(consensus.node_reports.len(), 1);
+/// assert!(consensus.consensus_selected.is_some());
+/// // SwarmConsensus is JSON-serializable.
+/// let json = serde_json::to_string(&consensus).unwrap();
+/// assert!(json.contains("consensus_explanation"));
+/// ```
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SwarmConsensus {
     pub node_reports: Vec<NodeReport>,
@@ -51,6 +105,24 @@ pub struct SwarmConsensus {
 /// Build the SolutionSpec for one swarm node. Same `work_order_receipt
 /// _hash` across the swarm — the swarm IS one work order, manufactured
 /// into 9 nodes.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::swarm::node_spec;
+///
+/// let hash = "a".repeat(64);
+/// let spec = node_spec("myswarm", "eliza", &hash);
+///
+/// // The spec name is `{swarm_name}_{breed}`.
+/// assert_eq!(spec.name, "myswarm_eliza");
+/// // All nine nodes in a swarm share the same work-order receipt hash.
+/// assert_eq!(spec.work_order_receipt_hash, hash);
+/// // Infrastructure target is always AWS for the swarm.
+/// assert_eq!(spec.iac_target, "aws");
+/// // MCU target is always ESP-32 for the swarm.
+/// assert_eq!(spec.mcu_target, "esp32");
+/// ```
 pub fn node_spec(swarm_name: &str, breed: &str, work_order_hash: &str) -> SolutionSpec {
     SolutionSpec {
         name: format!("{swarm_name}_{breed}"),
@@ -68,6 +140,32 @@ pub fn node_spec(swarm_name: &str, breed: &str, work_order_hash: &str) -> Soluti
 /// Manufacture all 9 nodes deterministically. Returns a vec of
 /// (breed_name, bundle) tuples. Fails fast if any breed's spec
 /// fails validation.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::swarm::{manufacture_swarm, SWARM_BREEDS};
+///
+/// let hash = "b".repeat(64);
+/// let nodes = manufacture_swarm("demo_swarm", &hash).expect("manufacture succeeded");
+///
+/// // The swarm always contains exactly nine nodes — one per breed.
+/// assert_eq!(nodes.len(), 9);
+/// // Every node carries a non-empty file bundle.
+/// for node in &nodes {
+///     assert!(!node.bundle.files.is_empty(), "{} has no files", node.breed);
+///     // Each node's spec name encodes both the swarm name and the breed.
+///     assert!(node.bundle.spec.name.contains(&node.breed));
+///     // All nodes share the same upstream work-order receipt.
+///     assert_eq!(node.bundle.spec.work_order_receipt_hash, hash);
+/// }
+/// // Every breed in SWARM_BREEDS is represented exactly once.
+/// let mut breeds: Vec<&str> = nodes.iter().map(|n| n.breed.as_str()).collect();
+/// breeds.sort_unstable();
+/// let mut expected = SWARM_BREEDS.to_vec();
+/// expected.sort_unstable();
+/// assert_eq!(breeds, expected);
+/// ```
 pub fn manufacture_swarm(
     swarm_name: &str,
     work_order_hash: &str,
@@ -86,6 +184,34 @@ pub fn manufacture_swarm(
 
 /// Run each node's assigned cognition breed against the shared
 /// scenario. Returns a NodeReport per breed.
+///
+/// # Examples
+///
+/// ```no_run
+/// use open_ontologies::swarm::{run_breeds, SWARM_BREEDS};
+/// use wasm4pm_cognition::breeds::{BreedInput, Candidate};
+///
+/// let scenario = BreedInput {
+///     intent: "architecture selection".into(),
+///     candidates: vec![Candidate {
+///         id: "option-a".into(),
+///         score: 0.5,
+///         eliminated: false,
+///         elimination_reason: None,
+///     }],
+///     facts: vec![],
+///     cases: vec![],
+///     rules: vec![],
+///     goals: vec![],
+///     state: vec![],
+/// };
+/// let reports = run_breeds(&scenario);
+/// // One output entry per breed, even if a breed abstained.
+/// assert_eq!(reports.len(), SWARM_BREEDS.len());
+/// for (breed, out) in &reports {
+///     assert!(!out.explanation.is_empty(), "{breed} produced no explanation");
+/// }
+/// ```
 pub fn run_breeds(scenario: &BreedInput) -> Vec<(String, BreedOutput)> {
     let mut out = Vec::with_capacity(SWARM_BREEDS.len());
     for breed in SWARM_BREEDS {
@@ -133,6 +259,35 @@ fn parse_breed_id(name: &str) -> wasm4pm_cognition::breeds::BreedId {
 /// collects every breed's selected outcome (or its top scored
 /// candidate) and runs Hearsay over them. Hearsay's blackboard
 /// consensus model returns the multi-source winner.
+///
+/// # Examples
+///
+/// ```no_run
+/// use open_ontologies::swarm::{fuse_via_hearsay, run_breeds};
+/// use wasm4pm_cognition::breeds::{BreedInput, Candidate};
+///
+/// let scenario = BreedInput {
+///     intent: "architecture selection".into(),
+///     candidates: vec![Candidate {
+///         id: "option-a".into(),
+///         score: 0.5,
+///         eliminated: false,
+///         elimination_reason: None,
+///     }],
+///     facts: vec![],
+///     cases: vec![],
+///     rules: vec![],
+///     goals: vec![],
+///     state: vec![],
+/// };
+/// let reports = run_breeds(&scenario);
+/// let consensus = fuse_via_hearsay(&scenario, &reports);
+///
+/// // Consensus aggregates all nine per-node reports.
+/// assert_eq!(consensus.node_reports.len(), 9);
+/// // The consensus carries a non-empty explanation from Hearsay-II.
+/// assert!(!consensus.consensus_explanation.is_empty());
+/// ```
 pub fn fuse_via_hearsay(
     scenario: &BreedInput,
     reports: &[(String, BreedOutput)],
