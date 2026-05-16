@@ -62,6 +62,15 @@ pub fn fingerprint(vk: &VerifyingKey) -> KeyFingerprint {
 }
 
 /// Hex-encode a key fingerprint for human-readable error messages.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::attestation::fingerprint_hex;
+///
+/// let fpr: [u8; 8] = [0xde, 0xad, 0xbe, 0xef, 0x00, 0x01, 0x02, 0x03];
+/// assert_eq!(fingerprint_hex(&fpr), "deadbeef00010203");
+/// ```
 pub fn fingerprint_hex(fpr: &KeyFingerprint) -> String {
     let mut s = String::with_capacity(16);
     for byte in fpr {
