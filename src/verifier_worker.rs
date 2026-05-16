@@ -69,6 +69,48 @@ use std::time::Duration;
 /// assert_eq!(clean.failures, 0);
 /// assert_eq!(clean.cursor_after - clean.cursor_before, 100);
 /// ```
+///
+/// The `Debug` implementation includes all field names so log output is
+/// human-readable without additional formatting:
+///
+/// ```
+/// use open_ontologies::verifier_worker::VerifierReport;
+///
+/// let report = VerifierReport {
+///     scanned: 3,
+///     warnings: 1,
+///     failures: 0,
+///     cursor_before: 10,
+///     cursor_after: 13,
+/// };
+/// let debug_str = format!("{:?}", report);
+/// // All public field names must appear in the Debug output.
+/// assert!(debug_str.contains("scanned"), "missing scanned in: {debug_str}");
+/// assert!(debug_str.contains("warnings"), "missing warnings in: {debug_str}");
+/// assert!(debug_str.contains("failures"), "missing failures in: {debug_str}");
+/// assert!(debug_str.contains("cursor_before"), "missing cursor_before in: {debug_str}");
+/// assert!(debug_str.contains("cursor_after"), "missing cursor_after in: {debug_str}");
+/// ```
+///
+/// A report with only failures set (warnings=0) models a hard corruption
+/// verdict where expired-key warnings were not triggered:
+///
+/// ```
+/// use open_ontologies::verifier_worker::VerifierReport;
+///
+/// let corrupt = VerifierReport {
+///     scanned: 1,
+///     failures: 1,
+///     warnings: 0,
+///     cursor_before: 99,
+///     cursor_after: 100,
+/// };
+/// // failures is accessible and non-zero; warnings stays at zero.
+/// assert!(corrupt.failures > 0);
+/// assert_eq!(corrupt.warnings, 0);
+/// // scanned == failures means every examined receipt was corrupt.
+/// assert_eq!(corrupt.scanned, corrupt.failures);
+/// ```
 #[derive(Debug, Clone, Default)]
 pub struct VerifierReport {
     pub scanned: u64,
@@ -148,6 +190,32 @@ impl VerifierWorker {
     ///
     /// let worker = VerifierWorker::new(db, ocel, cfg, pause);
     /// assert_eq!(worker.cfg.batch_limit, 100);
+    /// ```
+    ///
+    /// Batch limit of 5 — the smallest meaningful sharding unit for tests
+    /// where each tick must process at most 5 receipts at a time:
+    ///
+    /// ```
+    /// use std::sync::Arc;
+    /// use std::sync::atomic::{AtomicI64, Ordering};
+    /// use open_ontologies::verifier_worker::VerifierWorker;
+    /// use open_ontologies::config::VerifierConfig;
+    /// use open_ontologies::ocel_store::OcelStore;
+    /// use open_ontologies::state::StateDb;
+    ///
+    /// let db   = StateDb::open(std::path::Path::new(":memory:")).unwrap();
+    /// let ocel = Arc::new(OcelStore::new(
+    ///     StateDb::open(std::path::Path::new(":memory:")).unwrap(),
+    /// ));
+    /// let cfg = VerifierConfig { batch_limit: 5, ..VerifierConfig::default() };
+    /// let pause = Arc::new(AtomicI64::new(0));
+    ///
+    /// let worker = VerifierWorker::new(db, ocel, cfg, pause);
+    /// // batch_limit is stored verbatim.
+    /// assert_eq!(worker.cfg.batch_limit, 5);
+    /// // Cursor and run-clock still start at zero.
+    /// assert_eq!(worker.last_verified_seq.load(Ordering::Relaxed), 0);
+    /// assert_eq!(worker.last_run_unix.load(Ordering::Relaxed), 0);
     /// ```
     pub fn new(
         db: StateDb,
@@ -292,6 +360,62 @@ impl VerifierWorker {
     ///     assert_eq!(r.cursor_after, 0);
     ///     assert_eq!(r.failures, 0);
     /// }
+    /// ```
+    ///
+    /// `last_run_unix` advances from 0 to a positive Unix timestamp after
+    /// the first tick — confirming the worker recorded wall-clock evidence:
+    ///
+    /// ```
+    /// use std::sync::Arc;
+    /// use std::sync::atomic::{AtomicI64, Ordering};
+    /// use open_ontologies::verifier_worker::VerifierWorker;
+    /// use open_ontologies::config::VerifierConfig;
+    /// use open_ontologies::ocel_store::OcelStore;
+    /// use open_ontologies::state::StateDb;
+    ///
+    /// let db   = StateDb::open(std::path::Path::new(":memory:")).unwrap();
+    /// let ocel = Arc::new(OcelStore::new(
+    ///     StateDb::open(std::path::Path::new(":memory:")).unwrap(),
+    /// ));
+    /// let pause = Arc::new(AtomicI64::new(0));
+    /// let worker = VerifierWorker::new(db, ocel, VerifierConfig::default(), pause);
+    ///
+    /// // Before any tick, the wall-clock is uninitialised (zero).
+    /// assert_eq!(worker.last_run_unix.load(Ordering::Relaxed), 0);
+    ///
+    /// worker.tick().unwrap();
+    ///
+    /// // After the first tick, last_run_unix holds a plausible Unix epoch
+    /// // value (greater than the year-2020 epoch floor: 1_577_836_800).
+    /// let run_ts = worker.last_run_unix.load(Ordering::Relaxed);
+    /// assert!(run_ts > 1_577_836_800, "last_run_unix={run_ts} should be post-2020");
+    /// ```
+    ///
+    /// Empty DB: each tick returns a `VerifierReport` where `scanned`,
+    /// `warnings`, and `failures` are all zero and both cursor fields agree:
+    ///
+    /// ```
+    /// use std::sync::Arc;
+    /// use std::sync::atomic::AtomicI64;
+    /// use open_ontologies::verifier_worker::VerifierWorker;
+    /// use open_ontologies::config::VerifierConfig;
+    /// use open_ontologies::ocel_store::OcelStore;
+    /// use open_ontologies::state::StateDb;
+    ///
+    /// let db   = StateDb::open(std::path::Path::new(":memory:")).unwrap();
+    /// let ocel = Arc::new(OcelStore::new(
+    ///     StateDb::open(std::path::Path::new(":memory:")).unwrap(),
+    /// ));
+    /// let pause = Arc::new(AtomicI64::new(0));
+    /// let worker = VerifierWorker::new(db, ocel, VerifierConfig::default(), pause);
+    ///
+    /// let r = worker.tick().unwrap();
+    /// // Both cursors are the same on an empty DB — nothing was advanced.
+    /// assert_eq!(r.cursor_before, r.cursor_after);
+    /// // scanned == 0 means no receipts were fetched from the DB.
+    /// assert_eq!(r.scanned, 0);
+    /// // The report satisfies the no-failure invariant: warnings + failures == 0.
+    /// assert_eq!(r.warnings + r.failures, 0);
     /// ```
     pub fn tick(&self) -> anyhow::Result<VerifierReport> {
         let span = tracing::info_span!(
