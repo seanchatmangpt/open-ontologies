@@ -45,6 +45,72 @@
 //! assert_eq!(a.service_name, b.service_name);
 //! assert_eq!(a.otlp_endpoint, b.otlp_endpoint);
 //! ```
+//!
+//! Default OTLP endpoint is `None` — OTLP export is disabled out of the box:
+//!
+//! ```
+//! use open_ontologies::config::TelemetryConfig;
+//!
+//! let cfg = TelemetryConfig::default();
+//! // Auto-instinct: OTLP is disabled by default so the server starts without
+//! // requiring a collector to be running.
+//! assert!(cfg.otlp_endpoint.is_none(), "OTLP must be off by default");
+//! ```
+//!
+//! Service name from default config matches the binary name:
+//!
+//! ```
+//! use open_ontologies::config::TelemetryConfig;
+//!
+//! let cfg = TelemetryConfig::default();
+//! assert_eq!(cfg.service_name, "open-ontologies");
+//! // A custom service name can be set directly.
+//! let custom = TelemetryConfig {
+//!     service_name: "my-onto-service".to_string(),
+//!     otlp_endpoint: None,
+//! };
+//! assert_eq!(custom.service_name, "my-onto-service");
+//! ```
+//!
+//! `TelemetryConfig` is `Debug`-printable for structured logging:
+//!
+//! ```
+//! use open_ontologies::config::TelemetryConfig;
+//!
+//! let cfg = TelemetryConfig::default();
+//! let s = format!("{cfg:?}");
+//! assert!(s.contains("service_name"), "Debug output must include field names");
+//! assert!(s.contains("otlp_endpoint"));
+//! ```
+//!
+//! Resolve telemetry service name (env-var-free path uses config value):
+//!
+//! ```
+//! use open_ontologies::config::{TelemetryConfig, resolve_telemetry_service_name};
+//!
+//! // When env var is absent, the config value is used.
+//! let cfg = TelemetryConfig {
+//!     service_name: "my-resolver-test".to_string(),
+//!     otlp_endpoint: None,
+//! };
+//! // Guard against the env var being set in the test environment.
+//! if std::env::var("OPEN_ONTOLOGIES_SERVICE_NAME").is_err() {
+//!     let name = resolve_telemetry_service_name(&cfg);
+//!     assert_eq!(name, "my-resolver-test");
+//! }
+//! ```
+//!
+//! Resolve OTLP endpoint (env-var-free path returns `None` when config is `None`):
+//!
+//! ```
+//! use open_ontologies::config::{TelemetryConfig, resolve_telemetry_otlp_endpoint};
+//!
+//! let cfg = TelemetryConfig::default();
+//! if std::env::var("OPEN_ONTOLOGIES_OTLP_ENDPOINT").is_err() {
+//!     let ep = resolve_telemetry_otlp_endpoint(&cfg);
+//!     assert!(ep.is_none(), "no endpoint when config is None and env is absent");
+//! }
+//! ```
 
 use crate::config::TelemetryConfig;
 
@@ -86,6 +152,35 @@ use crate::config::TelemetryConfig;
 ///     service_name: "my-service".to_string(),
 /// };
 /// init_telemetry(&cfg);
+/// ```
+///
+/// `init_telemetry` is idempotent — repeated calls with different configs are
+/// safe (subsequent subscribers are silently discarded):
+///
+/// ```
+/// use open_ontologies::config::TelemetryConfig;
+/// use open_ontologies::telemetry::init_telemetry;
+///
+/// let a = TelemetryConfig::default();
+/// let b = TelemetryConfig {
+///     service_name: "second-call".to_string(),
+///     otlp_endpoint: None,
+/// };
+/// init_telemetry(&a);
+/// init_telemetry(&b); // second call must not panic
+/// ```
+///
+/// Calling with a config that has `otlp_endpoint = None` leaves tracing
+/// active but without any OTLP export:
+///
+/// ```
+/// use open_ontologies::config::TelemetryConfig;
+/// use open_ontologies::telemetry::init_telemetry;
+///
+/// let cfg = TelemetryConfig { service_name: "no-otlp".to_string(), otlp_endpoint: None };
+/// // Must not panic even when no external collector is present.
+/// init_telemetry(&cfg);
+/// assert!(cfg.otlp_endpoint.is_none());
 /// ```
 pub fn init_telemetry(cfg: &TelemetryConfig) {
     use tracing_subscriber::{fmt, EnvFilter};

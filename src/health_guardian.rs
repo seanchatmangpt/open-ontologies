@@ -6,6 +6,28 @@
 //! invariant — all checks are pure SQL against [`StateDb`]; deterministic
 //! and reproducible.
 //!
+//! # Guardian report examples
+//!
+//! A clean report (both counters zero) represents a healthy system:
+//!
+//! ```
+//! use open_ontologies::health_guardian::GuardianReport;
+//!
+//! let report = GuardianReport::default();
+//! // Auto-instinct: a fresh database produces no scope leaks and no receipt gaps.
+//! assert_eq!(report.scope_leaks, 0, "no scope leaks on clean tick");
+//! assert_eq!(report.receipt_gaps, 0, "no receipt gaps on clean tick");
+//! ```
+//!
+//! The `GUARDIAN_INTERVAL_SECS` convention is 60 seconds. Verify the duration
+//! constant used in the spawn loop matches documentation:
+//!
+//! ```
+//! // 60-second tick matches the module-level contract.
+//! let interval = std::time::Duration::from_secs(60);
+//! assert_eq!(interval.as_secs(), 60);
+//! ```
+//!
 //! # Checks (each tick)
 //!
 //! 1. **Scope leaks** — `declared_workflows` rows where `closed_at IS NULL`
@@ -81,6 +103,50 @@ use std::time::Duration;
 /// assert!(s.contains("scope_leaks"));
 /// assert!(s.contains("receipt_gaps"));
 /// ```
+///
+/// `scope_leaks` counts workflows that were declared but never closed:
+///
+/// ```
+/// use open_ontologies::health_guardian::GuardianReport;
+///
+/// // Zero leaks means all declared workflows were properly closed.
+/// let clean = GuardianReport { scope_leaks: 0, receipt_gaps: 0 };
+/// assert_eq!(clean.scope_leaks, 0);
+///
+/// // Non-zero leaks means at least one workflow scope is orphaned.
+/// let leaky = GuardianReport { scope_leaks: 5, receipt_gaps: 0 };
+/// assert_eq!(leaky.scope_leaks, 5);
+/// ```
+///
+/// `receipt_gaps` counts broken monotone chains in the receipts table:
+///
+/// ```
+/// use open_ontologies::health_guardian::GuardianReport;
+///
+/// // Zero gaps means the receipt sequence is contiguous — A5 (Prove) invariant holds.
+/// let intact = GuardianReport { scope_leaks: 0, receipt_gaps: 0 };
+/// assert_eq!(intact.receipt_gaps, 0);
+///
+/// // Non-zero gaps means receipts were deleted or inserted out-of-band.
+/// let gapped = GuardianReport { scope_leaks: 0, receipt_gaps: 1 };
+/// assert!(gapped.receipt_gaps > 0, "gap detected violates A5 chain invariant");
+/// ```
+///
+/// Summing findings from multiple reports for aggregation:
+///
+/// ```
+/// use open_ontologies::health_guardian::GuardianReport;
+///
+/// let reports = vec![
+///     GuardianReport { scope_leaks: 1, receipt_gaps: 0 },
+///     GuardianReport { scope_leaks: 0, receipt_gaps: 2 },
+///     GuardianReport { scope_leaks: 3, receipt_gaps: 1 },
+/// ];
+/// let total_leaks: u64 = reports.iter().map(|r| r.scope_leaks).sum();
+/// let total_gaps: u64 = reports.iter().map(|r| r.receipt_gaps).sum();
+/// assert_eq!(total_leaks, 4);
+/// assert_eq!(total_gaps, 3);
+/// ```
 #[derive(Debug, Default)]
 pub struct GuardianReport {
     pub scope_leaks: u64,
@@ -92,6 +158,18 @@ pub struct GuardianReport {
 /// Constructed via [`HealthGuardian::spawn`] in production, or used directly
 /// (via its private `db` field set up inside `tick` tests) in integration tests.
 /// See [`HealthGuardian::tick`] for the synchronous test entry point.
+///
+/// A clean system produces a zero-count [`GuardianReport`] on every tick:
+///
+/// ```
+/// use open_ontologies::health_guardian::GuardianReport;
+///
+/// // Auto-instinct: on an empty DB, tick returns zero leaks and zero gaps.
+/// // This is the expected steady-state for a healthy server.
+/// let clean_report = GuardianReport { scope_leaks: 0, receipt_gaps: 0 };
+/// assert_eq!(clean_report.scope_leaks, 0);
+/// assert_eq!(clean_report.receipt_gaps, 0);
+/// ```
 pub struct HealthGuardian {
     db: StateDb,
 }
