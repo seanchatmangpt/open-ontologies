@@ -16,6 +16,22 @@ pub struct ShaclValidator;
 impl ShaclValidator {
     /// Validate the data in `graph` against SHACL shapes (inline Turtle).
     /// Returns a JSON report: `{conforms, violation_count, violations[]}`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use open_ontologies::graph::GraphStore;
+    /// use open_ontologies::shacl::ShaclValidator;
+    /// use std::sync::Arc;
+    ///
+    /// // An empty graph against a shapes document with no NodeShapes
+    /// // produces a conforming report with zero violations.
+    /// let graph = Arc::new(GraphStore::new());
+    /// let shapes_ttl = "@prefix sh: <http://www.w3.org/ns/shacl#> .";
+    /// let report = ShaclValidator::validate(&graph, shapes_ttl).unwrap();
+    /// assert!(report.contains("\"conforms\":true"));
+    /// assert!(report.contains("\"violation_count\":0"));
+    /// ```
     pub fn validate(graph: &Arc<GraphStore>, shapes_ttl: &str) -> anyhow::Result<String> {
         // 1. Parse shapes Turtle into a temporary store
         let shapes_store = Store::new()?;
