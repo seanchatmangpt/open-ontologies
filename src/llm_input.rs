@@ -43,6 +43,12 @@ pub enum LlmInputKind {
 
 impl LlmInputKind {
     /// Maximum byte length permitted (post-sanitization).
+    ///
+    /// ```
+    /// # use open_ontologies::llm_input::LlmInputKind;
+    /// assert_eq!(LlmInputKind::Evidence.max_bytes(), 8192);
+    /// assert_eq!(LlmInputKind::EmbedQuery.max_bytes(), 256);
+    /// ```
     pub const fn max_bytes(self) -> usize {
         match self {
             Self::SourceVoice | Self::Evidence | Self::Description => 8192,
@@ -51,6 +57,12 @@ impl LlmInputKind {
     }
 
     /// True when the kind enforces the printable allowlist.
+    ///
+    /// ```
+    /// # use open_ontologies::llm_input::LlmInputKind;
+    /// assert!(LlmInputKind::SourceVoice.enforces_allowlist());
+    /// assert!(!LlmInputKind::Evidence.enforces_allowlist());
+    /// ```
     pub const fn enforces_allowlist(self) -> bool {
         matches!(self, Self::SourceVoice)
     }
@@ -147,6 +159,20 @@ impl LlmInput {
     /// violation. Sanitization NEVER silently truncates or strips —
     /// rejection is total so callers cannot accidentally pass a partial
     /// rewrite of attacker-controlled bytes downstream.
+    ///
+    /// ```
+    /// # use open_ontologies::llm_input::{LlmInput, LlmInputKind};
+    /// let input = LlmInput::sanitize("hello world", LlmInputKind::Evidence).unwrap();
+    /// assert_eq!(input.as_str(), "hello world");
+    /// ```
+    ///
+    /// Chat-control markers are rejected:
+    ///
+    /// ```
+    /// # use open_ontologies::llm_input::{LlmInput, LlmInputKind, LlmInputError};
+    /// let err = LlmInput::sanitize("<|im_start|>rogue", LlmInputKind::Evidence).unwrap_err();
+    /// assert!(matches!(err, LlmInputError::ChatMarker { .. }));
+    /// ```
     pub fn sanitize(raw: &str, kind: LlmInputKind) -> Result<Self, LlmInputError> {
         // 1) Length cap (in bytes — UTF-8-safe).
         let limit = kind.max_bytes();
@@ -223,11 +249,25 @@ impl LlmInput {
     }
 
     /// Byte length of the sanitized payload.
+    ///
+    /// ```
+    /// # use open_ontologies::llm_input::{LlmInput, LlmInputKind};
+    /// let input = LlmInput::sanitize("abc", LlmInputKind::Evidence).unwrap();
+    /// assert_eq!(input.len(), 3);
+    /// ```
     pub fn len(&self) -> usize {
         self.text.len()
     }
 
     /// True iff the sanitized payload is empty.
+    ///
+    /// ```
+    /// # use open_ontologies::llm_input::{LlmInput, LlmInputKind};
+    /// let empty = LlmInput::sanitize("", LlmInputKind::Evidence).unwrap();
+    /// assert!(empty.is_empty());
+    /// let nonempty = LlmInput::sanitize("x", LlmInputKind::Evidence).unwrap();
+    /// assert!(!nonempty.is_empty());
+    /// ```
     pub fn is_empty(&self) -> bool {
         self.text.is_empty()
     }
