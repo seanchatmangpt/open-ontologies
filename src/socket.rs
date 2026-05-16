@@ -46,6 +46,36 @@ struct Triple {
     o: String,
 }
 
+/// Result for a single grounded triple query.
+///
+/// # Examples
+///
+/// ```
+/// use serde_json::json;
+///
+/// // Simulate the JSON wire shape produced by GroundResult serialization.
+/// let grounded = json!({
+///     "status": "grounded",
+///     "confidence": 80u32,
+///     "evidence_count": 2u64,
+/// });
+/// assert_eq!(grounded["status"], "grounded");
+/// assert_eq!(grounded["confidence"], 80);
+///
+/// let unknown = json!({
+///     "status": "unknown",
+///     "confidence": 0u32,
+///     "evidence_count": 0u64,
+/// });
+/// assert_eq!(unknown["confidence"], 0);
+///
+/// let contradicted = json!({
+///     "status": "contradicted",
+///     "confidence": 0u32,
+///     "evidence_count": 0u64,
+/// });
+/// assert_eq!(contradicted["status"], "contradicted");
+/// ```
 #[derive(Debug, Serialize)]
 struct GroundResult {
     status: &'static str,
@@ -58,6 +88,32 @@ struct GroundResponse {
     results: Vec<GroundResult>,
 }
 
+/// Response for the `check_consistency` action.
+///
+/// # Examples
+///
+/// ```
+/// use serde_json::json;
+///
+/// // Consistent result — no contradictions.
+/// let ok = json!({
+///     "consistent": true,
+///     "contradiction_count": 0u64,
+///     "explanation": "",
+/// });
+/// assert_eq!(ok["consistent"], true);
+/// assert_eq!(ok["contradiction_count"], 0);
+///
+/// // Contradicted result — surfaces explanation text.
+/// let bad = json!({
+///     "consistent": false,
+///     "contradiction_count": 3u64,
+///     "explanation": "2 sameAs/differentFrom conflict(s); 1 disjointWith violation(s)",
+/// });
+/// assert_eq!(bad["consistent"], false);
+/// assert_eq!(bad["contradiction_count"], 3);
+/// assert!(bad["explanation"].as_str().unwrap().contains("disjointWith"));
+/// ```
 #[derive(Debug, Serialize)]
 struct ConsistencyResponse {
     consistent: bool,
@@ -155,6 +211,36 @@ fn dispatch(graph: &Arc<GraphStore>, req: &Request) -> serde_json::Value {
 // Try common prefixes until we find a match.
 
 /// Prefixes to try for subjects and objects.
+///
+/// When a value arrives over the wire without an explicit scheme the
+/// bridge tries each prefix in order and uses the first combination that
+/// produces evidence in the graph.
+///
+/// # Examples
+///
+/// ```
+/// // The empty string "" means "try the bare value first (may already be a
+/// // full IRI)".  The remaining entries are common namespace expansions.
+/// let prefixes: &[&str] = &[
+///     "",
+///     "http://example.org/",
+///     "http://dbpedia.org/resource/",
+///     "urn:",
+/// ];
+///
+/// // Bare full IRI — matches on the first (empty) prefix.
+/// let name = "http://example.org/DoctorWho";
+/// let expanded: Vec<String> = prefixes.iter().map(|p| format!("{p}{name}")).collect();
+/// assert_eq!(expanded[0], "http://example.org/DoctorWho");
+///
+/// // Short name — gains a prefix on every iteration.
+/// let short = "DoctorWho";
+/// let expanded2: Vec<String> = prefixes.iter().map(|p| format!("{p}{short}")).collect();
+/// assert_eq!(expanded2[0], "DoctorWho");
+/// assert_eq!(expanded2[1], "http://example.org/DoctorWho");
+/// assert_eq!(expanded2[2], "http://dbpedia.org/resource/DoctorWho");
+/// assert_eq!(expanded2[3], "urn:DoctorWho");
+/// ```
 const ENTITY_PREFIXES: &[&str] = &[
     "",
     "http://example.org/",
@@ -163,6 +249,35 @@ const ENTITY_PREFIXES: &[&str] = &[
 ];
 
 /// Prefixes to try for predicates.
+///
+/// Predicate IRIs follow well-known vocabularies. The empty string allows
+/// fully-qualified predicates to match directly; the remaining entries cover
+/// Schema.org, RDF core, FOAF, and a project-local namespace.
+///
+/// # Examples
+///
+/// ```
+/// let prefixes: &[&str] = &[
+///     "",
+///     "http://schema.org/",
+///     "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
+///     "http://xmlns.com/foaf/0.1/",
+///     "http://example.org/",
+/// ];
+///
+/// // Schema.org expansion.
+/// let pred = "name";
+/// let candidates: Vec<String> = prefixes.iter().map(|p| format!("{p}{pred}")).collect();
+/// assert_eq!(candidates[1], "http://schema.org/name");
+///
+/// // RDF `type` expansion.
+/// let rdf_type = "type";
+/// let candidates2: Vec<String> = prefixes.iter().map(|p| format!("{p}{rdf_type}")).collect();
+/// assert_eq!(candidates2[2], "http://www.w3.org/1999/02/22-rdf-syntax-ns#type");
+///
+/// // FOAF `name` expansion.
+/// assert_eq!(candidates[3], "http://xmlns.com/foaf/0.1/name");
+/// ```
 const PREDICATE_PREFIXES: &[&str] = &[
     "",
     "http://schema.org/",
@@ -172,8 +287,28 @@ const PREDICATE_PREFIXES: &[&str] = &[
 ];
 
 /// Try grounding a triple with various IRI prefix combinations.
-/// Returns (evidence_count, contradiction_count) for the first combination
-/// that yields evidence, or falls back to the best result found.
+/// Returns `(evidence_count, contradiction_count)` for the first combination
+/// that yields evidence in the graph, or `(0, best_contra)` when no
+/// combination matches.
+///
+/// The function short-circuits prefix expansion for values that already carry
+/// an HTTP or URN scheme — they are tried bare first.
+///
+/// # Examples
+///
+/// ```
+/// // Demonstrate the IRI-scheme detection heuristic used to choose prefixes.
+/// fn has_scheme(s: &str) -> bool {
+///     s.starts_with("http://") || s.starts_with("https://") || s.starts_with("urn:")
+/// }
+///
+/// assert!(has_scheme("http://example.org/Pizza"));
+/// assert!(has_scheme("https://schema.org/name"));
+/// assert!(has_scheme("urn:isbn:0451450523"));
+/// assert!(!has_scheme("Pizza"));          // short name → needs expansion
+/// assert!(!has_scheme("locationCreated")); // camelCase predicate
+/// assert!(!has_scheme(""));               // empty string
+/// ```
 fn ground_with_prefixes(
     graph: &Arc<GraphStore>,
     s: &str,

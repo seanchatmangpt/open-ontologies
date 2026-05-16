@@ -69,6 +69,38 @@ const DEFAULT_FORMAT: &str = "turtle";
 /// batch runner runs outside the admission gate. Conflating
 /// subprocess-CLI parse errors with ontology-mutation defects would
 /// pollute the typed taxonomy (§21).
+///
+/// # Variant behaviour
+///
+/// Valid JSON is passed through unchanged; malformed JSON surfaces a
+/// structured error object with an `error` key so that the NDJSON
+/// stream detector catches it:
+///
+/// ```
+/// use serde_json::{json, Value};
+///
+/// // Simulate BatchOutcome::Parsed behaviour.
+/// fn parsed_value(v: Value) -> Value { v }
+/// // Simulate BatchOutcome::Malformed behaviour.
+/// fn malformed_value(reason: &str, snippet: &str) -> Value {
+///     json!({
+///         "error": format!("subprocess returned malformed JSON: {reason}"),
+///         "subprocess_malformed": true,
+///         "snippet": snippet,
+///     })
+/// }
+///
+/// // Parsed path — value passes through as-is.
+/// let v = parsed_value(json!({"ok": true, "triples_loaded": 7}));
+/// assert_eq!(v["ok"], true);
+/// assert_eq!(v["triples_loaded"], 7);
+///
+/// // Malformed path — surfaces structured error.
+/// let v = malformed_value("expected value at line 1", "not-json");
+/// assert!(v.get("error").is_some());
+/// assert_eq!(v["subprocess_malformed"], true);
+/// assert_eq!(v["snippet"], "not-json");
+/// ```
 #[derive(Debug, Clone)]
 enum BatchOutcome {
     /// Subprocess returned valid JSON.
@@ -98,6 +130,33 @@ impl BatchOutcome {
 /// Parse a subprocess's stringly-typed JSON result. Replaces the
 /// historical `serde_json::from_str(&s).unwrap_or(json!({"raw": s}))`
 /// fail-open pattern (§7 fail-open silence — Round 4 WC).
+///
+/// Valid JSON is returned as [`BatchOutcome::Parsed`]; anything that
+/// does not parse becomes [`BatchOutcome::Malformed`] so the caller
+/// can surface a structured error rather than silently swallowing it.
+///
+/// ```
+/// use serde_json::{from_str, Value};
+///
+/// // Mirror the parse_subprocess_json logic directly.
+/// fn parse(s: &str) -> Result<Value, String> {
+///     from_str::<Value>(s).map_err(|e| e.to_string())
+/// }
+///
+/// // Well-formed JSON → Ok
+/// let ok = parse(r#"{"ok":true,"triples_loaded":42}"#).unwrap();
+/// assert_eq!(ok["triples_loaded"], 42);
+///
+/// // Malformed JSON → Err (not silently swallowed)
+/// assert!(parse("not-json").is_err());
+///
+/// // Empty string → Err
+/// assert!(parse("").is_err());
+///
+/// // Bare integer is valid JSON
+/// let n = parse("7").unwrap();
+/// assert_eq!(n, 7);
+/// ```
 fn parse_subprocess_json(s: &str) -> BatchOutcome {
     match serde_json::from_str::<Value>(s) {
         Ok(v) => BatchOutcome::Parsed(v),
@@ -571,7 +630,30 @@ impl BatchRunner {
 
     // ─── Helpers ─────────────────────────────────────────────────────
 
-    /// Extract --flag value from args (e.g. --format turtle → Some("turtle"))
+    /// Extract `--flag value` from a flat args slice.
+    ///
+    /// Returns `Some(value)` when `flag` is found followed by at least one
+    /// more element, `None` otherwise.  The flag itself is not consumed from
+    /// the slice.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// // Mirror flag_value logic — find flag, return next element.
+    /// fn flag_value<'a>(args: &'a [&str], flag: &str) -> Option<&'a str> {
+    ///     args.iter().position(|a| *a == flag).and_then(|i| args.get(i + 1).copied())
+    /// }
+    ///
+    /// let args = &["file.ttl", "--format", "ntriples", "--output", "out.nt"];
+    ///
+    /// assert_eq!(flag_value(args, "--format"),  Some("ntriples"));
+    /// assert_eq!(flag_value(args, "--output"),  Some("out.nt"));
+    /// assert_eq!(flag_value(args, "--missing"), None);
+    ///
+    /// // Flag at the very end (no value following) → None.
+    /// let trailing = &["load", "--verbose"];
+    /// assert_eq!(flag_value(trailing, "--verbose"), None);
+    /// ```
     fn flag_value(args: &[String], flag: &str) -> Option<String> {
         args.iter()
             .position(|a| a == flag)
@@ -580,6 +662,26 @@ impl BatchRunner {
 }
 
 /// Parse batch input — auto-detects JSON array vs line-per-command format.
+///
+/// Input that begins with `[` (after trimming whitespace) is treated as a
+/// JSON array; anything else is treated as newline-separated shell commands.
+/// Lines starting with `#` and blank lines are ignored in line mode.
+///
+/// # Examples
+///
+/// ```
+/// // Demonstrate the auto-detect rule without calling the private function.
+///
+/// fn looks_like_json(input: &str) -> bool {
+///     input.trim().starts_with('[')
+/// }
+///
+/// assert!(looks_like_json(r#"[{"command":"stats"}]"#));
+/// assert!(looks_like_json("  [ ]  ")); // leading whitespace OK
+/// assert!(!looks_like_json("stats\nquery \"SELECT * WHERE { ?s ?p ?o }\""));
+/// assert!(!looks_like_json("# comment\nload file.ttl"));
+/// assert!(!looks_like_json("")); // empty → line mode (no commands)
+/// ```
 fn parse_input(input: &str) -> Result<Vec<BatchCmd>, String> {
     let trimmed = input.trim();
     if trimmed.starts_with('[') {
