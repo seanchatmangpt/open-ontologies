@@ -115,15 +115,97 @@ impl LineageLog {
     // Event types: `R` = replay, `G` = admission_granted, `D` = admission_denied,
     // `B` = admission_bypass, `V` = session_revoked, `S` = session_reset.
 
+    /// Persist a POWL conformance-replay result for the given session.
+    ///
+    /// The event is stored with type `"R"` and operation `"powl_replay"`. The
+    /// `fitness` and `precision` values are the two most informative PM quality
+    /// dimensions: fitness measures whether the model allows all observed
+    /// behaviour; precision penalises unnecessary permissiveness. Both are
+    /// encoded in the details field as `"fitness=<f>;precision=<p>"` so any
+    /// downstream process-mining query can extract and compare them.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use open_ontologies::state::StateDb;
+    /// use open_ontologies::lineage::LineageLog;
+    /// use std::path::Path;
+    ///
+    /// let db = StateDb::open(Path::new(":memory:")).unwrap();
+    /// let log = LineageLog::new(db);
+    /// let session = "replay-doctest-01";
+    ///
+    /// log.record_powl_replay(session, 0.95, 0.90);
+    ///
+    /// // The compact view encodes the event type and quality dimensions.
+    /// let compact = log.get_compact(session);
+    /// assert!(compact.contains("powl_replay"), "operation must appear in lineage");
+    /// assert!(compact.contains("fitness=0.95;precision=0.9"),
+    ///     "fitness and precision details must be persisted, got: {compact}");
+    /// ```
     pub fn record_powl_replay(&self, session_id: &str, fitness: f64, precision: f64) {
         let details = format!("fitness={};precision={}", fitness, precision);
         self.record(session_id, "R", "powl_replay", &details);
     }
 
+    /// Persist a successful admission decision for the given session.
+    ///
+    /// Records event type `"G"` (granted) with operation `"admission_granted"`.
+    /// The `receipt_hash` is the hex-encoded BLAKE3 receipt proving the artifact
+    /// passed all conformance gates — storing it here closes the audit trail
+    /// from process discovery through to release, enabling the practitioner to
+    /// answer "Can I reproduce this result next week?" with a concrete hash.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use open_ontologies::state::StateDb;
+    /// use open_ontologies::lineage::LineageLog;
+    /// use std::path::Path;
+    ///
+    /// let db = StateDb::open(Path::new(":memory:")).unwrap();
+    /// let log = LineageLog::new(db);
+    /// let session = "granted-doctest-01";
+    ///
+    /// log.record_admission_granted(session, "deadbeef01234567");
+    ///
+    /// // The compact view encodes the G event with the receipt hash as details.
+    /// let compact = log.get_compact(session);
+    /// assert!(compact.contains("admission_granted"), "operation must appear in lineage");
+    /// assert!(compact.contains("deadbeef01234567"),
+    ///     "receipt hash must be persisted, got: {compact}");
+    /// ```
     pub fn record_admission_granted(&self, session_id: &str, receipt_hash: &str) {
         self.record(session_id, "G", "admission_granted", receipt_hash);
     }
 
+    /// Persist a failed admission decision for the given session.
+    ///
+    /// Records event type `"D"` (denied) with operation `"admission_denied"`.
+    /// The `defect_tag` identifies the specific conformance violation that caused
+    /// the gate to close — making the denial auditable and reproducible. A model
+    /// that only replays the training log will fail on new cases; recording the
+    /// defect tag here exposes that generalisation failure explicitly.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use open_ontologies::state::StateDb;
+    /// use open_ontologies::lineage::LineageLog;
+    /// use std::path::Path;
+    ///
+    /// let db = StateDb::open(Path::new(":memory:")).unwrap();
+    /// let log = LineageLog::new(db);
+    /// let session = "denied-doctest-01";
+    ///
+    /// log.record_admission_denied(session, "fitness_below_threshold");
+    ///
+    /// // The compact view encodes the D event with the defect tag as details.
+    /// let compact = log.get_compact(session);
+    /// assert!(compact.contains("admission_denied"), "operation must appear in lineage");
+    /// assert!(compact.contains("fitness_below_threshold"),
+    ///     "defect tag must be persisted, got: {compact}");
+    /// ```
     pub fn record_admission_denied(&self, session_id: &str, defect_tag: &str) {
         self.record(session_id, "D", "admission_denied", defect_tag);
     }

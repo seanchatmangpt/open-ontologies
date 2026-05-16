@@ -498,6 +498,37 @@ impl StateDb {
 
     /// Record a capability event for a workflow class. Called from the
     /// admission gate after both Ok and Err branches. Atomic UPSERT.
+    ///
+    /// Accumulates per-workflow `admission_count`, `sum_fitness`, and
+    /// `sum_precision` so that the practitioner can later compute the
+    /// average fitness-precision trade-off across all admission runs for a
+    /// given workflow class — answering "which algorithm gives the best
+    /// fitness-precision balance for my log?" without re-running discovery.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use open_ontologies::state::StateDb;
+    /// use std::path::Path;
+    ///
+    /// let db = StateDb::open(Path::new(":memory:")).unwrap();
+    ///
+    /// // A successful admission: fitness=0.95, precision=0.88.
+    /// db.record_capability("order-to-cash", true, 0.95, 0.88, "v1").unwrap();
+    ///
+    /// // The row is queryable via the raw connection for inspection.
+    /// let conn = db.conn();
+    /// let (count, sum_f, sum_p): (i64, f64, f64) = conn.query_row(
+    ///     "SELECT admission_count, sum_fitness, sum_precision \
+    ///      FROM workflow_capability WHERE workflow_name = 'order-to-cash'",
+    ///     [],
+    ///     |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+    /// ).unwrap();
+    ///
+    /// assert_eq!(count, 1);
+    /// assert!((sum_f - 0.95).abs() < 1e-9, "fitness must be stored exactly");
+    /// assert!((sum_p - 0.88).abs() < 1e-9, "precision must be stored exactly");
+    /// ```
     pub fn record_capability(
         &self,
         workflow_name: &str,
@@ -531,6 +562,48 @@ impl StateDb {
     /// Update the per-scope outcome columns on a `declared_workflows` row.
     /// Called from admission with the verdict, fitness/precision, and the
     /// JSON-serialized gates/defects/manufacturing-delta payloads.
+    ///
+    /// The caller must have already inserted a row for `scope_token` via
+    /// `declared_workflows`; this method is a pure UPDATE that stamps the
+    /// conformance result onto that existing row, preserving the PM lifecycle
+    /// principle that every scope has a single, authoritative outcome record.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use open_ontologies::state::StateDb;
+    /// use std::path::Path;
+    ///
+    /// let db = StateDb::open(Path::new(":memory:")).unwrap();
+    ///
+    /// // Pre-condition: a declared_workflows row must exist for the scope.
+    /// db.conn().execute(
+    ///     "INSERT INTO declared_workflows \
+    ///      (scope_token, session_id, name, powl_string, powl_hash, \
+    ///       alphabet_json, declared_at, status) \
+    ///      VALUES ('scope-abc', 'sess-1', 'wf', 'SEQ(a,b)', 'hash1', \
+    ///              '{}', datetime('now'), 'open')",
+    ///     [],
+    /// ).unwrap();
+    ///
+    /// // Record the outcome: admitted, fitness=0.92, precision=0.85.
+    /// db.record_workflow_outcome(
+    ///     "scope-abc", true, 0.92, 0.85,
+    ///     "[]", "[]", "[\"gate_A\"]", "[]", "{}",
+    /// ).unwrap();
+    ///
+    /// // Read back the stamped fitness/precision from the row.
+    /// let (admitted, fitness, precision): (i64, f64, f64) = db.conn().query_row(
+    ///     "SELECT admitted, fitness, precision FROM declared_workflows \
+    ///      WHERE scope_token = 'scope-abc'",
+    ///     [],
+    ///     |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+    /// ).unwrap();
+    ///
+    /// assert_eq!(admitted, 1);
+    /// assert!((fitness  - 0.92).abs() < 1e-9, "fitness must be stored exactly");
+    /// assert!((precision - 0.85).abs() < 1e-9, "precision must be stored exactly");
+    /// ```
     #[allow(clippy::too_many_arguments)] // Each arg maps 1-to-1 to a `declared_workflows` column written atomically; a struct would just shadow the schema.
     pub fn record_workflow_outcome(
         &self,
