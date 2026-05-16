@@ -3961,6 +3961,16 @@ impl OpenOntologiesServer {
 
     #[tool(name = "onto_mustar_solve", description = "Invoke the MuStar Agent to semantically lower a problem intent into a completed artifact. Accepts a problem_statement, domain, constraints, and title. Uses POWL build orders internally and provides empirical validation.")]
     async fn onto_mustar_solve(&self, Parameters(input): Parameters<OntoMustarSolveInput>) -> String {
+        // Guard: empty store
+        if self.graph.triple_count() == 0 {
+            return r#"{"ok":false,"error":"No ontology loaded. MuStar needs a loaded ontology to ground its reasoning.","hint":"Call onto_load first with a .ttl file, then retry onto_mustar_solve."}"#.to_string();
+        }
+
+        // Guard: blank problem_statement
+        if input.problem_statement.trim().is_empty() {
+            return r#"{"ok":false,"error":"'problem_statement' is required and must not be blank.","hint":"Example: onto_mustar_solve with problem_statement='Design a SPARQL query to list all subclasses of owl:Thing'."}"#.to_string();
+        }
+
         let script = "/Users/sac/chatmangpt/ostar/src/ostar/process/mu_star_agent.py";
         let mut cmd = std::process::Command::new("/Users/sac/chatmangpt/ostar/.venv/bin/python");
         cmd.arg(script);
@@ -3989,13 +3999,22 @@ impl OpenOntologiesServer {
                     String::from_utf8_lossy(&out.stdout).into_owned()
                 } else {
                     let err = String::from_utf8_lossy(&out.stderr);
-                    format!(r#"{{"error": "MuStar solver failed: {}"}}"#, err.replace('"', "\\\"").replace('\n', " "))
+                    format!(
+                        r#"{{"ok":false,"error":"mu_star_agent: solver process exited with failure: {}","hint":"Check that the MuStar Python environment is healthy at /Users/sac/chatmangpt/ostar/.venv."}}"#,
+                        err.replace('"', "\\\"").replace('\n', " ")
+                    )
                 }
             },
             Err(crate::subprocess::SubprocessError::LlmTimeout { elapsed_ms, limit_ms, .. }) => {
-                format!(r#"{{"error": "MuStar subprocess timed out after {}ms (limit {}ms)"}}"#, elapsed_ms, limit_ms)
+                format!(
+                    r#"{{"ok":false,"error":"mu_star_agent: subprocess timed out after {}ms (limit {}ms).","hint":"Simplify the problem_statement or increase the subprocess timeout in config.toml."}}"#,
+                    elapsed_ms, limit_ms
+                )
             },
-            Err(crate::subprocess::SubprocessError::SpawnFailed(e)) => format!(r#"{{"error": "Failed to spawn Python process: {}"}}"#, e)
+            Err(crate::subprocess::SubprocessError::SpawnFailed(e)) => format!(
+                r#"{{"ok":false,"error":"mu_star_agent: failed to spawn Python process: {}.","hint":"Verify that /Users/sac/chatmangpt/ostar/.venv/bin/python exists and the venv is activated."}}"#,
+                e
+            ),
         }
     }
 
@@ -4187,6 +4206,13 @@ impl OpenOntologiesServer {
         &self,
         Parameters(input): Parameters<OntoDeclareWorkflowInput>,
     ) -> String {
+        // Guard: require at least one of name or powl
+        let name_blank = input.name.as_deref().map(str::trim).unwrap_or("").is_empty();
+        let powl_blank = input.powl.as_deref().map(str::trim).unwrap_or("").is_empty();
+        if name_blank && powl_blank {
+            return r#"{"ok":false,"error":"Either 'name' or 'powl' is required to declare a workflow.","hint":"Pass a built-in name (e.g. 'OntologyAuthoring') or an inline POWL string to define the workflow scope."}"#.to_string();
+        }
+
         // R4 WE — §14: full admission BEFORE the scope row is materialized.
         // The artifact bytes are a deterministic concatenation of the
         // (optional) workflow name, the POWL string, and the caller's
@@ -4934,6 +4960,11 @@ impl OpenOntologiesServer {
 
     #[tool(name = "onto_counterfactual", description = "Stream 5: Read-only probe. For a given scope_token, returns side-by-side: (a) the naked-craft path (no scope, gate bypassed, force=true → always Admitted) and (b) the OntoStar admission path (real verdict). Surfaces the manufacturing delta — the set of gates where the two paths diverged.")]
     async fn onto_counterfactual(&self, Parameters(input): Parameters<OntoCounterfactualInput>) -> String {
+        // Guard: blank scope_token
+        if input.scope_token.trim().is_empty() {
+            return r#"{"ok":false,"error":"'scope_token' is required and must not be blank.","hint":"Call onto_declare_workflow or onto_plan_workflow first and use the returned scope_token."}"#.to_string();
+        }
+
         // Load scope row (Stream 5 stub schema).
         let conn = self.db.conn();
         // Pull the canonical counterfactual columns from declared_workflows
@@ -4977,7 +5008,7 @@ impl OpenOntologiesServer {
                 Some(r) => r,
                 None => {
                     return format!(
-                        r#"{{"error":"unknown scope_token: {}"}}"#,
+                        r#"{{"ok":false,"error":"onto_counterfactual: scope_token '{}' not found in declared_workflows.","hint":"Call onto_declare_workflow or onto_plan_workflow to create a scope, then pass the returned scope_token."}}"#,
                         input.scope_token.replace('"', "'")
                     )
                 }
