@@ -3,6 +3,19 @@ use serde::Deserialize;
 
 // ─── MCP tool input structs ─────────────────────────────────────────────────
 
+/// Input for [`onto_validate`](https://docs.rs/open-ontologies).
+///
+/// # Example
+///
+/// ```
+/// use open_ontologies::inputs::OntoValidateInput;
+/// let inp = OntoValidateInput {
+///     input: "ontology/pizza.ttl".to_string(),
+///     inline: None,
+/// };
+/// assert_eq!(inp.input, "ontology/pizza.ttl");
+/// assert!(inp.inline.is_none());
+/// ```
 #[derive(Deserialize, JsonSchema)]
 pub struct OntoValidateInput {
     /// Path to an RDF file OR inline Turtle content
@@ -11,6 +24,20 @@ pub struct OntoValidateInput {
     pub inline: Option<bool>,
 }
 
+/// Input for format conversion between RDF serializations.
+///
+/// # Example
+///
+/// ```
+/// use open_ontologies::inputs::OntoConvertInput;
+/// let inp = OntoConvertInput {
+///     path: "ontology/pizza.ttl".to_string(),
+///     to: "ntriples".to_string(),
+///     output: None,
+/// };
+/// assert_eq!(inp.to, "ntriples");
+/// assert!(inp.output.is_none());
+/// ```
 #[derive(Deserialize, JsonSchema)]
 pub struct OntoConvertInput {
     /// Path to source RDF file
@@ -21,6 +48,25 @@ pub struct OntoConvertInput {
     pub output: Option<String>,
 }
 
+/// Input for loading an ontology into the in-memory store.
+///
+/// # Example
+///
+/// ```
+/// use open_ontologies::inputs::OntoLoadInput;
+/// let inp = OntoLoadInput {
+///     path: Some("ontology/pizza.ttl".to_string()),
+///     turtle: None,
+///     name: None,
+///     auto_refresh: None,
+///     force_recompile: None,
+/// };
+/// assert!(inp.path.is_some());
+/// assert!(inp.turtle.is_none());
+/// assert!(inp.name.is_none());
+/// assert!(inp.auto_refresh.is_none());
+/// assert!(inp.force_recompile.is_none());
+/// ```
 #[derive(Deserialize, JsonSchema)]
 pub struct OntoLoadInput {
     /// Path to RDF file, OR inline Turtle/RDF content
@@ -37,6 +83,16 @@ pub struct OntoLoadInput {
     pub force_recompile: Option<bool>,
 }
 
+/// Input for removing an ontology from the in-memory store.
+///
+/// # Example
+///
+/// ```
+/// use open_ontologies::inputs::OntoUnloadInput;
+/// let inp = OntoUnloadInput { delete_cache: Some(false), name: None };
+/// assert_eq!(inp.delete_cache, Some(false));
+/// assert!(inp.name.is_none());
+/// ```
 #[derive(Deserialize, JsonSchema)]
 pub struct OntoUnloadInput {
     /// When true, also delete the on-disk compile cache file.
@@ -48,6 +104,15 @@ pub struct OntoUnloadInput {
     pub name: Option<String>,
 }
 
+/// Input for forcing a recompile of an ontology from its source file.
+///
+/// # Example
+///
+/// ```
+/// use open_ontologies::inputs::OntoRecompileInput;
+/// let inp = OntoRecompileInput { name: Some("pizza".to_string()) };
+/// assert_eq!(inp.name.as_deref(), Some("pizza"));
+/// ```
 #[derive(Deserialize, JsonSchema)]
 pub struct OntoRecompileInput {
     /// Optional ontology name. When omitted, recompiles the active ontology.
@@ -57,6 +122,24 @@ pub struct OntoRecompileInput {
     pub name: Option<String>,
 }
 
+/// Input for listing ontology files in configured repository directories.
+///
+/// # Example
+///
+/// ```
+/// use open_ontologies::inputs::OntoRepoListInput;
+/// let inp = OntoRepoListInput {
+///     dir: None,
+///     recursive: Some(true),
+///     glob: Some("*.ttl".to_string()),
+///     limit: Some(50),
+///     offset: None,
+/// };
+/// assert_eq!(inp.recursive, Some(true));
+/// assert_eq!(inp.glob.as_deref(), Some("*.ttl"));
+/// assert_eq!(inp.limit, Some(50));
+/// assert!(inp.offset.is_none());
+/// ```
 #[derive(Deserialize, JsonSchema)]
 pub struct OntoRepoListInput {
     /// Optional subdirectory to scan instead of every configured ontology
@@ -94,9 +177,28 @@ pub struct OntoRepoLoadInput {
     pub force_recompile: Option<bool>,
 }
 
+/// Input for inspecting the compile cache state (no parameters needed).
+///
+/// # Example
+///
+/// ```
+/// use open_ontologies::inputs::OntoCacheStatusInput;
+/// let inp = OntoCacheStatusInput {};
+/// // Unit struct — construction always succeeds.
+/// drop(inp);
+/// ```
 #[derive(Deserialize, JsonSchema)]
 pub struct OntoCacheStatusInput {}
 
+/// Input for listing all cached ontologies (no parameters needed).
+///
+/// # Example
+///
+/// ```
+/// use open_ontologies::inputs::OntoCacheListInput;
+/// let inp = OntoCacheListInput {};
+/// drop(inp);
+/// ```
 #[derive(Deserialize, JsonSchema)]
 pub struct OntoCacheListInput {}
 
@@ -109,6 +211,17 @@ pub struct OntoCacheRemoveInput {
     pub delete_file: Option<bool>,
 }
 
+/// Input for executing a SPARQL query against the loaded ontology.
+///
+/// # Example
+///
+/// ```
+/// use open_ontologies::inputs::OntoQueryInput;
+/// let inp = OntoQueryInput {
+///     query: "SELECT ?s WHERE { ?s a owl:Class }".to_string(),
+/// };
+/// assert!(inp.query.contains("owl:Class"));
+/// ```
 #[derive(Deserialize, JsonSchema)]
 pub struct OntoQueryInput {
     /// SPARQL query string
@@ -215,6 +328,20 @@ pub struct OntoIngestInput {
     pub bypass_reason: Option<String>,
 }
 
+/// Input for generating a mapping config from a data schema and the loaded ontology.
+///
+/// # Example
+///
+/// ```
+/// use open_ontologies::inputs::OntoMapInput;
+/// let inp = OntoMapInput {
+///     data_path: "data/customers.csv".to_string(),
+///     format: Some("csv".to_string()),
+///     save_path: None,
+/// };
+/// assert_eq!(inp.format.as_deref(), Some("csv"));
+/// assert!(inp.save_path.is_none());
+/// ```
 #[derive(Deserialize, JsonSchema)]
 pub struct OntoMapInput {
     /// Path to sample data file to generate mapping for
@@ -225,6 +352,19 @@ pub struct OntoMapInput {
     pub save_path: Option<String>,
 }
 
+/// Input for validating loaded data against SHACL constraints.
+///
+/// # Example
+///
+/// ```
+/// use open_ontologies::inputs::OntoShaclInput;
+/// let inp = OntoShaclInput {
+///     shapes: "ontology/cell8-shapes.ttl".to_string(),
+///     inline: Some(false),
+/// };
+/// assert_eq!(inp.inline, Some(false));
+/// assert!(inp.shapes.ends_with(".ttl"));
+/// ```
 #[derive(Deserialize, JsonSchema)]
 pub struct OntoShaclInput {
     /// Path to SHACL shapes file OR inline SHACL Turtle content
@@ -233,6 +373,19 @@ pub struct OntoShaclInput {
     pub inline: Option<bool>,
 }
 
+/// Input for running RDFS or OWL-RL inference over the loaded ontology.
+///
+/// # Example
+///
+/// ```
+/// use open_ontologies::inputs::OntoReasonInput;
+/// let inp = OntoReasonInput {
+///     profile: Some("rdfs".to_string()),
+///     materialize: Some(true),
+/// };
+/// assert_eq!(inp.profile.as_deref(), Some("rdfs"));
+/// assert_eq!(inp.materialize, Some(true));
+/// ```
 #[derive(Deserialize, JsonSchema)]
 pub struct OntoReasonInput {
     /// Reasoning profile: rdfs (default), owl-rl
@@ -241,12 +394,35 @@ pub struct OntoReasonInput {
     pub materialize: Option<bool>,
 }
 
+/// Input for explaining why a class is unsatisfiable using DL tableaux reasoning.
+///
+/// # Example
+///
+/// ```
+/// use open_ontologies::inputs::OntoDlExplainInput;
+/// let inp = OntoDlExplainInput {
+///     class_iri: "http://example.org/UnsatisfiableClass".to_string(),
+/// };
+/// assert!(inp.class_iri.starts_with("http://"));
+/// ```
 #[derive(Deserialize, JsonSchema)]
 pub struct OntoDlExplainInput {
     /// IRI of the class to explain unsatisfiability for
     pub class_iri: String,
 }
 
+/// Input for checking subsumption between two classes via DL tableaux reasoning.
+///
+/// # Example
+///
+/// ```
+/// use open_ontologies::inputs::OntoDlCheckInput;
+/// let inp = OntoDlCheckInput {
+///     sub_class: "http://example.org/Car".to_string(),
+///     super_class: "http://example.org/Vehicle".to_string(),
+/// };
+/// assert_ne!(inp.sub_class, inp.super_class);
+/// ```
 #[derive(Deserialize, JsonSchema)]
 pub struct OntoDlCheckInput {
     /// IRI of the sub-class (the more specific class)
@@ -291,6 +467,21 @@ pub struct OntoPlanInput {
     pub new_turtle: String,
 }
 
+/// Input for applying ontology changes in safe or migrate mode.
+///
+/// # Example
+///
+/// ```
+/// use open_ontologies::inputs::OntoApplyInput;
+/// let inp = OntoApplyInput {
+///     mode: Some("safe".to_string()),
+///     scope_token: None,
+///     bypass_admission: None,
+///     bypass_reason: None,
+/// };
+/// assert_eq!(inp.mode.as_deref(), Some("safe"));
+/// assert!(inp.scope_token.is_none());
+/// ```
 #[derive(Deserialize, JsonSchema)]
 pub struct OntoApplyInput {
     /// Apply mode: "safe" (default), "force" (skip monitor watchers), "migrate" (adds bridges).
@@ -358,6 +549,19 @@ pub struct OntoEnrichInput {
     pub system: String,
 }
 
+/// Input for retrieving the session lineage trail.
+///
+/// # Example
+///
+/// ```
+/// use open_ontologies::inputs::OntoLineageInput;
+/// let inp = OntoLineageInput {
+///     session_id: None,
+///     format: Some("ocel".to_string()),
+/// };
+/// assert!(inp.session_id.is_none());
+/// assert_eq!(inp.format.as_deref(), Some("ocel"));
+/// ```
 #[derive(Deserialize, JsonSchema)]
 pub struct OntoLineageInput {
     /// Session ID to query (omit for current session)
@@ -446,6 +650,24 @@ pub struct OntoSqlIngestInput {
     pub bypass_reason: Option<String>,
 }
 
+/// Input for detecting alignment candidates between two ontologies.
+///
+/// # Example
+///
+/// ```
+/// use open_ontologies::inputs::OntoAlignInput;
+/// let inp = OntoAlignInput {
+///     source: "ontology/source.ttl".to_string(),
+///     target: Some("ontology/target.ttl".to_string()),
+///     min_confidence: Some(0.85),
+///     dry_run: Some(true),
+///     scope_token: None,
+///     bypass_admission: None,
+///     bypass_reason: None,
+/// };
+/// assert_eq!(inp.min_confidence, Some(0.85));
+/// assert_eq!(inp.dry_run, Some(true));
+/// ```
 #[derive(Deserialize, JsonSchema)]
 pub struct OntoAlignInput {
     /// Source ontology: inline Turtle content or file path
@@ -465,6 +687,21 @@ pub struct OntoAlignInput {
     pub bypass_reason: Option<String>,
 }
 
+/// Input for providing feedback on an alignment candidate to tune confidence weights.
+///
+/// # Example
+///
+/// ```
+/// use open_ontologies::inputs::OntoAlignFeedbackInput;
+/// let inp = OntoAlignFeedbackInput {
+///     source_iri: "http://example.org/Vehicle".to_string(),
+///     target_iri: "http://schema.org/Vehicle".to_string(),
+///     accepted: true,
+///     signals: None,
+/// };
+/// assert!(inp.accepted);
+/// assert!(inp.signals.is_none());
+/// ```
 #[derive(Deserialize, JsonSchema)]
 pub struct OntoAlignFeedbackInput {
     /// Source class IRI from the alignment candidate
@@ -477,6 +714,20 @@ pub struct OntoAlignFeedbackInput {
     pub signals: Option<std::collections::HashMap<String, f64>>,
 }
 
+/// Input for accepting or dismissing a lint issue to teach the linter.
+///
+/// # Example
+///
+/// ```
+/// use open_ontologies::inputs::OntoLintFeedbackInput;
+/// let inp = OntoLintFeedbackInput {
+///     rule_id: "missing_label".to_string(),
+///     entity: "http://example.org/MyClass".to_string(),
+///     accepted: false,
+/// };
+/// assert_eq!(inp.rule_id, "missing_label");
+/// assert!(!inp.accepted);
+/// ```
 #[derive(Deserialize, JsonSchema)]
 pub struct OntoLintFeedbackInput {
     /// The lint rule ID (e.g. "missing_label", "missing_comment", "missing_domain", "missing_range")
@@ -487,6 +738,20 @@ pub struct OntoLintFeedbackInput {
     pub accepted: bool,
 }
 
+/// Input for accepting or dismissing an enforce violation to teach the enforcer.
+///
+/// # Example
+///
+/// ```
+/// use open_ontologies::inputs::OntoEnforceFeedbackInput;
+/// let inp = OntoEnforceFeedbackInput {
+///     rule_id: "orphan_class".to_string(),
+///     entity: "http://example.org/OrphanClass".to_string(),
+///     accepted: true,
+/// };
+/// assert_eq!(inp.rule_id, "orphan_class");
+/// assert!(inp.accepted);
+/// ```
 #[derive(Deserialize, JsonSchema)]
 pub struct OntoEnforceFeedbackInput {
     /// The enforce rule ID (e.g. "orphan_class", "missing_domain", "missing_range", "missing_label", or custom rule ID)
@@ -497,6 +762,19 @@ pub struct OntoEnforceFeedbackInput {
     pub accepted: bool,
 }
 
+/// Input for generating text + Poincaré structural embeddings for all classes.
+///
+/// # Example
+///
+/// ```
+/// use open_ontologies::inputs::OntoEmbedInput;
+/// let inp = OntoEmbedInput {
+///     struct_dim: Some(64),
+///     struct_epochs: Some(200),
+/// };
+/// assert_eq!(inp.struct_dim, Some(64));
+/// assert_eq!(inp.struct_epochs, Some(200));
+/// ```
 #[derive(Deserialize, JsonSchema)]
 pub struct OntoEmbedInput {
     /// Structural embedding dimension. Default: 32
@@ -505,6 +783,22 @@ pub struct OntoEmbedInput {
     pub struct_epochs: Option<usize>,
 }
 
+/// Input for finding ontology classes by natural language description.
+///
+/// # Example
+///
+/// ```
+/// use open_ontologies::inputs::OntoSearchInput;
+/// let inp = OntoSearchInput {
+///     query: "a vehicle with four wheels".to_string(),
+///     top_k: Some(5),
+///     mode: Some("text".to_string()),
+///     alpha: Some(0.7),
+/// };
+/// assert_eq!(inp.top_k, Some(5));
+/// assert_eq!(inp.mode.as_deref(), Some("text"));
+/// assert!((inp.alpha.unwrap() - 0.7_f32).abs() < 1e-6);
+/// ```
 #[derive(Deserialize, JsonSchema)]
 pub struct OntoSearchInput {
     /// Natural language query
@@ -517,6 +811,19 @@ pub struct OntoSearchInput {
     pub alpha: Option<f32>,
 }
 
+/// Input for computing embedding similarity between two class IRIs.
+///
+/// # Example
+///
+/// ```
+/// use open_ontologies::inputs::OntoSimilarityInput;
+/// let inp = OntoSimilarityInput {
+///     iri_a: "http://example.org/Vehicle".to_string(),
+///     iri_b: "http://example.org/Automobile".to_string(),
+/// };
+/// assert!(inp.iri_a.starts_with("http://"));
+/// assert!(inp.iri_b.starts_with("http://"));
+/// ```
 #[derive(Deserialize, JsonSchema)]
 pub struct OntoSimilarityInput {
     /// First IRI
@@ -525,6 +832,20 @@ pub struct OntoSimilarityInput {
     pub iri_b: String,
 }
 
+/// Input for browsing or installing ontologies from the curated catalogue.
+///
+/// # Example
+///
+/// ```
+/// use open_ontologies::inputs::OntoMarketplaceInput;
+/// let inp = OntoMarketplaceInput {
+///     action: "list".to_string(),
+///     id: None,
+///     domain: Some("foundational".to_string()),
+/// };
+/// assert_eq!(inp.action, "list");
+/// assert_eq!(inp.domain.as_deref(), Some("foundational"));
+/// ```
 #[derive(Deserialize, JsonSchema)]
 pub struct OntoMarketplaceInput {
     /// Action: "list" to browse available ontologies, "install" to fetch and load one
@@ -573,6 +894,20 @@ pub struct AlignOntologiesInput {
 
 // ─── Process Mining / WvdA Agent ────────────────────────────────────────────
 
+/// Input for validating a process-mining claim against OTel traces.
+///
+/// # Example
+///
+/// ```
+/// use open_ontologies::inputs::OntoProcessValidateClaimInput;
+/// let inp = OntoProcessValidateClaimInput {
+///     claim: "manufacturing pipeline executed lawfully".to_string(),
+///     artifact_id: None,
+///     time_range_hours: Some(48),
+/// };
+/// assert_eq!(inp.time_range_hours, Some(48));
+/// assert!(inp.artifact_id.is_none());
+/// ```
 #[derive(Deserialize, JsonSchema)]
 pub struct OntoProcessValidateClaimInput {
     /// The claim to validate (e.g., 'manufacturing pipeline executed lawfully')
@@ -591,6 +926,22 @@ pub struct OntoProcessCheckSoundnessInput {
 
 // ─── Semantic Lowering / MuStar & AlphaStar ─────────────────────────────────
 
+/// Input for solving a problem via the MuStar multi-step reasoning algorithm.
+/// `OntoAlphastarSolveInput` is a type alias for this struct.
+///
+/// # Example
+///
+/// ```
+/// use open_ontologies::inputs::OntoMustarSolveInput;
+/// let inp = OntoMustarSolveInput {
+///     problem_statement: "Sort a list of integers in O(n log n)".to_string(),
+///     domain: Some("ALGORITHM".to_string()),
+///     constraints: Some("must be in-place".to_string()),
+///     title: None,
+/// };
+/// assert_eq!(inp.domain.as_deref(), Some("ALGORITHM"));
+/// assert!(inp.title.is_none());
+/// ```
 #[derive(Deserialize, JsonSchema)]
 pub struct OntoMustarSolveInput {
     /// The problem statement to solve or intent to lower
@@ -605,6 +956,19 @@ pub struct OntoMustarSolveInput {
 
 pub type OntoAlphastarSolveInput = OntoMustarSolveInput;
 
+/// Input for dry-running the admission gate for an operation.
+///
+/// # Example
+///
+/// ```
+/// use open_ontologies::inputs::OntoAdmissionCheckInput;
+/// let inp = OntoAdmissionCheckInput {
+///     op: "apply".to_string(),
+///     scope_token: Some("scope-001".to_string()),
+/// };
+/// assert_eq!(inp.op, "apply");
+/// assert!(inp.scope_token.is_some());
+/// ```
 #[derive(Deserialize, JsonSchema)]
 pub struct OntoAdmissionCheckInput {
     /// Operation to dry-run admission for: "apply", "codegen", "save", "push".
@@ -629,6 +993,25 @@ pub struct OntoCell8AttestInput {
     pub scope_token: String,
 }
 
+/// Input for generating code artifacts from the loaded ontology via ggen.
+///
+/// # Example
+///
+/// ```
+/// use open_ontologies::inputs::OntoCodegenInput;
+/// let inp = OntoCodegenInput {
+///     generator: "rust-structs".to_string(),
+///     output_dir: Some("./generated".to_string()),
+///     dry_run: Some(true),
+///     manifest_path: None,
+///     queries_dir: None,
+///     scope_token: None,
+///     bypass_admission: None,
+///     bypass_reason: None,
+/// };
+/// assert_eq!(inp.generator, "rust-structs");
+/// assert_eq!(inp.dry_run, Some(true));
+/// ```
 #[derive(Deserialize, JsonSchema)]
 pub struct OntoCodegenInput {
     /// Generator name / target language (e.g., "python-client" → python, "rust-structs" → rust, "typescript-types" → typescript, or accepted values: python, rust, typescript, go, elixir)
@@ -652,6 +1035,20 @@ pub struct OntoCodegenInput {
 
 // ─── OntoStar Stream 4 — feedback handler inputs ─────────────────────────────
 
+/// Input for retrieving warm-start planner exemplars for a domain.
+///
+/// # Example
+///
+/// ```
+/// use open_ontologies::inputs::OntoPlannerDemosInput;
+/// let inp = OntoPlannerDemosInput {
+///     domain: "OntologyAuthoring".to_string(),
+///     min_fitness: Some(0.95),
+///     limit: Some(10),
+/// };
+/// assert_eq!(inp.domain, "OntologyAuthoring");
+/// assert_eq!(inp.min_fitness, Some(0.95));
+/// ```
 #[derive(Deserialize, JsonSchema)]
 pub struct OntoPlannerDemosInput {
     /// Domain key (workflow class name, e.g. "OntologyAuthoring").
@@ -662,12 +1059,36 @@ pub struct OntoPlannerDemosInput {
     pub limit: Option<usize>,
 }
 
+/// Input for discovering the actual process from event logs for a domain.
+///
+/// # Example
+///
+/// ```
+/// use open_ontologies::inputs::OntoWorkflowDiscoverInput;
+/// let inp = OntoWorkflowDiscoverInput {
+///     domain: "DataExtension".to_string(),
+/// };
+/// assert_eq!(inp.domain, "DataExtension");
+/// ```
 #[derive(Deserialize, JsonSchema)]
 pub struct OntoWorkflowDiscoverInput {
     /// Domain key (workflow class name) to run discovery for.
     pub domain: String,
 }
 
+/// Input for providing feedback on a discovered workflow variant.
+///
+/// # Example
+///
+/// ```
+/// use open_ontologies::inputs::OntoWorkflowFeedbackInput;
+/// let inp = OntoWorkflowFeedbackInput {
+///     id: "wf-42".to_string(),
+///     accepted: true,
+/// };
+/// assert_eq!(inp.id, "wf-42");
+/// assert!(inp.accepted);
+/// ```
 #[derive(Deserialize, JsonSchema)]
 pub struct OntoWorkflowFeedbackInput {
     /// `discovered_workflows.id` row to flip.
@@ -676,6 +1097,20 @@ pub struct OntoWorkflowFeedbackInput {
     pub accepted: bool,
 }
 
+/// Prompt input for generating code from the loaded ontology.
+///
+/// # Example
+///
+/// ```
+/// use open_ontologies::inputs::GenerateCodeInput;
+/// let inp = GenerateCodeInput {
+///     language: Some("Rust".to_string()),
+///     generator: Some("rust-structs".to_string()),
+///     output_dir: Some("./generated".to_string()),
+/// };
+/// assert_eq!(inp.language.as_deref(), Some("Rust"));
+/// assert_eq!(inp.generator.as_deref(), Some("rust-structs"));
+/// ```
 #[derive(Deserialize, JsonSchema)]
 pub struct GenerateCodeInput {
     /// Programming language (e.g., "Python", "Rust", "TypeScript"). Default: "Python"
@@ -688,6 +1123,25 @@ pub struct GenerateCodeInput {
 
 // ─── Stream 5 inputs ────────────────────────────────────────────────────────
 
+/// Input for planning a workflow from a natural-language problem statement.
+///
+/// # Example
+///
+/// ```
+/// use open_ontologies::inputs::OntoPlanWorkflowInput;
+/// let inp = OntoPlanWorkflowInput {
+///     problem_statement: "Build a pizza ontology with toppings and bases".to_string(),
+///     domain: "ONTOLOGY".to_string(),
+///     constraints: None,
+///     python: None,
+///     planner_script: None,
+///     engine: Some("mustar".to_string()),
+///     bypass_admission: None,
+///     bypass_reason: None,
+/// };
+/// assert_eq!(inp.domain, "ONTOLOGY");
+/// assert_eq!(inp.engine.as_deref(), Some("mustar"));
+/// ```
 #[derive(Deserialize, JsonSchema)]
 pub struct OntoPlanWorkflowInput {
     /// Natural-language description of the workflow to plan.
@@ -711,6 +1165,19 @@ pub struct OntoPlanWorkflowInput {
     pub bypass_reason: Option<String>,
 }
 
+/// Input for seeding exemplar demonstrations from an OCEL JSON file.
+///
+/// # Example
+///
+/// ```
+/// use open_ontologies::inputs::OntoExemplarSeedInput;
+/// let inp = OntoExemplarSeedInput {
+///     path: None,
+///     domain: Some("ONTOLOGY".to_string()),
+/// };
+/// assert!(inp.path.is_none());
+/// assert_eq!(inp.domain.as_deref(), Some("ONTOLOGY"));
+/// ```
 #[derive(Deserialize, JsonSchema)]
 pub struct OntoExemplarSeedInput {
     /// Path to the seed OCEL JSON file. Default:
@@ -720,6 +1187,17 @@ pub struct OntoExemplarSeedInput {
     pub domain: Option<String>,
 }
 
+/// Input for generating counterfactual explanations for a workflow scope.
+///
+/// # Example
+///
+/// ```
+/// use open_ontologies::inputs::OntoCounterfactualInput;
+/// let inp = OntoCounterfactualInput {
+///     scope_token: "scope-counterfactual-007".to_string(),
+/// };
+/// assert!(!inp.scope_token.is_empty());
+/// ```
 #[derive(Deserialize, JsonSchema)]
 pub struct OntoCounterfactualInput {
     /// Scope token returned by `onto_declare_workflow` / `onto_plan_workflow`.
@@ -750,6 +1228,20 @@ pub struct OntoProposeRequirementInput {
 /// requirement. **Audit-only.** The translator output is provisional
 /// and must pass through `onto_admit_ctq` before any work order is
 /// admitted.
+///
+/// # Example
+///
+/// ```
+/// use open_ontologies::inputs::OntoTranslateCandidateInput;
+/// let inp = OntoTranslateCandidateInput {
+///     scope_token: "scope-abc-123".to_string(),
+///     source_voice: "Customer complains latency exceeds 200ms".to_string(),
+///     engine: Some("inproc".to_string()),
+///     python: None,
+/// };
+/// assert_eq!(inp.engine.as_deref(), Some("inproc"));
+/// assert!(inp.python.is_none());
+/// ```
 #[derive(Deserialize, JsonSchema)]
 pub struct OntoTranslateCandidateInput {
     /// Scope token returned by `onto_propose_requirement`.
@@ -773,6 +1265,25 @@ pub struct OntoTranslateCandidateInput {
 /// Admit a CTQ. The deterministic gate denies with
 /// `CtqIncomplete{missing}` if any of the 5 mandatory fields are
 /// empty / whitespace.
+///
+/// # Example
+///
+/// ```
+/// use open_ontologies::inputs::OntoAdmitCtqInput;
+/// let inp = OntoAdmitCtqInput {
+///     scope_token: "scope-xyz".to_string(),
+///     source_voice: "Customer: response time > 500ms is unacceptable".to_string(),
+///     ctq_text: "API p99 latency < 200ms".to_string(),
+///     measure_text: "p99 response time from load balancer logs".to_string(),
+///     verification_text: "k6 load test at 1000 RPS".to_string(),
+///     negative_case_text: "p99 > 200ms under normal load".to_string(),
+///     control_plan_text: "Alert on SLO breach; auto-scale triggered".to_string(),
+///     bypass_admission: None,
+///     bypass_reason: None,
+/// };
+/// assert_eq!(inp.ctq_text, "API p99 latency < 200ms");
+/// assert!(inp.bypass_admission.is_none());
+/// ```
 #[derive(Deserialize, JsonSchema)]
 pub struct OntoAdmitCtqInput {
     /// Scope token from the propose / translate phase.
@@ -826,6 +1337,20 @@ pub struct OntoAdmitWorkOrderInput {
 /// Project admitted evidence into an executive-readable summary via
 /// the Groq translator. **Read-only / allowlisted.** The summary must
 /// only cite tokens that already appear in the admitted evidence.
+///
+/// # Example
+///
+/// ```
+/// use open_ontologies::inputs::OntoExecutiveProjectionInput;
+/// let inp = OntoExecutiveProjectionInput {
+///     scope_token: "scope-exec-001".to_string(),
+///     admitted_evidence: "Receipt R1 admits CTQ: latency < 200ms".to_string(),
+///     engine: Some("inproc".to_string()),
+///     python: None,
+/// };
+/// assert!(!inp.admitted_evidence.is_empty());
+/// assert_eq!(inp.engine.as_deref(), Some("inproc"));
+/// ```
 #[derive(Deserialize, JsonSchema)]
 pub struct OntoExecutiveProjectionInput {
     pub scope_token: String,
@@ -847,6 +1372,14 @@ pub struct OntoExecutiveProjectionInput {
 /// Read-only liveness probe for the real-Groq subprocess engine.
 /// Invokes a tiny Python harness that imports `dspy` and inspects the
 /// `GROQ_API_KEY` env var. Never logs the key.
+///
+/// # Example
+///
+/// ```
+/// use open_ontologies::inputs::OntoGroqStatusInput;
+/// let inp = OntoGroqStatusInput::default();
+/// assert!(inp.python.is_none());
+/// ```
 #[derive(Deserialize, JsonSchema, Default)]
 pub struct OntoGroqStatusInput {
     /// Override the python interpreter (default: `"python3"`).
@@ -856,6 +1389,14 @@ pub struct OntoGroqStatusInput {
 /// Read-only liveness probe for the Gemini CLI engine.
 /// Checks binary availability (`--version`) and OAuth session validity
 /// (`gemini -p ping … --approval-mode yolo`). No API key required.
+///
+/// # Example
+///
+/// ```
+/// use open_ontologies::inputs::OntoGeminiStatusInput;
+/// let inp = OntoGeminiStatusInput::default();
+/// assert!(inp.gemini_bin.is_none());
+/// ```
 #[derive(Deserialize, JsonSchema, Default)]
 pub struct OntoGeminiStatusInput {
     /// Override the Gemini binary path (default: `GEMINI_BIN` env or `"gemini"`).
@@ -894,6 +1435,19 @@ pub struct OntoManufactureSolutionInput {
 /// / Prolog / MYCIN / GPS / SOAR / Hearsay) against the supplied
 /// `BreedInput` JSON. Read-only / allowlisted — breeds are pure
 /// functions over inputs.
+///
+/// # Example
+///
+/// ```
+/// use open_ontologies::inputs::OntoOldAiStationInput;
+/// let inp = OntoOldAiStationInput {
+///     breed: "eliza".to_string(),
+///     input_json: r#"{"intent": "sort a list"}"#.to_string(),
+///     scope_token: None,
+/// };
+/// assert_eq!(inp.breed, "eliza");
+/// assert!(inp.scope_token.is_none());
+/// ```
 #[derive(Deserialize, JsonSchema)]
 pub struct OntoOldAiStationInput {
     /// Breed name: one of `eliza`, `cbr`, `dendral`, `strips`, `prolog`,
@@ -917,6 +1471,18 @@ pub struct OntoOldAiStationInput {
 /// `scope_token_pattern` and whose `production_law_version` is not the
 /// `seed-v0` sentinel. The chain is preserved for audit (no row is
 /// physically removed).
+///
+/// # Example
+///
+/// ```
+/// use open_ontologies::inputs::OntoReceiptsRevokeBatchInput;
+/// let inp = OntoReceiptsRevokeBatchInput {
+///     scope_token_pattern: "scope-prod-*".to_string(),
+///     reason: "emergency rollback after incident INC-4821".to_string(),
+/// };
+/// assert!(inp.scope_token_pattern.contains('*'));
+/// assert!(!inp.reason.is_empty());
+/// ```
 #[derive(Deserialize, JsonSchema)]
 pub struct OntoReceiptsRevokeBatchInput {
     /// SQLite GLOB pattern matched against `receipts.scope_token`.
@@ -933,6 +1499,19 @@ pub struct OntoReceiptsRevokeBatchInput {
 /// active sessions owned by a principal in a tenant. Falls back to
 /// bulk-INSERT into `revoked_sessions` until R3 Task B's
 /// `revoked_principals` table lands.
+///
+/// # Example
+///
+/// ```
+/// use open_ontologies::inputs::OntoSessionRevokeByPrincipalInput;
+/// let inp = OntoSessionRevokeByPrincipalInput {
+///     tenant_id: "tenant-acme".to_string(),
+///     principal_id: "tenant-acme".to_string(),
+///     reason: "key compromise detected".to_string(),
+/// };
+/// assert_eq!(inp.tenant_id, inp.principal_id);
+/// assert!(!inp.reason.is_empty());
+/// ```
 #[derive(Deserialize, JsonSchema)]
 pub struct OntoSessionRevokeByPrincipalInput {
     /// Tenant the principal belongs to. Must match the `tenant_id`
@@ -949,6 +1528,15 @@ pub struct OntoSessionRevokeByPrincipalInput {
 
 /// `onto_retention_pause` input. Suspends the [`crate::retention::RetentionWorker`]
 /// for `minutes` minutes via a shared `Arc<AtomicI64>`.
+///
+/// # Example
+///
+/// ```
+/// use open_ontologies::inputs::OntoRetentionPauseInput;
+/// let inp = OntoRetentionPauseInput { minutes: 30 };
+/// assert_eq!(inp.minutes, 30);
+/// assert!(inp.minutes <= 60 * 24 * 7, "bounded to one week");
+/// ```
 #[derive(Deserialize, JsonSchema)]
 pub struct OntoRetentionPauseInput {
     /// Number of minutes to suspend retention pruning. The pause
@@ -973,6 +1561,19 @@ pub struct OntoGuideInput {
 
 /// R10-2: `onto_ontostar_attest` input. Verifies an external OntoStar
 /// Ed25519 receipt and seals the key fingerprint into `trusted_keys_history`.
+///
+/// # Example
+///
+/// ```
+/// use open_ontologies::inputs::OntoOntostarAttestInput;
+/// let inp = OntoOntostarAttestInput {
+///     signature: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA".to_string(),
+///     payload_hash: "abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890".to_string(),
+///     key_fpr: "0102030405060708".to_string(),
+/// };
+/// assert_eq!(inp.key_fpr.len(), 16);
+/// assert_eq!(inp.payload_hash.len(), 64);
+/// ```
 #[derive(Deserialize, JsonSchema)]
 pub struct OntoOntostarAttestInput {
     /// Base64-encoded Ed25519 signature from the external OntoStar receipt.
