@@ -239,6 +239,16 @@ pub enum DefectClass {
 
 impl DefectClass {
     /// Stable short tag suitable for OCEL `defect` attribute strings.
+    ///
+    /// ```
+    /// use open_ontologies::defects::DefectClass;
+    /// assert_eq!(DefectClass::CapabilityZero.tag(), "capability_zero");
+    /// assert_eq!(
+    ///     DefectClass::SkippedTask { stage: "enforce_run".into() }.tag(),
+    ///     "skipped_task"
+    /// );
+    /// assert_eq!(DefectClass::BootstrapChainTooShort.tag(), "bootstrap_chain_too_short");
+    /// ```
     pub fn tag(&self) -> &'static str {
         match self {
             DefectClass::CapabilityZero => "capability_zero",
@@ -318,6 +328,18 @@ impl DefectClass {
 }
 
 /// Compute the BLAKE3 hex hash of the concatenated tag list.
+///
+/// The result is deterministic: the same tag set always produces the same
+/// 64-character hex string. The returned value is pinned against
+/// [`DEFECTS_TAXONOMY_DISCRIMINANT_HASH`] by CI.
+///
+/// ```
+/// use open_ontologies::defects::discriminant_hash;
+/// let h1 = discriminant_hash();
+/// let h2 = discriminant_hash();
+/// assert_eq!(h1, h2); // deterministic
+/// assert_eq!(h1.len(), 64); // BLAKE3 hex is 256 bits = 64 hex chars
+/// ```
 pub fn discriminant_hash() -> String {
     let mut h = blake3::Hasher::new();
     for tag in DefectClass::all_tags() {
