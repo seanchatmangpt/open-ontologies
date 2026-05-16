@@ -62,6 +62,80 @@
 /// # use open_ontologies::projection_check::invented_tokens;
 /// assert!(invented_tokens("xyz alpha", "alpha beta gamma").is_empty());
 /// ```
+///
+/// All-caps tokens are normalised to lowercase before comparison — case
+/// sensitivity does not affect outcome:
+///
+/// ```
+/// use open_ontologies::projection_check::invented_tokens;
+///
+/// // "RECONCILIATION" in the summary matches "reconciliation" in the evidence
+/// // because both are lowercased before the substring check.
+/// let evidence = "reconciliation rate is high";
+/// let summary = "RECONCILIATION rate";
+/// assert!(invented_tokens(summary, evidence).is_empty(),
+///     "all-caps token must match its lowercase equivalent in evidence");
+/// ```
+///
+/// An all-caps token that is genuinely absent from the evidence is still
+/// flagged (case-insensitively):
+///
+/// ```
+/// use open_ontologies::projection_check::invented_tokens;
+///
+/// let evidence = "revenue growth expected";
+/// let summary = "HALLUCINATED revenue";
+/// let inv = invented_tokens(summary, evidence);
+/// assert!(inv.contains(&"hallucinated".to_string()),
+///     "all-caps absent token must be reported in lowercase");
+/// ```
+///
+/// Unicode alphabetic characters pass the `is_alphabetic` filter and are
+/// handled without panicking:
+///
+/// ```
+/// use open_ontologies::projection_check::invented_tokens;
+///
+/// // "café" — all characters are alphabetic (including the accented 'é'),
+/// // length is 4, and it is absent from evidence → should be flagged.
+/// let evidence = "coffee revenue data";
+/// let inv = invented_tokens("café revenue", evidence);
+/// assert!(inv.contains(&"café".to_string()),
+///     "unicode alphabetic token absent from evidence must be flagged");
+/// ```
+///
+/// ```
+/// use open_ontologies::projection_check::invented_tokens;
+///
+/// // Unicode token present in evidence → not flagged.
+/// let evidence = "café revenue data";
+/// let inv = invented_tokens("café revenue", evidence);
+/// assert!(inv.is_empty(),
+///     "unicode token that appears in evidence must not be flagged");
+/// ```
+///
+/// Token at the exact 4-character boundary is included in the check:
+///
+/// ```
+/// use open_ontologies::projection_check::invented_tokens;
+///
+/// // "four" is exactly 4 chars — it must be evaluated, not skipped.
+/// // When absent from evidence it is reported.
+/// let evidence = "alpha beta gamma";
+/// let inv = invented_tokens("four alpha", evidence);
+/// assert!(inv.contains(&"four".to_string()),
+///     "exactly-4-char token absent from evidence must be flagged");
+/// ```
+///
+/// ```
+/// use open_ontologies::projection_check::invented_tokens;
+///
+/// // "four" is exactly 4 chars and present in evidence → not flagged.
+/// let evidence = "four score and seven";
+/// let inv = invented_tokens("four score", evidence);
+/// assert!(inv.is_empty(),
+///     "exactly-4-char token present in evidence must not be flagged");
+/// ```
 pub fn invented_tokens(summary: &str, evidence: &str) -> Vec<String> {
     let evidence_lc = evidence.to_lowercase();
     let mut invented: Vec<String> = Vec::new();
