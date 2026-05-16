@@ -1657,26 +1657,45 @@ impl OpenOntologiesServer {
     #[tool(name = "onto_pull", description = "Fetch an ontology from a remote URL or SPARQL endpoint and load it into the store")]
     async fn onto_pull(&self, Parameters(input): Parameters<OntoPullInput>) -> String {
         use crate::graph::GraphStore;
+
+        if input.url.trim().is_empty() {
+            return r#"{"ok":false,"error":"'url' is required — provide an HTTP URL to a .ttl/.rdf file or a SPARQL CONSTRUCT endpoint.","hint":"Example: onto_pull with url='https://example.org/ontology.ttl' or url='http://localhost:7878/query' with sparql=true and a CONSTRUCT query."}"#.to_string();
+        }
+
         if input.sparql.unwrap_or(false) {
             let query = input.query.as_deref().unwrap_or("CONSTRUCT { ?s ?p ?o } WHERE { ?s ?p ?o }");
             match GraphStore::fetch_sparql(&input.url, query).await {
                 Ok(content) => {
                     match self.graph.load_turtle(&content, None) {
                         Ok(count) => format!(r#"{{"ok":true,"triples_loaded":{},"source":"{}"}}"#, count, input.url),
-                        Err(e) => format!(r#"{{"error":"Parse error: {}"}}"#, e),
+                        Err(e) => format!(r#"{{"error":"Parse error after fetching '{}': {}","hint":"The endpoint may not return RDF/Turtle. Accepted content types: text/turtle, application/n-triples, application/rdf+xml, application/trig."}}"#, input.url, e),
                     }
                 }
-                Err(e) => format!(r#"{{"error":"{}"}}"#, e),
+                Err(e) => {
+                    let msg = e.to_string();
+                    if msg.contains("404") || msg.contains("Not Found") {
+                        format!(r#"{{"error":"Not found at '{}'. Verify the URL is accessible. For SPARQL endpoints, use onto_pull with sparql=true and a CONSTRUCT query.","url":"{}"}}"#, input.url, input.url)
+                    } else {
+                        format!(r#"{{"error":"Failed to fetch '{}': {}","hint":"Check that the URL is reachable and the endpoint returns RDF (text/turtle, application/n-triples, application/rdf+xml)."}}"#, input.url, msg.replace('"', "'"))
+                    }
+                }
             }
         } else {
             match GraphStore::fetch_url(&input.url).await {
                 Ok(content) => {
                     match self.graph.load_turtle(&content, None) {
                         Ok(count) => format!(r#"{{"ok":true,"triples_loaded":{},"source":"{}"}}"#, count, input.url),
-                        Err(e) => format!(r#"{{"error":"Parse error: {}"}}"#, e),
+                        Err(e) => format!(r#"{{"error":"Parse error after fetching '{}': {}","hint":"The server may not be returning RDF. Accepted content types: text/turtle, application/n-triples, application/rdf+xml, application/trig."}}"#, input.url, e),
                     }
                 }
-                Err(e) => format!(r#"{{"error":"{}"}}"#, e),
+                Err(e) => {
+                    let msg = e.to_string();
+                    if msg.contains("404") || msg.contains("Not Found") {
+                        format!(r#"{{"error":"Not found at '{}'. Verify the URL is accessible. For SPARQL endpoints, use onto_pull with sparql=true and a CONSTRUCT query.","url":"{}"}}"#, input.url, input.url)
+                    } else {
+                        format!(r#"{{"error":"Failed to fetch '{}': {}","hint":"Check that the URL is reachable and the endpoint returns RDF (text/turtle, application/n-triples, application/rdf+xml)."}}"#, input.url, msg.replace('"', "'"))
+                    }
+                }
             }
         }
     }
@@ -1684,6 +1703,15 @@ impl OpenOntologiesServer {
     #[tool(name = "onto_push", description = "Push the current ontology store to a remote SPARQL endpoint. Gated by OntoStar admission. The receipt hash is bound via the X-Ostar-Receipt-Hash HTTP header so an external auditor can verify the push without round-tripping to OntoStar.")]
     async fn onto_push(&self, Parameters(input): Parameters<OntoPushInput>) -> String {
         use crate::graph::GraphStore;
+
+        if input.endpoint.trim().is_empty() {
+            return r#"{"ok":false,"error":"'endpoint' is required — provide a SPARQL UPDATE endpoint URL (e.g. http://localhost:7878/update).","hint":"For Oxigraph: http://localhost:7878/update. For Apache Jena Fuseki: http://localhost:3030/ds/update."}"#.to_string();
+        }
+
+        if self.graph.triple_count() == 0 {
+            return r#"{"ok":false,"error":"No ontology loaded. Call onto_load first, then use onto_push to write to a SPARQL endpoint.","hint":"Use onto_load with a .ttl file path, then call onto_push with the endpoint URL."}"#.to_string();
+        }
+
         // OntoStar Stream 3: admission gate fires BEFORE the SPARQL POST.
         let artifact_preview = self.graph.serialize("ntriples").unwrap_or_default();
         let receipt = match self.evaluate_admission(
@@ -1717,7 +1745,10 @@ impl OpenOntologiesServer {
                         "binding": "X-Ostar-Receipt-Hash header",
                     })
                     .to_string(),
-                    Err(e) => format!(r#"{{"error":"{}"}}"#, e.to_string().replace('"', "'")),
+                    Err(e) => {
+                        let msg = e.to_string().replace('"', "'");
+                        format!(r#"{{"error":"Push to '{}' failed: {}","hint":"Verify the endpoint is a SPARQL UPDATE URL (not a query URL) and the server is running."}}"#, input.endpoint, msg)
+                    }
                 }
             }
             Err(e) => format!(r#"{{"error":"{}"}}"#, e.to_string().replace('"', "'")),
@@ -3065,6 +3096,14 @@ impl OpenOntologiesServer {
         use crate::mapping::MappingConfig;
         use crate::sqlsource;
 
+        if input.connection.trim().is_empty() {
+            return r#"{"ok":false,"error":"'connection' is required. Examples: 'postgres://user:pass@host/db', 'duckdb:///path/to.duckdb', ':memory:'.","hint":"DuckDB ':memory:' is the fastest way to test a query before connecting to a real database."}"#.to_string();
+        }
+
+        if input.sql.trim().is_empty() {
+            return r#"{"ok":false,"error":"'sql' is required — provide a SELECT query. The result rows become RDF triples using the provided mapping.","hint":"Example: 'SELECT id, name, category FROM products LIMIT 100'"}"#.to_string();
+        }
+
         let base_iri = input.base_iri.as_deref().unwrap_or("http://example.org/data/");
 
         // OntoStar Stream 3: admission gate fires BEFORE any DB or graph work.
@@ -3089,7 +3128,15 @@ impl OpenOntologiesServer {
 
         let rows = match sqlsource::query_rows(&input.connection, &input.sql).await {
             Ok(r) => r,
-            Err(e) => return format!(r#"{{"error":"SQL query failed: {}"}}"#, e),
+            Err(e) => {
+                let driver_name = driver.as_str();
+                return format!(
+                    r#"{{"error":"SQL query failed ({} driver): {}","hint":"Verify the {} connection string is correct and the server is reachable."}}"#,
+                    driver_name,
+                    e.to_string().replace('"', "'"),
+                    driver_name
+                );
+            }
         };
 
         if rows.is_empty() {
@@ -3791,7 +3838,12 @@ impl OpenOntologiesServer {
             "typescript-types" | "typescript" | "ts" => "typescript",
             "go" | "golang" => "go",
             "elixir" => "elixir",
-            other => other,
+            other => {
+                return format!(
+                    r#"{{"ok":false,"error":"Unknown generator '{}'. Valid values: python (aliases: python-client, py), rust (alias: rust-structs), typescript (aliases: typescript-types, ts), go (alias: golang), elixir."}}"#,
+                    other
+                );
+            }
         };
 
         // Serialize current graph to temp TTL
