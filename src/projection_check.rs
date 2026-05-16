@@ -33,6 +33,93 @@
 /// The substring check (rather than whole-word) is intentionally
 /// permissive — `forecast` matches `forecasted`, which keeps the gate
 /// from rejecting legitimate morphological variants.
+///
+/// # Examples
+///
+/// A faithful summary that only uses words already in the evidence
+/// produces an empty list — no hallucinated tokens:
+///
+/// ```
+/// use open_ontologies::projection_check::invented_tokens;
+///
+/// let evidence = "Reconciliation completeness rate is 83 percent. Forecast risk explainable.";
+/// let summary = "Reconciliation forecast risk completeness";
+/// assert!(invented_tokens(summary, evidence).is_empty());
+/// ```
+///
+/// A summary that introduces a word absent from the evidence flags it:
+///
+/// ```
+/// use open_ontologies::projection_check::invented_tokens;
+///
+/// let evidence = "Reconciliation gap detected.";
+/// let summary = "Reconciliation hallucination detected";
+/// let inv = invented_tokens(summary, evidence);
+/// assert_eq!(inv, vec!["hallucination".to_string()]);
+/// ```
+///
+/// Tokens shorter than 4 characters are never flagged even when absent:
+///
+/// ```
+/// use open_ontologies::projection_check::invented_tokens;
+///
+/// // "xyz" is 3 chars — below the threshold, so not reported.
+/// let evidence = "alpha beta gamma";
+/// let summary = "xyz alpha";
+/// assert!(invented_tokens(summary, evidence).is_empty());
+/// ```
+///
+/// Mixed alphanumeric tokens (like `q4`) are skipped because
+/// `is_alphabetic` rejects digits — only pure-alpha tokens are checked:
+///
+/// ```
+/// use open_ontologies::projection_check::invented_tokens;
+///
+/// let evidence = "revenue this quarter";
+/// // "q4" is mixed alphanumeric → dropped; "grow" is pure-alpha and absent
+/// let summary = "revenue q4 grow";
+/// let inv = invented_tokens(summary, evidence);
+/// assert!(inv.contains(&"grow".to_string()));
+/// assert!(!inv.contains(&"q4".to_string()));
+/// ```
+///
+/// Duplicate invented tokens are de-duplicated in the output:
+///
+/// ```
+/// use open_ontologies::projection_check::invented_tokens;
+///
+/// let evidence = "sales data";
+/// let summary = "phantom phantom phantom real";
+/// // "real" is 4 chars and absent; "phantom" appears 3 times but deduplicated
+/// let inv = invented_tokens(summary, evidence);
+/// assert_eq!(inv.iter().filter(|t| t.as_str() == "phantom").count(), 1);
+/// ```
+///
+/// An empty summary always produces an empty list regardless of evidence:
+///
+/// ```
+/// use open_ontologies::projection_check::invented_tokens;
+///
+/// assert!(invented_tokens("", "anything goes here").is_empty());
+/// ```
+///
+/// Morphological substring matching: if evidence contains `forecasted`,
+/// a summary token `forecast` is accepted because the evidence string
+/// contains it as a substring (`"forecasted".contains("forecast")` is true):
+///
+/// ```
+/// use open_ontologies::projection_check::invented_tokens;
+///
+/// // evidence has "forecasted"; summary uses shorter stem "forecast".
+/// // The check is evidence_lc.contains(token), so "forecasted".contains("forecast") → true.
+/// let evidence = "forecasted risks remain elevated overall";
+/// let summary = "forecast risk remain";
+/// // "forecast" is a substring of "forecasted" in evidence → not invented
+/// // "risk" is a substring of "risks" → not invented
+/// // "remain" appears verbatim in evidence → not invented
+/// let inv = invented_tokens(summary, evidence);
+/// assert!(inv.is_empty());
+/// ```
 pub fn invented_tokens(summary: &str, evidence: &str) -> Vec<String> {
     let evidence_lc = evidence.to_lowercase();
     let mut invented: Vec<String> = Vec::new();
