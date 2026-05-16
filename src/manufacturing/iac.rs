@@ -68,6 +68,55 @@ use super::{ManufacturedFile, SolutionSpec};
 /// };
 /// assert!(iac::generate(&spec).is_empty());
 /// ```
+///
+/// Auto-instinct: every file in the bundle carries `target == "iac"` and
+/// the three `.tf.json` files must be parseable as JSON:
+///
+/// ```
+/// use open_ontologies::manufacturing::{iac, SolutionSpec};
+///
+/// let spec = SolutionSpec {
+///     name: "audit_stack".into(),
+///     description: "Audit infrastructure".into(),
+///     iac_target: "aws".into(),
+///     region: "ap-southeast-1".into(),
+///     supervisor_children: 2,
+///     mcu_target: "esp32".into(),
+///     work_order_receipt_hash: "7".repeat(64),
+/// };
+/// let files = iac::generate(&spec);
+/// // All four files belong to the "iac" target.
+/// assert!(files.iter().all(|f| f.target == "iac"));
+/// // All tf.json files are valid JSON.
+/// for f in files.iter().filter(|f| f.path.ends_with(".tf.json")) {
+///     let parsed = serde_json::from_str::<serde_json::Value>(&f.contents);
+///     assert!(parsed.is_ok(), "{} must be valid JSON", f.path);
+/// }
+/// ```
+///
+/// Auto-instinct: generation is deterministic — identical spec produces
+/// byte-identical output on repeated calls:
+///
+/// ```
+/// use open_ontologies::manufacturing::{iac, SolutionSpec};
+///
+/// let spec = SolutionSpec {
+///     name: "repro_check".into(),
+///     description: "Determinism check".into(),
+///     iac_target: "aws".into(),
+///     region: "us-east-2".into(),
+///     supervisor_children: 1,
+///     mcu_target: "stm32".into(),
+///     work_order_receipt_hash: "9".repeat(64),
+/// };
+/// let first  = iac::generate(&spec);
+/// let second = iac::generate(&spec);
+/// assert_eq!(first.len(), second.len());
+/// for (a, b) in first.iter().zip(second.iter()) {
+///     assert_eq!(a.path,     b.path,     "paths must match");
+///     assert_eq!(a.contents, b.contents, "contents must be byte-identical");
+/// }
+/// ```
 pub fn generate(spec: &SolutionSpec) -> Vec<ManufacturedFile> {
     if spec.iac_target != "aws" {
         return Vec::new();
