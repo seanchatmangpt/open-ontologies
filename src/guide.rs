@@ -60,6 +60,45 @@ pub struct WorkflowPlan {
 /// assert!(plan.plan.is_empty());
 /// assert!(plan.known_intents.is_some());
 /// ```
+///
+/// Steps are 1-indexed and monotonically increasing:
+/// ```
+/// # use open_ontologies::guide::plan_for_intent;
+/// let plan = plan_for_intent("load and validate", false);
+/// for (i, step) in plan.plan.iter().enumerate() {
+///     assert_eq!(step.step, (i + 1) as u32, "step numbers must be 1-indexed");
+/// }
+/// ```
+///
+/// `estimated_steps` matches the length of the returned plan:
+/// ```
+/// # use open_ontologies::guide::plan_for_intent;
+/// let plan = plan_for_intent("ingest", false);
+/// assert_eq!(plan.estimated_steps, plan.plan.len());
+/// ```
+///
+/// `can_auto_execute` is false for workflows that write state:
+/// ```
+/// # use open_ontologies::guide::plan_for_intent;
+/// let plan = plan_for_intent("ontology authoring", false);
+/// assert!(!plan.can_auto_execute, "authoring workflow writes state — must not auto-execute");
+/// ```
+///
+/// `can_auto_execute` is true for read-only workflows:
+/// ```
+/// # use open_ontologies::guide::plan_for_intent;
+/// let plan = plan_for_intent("load and validate", false);
+/// assert!(plan.can_auto_execute, "load+validate is read-only — safe to auto-execute");
+/// ```
+///
+/// `powl` is populated on write-state clusters when requested:
+/// ```
+/// # use open_ontologies::guide::plan_for_intent;
+/// let with_powl    = plan_for_intent("code generation", true);
+/// let without_powl = plan_for_intent("code generation", false);
+/// assert!(with_powl.powl.is_some());
+/// assert!(without_powl.powl.is_none());
+/// ```
 pub fn plan_for_intent(intent: &str, include_powl: bool) -> WorkflowPlan {
     let lower = intent.to_lowercase();
 

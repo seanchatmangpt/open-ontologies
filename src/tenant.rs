@@ -6,6 +6,50 @@
 //! the type holds no authority of its own. The admission gate enforces ACLs
 //! by comparing `TenantContext.current()` against the scope's owning
 //! `tenant_id` recorded in `declared_workflows`.
+//!
+//! # Examples
+//!
+//! The sentinel `"default"` tenant is used when no `OPEN_ONTOLOGIES_TENANT_ID`
+//! is present in the environment:
+//! ```
+//! // SAFETY: test-only env mutation; no other threads touch this var.
+//! unsafe { std::env::remove_var("OPEN_ONTOLOGIES_TENANT_ID") };
+//! let ctx = open_ontologies::tenant::TenantContext::from_env();
+//! assert_eq!(ctx.current(), "default");
+//! ```
+//!
+//! Two contexts with the same identifier compare as equal:
+//! ```
+//! use open_ontologies::tenant::TenantContext;
+//! let a = TenantContext::new("same-tenant");
+//! let b = TenantContext::new("same-tenant");
+//! assert_eq!(a, b);
+//! ```
+//!
+//! Two contexts with distinct identifiers are not equal:
+//! ```
+//! use open_ontologies::tenant::TenantContext;
+//! let a = TenantContext::new("tenant-a");
+//! let b = TenantContext::new("tenant-b");
+//! assert_ne!(a, b);
+//! ```
+//!
+//! `TenantContext` is `Clone`:
+//! ```
+//! use open_ontologies::tenant::TenantContext;
+//! let original = TenantContext::new("cloneable");
+//! let cloned   = original.clone();
+//! assert_eq!(original.current(), cloned.current());
+//! ```
+//!
+//! `TenantHandle` wraps `TenantContext` and exposes `current()` returning a
+//! snapshot:
+//! ```
+//! use open_ontologies::tenant::TenantHandle;
+//! let handle = TenantHandle::new("snapshot-tenant");
+//! let snapshot = handle.current();
+//! assert_eq!(snapshot.current(), "snapshot-tenant");
+//! ```
 
 use crate::admission::AdmissionOp;
 use crate::ocel_store::OcelStore;

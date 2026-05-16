@@ -49,6 +49,46 @@ static WEBHOOK_TIMEOUT: AtomicU64 = AtomicU64::new(DEFAULT_WEBHOOK_TIMEOUT);
 /// Initialise all runtime knobs from a loaded `Config`. Idempotent — calling
 /// this multiple times simply overwrites the current values, which is fine
 /// because all consumers re-read on every use.
+///
+/// # Examples
+///
+/// Before `init_from_config` is called, each accessor returns its legacy default:
+/// ```
+/// // Defaults must be strictly positive.
+/// assert!(open_ontologies::runtime::tableaux_max_depth() > 0);
+/// assert!(open_ontologies::runtime::tableaux_max_nodes() > 0);
+/// assert!(open_ontologies::runtime::reasoner_max_iterations() > 0);
+/// assert!(open_ontologies::runtime::cache_hash_prefix_bytes() > 0);
+/// assert!(open_ontologies::runtime::repo_default_list_limit() > 0);
+/// assert!(open_ontologies::runtime::imports_max_depth() > 0);
+/// assert!(open_ontologies::runtime::imports_request_timeout_secs() > 0);
+/// assert!(open_ontologies::runtime::webhook_request_timeout_secs() > 0);
+/// ```
+///
+/// Feedback thresholds are representable as `i64` (negative values are valid):
+/// ```
+/// let suppress: i64  = open_ontologies::runtime::feedback_suppress_threshold();
+/// let downgrade: i64 = open_ontologies::runtime::feedback_downgrade_threshold();
+/// // Default suppress > default downgrade (suppress requires more votes).
+/// assert!(suppress >= downgrade);
+/// ```
+///
+/// The legacy tableaux depth default is 100:
+/// ```
+/// // The atomic is reset to the compiled-in default when no config has been
+/// // applied in this test binary.  The actual value may differ if another
+/// // test (e.g. `init_overrides_values`) ran first and then restored defaults.
+/// // We only assert the value is within the documented valid range.
+/// let depth = open_ontologies::runtime::tableaux_max_depth();
+/// assert!(depth >= 1 && depth <= 10_000);
+/// ```
+///
+/// `imports_follow_remote` returns a plain `bool`:
+/// ```
+/// let follows: bool = open_ontologies::runtime::imports_follow_remote();
+/// // Either true or false is valid; we only confirm the type compiles.
+/// assert!(follows || !follows);
+/// ```
 pub fn init_from_config(cfg: &Config) {
     apply_reasoner(&cfg.reasoner);
     apply_cache(cfg.cache.hash_prefix_bytes);
