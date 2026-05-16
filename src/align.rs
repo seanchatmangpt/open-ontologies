@@ -5,15 +5,36 @@ use crate::graph::GraphStore;
 use crate::state::StateDb;
 
 /// SPARQL 1.1 JSON results envelope key (RFC mandated, never changes).
+///
+/// ```
+/// assert_eq!(open_ontologies::align::SPARQL_RESULTS_KEY, "results");
+/// ```
 pub const SPARQL_RESULTS_KEY: &str = "results";
 
 /// JSON field keys for alignment candidate objects.
+///
+/// These constants are the keys used in the JSON objects returned by
+/// [`AlignmentEngine::align`] for each candidate.
+///
+/// ```
+/// use open_ontologies::align::{FIELD_SOURCE_IRI, FIELD_TARGET_IRI, FIELD_CONFIDENCE};
+///
+/// assert_eq!(FIELD_SOURCE_IRI, "source_iri");
+/// assert_eq!(FIELD_TARGET_IRI, "target_iri");
+/// assert_eq!(FIELD_CONFIDENCE, "confidence");
+/// ```
 pub const FIELD_SOURCE_IRI: &str = "source_iri";
 pub const FIELD_TARGET_IRI: &str = "target_iri";
 pub const FIELD_CONFIDENCE: &str = "confidence";
 
 /// Schema alignment engine — detects equivalentClass/exactMatch/subClassOf
 /// candidates between two ontologies using weighted signals.
+///
+/// Construct with [`AlignmentEngine::new`], passing an in-memory [`StateDb`]
+/// and a shared [`GraphStore`].
+///
+/// [`StateDb`]: crate::state::StateDb
+/// [`GraphStore`]: crate::graph::GraphStore
 pub struct AlignmentEngine {
     db: StateDb,
     graph: Arc<GraphStore>,
@@ -22,6 +43,19 @@ pub struct AlignmentEngine {
 }
 
 impl AlignmentEngine {
+    /// Creates a new `AlignmentEngine` backed by the given state database and graph store.
+    ///
+    /// ```
+    /// use open_ontologies::align::AlignmentEngine;
+    /// use open_ontologies::graph::GraphStore;
+    /// use open_ontologies::state::StateDb;
+    /// use std::path::Path;
+    /// use std::sync::Arc;
+    ///
+    /// let db = StateDb::open(Path::new(":memory:")).unwrap();
+    /// let graph = Arc::new(GraphStore::new());
+    /// let _engine = AlignmentEngine::new(db, graph);
+    /// ```
     pub fn new(db: StateDb, graph: Arc<GraphStore>) -> Self {
         Self {
             db,
@@ -713,6 +747,26 @@ fn jaccard_similarity(a: &[String], b: &[String]) -> f64 {
 }
 
 /// Metadata about a class extracted from an ontology.
+///
+/// Built during alignment by querying an Oxigraph store for OWL classes and their
+/// `rdfs:label` / `skos:prefLabel` / `skos:altLabel` annotations.
+///
+/// ```
+/// use open_ontologies::align::ClassInfo;
+///
+/// let info = ClassInfo {
+///     iri: "http://example.org/Dog".to_string(),
+///     labels: vec!["Dog".to_string(), "Domestic dog".to_string()],
+/// };
+///
+/// assert_eq!(info.iri, "http://example.org/Dog");
+/// assert_eq!(info.labels.len(), 2);
+/// assert!(info.labels.contains(&"Dog".to_string()));
+///
+/// // ClassInfo implements Clone, so it can be duplicated cheaply.
+/// let cloned = info.clone();
+/// assert_eq!(cloned.iri, info.iri);
+/// ```
 #[derive(Debug, Clone)]
 pub struct ClassInfo {
     pub iri: String,
