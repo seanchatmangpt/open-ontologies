@@ -4,11 +4,30 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 /// Drift detection between two ontology versions with self-calibrating confidence.
+///
+/// Detects added/removed IRIs, computes drift velocity, and infers likely renames
+/// using four weighted signals (domain-range match, label similarity, hierarchy
+/// match, shared individuals). Weights self-calibrate from user feedback via
+/// [`DriftDetector::record_feedback`].
 pub struct DriftDetector {
     db: StateDb,
 }
 
 impl DriftDetector {
+    /// Creates a new `DriftDetector` backed by the given state database.
+    ///
+    /// ```
+    /// use open_ontologies::drift::DriftDetector;
+    /// use open_ontologies::state::StateDb;
+    /// use std::path::Path;
+    ///
+    /// let db = StateDb::open(Path::new(":memory:")).unwrap();
+    /// let detector = DriftDetector::new(db);
+    ///
+    /// // A fresh detector reports equal weights (no feedback data yet).
+    /// let weights = detector.get_learned_weights();
+    /// assert_eq!(weights.len(), 4);
+    /// ```
     pub fn new(db: StateDb) -> Self {
         Self { db }
     }
@@ -101,7 +120,40 @@ impl DriftDetector {
         Ok(result.to_string())
     }
 
-    /// Record feedback for a rename prediction.
+    /// Record feedback for a rename prediction to improve future confidence scores.
+    ///
+    /// Each call persists one feedback row into `drift_feedback`. Once 10 or more
+    /// rows have been recorded, [`DriftDetector::get_learned_weights`] switches
+    /// from equal priors to signal-correlation-derived weights.
+    ///
+    /// ```
+    /// use open_ontologies::drift::DriftDetector;
+    /// use open_ontologies::state::StateDb;
+    /// use std::path::Path;
+    ///
+    /// let db = StateDb::open(Path::new(":memory:")).unwrap();
+    /// let detector = DriftDetector::new(db);
+    ///
+    /// // Record that a rename from :OldClass → :NewClass was correctly predicted.
+    /// detector.record_feedback(
+    ///     "http://ex.org/OldClass",
+    ///     "http://ex.org/NewClass",
+    ///     "rename",
+    ///     0.85,
+    ///     "rename",
+    ///     false,   // signal_domain_range
+    ///     0.92,    // signal_label_sim
+    ///     false,   // signal_hierarchy
+    ///     false,   // signal_individuals
+    /// );
+    ///
+    /// // With only one row, weights stay at equal priors.
+    /// let weights = detector.get_learned_weights();
+    /// assert_eq!(weights.len(), 4);
+    /// for w in &weights {
+    ///     assert!((w - 0.25).abs() < 1e-9);
+    /// }
+    /// ```
     #[allow(clippy::too_many_arguments)]
     pub fn record_feedback(
         &self,
