@@ -88,6 +88,57 @@ use serde::{Deserialize, Serialize};
 /// let child_receipt = build(child);
 /// assert_ne!(child_receipt.bytes, parent_receipt.bytes);
 /// ```
+///
+/// `defects_taxonomy_version` defaults to empty string when absent (legacy records):
+///
+/// ```
+/// use open_ontologies::production_record::ProductionRecord;
+///
+/// // Pre-Level-5 JSON without the defects_taxonomy_version field.
+/// let legacy = r#"{
+///     "artifact_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+///     "scope_token": "legacy",
+///     "declared_powl_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+///     "ocel_canonical_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+///     "conformance_run_id": "run-0",
+///     "gate_config_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+///     "production_law_version": "ontostar-0.9.0",
+///     "gates_passed": [],
+///     "gates_refused": [],
+///     "prior_receipt": null,
+///     "signature": null,
+///     "signing_key_fpr": null
+/// }"#;
+///
+/// let rec: ProductionRecord = serde_json::from_str(legacy).unwrap();
+/// // Missing field defaults to empty — not an error.
+/// assert_eq!(rec.defects_taxonomy_version, "");
+/// ```
+///
+/// Records differing only in `scope_token` are not equal:
+///
+/// ```
+/// use open_ontologies::production_record::ProductionRecord;
+///
+/// let make = |scope: &str| ProductionRecord {
+///     artifact_hash: [0u8; 32],
+///     scope_token: scope.into(),
+///     declared_powl_hash: [0u8; 32],
+///     ocel_canonical_hash: [0u8; 32],
+///     conformance_run_id: "run-1".into(),
+///     gate_config_hash: [0u8; 32],
+///     production_law_version: "ontostar-1.0.0".into(),
+///     defects_taxonomy_version: "ontostar-defects-4.8.0".into(),
+///     gates_passed: vec![],
+///     gates_refused: vec![],
+///     prior_receipt: None,
+///     signature: None,
+///     signing_key_fpr: None,
+/// };
+///
+/// assert_ne!(make("order-to-cash"), make("procure-to-pay"));
+/// assert_eq!(make("o2c"), make("o2c"));
+/// ```
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct ProductionRecord {
     /// BLAKE3 of artifact bytes (turtle / wasm / code).
@@ -182,6 +233,59 @@ impl ProductionRecord {
     /// assert_eq!(parsed["scope_token"], "scope-1");
     /// assert_eq!(parsed["production_law_version"], "ontostar-1.0.0");
     /// ```
+    ///
+    /// Different `artifact_hash` values yield different canonical bytes (content-addressed):
+    ///
+    /// ```
+    /// use open_ontologies::production_record::ProductionRecord;
+    ///
+    /// let make = |h: u8| ProductionRecord {
+    ///     artifact_hash: [h; 32],
+    ///     scope_token: "s".into(),
+    ///     declared_powl_hash: [0u8; 32],
+    ///     ocel_canonical_hash: [0u8; 32],
+    ///     conformance_run_id: "r".into(),
+    ///     gate_config_hash: [0u8; 32],
+    ///     production_law_version: "ontostar-1.0.0".into(),
+    ///     defects_taxonomy_version: "ontostar-defects-4.8.0".into(),
+    ///     gates_passed: vec![],
+    ///     gates_refused: vec![],
+    ///     prior_receipt: None,
+    ///     signature: None,
+    ///     signing_key_fpr: None,
+    /// };
+    ///
+    /// assert_ne!(make(0x00).canonical_bytes(), make(0xff).canonical_bytes());
+    /// // Same input → identical bytes (deterministic).
+    /// assert_eq!(make(0xab).canonical_bytes(), make(0xab).canonical_bytes());
+    /// ```
+    ///
+    /// The `gates_passed` field appears as an ordered JSON array:
+    ///
+    /// ```
+    /// use open_ontologies::production_record::ProductionRecord;
+    ///
+    /// let rec = ProductionRecord {
+    ///     artifact_hash: [0u8; 32],
+    ///     scope_token: "s".into(),
+    ///     declared_powl_hash: [0u8; 32],
+    ///     ocel_canonical_hash: [0u8; 32],
+    ///     conformance_run_id: "r".into(),
+    ///     gate_config_hash: [0u8; 32],
+    ///     production_law_version: "ontostar-1.0.0".into(),
+    ///     defects_taxonomy_version: "ontostar-defects-4.8.0".into(),
+    ///     gates_passed: vec!["A1".into(), "A2".into(), "A3".into()],
+    ///     gates_refused: vec![],
+    ///     prior_receipt: None,
+    ///     signature: None,
+    ///     signing_key_fpr: None,
+    /// };
+    /// let parsed: serde_json::Value = serde_json::from_slice(&rec.canonical_bytes()).unwrap();
+    /// let gates = parsed["gates_passed"].as_array().unwrap();
+    /// assert_eq!(gates.len(), 3);
+    /// assert_eq!(gates[0], "A1");
+    /// assert_eq!(gates[2], "A3");
+    /// ```
     pub fn canonical_bytes(&self) -> Vec<u8> {
         let v = serde_json::json!({
             "artifact_hash": hex32(&self.artifact_hash),
@@ -237,6 +341,64 @@ impl ProductionRecord {
     /// let parsed: serde_json::Value = serde_json::from_slice(&signing_bytes).unwrap();
     /// assert!(parsed.get("signature").is_none());
     /// assert!(parsed.get("signing_key_fpr").is_none());
+    /// ```
+    ///
+    /// Records differing only in `scope_token` produce different signing bytes:
+    ///
+    /// ```
+    /// use open_ontologies::production_record::ProductionRecord;
+    ///
+    /// let make = |scope: &str| ProductionRecord {
+    ///     artifact_hash: [0u8; 32],
+    ///     scope_token: scope.into(),
+    ///     declared_powl_hash: [0u8; 32],
+    ///     ocel_canonical_hash: [0u8; 32],
+    ///     conformance_run_id: "r".into(),
+    ///     gate_config_hash: [0u8; 32],
+    ///     production_law_version: "ontostar-1.0.0".into(),
+    ///     defects_taxonomy_version: "ontostar-defects-4.8.0".into(),
+    ///     gates_passed: vec![],
+    ///     gates_refused: vec![],
+    ///     prior_receipt: None,
+    ///     signature: None,
+    ///     signing_key_fpr: None,
+    /// };
+    ///
+    /// assert_ne!(
+    ///     make("order-to-cash").canonical_bytes_for_signing(),
+    ///     make("procure-to-pay").canonical_bytes_for_signing(),
+    /// );
+    /// ```
+    ///
+    /// Swapped `artifact_hash` produces different signing input — replay is detectable:
+    ///
+    /// ```
+    /// use open_ontologies::production_record::ProductionRecord;
+    ///
+    /// let make = |h: u8| ProductionRecord {
+    ///     artifact_hash: [h; 32],
+    ///     scope_token: "o2c".into(),
+    ///     declared_powl_hash: [0u8; 32],
+    ///     ocel_canonical_hash: [0u8; 32],
+    ///     conformance_run_id: "r".into(),
+    ///     gate_config_hash: [0u8; 32],
+    ///     production_law_version: "ontostar-1.0.0".into(),
+    ///     defects_taxonomy_version: "ontostar-defects-4.8.0".into(),
+    ///     gates_passed: vec!["A1".into()],
+    ///     gates_refused: vec![],
+    ///     prior_receipt: None,
+    ///     signature: None,
+    ///     signing_key_fpr: None,
+    /// };
+    ///
+    /// // Honest record and replayed record differ in signing input.
+    /// assert_ne!(make(0x00).canonical_bytes_for_signing(),
+    ///            make(0xff).canonical_bytes_for_signing());
+    ///
+    /// // artifact_hash is embedded as hex in the signing bytes.
+    /// let parsed: serde_json::Value =
+    ///     serde_json::from_slice(&make(0x00).canonical_bytes_for_signing()).unwrap();
+    /// assert!(parsed["artifact_hash"].as_str().unwrap().chars().all(|c| c == '0'));
     /// ```
     pub fn canonical_bytes_for_signing(&self) -> Vec<u8> {
         let v = serde_json::json!({

@@ -9,6 +9,55 @@ use std::sync::Arc;
 /// using four weighted signals (domain-range match, label similarity, hierarchy
 /// match, shared individuals). Weights self-calibrate from user feedback via
 /// [`DriftDetector::record_feedback`].
+///
+/// # Drift velocity formula
+///
+/// `drift_velocity = (added + removed) / (v1_count + v2_count)`
+///
+/// For an empty-vs-empty comparison, the formula yields 0.0 (no division by zero):
+///
+/// ```
+/// use open_ontologies::drift::DriftDetector;
+/// use open_ontologies::state::StateDb;
+/// use std::path::Path;
+///
+/// let db = StateDb::open(Path::new(":memory:")).unwrap();
+/// let detector = DriftDetector::new(db);
+///
+/// let empty = "@prefix owl: <http://www.w3.org/2002/07/owl#> .";
+/// let result = detector.detect(empty, empty).unwrap();
+/// let v: serde_json::Value = serde_json::from_str(&result).unwrap();
+/// assert_eq!(v["drift_velocity"].as_f64().unwrap(), 0.0);
+/// assert_eq!(v["v1_count"].as_u64().unwrap(), 0);
+/// assert_eq!(v["v2_count"].as_u64().unwrap(), 0);
+/// ```
+///
+/// Adding a single class to v2 gives a calculable velocity:
+///
+/// ```
+/// use open_ontologies::drift::DriftDetector;
+/// use open_ontologies::state::StateDb;
+/// use std::path::Path;
+///
+/// let db = StateDb::open(Path::new(":memory:")).unwrap();
+/// let detector = DriftDetector::new(db);
+///
+/// let v1 = "@prefix owl: <http://www.w3.org/2002/07/owl#> .\n\
+///            <urn:ex:A> a owl:Class .\n\
+///            <urn:ex:B> a owl:Class .";
+/// let v2 = "@prefix owl: <http://www.w3.org/2002/07/owl#> .\n\
+///            <urn:ex:A> a owl:Class .\n\
+///            <urn:ex:B> a owl:Class .\n\
+///            <urn:ex:C> a owl:Class .";
+///
+/// let result = detector.detect(v1, v2).unwrap();
+/// let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+/// assert_eq!(parsed["added"].as_array().unwrap().len(), 1);
+/// assert_eq!(parsed["removed"].as_array().unwrap().len(), 0);
+/// // velocity = 1 / (2+3) = 0.2
+/// let vel = parsed["drift_velocity"].as_f64().unwrap();
+/// assert!((vel - 0.2).abs() < 1e-9);
+/// ```
 pub struct DriftDetector {
     db: StateDb,
 }
@@ -179,6 +228,34 @@ impl DriftDetector {
     ///     assert!((w - 0.25).abs() < 1e-9);
     /// }
     /// ```
+    ///
+    /// After 10 feedback rows, weights are derived from signal correlations and sum to 1.0:
+    ///
+    /// ```
+    /// use open_ontologies::drift::DriftDetector;
+    /// use open_ontologies::state::StateDb;
+    /// use std::path::Path;
+    ///
+    /// let db = StateDb::open(Path::new(":memory:")).unwrap();
+    /// let detector = DriftDetector::new(db);
+    ///
+    /// // 10 rows where label_sim fires and prediction is always correct.
+    /// for i in 0..10 {
+    ///     detector.record_feedback(
+    ///         &format!("http://ex.org/From{i}"),
+    ///         &format!("http://ex.org/To{i}"),
+    ///         "rename", 0.9, "rename",
+    ///         false, 1.0, false, false,
+    ///     );
+    /// }
+    ///
+    /// let weights = detector.get_learned_weights();
+    /// assert_eq!(weights.len(), 4);
+    /// // All weights in [0, 1] and sum to 1.0.
+    /// let sum: f64 = weights.iter().sum();
+    /// assert!((sum - 1.0).abs() < 1e-9);
+    /// for w in &weights { assert!(*w >= 0.0 && *w <= 1.0); }
+    /// ```
     #[allow(clippy::too_many_arguments)]
     pub fn record_feedback(
         &self,
@@ -223,6 +300,33 @@ impl DriftDetector {
     ///
     /// assert_eq!(weights.len(), 4);
     /// // With no feedback data, all weights are equal
+    /// for w in &weights {
+    ///     assert!((w - 0.25).abs() < 1e-9);
+    /// }
+    /// ```
+    ///
+    /// With 9 rows (below the 10-row threshold), equal priors are still returned:
+    ///
+    /// ```
+    /// use open_ontologies::drift::DriftDetector;
+    /// use open_ontologies::state::StateDb;
+    /// use std::path::Path;
+    ///
+    /// let db = StateDb::open(Path::new(":memory:")).unwrap();
+    /// let detector = DriftDetector::new(db);
+    ///
+    /// for i in 0..9 {
+    ///     detector.record_feedback(
+    ///         &format!("http://ex.org/F{i}"),
+    ///         &format!("http://ex.org/T{i}"),
+    ///         "rename", 0.7, "rename",
+    ///         true, 0.8, false, false,
+    ///     );
+    /// }
+    ///
+    /// let weights = detector.get_learned_weights();
+    /// assert_eq!(weights.len(), 4);
+    /// // Threshold not met — equal priors still returned.
     /// for w in &weights {
     ///     assert!((w - 0.25).abs() < 1e-9);
     /// }
@@ -467,6 +571,56 @@ fn local_name(iri: &str) -> &str {
 /// assert_eq!(jaro_winkler("",      "apple"), 0.0);  // empty string
 /// assert!(jaro_winkler("Martha", "Marhta") > 0.9);  // classic Jaro example
 /// assert!(jaro_winkler("apple",  "orange") < 0.7);  // dissimilar
+/// ```
+///
+/// Output is always in `[0.0, 1.0]` — the range invariant holds for all inputs:
+///
+/// ```
+/// use open_ontologies::drift::jaro_winkler;
+///
+/// let pairs = [
+///     ("", ""),
+///     ("", "abc"),
+///     ("abc", ""),
+///     ("abc", "abc"),
+///     ("abc", "xyz"),
+///     ("OntologyClass", "OntologyClassType"),
+///     ("Vehicle", "Automobile"),
+/// ];
+/// for (a, b) in &pairs {
+///     let score = jaro_winkler(a, b);
+///     assert!(score >= 0.0 && score <= 1.0,
+///         "score {score} out of [0,1] for ({a:?}, {b:?})");
+/// }
+/// ```
+///
+/// The Winkler prefix bonus applies for up to 4 matching leading characters:
+///
+/// ```
+/// use open_ontologies::drift::jaro_winkler;
+///
+/// // "abcdef" vs "abcdXY" share 4-char prefix "abcd" → Winkler bonus applied.
+/// // "uvwxyz" vs "abcdef" share 0-char prefix → no bonus.
+/// let long_prefix = jaro_winkler("abcdef", "abcdXY");
+/// let no_prefix   = jaro_winkler("uvwxyz", "abcdef");
+/// assert!(long_prefix > no_prefix,
+///     "4-char shared prefix must score higher than no-prefix pair");
+/// ```
+///
+/// DriftDetector uses this function to score rename candidates:
+///
+/// ```
+/// use open_ontologies::drift::{DriftDetector, jaro_winkler};
+/// use open_ontologies::state::StateDb;
+/// use std::path::Path;
+///
+/// // Classes with similar names get high label_similarity signal.
+/// let score = jaro_winkler("OrderClass", "OrderType");
+/// assert!(score > 0.7, "similar ontology class names must score high");
+///
+/// // Completely unrelated names get a low score.
+/// let unrelated = jaro_winkler("InvoiceLine", "CustomerAddress");
+/// assert!(unrelated < score, "unrelated names score lower than similar names");
 /// ```
 pub fn jaro_winkler(s1: &str, s2: &str) -> f64 {
     if s1 == s2 {
