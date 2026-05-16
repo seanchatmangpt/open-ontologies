@@ -359,6 +359,7 @@ fn read_only_tools_listed_in_allowlist() {
         "onto_executive_projection",
         "onto_old_ai_station",
         "onto_groq_status",
+        "onto_gemini_status",
         "onto_verify",
         "onto_cell8_attest",
         "onto_attestation_rotate_keys",

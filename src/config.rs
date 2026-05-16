@@ -475,6 +475,24 @@ pub fn resolve_llm_engine(cfg: &LlmConfig) -> String {
 
 /// Resolve the Gemini CLI binary path for the `gemini` engine.
 /// Precedence: `GEMINI_BIN` env var > `"gemini"` default.
+///
+/// # Examples
+///
+/// ```
+/// // When GEMINI_BIN is unset, the default binary name is returned.
+/// // (Safe to run even if Gemini CLI is not installed.)
+/// # std::env::remove_var("GEMINI_BIN");
+/// let bin = open_ontologies::config::resolve_gemini_bin();
+/// assert_eq!(bin, "gemini");
+/// ```
+///
+/// ```
+/// // When GEMINI_BIN is set to a custom path it is used verbatim.
+/// std::env::set_var("GEMINI_BIN", "/usr/local/bin/gemini-cli");
+/// let bin = open_ontologies::config::resolve_gemini_bin();
+/// std::env::remove_var("GEMINI_BIN"); // restore
+/// assert_eq!(bin, "/usr/local/bin/gemini-cli");
+/// ```
 pub fn resolve_gemini_bin() -> String {
     std::env::var("GEMINI_BIN")
         .ok()
@@ -484,6 +502,16 @@ pub fn resolve_gemini_bin() -> String {
 
 /// Resolve the python interpreter for the `groq_pm4py` engine.
 /// Precedence: `OPEN_ONTOLOGIES_LLM_PYTHON` env > config > `"python3"`.
+///
+/// # Examples
+///
+/// ```
+/// # use open_ontologies::config::LlmConfig;
+/// // Default: falls back to "python3" when env var and config are both absent.
+/// # std::env::remove_var("OPEN_ONTOLOGIES_LLM_PYTHON");
+/// let py = open_ontologies::config::resolve_llm_python(&LlmConfig::default());
+/// assert_eq!(py, "python3");
+/// ```
 pub fn resolve_llm_python(cfg: &LlmConfig) -> String {
     std::env::var("OPEN_ONTOLOGIES_LLM_PYTHON")
         .ok()

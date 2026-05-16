@@ -1,10 +1,10 @@
-//! Full Adversarial Acceptance Tests (AAT) for all 86 open-ontologies MCP tools.
+//! Full Adversarial Acceptance Tests (AAT) for all 87 open-ontologies MCP tools.
 //!
 //! Armstrong principle: every impossible state must fail LOUDLY.
 //! A tool that returns ok:true on garbage input is theater, not a test.
 //!
 //! Structure:
-//!   Module R — Registration: all 86 tools discoverable via list_tool_definitions
+//!   Module R — Registration: all 87 tools discoverable via list_tool_definitions
 //!   Module A — Direct pub-method tests (onto_load, onto_save, onto_align, etc.)
 //!   Module C — CLI subprocess tests (non-pub tools via open-ontologies binary)
 //!   Module D — Serial counter-factual chains proving state is real
@@ -91,6 +91,7 @@ const EXPECTED_TOOLS: &[&str] = &[
     "onto_executive_projection",
     "onto_exemplar_seed",
     "onto_extend",
+    "onto_gemini_status",
     "onto_groq_status",
     "onto_guide",
     "onto_history",
@@ -150,7 +151,7 @@ const EXPECTED_TOOLS: &[&str] = &[
 ];
 
 #[test]
-fn r1_all_86_tools_are_registered() {
+fn r1_all_87_tools_are_registered() {
     let (_tmp, db, server) = build_server();
     drop(_tmp); // keep db alive via server
 

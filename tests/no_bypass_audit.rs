@@ -95,6 +95,7 @@ pub fn read_only_allowlist() -> HashSet<(&'static str, &'static str)> {
         ("onto_executive_projection", "READ-ONLY: pure summary via Groq; bounded by token-overlap check"),
         ("onto_old_ai_station",       "READ-ONLY: pure-function dispatch over wasm4pm-cognition breeds"),
         ("onto_groq_status",          "READ-ONLY: liveness probe; never makes a real Groq HTTP call"),
+        ("onto_gemini_status",        "READ-ONLY: binary availability + OAuth liveness for Gemini CLI — no state mutation, no API key"),
         ("onto_verify",               "READ-ONLY: external-verifier file-and-chain inspection"),
         ("onto_cell8_attest",         "READ-ONLY: Cell8 13-gate attestation read-only inspection"),
         ("onto_attestation_rotate_keys", "READ-ONLY: admin-gated trust-set reload; writes only to trusted_keys_history (closed-by-default via OPEN_ONTOLOGIES_ADMIN_PRINCIPALS)"),

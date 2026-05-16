@@ -76,9 +76,13 @@ impl Reasoner {
         }
 
         let profile_used = match profile {
+            "rdfs" => "rdfs",
             "owl-rl" => "owl-rl",
             "owl-rl-ext" => "owl-rl-ext",
-            _ => "rdfs",
+            other => anyhow::bail!(
+                "invalid profile {:?}; valid values are: rdfs, owl-rl, owl-rl-ext, owl-dl",
+                other
+            ),
         };
         let include_owl = profile_used == "owl-rl" || profile_used == "owl-rl-ext";
         let include_ext = profile_used == "owl-rl-ext";

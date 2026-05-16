@@ -760,8 +760,10 @@ pub struct OntoTranslateCandidateInput {
     /// Translation engine. `"inproc"` (default) — drives the in-process
     /// `GroqTranslator` shaped-signature path. `"groq_pm4py"` — shells
     /// out to `scripts/ctq_from_voice.py`, the same pm4py/dspy subprocess
-    /// proven against real Groq in `tests/real_groq_ctq.rs`. Unknown
-    /// values are treated as `"inproc"`.
+    /// proven against real Groq in `tests/real_groq_ctq.rs`. `"gemini"` —
+    /// headless Gemini CLI via OAuth (`gemini -p … --approval-mode yolo`);
+    /// no API key required, binary resolved via `GEMINI_BIN` env or `"gemini"`.
+    /// Unknown values are treated as `"inproc"`.
     pub engine: Option<String>,
     /// Override the python interpreter used by the `groq_pm4py` engine
     /// (default: `"python3"`). Ignored by the in-process engine.
@@ -833,8 +835,9 @@ pub struct OntoExecutiveProjectionInput {
     pub admitted_evidence: String,
     /// Projection engine. `"inproc"` (default) — uses the in-process
     /// `GroqTranslator`. `"groq_pm4py"` — shells out to
-    /// `scripts/executive_projection.py`. Unknown values treated as
-    /// `"inproc"`.
+    /// `scripts/executive_projection.py`. `"gemini"` — headless Gemini CLI
+    /// via OAuth (`gemini -p … --approval-mode yolo`); no API key required.
+    /// Unknown values treated as `"inproc"`.
     pub engine: Option<String>,
     /// Override the python interpreter used by the `groq_pm4py` engine
     /// (default: `"python3"`).
@@ -848,6 +851,15 @@ pub struct OntoExecutiveProjectionInput {
 pub struct OntoGroqStatusInput {
     /// Override the python interpreter (default: `"python3"`).
     pub python: Option<String>,
+}
+
+/// Read-only liveness probe for the Gemini CLI engine.
+/// Checks binary availability (`--version`) and OAuth session validity
+/// (`gemini -p ping … --approval-mode yolo`). No API key required.
+#[derive(Deserialize, JsonSchema, Default)]
+pub struct OntoGeminiStatusInput {
+    /// Override the Gemini binary path (default: `GEMINI_BIN` env or `"gemini"`).
+    pub gemini_bin: Option<String>,
 }
 
 /// Manufacture a complete multi-target solution stack (IaC + Rust +
