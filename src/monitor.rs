@@ -5,6 +5,84 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::time::Duration;
 
+// ── Named constants for monitor status strings ───────────────────────────────
+// These strings appear in multiple places: serde rename attributes, match arms,
+// and doctest examples. Centralising them prevents silent typo divergence.
+
+/// Monitor status string emitted when all watchers pass without breaching their thresholds.
+///
+/// ```
+/// use open_ontologies::monitor::MONITOR_STATUS_OK;
+/// assert_eq!(MONITOR_STATUS_OK, "ok");
+/// ```
+pub const MONITOR_STATUS_OK: &str = "ok";
+
+/// Monitor status string emitted when at least one watcher fires an alert.
+///
+/// ```
+/// use open_ontologies::monitor::MONITOR_STATUS_ALERT;
+/// assert_eq!(MONITOR_STATUS_ALERT, "alert");
+/// ```
+pub const MONITOR_STATUS_ALERT: &str = "alert";
+
+/// Monitor status string emitted when a `BlockNextApply` watcher has fired
+/// and the apply gate is now locked.
+///
+/// ```
+/// use open_ontologies::monitor::MONITOR_STATUS_BLOCKED;
+/// assert_eq!(MONITOR_STATUS_BLOCKED, "blocked");
+/// ```
+pub const MONITOR_STATUS_BLOCKED: &str = "blocked";
+
+/// Monitor status string emitted when an `AutoRollback` watcher fired and
+/// the ontology was successfully reverted to the previous saved version.
+///
+/// ```
+/// use open_ontologies::monitor::MONITOR_STATUS_AUTO_ROLLED_BACK;
+/// assert_eq!(MONITOR_STATUS_AUTO_ROLLED_BACK, "auto_rolled_back");
+/// ```
+pub const MONITOR_STATUS_AUTO_ROLLED_BACK: &str = "auto_rolled_back";
+
+/// Watcher `check_type` value for watchers that evaluate a SPARQL SELECT query
+/// against the Oxigraph store.
+///
+/// ```
+/// use open_ontologies::monitor::WATCHER_CHECK_TYPE_SPARQL;
+/// assert_eq!(WATCHER_CHECK_TYPE_SPARQL, "sparql");
+/// ```
+pub const WATCHER_CHECK_TYPE_SPARQL: &str = "sparql";
+
+/// Serialised action string for [`WatcherAction::Notify`].
+///
+/// ```
+/// use open_ontologies::monitor::WATCHER_ACTION_NOTIFY;
+/// assert_eq!(WATCHER_ACTION_NOTIFY, "notify");
+/// ```
+pub const WATCHER_ACTION_NOTIFY: &str = "notify";
+
+/// Serialised action string for [`WatcherAction::BlockNextApply`].
+///
+/// ```
+/// use open_ontologies::monitor::WATCHER_ACTION_BLOCK_NEXT_APPLY;
+/// assert_eq!(WATCHER_ACTION_BLOCK_NEXT_APPLY, "block_next_apply");
+/// ```
+pub const WATCHER_ACTION_BLOCK_NEXT_APPLY: &str = "block_next_apply";
+
+/// Serialised action string for [`WatcherAction::AutoRollback`].
+///
+/// ```
+/// use open_ontologies::monitor::WATCHER_ACTION_AUTO_ROLLBACK;
+/// assert_eq!(WATCHER_ACTION_AUTO_ROLLBACK, "auto_rollback");
+/// ```
+pub const WATCHER_ACTION_AUTO_ROLLBACK: &str = "auto_rollback";
+
+/// Serialised action string for [`WatcherAction::Log`].
+///
+/// ```
+/// use open_ontologies::monitor::WATCHER_ACTION_LOG;
+/// assert_eq!(WATCHER_ACTION_LOG, "log");
+/// ```
+pub const WATCHER_ACTION_LOG: &str = "log";
 
 /// The action taken when a watcher's measured value exceeds its threshold.
 ///
@@ -357,13 +435,13 @@ impl Monitor {
         }
 
         let status = if rolled_back {
-            "auto_rolled_back".to_string()
+            MONITOR_STATUS_AUTO_ROLLED_BACK.to_string()
         } else if blocked {
-            "blocked".to_string()
+            MONITOR_STATUS_BLOCKED.to_string()
         } else if !alerts.is_empty() {
-            "alert".to_string()
+            MONITOR_STATUS_ALERT.to_string()
         } else {
-            "ok".to_string()
+            MONITOR_STATUS_OK.to_string()
         };
 
         MonitorResult { status, alerts, passed }
@@ -488,9 +566,9 @@ impl Monitor {
         stmt.query_map([], |row| {
             let action_str: String = row.get(4)?;
             let action = match action_str.as_str() {
-                "block_next_apply" => WatcherAction::BlockNextApply,
-                "auto_rollback" => WatcherAction::AutoRollback,
-                "log" => WatcherAction::Log,
+                WATCHER_ACTION_BLOCK_NEXT_APPLY => WatcherAction::BlockNextApply,
+                WATCHER_ACTION_AUTO_ROLLBACK => WatcherAction::AutoRollback,
+                WATCHER_ACTION_LOG => WatcherAction::Log,
                 _ => WatcherAction::Notify,
             };
             Ok(Watcher {
@@ -512,7 +590,7 @@ impl Monitor {
 
     fn evaluate_watcher(&self, watcher: &Watcher) -> f64 {
         match watcher.check_type.as_str() {
-            "sparql" => self.eval_sparql_watcher(watcher),
+            WATCHER_CHECK_TYPE_SPARQL => self.eval_sparql_watcher(watcher),
             // OntoStar Stream 4 — Loop 5 surface. The watcher's `query` field
             // (when present) is interpreted as the lower-bound RFC3339
             // timestamp; otherwise we look back 24h. The returned value is
@@ -598,7 +676,7 @@ pub fn start_background_loop(
 
             let result = monitor.run_watchers();
             match result.status.as_str() {
-                "ok" => {} // silent on healthy sweeps
+                MONITOR_STATUS_OK => {} // silent on healthy sweeps
                 status => {
                     eprintln!(
                         "[watch] sweep: status={}, alerts={}, passed={}",

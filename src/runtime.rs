@@ -19,20 +19,79 @@ use crate::config::{
 };
 
 // ── Defaults match the previous hardcoded constants exactly ─────────────
-const DEFAULT_TABLEAUX_MAX_DEPTH: usize = 100;
-const DEFAULT_TABLEAUX_MAX_NODES: usize = 10_000;
-// Original reason.rs used 50; section 3 of the audit recommends 64 as a
-// slightly more generous, explicitly-documented value. We adopt 64 as the
-// new default since neither value affects fixpoint correctness — they only
-// bound the maximum number of expansion sweeps.
-const DEFAULT_REASONER_MAX_ITER: usize = 64;
-const DEFAULT_CACHE_HASH_PREFIX: usize = 64 * 1024;
+
+/// Compiled-in default for the DL-tableaux maximum expansion depth.
+///
+/// ```
+/// assert_eq!(open_ontologies::runtime::DEFAULT_TABLEAUX_MAX_DEPTH_VALUE, 100);
+/// ```
+pub const DEFAULT_TABLEAUX_MAX_DEPTH_VALUE: usize = 100;
+
+/// Compiled-in default for the maximum number of tableaux nodes allocated.
+///
+/// ```
+/// assert_eq!(open_ontologies::runtime::DEFAULT_TABLEAUX_MAX_NODES_VALUE, 10_000);
+/// ```
+pub const DEFAULT_TABLEAUX_MAX_NODES_VALUE: usize = 10_000;
+
+/// Compiled-in default for the maximum number of reasoner fixpoint iterations.
+///
+/// Original `reason.rs` used 50; the audit recommends 64 as a slightly more
+/// generous, explicitly-documented value that does not affect fixpoint
+/// correctness — it only bounds the number of expansion sweeps.
+///
+/// ```
+/// assert_eq!(open_ontologies::runtime::DEFAULT_REASONER_MAX_ITER_VALUE, 64);
+/// ```
+pub const DEFAULT_REASONER_MAX_ITER_VALUE: usize = 64;
+
+/// Compiled-in default for the cache hash prefix in bytes (64 KiB).
+///
+/// ```
+/// assert_eq!(open_ontologies::runtime::DEFAULT_CACHE_HASH_PREFIX_VALUE, 64 * 1024);
+/// ```
+pub const DEFAULT_CACHE_HASH_PREFIX_VALUE: usize = 64 * 1024;
+
+/// Compiled-in default for the repository list page size.
+///
+/// ```
+/// assert_eq!(open_ontologies::runtime::DEFAULT_REPO_LIST_LIMIT_VALUE, 1_000);
+/// ```
+pub const DEFAULT_REPO_LIST_LIMIT_VALUE: usize = 1_000;
+
+/// Compiled-in default for the maximum `owl:imports` resolution depth.
+///
+/// ```
+/// assert_eq!(open_ontologies::runtime::DEFAULT_IMPORTS_MAX_DEPTH_VALUE, 3);
+/// ```
+pub const DEFAULT_IMPORTS_MAX_DEPTH_VALUE: usize = 3;
+
+/// Compiled-in default for the per-request HTTP timeout when fetching remote
+/// `owl:imports` (seconds).
+///
+/// ```
+/// assert_eq!(open_ontologies::runtime::DEFAULT_IMPORTS_TIMEOUT_SECS_VALUE, 30);
+/// ```
+pub const DEFAULT_IMPORTS_TIMEOUT_SECS_VALUE: u64 = 30;
+
+/// Compiled-in default for the per-request HTTP timeout when delivering
+/// webhook notifications (seconds).
+///
+/// ```
+/// assert_eq!(open_ontologies::runtime::DEFAULT_WEBHOOK_TIMEOUT_SECS_VALUE, 10);
+/// ```
+pub const DEFAULT_WEBHOOK_TIMEOUT_SECS_VALUE: u64 = 10;
+
+const DEFAULT_TABLEAUX_MAX_DEPTH: usize = DEFAULT_TABLEAUX_MAX_DEPTH_VALUE;
+const DEFAULT_TABLEAUX_MAX_NODES: usize = DEFAULT_TABLEAUX_MAX_NODES_VALUE;
+const DEFAULT_REASONER_MAX_ITER: usize = DEFAULT_REASONER_MAX_ITER_VALUE;
+const DEFAULT_CACHE_HASH_PREFIX: usize = DEFAULT_CACHE_HASH_PREFIX_VALUE;
 const DEFAULT_FB_SUPPRESS: i64 = 3;
 const DEFAULT_FB_DOWNGRADE: i64 = 2;
-const DEFAULT_REPO_LIST_LIMIT: usize = 1000;
-const DEFAULT_IMPORTS_MAX_DEPTH: usize = 3;
-const DEFAULT_IMPORTS_TIMEOUT: u64 = 30;
-const DEFAULT_WEBHOOK_TIMEOUT: u64 = 10;
+const DEFAULT_REPO_LIST_LIMIT: usize = DEFAULT_REPO_LIST_LIMIT_VALUE;
+const DEFAULT_IMPORTS_MAX_DEPTH: usize = DEFAULT_IMPORTS_MAX_DEPTH_VALUE;
+const DEFAULT_IMPORTS_TIMEOUT: u64 = DEFAULT_IMPORTS_TIMEOUT_SECS_VALUE;
+const DEFAULT_WEBHOOK_TIMEOUT: u64 = DEFAULT_WEBHOOK_TIMEOUT_SECS_VALUE;
 
 static TABLEAUX_MAX_DEPTH: AtomicUsize = AtomicUsize::new(DEFAULT_TABLEAUX_MAX_DEPTH);
 static TABLEAUX_MAX_NODES: AtomicUsize = AtomicUsize::new(DEFAULT_TABLEAUX_MAX_NODES);
