@@ -1264,7 +1264,75 @@ impl OpenOntologiesServer {
             self.emit_tool_ocel("onto_query", started, false, &[]);
             return out;
         }
-        let out = self.graph.sparql_select(&input.query).unwrap_or_else(|e| format!(r#"{{"error":"{}"}}"#, e));
+
+        // Detect the query type from the leading keyword so error messages can
+        // report which form was attempted. Strip leading whitespace and comments.
+        let trimmed = input.query.trim();
+        let query_type = {
+            let upper = trimmed.to_uppercase();
+            // Skip leading SPARQL comments (lines starting with #) to find keyword.
+            let keyword_start = upper
+                .lines()
+                .find(|l| !l.trim_start().starts_with('#'))
+                .map(|l| l.trim_start())
+                .unwrap_or("");
+            if keyword_start.starts_with("SELECT") {
+                "SELECT"
+            } else if keyword_start.starts_with("ASK") {
+                "ASK"
+            } else if keyword_start.starts_with("CONSTRUCT") {
+                "CONSTRUCT"
+            } else if keyword_start.starts_with("DESCRIBE") {
+                "DESCRIBE"
+            } else {
+                "UNKNOWN"
+            }
+        };
+
+        // Warn when the store has no triples — queries will succeed but return
+        // empty results, which is confusing without context.
+        let triple_count = self.graph.triple_count();
+        if triple_count == 0 {
+            let out = serde_json::json!({
+                "error": "Store is empty (0 triples loaded). Load an ontology first with onto_load, then retry the query.",
+                "query_type": query_type,
+                "hint": "Call onto_load with a .ttl/.nt/.rdf file path, or use onto_repo_list to discover available ontologies."
+            }).to_string();
+            self.emit_tool_ocel("onto_query", started, false, &[]);
+            return out;
+        }
+
+        let out = match self.graph.sparql_select(&input.query) {
+            Ok(result) => result,
+            Err(e) => {
+                let raw = e.to_string();
+                // Oxigraph surfaces SPARQL parse failures with messages that
+                // contain "parse error", "unexpected token", "expected", or
+                // "syntax error". Execution errors (e.g. unknown function) look
+                // different. Give parse errors an actionable hint; pass
+                // execution errors through with the query type for context.
+                let is_parse_error = raw.contains("parse error")
+                    || raw.contains("Parse error")
+                    || raw.contains("unexpected token")
+                    || raw.contains("Unexpected token")
+                    || raw.contains("expected")
+                    || raw.contains("syntax error")
+                    || raw.contains("Syntax error")
+                    || raw.contains("ParseError");
+                if is_parse_error {
+                    serde_json::json!({
+                        "error": format!("SPARQL parse failed: {}", raw.replace('"', "'")),
+                        "query_type": query_type,
+                        "hint": "Common issues: missing PREFIX declaration (add PREFIX ex: <http://example.org/>), unclosed braces { }, wrong variable prefix (use ?var not $var), missing dot separator between triple patterns."
+                    }).to_string()
+                } else {
+                    serde_json::json!({
+                        "error": format!("SPARQL execution error: {}", raw.replace('"', "'")),
+                        "query_type": query_type,
+                    }).to_string()
+                }
+            }
+        };
         let ok = !out.contains(r#""error""#);
         self.emit_tool_ocel("onto_query", started, ok, &[]);
         out
