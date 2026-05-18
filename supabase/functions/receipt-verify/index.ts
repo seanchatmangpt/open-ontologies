@@ -2,7 +2,7 @@
 // Verifies BLAKE3 + Ed25519 receipts emitted by the open-ontologies ggen pipeline
 // Source: packages/evidence/receipts.ts type definitions
 
-import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
+// No import needed — Deno.serve is built-in since Deno 1.35+
 
 export interface ReceiptVerifyRequest {
   receiptId: string;
@@ -17,7 +17,7 @@ export interface ReceiptVerifyResult {
   reason?: string;
 }
 
-serve(async (req: Request) => {
+Deno.serve(async (req: Request) => {
   if (req.method !== "POST") {
     return new Response("Method not allowed", { status: 405 });
   }

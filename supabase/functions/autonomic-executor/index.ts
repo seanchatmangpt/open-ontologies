@@ -2,7 +2,7 @@
 // Executes ZOE LA Mobile autonomic actions per A0-A4 action class doctrine
 // Source: ontology/zoela/connect-group-routes.ttl — autonomic action classes
 
-import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
+// No import needed — Deno.serve is built-in since Deno 1.35+
 
 export interface AutonomicRequest {
   eventType: string;
@@ -24,7 +24,7 @@ export interface AutonomicResult {
   ocelEventRef?: string;
 }
 
-serve(async (req: Request) => {
+Deno.serve(async (req: Request) => {
   if (req.method !== "POST") {
     return new Response("Method not allowed", { status: 405 });
   }

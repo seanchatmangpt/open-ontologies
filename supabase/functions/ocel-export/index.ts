@@ -2,7 +2,7 @@
 // Exports OCEL 2.0 event log for wasm4pm process mining consumption
 // Compatible with packages/evidence/OcelEvents.ts event type definitions
 
-import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
+// No import needed — Deno.serve is built-in since Deno 1.35+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -73,7 +73,7 @@ function rowToOcelEvent(row: OcelEventRow): OcelEvent {
 // Handler
 // ─────────────────────────────────────────────────────────────────────────────
 
-serve(async (req: Request): Promise<Response> => {
+Deno.serve(async (req: Request): Promise<Response> => {
   if (req.method !== "GET" && req.method !== "POST") {
     return new Response("Method not allowed", { status: 405 });
   }
