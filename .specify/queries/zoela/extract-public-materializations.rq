@@ -1,0 +1,163 @@
+# =============================================================================
+# extract-public-materializations.rq — Public-vocab-driven materialization extractor
+# =============================================================================
+#
+# Replaces the ZOE-direct extract-tables.rq under the Public Vocabulary
+# Materialization Policy.
+#
+# For every ZOE-namespace owl:Class that satisfies BOTH:
+#   (a) reaches a public-vocabulary anchor via rdfs:subClassOf+, AND
+#   (b) the anchor is recognized by the ggen:ZoelaSupabaseMaterializationScheme
+#       profile (via ggen:materializesPublicAnchor)
+#
+# the query emits the materialization fact set needed to render Supabase DDL
+# without hardcoding ZOE-class lists in templates.
+#
+# Output is a single aggregated row with pipe-delimited columns so the
+# downstream Tera template renders once and writes the complete migration.
+#
+# Doctrine:
+#   Public ontology decides interoperability role.
+#   This profile decides which roles materialize as SQL.
+#   ZOE specializes the public role.
+#   Tera renders mechanically from these facts.
+#
+# Output columns (pipe-delimited; one slot per class in order):
+#   ?classIris            — full IRI of each materializable ZOE class
+#   ?classNames           — rdfs:label
+#   ?tableNames           — skos:notation (snake-case table name)
+#   ?classDescriptions    — rdfs:comment (or empty)
+#   ?publicAnchorIris     — IRI of the public anchor that triggered the kind
+#   ?materializationKinds — IRI of the ggen materialization kind
+#   ?materializationCodes — skos:notation of the materialization kind
+#   ?emitsSql             — "true"/"false" per kind
+#   ?requiresOwner        — "true"/"false" per kind
+#   ?requiresAuditTrail   — "true"/"false" per kind
+#   ?targetRuntimes       — "supabase" / "supabase-edge-fn"
+#
+# Per-property columns (every datatype/object property of every class):
+#   ?propClasses          — owning class label, repeated per property
+#   ?propColumns          — skos:notation of property (snake-case column)
+#   ?propSqlTypes         — Postgres SQL type (UUID/TEXT/BOOLEAN/INTEGER/…)
+#   ?propRequired         — "true"/"false" (SHACL-derived in B.6; default "false")
+#   ?propDescriptions     — rdfs:comment per property (or empty)
+#   ?propFkTables         — FK target table name if range is an ObjectProperty;
+#                           empty otherwise
+# =============================================================================
+
+PREFIX ggen:   <https://open-ontologies.org/ggen#>
+PREFIX zoe:    <https://zoela.org/ontology/>
+PREFIX owl:    <http://www.w3.org/2002/07/owl#>
+PREFIX rdf:    <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX rdfs:   <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX skos:   <http://www.w3.org/2004/02/skos/core#>
+PREFIX xsd:    <http://www.w3.org/2001/XMLSchema#>
+
+SELECT
+  # Class-level aggregates (DISTINCT — one slot per class)
+  (GROUP_CONCAT(DISTINCT ?classIriStr;       SEPARATOR="|") AS ?classIris)
+  (GROUP_CONCAT(DISTINCT ?className;         SEPARATOR="|") AS ?classNames)
+  (GROUP_CONCAT(DISTINCT ?tableName;         SEPARATOR="|") AS ?tableNames)
+  (GROUP_CONCAT(DISTINCT ?classDescription;  SEPARATOR="|") AS ?classDescriptions)
+  (GROUP_CONCAT(DISTINCT ?publicAnchorIri;   SEPARATOR="|") AS ?publicAnchorIris)
+  (GROUP_CONCAT(DISTINCT ?materializationKindStr; SEPARATOR="|") AS ?materializationKinds)
+  (GROUP_CONCAT(DISTINCT ?materializationCode;    SEPARATOR="|") AS ?materializationCodes)
+  (GROUP_CONCAT(DISTINCT ?emitsSqlStr;            SEPARATOR="|") AS ?emitsSql)
+  (GROUP_CONCAT(DISTINCT ?requiresOwnerStr;       SEPARATOR="|") AS ?requiresOwner)
+  (GROUP_CONCAT(DISTINCT ?requiresAuditTrailStr;  SEPARATOR="|") AS ?requiresAuditTrail)
+  (GROUP_CONCAT(DISTINCT ?targetRuntime;          SEPARATOR="|") AS ?targetRuntimes)
+  # Per-property aggregates (NOT DISTINCT — one slot per property)
+  (GROUP_CONCAT(?propClassName;             SEPARATOR="|") AS ?propClasses)
+  (GROUP_CONCAT(?propColumn;                SEPARATOR="|") AS ?propColumns)
+  (GROUP_CONCAT(?propSqlType;               SEPARATOR="|") AS ?propSqlTypes)
+  (GROUP_CONCAT(?propRequiredStr;           SEPARATOR="|") AS ?propRequired)
+  (GROUP_CONCAT(?propDescription;           SEPARATOR="|") AS ?propDescriptions)
+  (GROUP_CONCAT(?propFkTable;               SEPARATOR="|") AS ?propFkTables)
+WHERE {
+  # ---------------------------------------------------------------------------
+  # § 1  Find every ZOE owl:Class with a skos:notation (the table-name source)
+  # ---------------------------------------------------------------------------
+  ?class a owl:Class ;
+         rdfs:label    ?className ;
+         skos:notation ?tableName .
+  FILTER(STRSTARTS(STR(?class), "https://zoela.org/ontology/"))
+
+  # ---------------------------------------------------------------------------
+  # § 2  Resolve to a public anchor recognized by the materialization profile
+  # ---------------------------------------------------------------------------
+  ?class rdfs:subClassOf+ ?publicAnchor .
+  FILTER(!STRSTARTS(STR(?publicAnchor), "https://zoela.org/ontology/"))
+  FILTER(?publicAnchor != owl:Thing)
+  FILTER(isIRI(?publicAnchor))
+
+  ?materializationKind a ggen:MaterializationKind ;
+                       ggen:materializesPublicAnchor ?publicAnchor ;
+                       skos:notation       ?materializationCode ;
+                       ggen:targetRuntime  ?targetRuntime ;
+                       ggen:emitsSql       ?emitsSqlVal ;
+                       ggen:requiresOwner  ?requiresOwnerVal ;
+                       ggen:requiresAuditTrail ?requiresAuditTrailVal .
+
+  # Only materialize kinds that emit SQL (Policy/Lookup/Route projections
+  # are handled by other extractors / templates).
+  FILTER(?emitsSqlVal = true)
+
+  BIND(STR(?class)                     AS ?classIriStr)
+  BIND(STR(?publicAnchor)              AS ?publicAnchorIri)
+  BIND(STR(?materializationKind)       AS ?materializationKindStr)
+  BIND(IF(?emitsSqlVal,            "true", "false") AS ?emitsSqlStr)
+  BIND(IF(?requiresOwnerVal,       "true", "false") AS ?requiresOwnerStr)
+  BIND(IF(?requiresAuditTrailVal,  "true", "false") AS ?requiresAuditTrailStr)
+
+  OPTIONAL { ?class rdfs:comment ?cdRaw }
+  BIND(COALESCE(?cdRaw, "") AS ?classDescription)
+
+  # ---------------------------------------------------------------------------
+  # § 3  Per-property: datatype + object properties owned by this class
+  # ---------------------------------------------------------------------------
+  OPTIONAL {
+    ?prop rdfs:domain  ?class ;
+          skos:notation ?propColumn ;
+          rdfs:range    ?propRange .
+
+    OPTIONAL { ?prop rdfs:comment ?pdRaw }
+    BIND(COALESCE(?pdRaw, "") AS ?propDescription)
+
+    # Echo class label per property so the template can group properties under
+    # their owning class.
+    BIND(?className AS ?propClassName)
+
+    # Map XSD/OWL types → SQL types.  ObjectProperty → UUID (FK).
+    BIND(
+      IF(EXISTS { ?prop a owl:ObjectProperty }, "UUID",
+      IF(?propRange = xsd:boolean,    "BOOLEAN",
+      IF(?propRange = xsd:integer,    "INTEGER",
+      IF(?propRange = xsd:int,        "INTEGER",
+      IF(?propRange = xsd:long,       "BIGINT",
+      IF(?propRange = xsd:decimal,    "NUMERIC",
+      IF(?propRange = xsd:float,      "REAL",
+      IF(?propRange = xsd:double,     "DOUBLE PRECISION",
+      IF(?propRange = xsd:dateTime,   "TIMESTAMPTZ",
+      IF(?propRange = xsd:date,       "DATE",
+      IF(?propRange = xsd:time,       "TIME",
+      IF(?propRange = xsd:anyURI,     "TEXT",
+      "TEXT")))))))))))) AS ?propSqlType
+    )
+
+    # SHACL-derived required (P0-B.6 will populate sh:minCount via shape file);
+    # for now, default to "false". When public-role-shapes.ttl lands, replace
+    # this BIND with an OPTIONAL { ?shape sh:targetClass ?class . ?shape
+    # sh:property [ sh:path ?prop ; sh:minCount ?n ] FILTER(?n > 0) }.
+    BIND("false" AS ?propRequiredStr)
+
+    # FK target table: if range itself is a ZOE owl:Class with skos:notation,
+    # the column becomes a FK to that table.
+    OPTIONAL {
+      ?propRange a owl:Class ;
+                 skos:notation ?fktRaw .
+      FILTER(STRSTARTS(STR(?propRange), "https://zoela.org/ontology/"))
+    }
+    BIND(COALESCE(?fktRaw, "") AS ?propFkTable)
+  }
+}
+ORDER BY ?className ?propColumn
