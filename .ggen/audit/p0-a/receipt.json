@@ -1,0 +1,540 @@
+{
+  "receipt_version": "p0a-1.0.0",
+  "operation_id": "p0a-namespace-singularity-20260518",
+  "timestamp": "2026-05-18T20:36:07.087913+00:00",
+  "operation": "P0-A: namespace singularity",
+  "doctrine": "ontology = source truth; templates = manufacturing law; artifacts = emitted consequence",
+  "canonical_namespace": "https://zoela.org/ontology/",
+  "banned_namespaces": [
+    "urn:zoela:",
+    "https://zoela.org/onto/"
+  ],
+  "summary": {
+    "ttl_files_modified": 10,
+    "sparql_files_modified": 3,
+    "tera_files_modified": 0,
+    "manifest_files_modified": 2,
+    "new_validators": [
+      "tools/validate-namespace-singularity.sh",
+      "tools/validate-no-downstream-authority.sh"
+    ],
+    "new_diagnostics": [
+      "tools/p0a-extraction-diagnostics.py"
+    ],
+    "audit_bundle_path": ".ggen/audit/p0-a/"
+  },
+  "acceptance_gates": {
+    "namespace_singularity_passes": true,
+    "no_downstream_authority_passes": true,
+    "ontology_validation_36_of_36": true,
+    "conformance_test_4_of_4_pass": true,
+    "extraction_diagnostics_emitted": true,
+    "audit_bundle_persisted": true
+  },
+  "manufacturing_restored_evidence": {
+    "extract_screens_rows": 14,
+    "extract_navigation_rows": 7,
+    "extract_admin_screens_rows": 3,
+    "extract_push_card_fields_rows": 9,
+    "store_triples": 6811,
+    "store_classes": 131,
+    "store_individuals": 397,
+    "store_object_properties": 462
+  },
+  "input_hashes": [
+    {
+      "path": ".ggen/audit/p0-a/conformance-test.txt",
+      "sha256": "c599fbbb34afec49774612ea8d444b0e3c7d54aeefab14aafe39acf2923a737d",
+      "bytes": 529
+    },
+    {
+      "path": ".ggen/audit/p0-a/downstream-authority.txt",
+      "sha256": "eba5f4afa16270a778a28d9b3246890b40e081006c09855529a3c0070bf9626d",
+      "bytes": 254
+    },
+    {
+      "path": ".ggen/audit/p0-a/extraction-diagnostics.json",
+      "sha256": "98cae6b517e735ecc2986bc7bbc4fad16a4bec7a86e7b86f0768cb3f65489173",
+      "bytes": 11693
+    },
+    {
+      "path": ".ggen/audit/p0-a/extraction-diagnostics.txt",
+      "sha256": "4a9d9d510be286219cc530644677ee35e1e2a89b32db9aa19efbeae87d21a6df",
+      "bytes": 5390
+    },
+    {
+      "path": ".ggen/audit/p0-a/inventory-after.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": ".ggen/audit/p0-a/inventory-iris-before.txt",
+      "sha256": "d65c8b3aa61a3547a2afbc67c7564ebdb68a04b4332c3e1427e6f8095310c0f7",
+      "bytes": 2261
+    },
+    {
+      "path": ".ggen/audit/p0-a/inventory-prefixes-before.txt",
+      "sha256": "f14888a3ae6047fbc7df99007cb8f2b858223a66dc4775d679160bdc3393a3c6",
+      "bytes": 1037
+    },
+    {
+      "path": ".ggen/audit/p0-a/namespace-lint.txt",
+      "sha256": "1adcfda23685ecd9f387840e4648d97510a78385d8b71e66e16970fcff908b68",
+      "bytes": 80
+    },
+    {
+      "path": ".ggen/audit/p0-a/ontology-validation.txt",
+      "sha256": "c5454e68dceeb5f20e5adf269941c9294e63aa09fb938e6376db8011638b483c",
+      "bytes": 2144
+    },
+    {
+      "path": ".ggen/audit/p0-a/receipt.json",
+      "sha256": "cbf5eb06cba7b459674b1d94542f49fe6e68c076c93de267619bf76d6fe02494",
+      "bytes": 15397
+    },
+    {
+      "path": ".specify/queries/zoela/extract-sensitivity-rules.rq",
+      "sha256": "0a8f01f4fb28a8474baf9a272fd03de3b041fc97ec64977944dfc643fb2d7b89",
+      "bytes": 3827
+    },
+    {
+      "path": ".specify/queries/zoela/extract-tables.rq",
+      "sha256": "5f4bc0a5ba60b5f321b1ff695e83d63342cd1051b09c364e68a4998c1644bd7a",
+      "bytes": 3470
+    },
+    {
+      "path": ".specify/queries/zoela/extract-types.rq",
+      "sha256": "b133278fd98d3d2fdb22b089674a63e820907b7bf882aa2207da50b5095fcf7f",
+      "bytes": 4898
+    },
+    {
+      "path": "docs/AUTOGEN/ontology-ref/INDEX.md",
+      "sha256": "9ad24baa52dfc1ddf608a5915b8efd80665547c0555bc271ca35e0b8144c2061",
+      "bytes": 3162
+    },
+    {
+      "path": "docs/AUTOGEN/ontology-ref/aat-live-rules.md",
+      "sha256": "580bf881b071c58acd358aa28227ea629aac0b53592dcedb2d9beaa846c58d8f",
+      "bytes": 1379
+    },
+    {
+      "path": "docs/AUTOGEN/ontology-ref/attestation-shapes.md",
+      "sha256": "9c669f382660121c1736b9889b7738aeaa04beafa9fd6429dd4863b48985c1db",
+      "bytes": 382
+    },
+    {
+      "path": "docs/AUTOGEN/ontology-ref/autonomic-policies.md",
+      "sha256": "477d4a3078164469096b8158305e56c9c9f6b1eafa0fd37c9ec5dc13dfce25df",
+      "bytes": 1926
+    },
+    {
+      "path": "docs/AUTOGEN/ontology-ref/autonomics.md",
+      "sha256": "7d3e27673fdf585986fe5630d20c1d82826c062c643ffb0757c6155e7b1507c1",
+      "bytes": 1407
+    },
+    {
+      "path": "docs/AUTOGEN/ontology-ref/campus.md",
+      "sha256": "1887c1cee2649336624a2c01889d6a11318f141cdf3f182a4a2cf074a723d357",
+      "bytes": 1523
+    },
+    {
+      "path": "docs/AUTOGEN/ontology-ref/care.md",
+      "sha256": "a4f16cbd48c75c366f20ea7598a668dfb282be362b7b0d0fc0b9c42d8138cd69",
+      "bytes": 4144
+    },
+    {
+      "path": "docs/AUTOGEN/ontology-ref/categories.md",
+      "sha256": "516309ec3091f97b441ce6763b838cebaf3742902b75cbf82b603e60cc806570",
+      "bytes": 767
+    },
+    {
+      "path": "docs/AUTOGEN/ontology-ref/cell8-conformance-shapes.md",
+      "sha256": "066766fc49ffbc7d7c9243367db250a300401c7dfb4701e98795cd3e24266b5d",
+      "bytes": 374
+    },
+    {
+      "path": "docs/AUTOGEN/ontology-ref/cell8-core.md",
+      "sha256": "927420fa6533966672aadf60cc6ead9e0fe1499208583d9b57b4ca6311ff6567",
+      "bytes": 229
+    },
+    {
+      "path": "docs/AUTOGEN/ontology-ref/cell8-manufacturing.md",
+      "sha256": "d320d551a271f6468e91984f2fc9e4a4b95206d1e507bda8a60406a9b0241c51",
+      "bytes": 247
+    },
+    {
+      "path": "docs/AUTOGEN/ontology-ref/cell8-profile.md",
+      "sha256": "58f2f6f5a0ca4a3fbced91c286ac58e0dd004df69b035ace9ed9d74fcc607b18",
+      "bytes": 352
+    },
+    {
+      "path": "docs/AUTOGEN/ontology-ref/cell8-shapes.md",
+      "sha256": "5748076c313060dcea2f00647e97da8616d8eee0c07b2879dd0c95e850e73f59",
+      "bytes": 562
+    },
+    {
+      "path": "docs/AUTOGEN/ontology-ref/cli-open-ontologies.md",
+      "sha256": "b20b4995d666ae2fd2d4f2cb3503e72ccc1fb3c529039c5141cccc701c1f5c15",
+      "bytes": 248
+    },
+    {
+      "path": "docs/AUTOGEN/ontology-ref/connect-group-capacity.md",
+      "sha256": "c33abeb537ba02cc1e0cdd2d4d330bf8dc351397bbc094ce8c073c499ba8291c",
+      "bytes": 3047
+    },
+    {
+      "path": "docs/AUTOGEN/ontology-ref/connect-group-routes.md",
+      "sha256": "54296976b51a0031cd7940f76ef7c54e0271512b45d44c2630ede826e81313ac",
+      "bytes": 5038
+    },
+    {
+      "path": "docs/AUTOGEN/ontology-ref/connect-group-schedules.md",
+      "sha256": "4e13d0f1aeae8b7e6fd7ee9503179ef66b684d7615b0bbd37be8a5d2ce8b3a20",
+      "bytes": 2977
+    },
+    {
+      "path": "docs/AUTOGEN/ontology-ref/connect-groups.md",
+      "sha256": "9400f6d786b52dcc56e0e376672976f341b6b153f8c61af2ecd78701a52dc9a6",
+      "bytes": 2561
+    },
+    {
+      "path": "docs/AUTOGEN/ontology-ref/consent.md",
+      "sha256": "e83e20b837b02beac5cc5a49bbc429e358e2f0c5b22067555cb06f3165cbde31",
+      "bytes": 2161
+    },
+    {
+      "path": "docs/AUTOGEN/ontology-ref/core.md",
+      "sha256": "34dc1e128e1a1976fab1b309c8d20376b27cf1296f2f5ee27dae4112f8bb3bfd",
+      "bytes": 5000
+    },
+    {
+      "path": "docs/AUTOGEN/ontology-ref/event.md",
+      "sha256": "65dc1ef0ff94086770d30324a5dcdfc165e9b4271c07d04fa9c928c1bb4db7fb",
+      "bytes": 2592
+    },
+    {
+      "path": "docs/AUTOGEN/ontology-ref/evidence.md",
+      "sha256": "fcd88aafdcb99611800d0b51d95167d121b00e944dcd4b0538b864fea3766ee2",
+      "bytes": 5147
+    },
+    {
+      "path": "docs/AUTOGEN/ontology-ref/generations.md",
+      "sha256": "17edd06a906e714a2d24cff9e399890b42631ecc49c8459f893db21f5a96ecaa",
+      "bytes": 2166
+    },
+    {
+      "path": "docs/AUTOGEN/ontology-ref/household.md",
+      "sha256": "9b03f55f11747f34758e68ec8d19cde8df268f7ddefe9502f753598875256b08",
+      "bytes": 3378
+    },
+    {
+      "path": "docs/AUTOGEN/ontology-ref/kids.md",
+      "sha256": "46d2fdb35650988002694f148dc64cff78ff8f69ee9a4276a86ebea76d66eab4",
+      "bytes": 3482
+    },
+    {
+      "path": "docs/AUTOGEN/ontology-ref/leadership-college.md",
+      "sha256": "111e3418dd3c387cf9685e4550f6389f5d3f39e924eaa09bcbadcf2ad9693e7c",
+      "bytes": 3859
+    },
+    {
+      "path": "docs/AUTOGEN/ontology-ref/mcpp-proof-chain.md",
+      "sha256": "11496a027d511aa03fd71fa2dd12193e9d738d934b31c8f560b4425f656192e1",
+      "bytes": 1575
+    },
+    {
+      "path": "docs/AUTOGEN/ontology-ref/ministry.md",
+      "sha256": "58bcd10c634cda66a2384175ba9057b28e58b297a1e6e45b5fcd37da261b3d5b",
+      "bytes": 1691
+    },
+    {
+      "path": "docs/AUTOGEN/ontology-ref/navigation-bundle.md",
+      "sha256": "d327b63c409ca791e0af6b51bc0351506afd07456e37dd2d7ac4be198ac9acec",
+      "bytes": 2289
+    },
+    {
+      "path": "docs/AUTOGEN/ontology-ref/navigation.md",
+      "sha256": "a62e4b7f9d35391e7f525b1eb8a4c01b97a4a939a4241fe87086c4f0b4d4321d",
+      "bytes": 1868
+    },
+    {
+      "path": "docs/AUTOGEN/ontology-ref/need.md",
+      "sha256": "c7268302ba623e6a2e95449d92c17744eebdb07683be4eff8d1debccc63d6d2b",
+      "bytes": 2537
+    },
+    {
+      "path": "docs/AUTOGEN/ontology-ref/notifications.md",
+      "sha256": "43a90a9a40495a36b02e5636756fa2df19d1a27deb4a7b1aa9eed893cad48e05",
+      "bytes": 2383
+    },
+    {
+      "path": "docs/AUTOGEN/ontology-ref/ocel.md",
+      "sha256": "c414eeb13e022865872119e9b317f15914b12bd494b00f9419663ed01c811e6f",
+      "bytes": 2453
+    },
+    {
+      "path": "docs/AUTOGEN/ontology-ref/ontostar-wasm4pm-integration.md",
+      "sha256": "65ff9a624b3f6593426887ccfd878a2c711641d89c9d3da742477be869566095",
+      "bytes": 2310
+    },
+    {
+      "path": "docs/AUTOGEN/ontology-ref/outcomes.md",
+      "sha256": "430d6eecdbf86a9cdc30f408751277f73a0fcc60344784fa8b4b51eec37ddecc",
+      "bytes": 3394
+    },
+    {
+      "path": "docs/AUTOGEN/ontology-ref/partners.md",
+      "sha256": "1f18045b7480b7f2d693360ab9aed2efd146588d116623cf4e7abdcfcfdfcd86",
+      "bytes": 3068
+    },
+    {
+      "path": "docs/AUTOGEN/ontology-ref/permissions.md",
+      "sha256": "40109f8aa6d3b0bfb59d224582994786cf75e0a0a94755119da0fd61df49bd52",
+      "bytes": 2464
+    },
+    {
+      "path": "docs/AUTOGEN/ontology-ref/person.md",
+      "sha256": "dfa299c7bf07c1406813ae68ef6c4a2d71dc1dbcd7155f804eddf649123c38d7",
+      "bytes": 2169
+    },
+    {
+      "path": "docs/AUTOGEN/ontology-ref/policy.md",
+      "sha256": "98e3f2a17cbe473528e0af3ca6f003a28f8b9f6b4989d02e9c11aa02d021c28c",
+      "bytes": 409
+    },
+    {
+      "path": "docs/AUTOGEN/ontology-ref/portfolio-os.md",
+      "sha256": "6c5a44b980eec7f17fe298f1fd9c04b4dc3b25e4d421d3545eaab838c67ffb3f",
+      "bytes": 5842
+    },
+    {
+      "path": "docs/AUTOGEN/ontology-ref/powl-process-mining.md",
+      "sha256": "1411f2de0fa7d66e080c9ea0cd20c31e4dd08d0804c32ca9d50715e619f675ca",
+      "bytes": 1268
+    },
+    {
+      "path": "docs/AUTOGEN/ontology-ref/receipt.md",
+      "sha256": "25b3e8f16d78063144afb75f5c0155a13165856ec9694f2fc186ce4ffaf7f790",
+      "bytes": 2297
+    },
+    {
+      "path": "docs/AUTOGEN/ontology-ref/referrals.md",
+      "sha256": "35176dec616e093defcd816d65922dfee7d5c1e86d04469680e4af06873db811",
+      "bytes": 2379
+    },
+    {
+      "path": "docs/AUTOGEN/ontology-ref/requirements-shapes.md",
+      "sha256": "a6cbb889406f52795d45dbfdaaa9f81d125e374f5736664e97f14161d14ea427",
+      "bytes": 452
+    },
+    {
+      "path": "docs/AUTOGEN/ontology-ref/requirements.md",
+      "sha256": "328162054242b71fb8f73d3cbf638e94f68cf126022547a40c12fbaa946eba3a",
+      "bytes": 3398
+    },
+    {
+      "path": "docs/AUTOGEN/ontology-ref/resource.md",
+      "sha256": "4ed4a729eaf705fe0d2d1ee756358f695c474d6ac516225d9c9f9aa35966a6fa",
+      "bytes": 3951
+    },
+    {
+      "path": "docs/AUTOGEN/ontology-ref/revops-manufacturing.md",
+      "sha256": "92c922a45cd1f5e1bce18bc351fc4bf70d8fb8b66e10dfa38bf886592b8ae718",
+      "bytes": 847
+    },
+    {
+      "path": "docs/AUTOGEN/ontology-ref/roles.md",
+      "sha256": "7ecafa08b2fe3febec28f443c8d478624513d39ce7a3217d35738a44dfe4cf0c",
+      "bytes": 2283
+    },
+    {
+      "path": "docs/AUTOGEN/ontology-ref/routes.md",
+      "sha256": "ed8289e92c37f22d3398ba08c1c8b274dd19e98cbd44517ac29c169557e92b63",
+      "bytes": 4655
+    },
+    {
+      "path": "docs/AUTOGEN/ontology-ref/sensitivity.md",
+      "sha256": "27dc2c3fd95f6a45a9e4ebe0e04ed4158714433d6570c0d6e663f696afeb8a51",
+      "bytes": 1449
+    },
+    {
+      "path": "docs/AUTOGEN/ontology-ref/shared-receipt-shapes.md",
+      "sha256": "4ffec8de6b566c3a2c5a81671bc618fa2190ad61d75e90a3e3cb6bc3f1028b21",
+      "bytes": 524
+    },
+    {
+      "path": "docs/AUTOGEN/ontology-ref/thesis-manufacturing.md",
+      "sha256": "49c65ff40211b9044247daf08d6e77659f6896d71f4d0f28969fa2ee6f031746",
+      "bytes": 4040
+    },
+    {
+      "path": "docs/AUTOGEN/ontology-ref/thesis-shapes.md",
+      "sha256": "299828d699a8e2a751e2cbdec743ab46163f8bd18e84c5a44fded405a0339dfc",
+      "bytes": 519
+    },
+    {
+      "path": "docs/AUTOGEN/ontology-ref/volunteer.md",
+      "sha256": "4c72501c58746e70a5ad74879a7a89eac4df28c6e4300d95b2da4a3516e2a732",
+      "bytes": 3756
+    },
+    {
+      "path": "docs/AUTOGEN/ontology-ref/yth.md",
+      "sha256": "9e66aeb1c5997d2ecbd40236a992c9f2fe6f59c847f5b5d866650582934935b7",
+      "bytes": 2986
+    },
+    {
+      "path": "ggen-zoela-mobile.toml",
+      "sha256": "75fbc87530626335a4cf169ae2e5185be38f6aaf4951dbbb60f894e8954c34ba",
+      "bytes": 4611
+    },
+    {
+      "path": "ggen.toml",
+      "sha256": "2d8b32e10a2a06f62e9d9ead65d57d7afd102972b49445741cec12c62ce8d576",
+      "bytes": 14660
+    },
+    {
+      "path": "ontology/zoela/campus.ttl",
+      "sha256": "a26e2e98f279039eec2c2be4a382f2878ca101f38429883cbd819da95b6688d6",
+      "bytes": 7255
+    },
+    {
+      "path": "ontology/zoela/connect-groups.ttl",
+      "sha256": "2f1b76a09c654002ad373d161b47433abf8b264e5cd35fdb451938077a1c60ab",
+      "bytes": 10997
+    },
+    {
+      "path": "ontology/zoela/core.ttl",
+      "sha256": "9151e46ca24d7ef7ebe949b41f8232602c8a355468a1f1d42897ed03928871b8",
+      "bytes": 15669
+    },
+    {
+      "path": "ontology/zoela/event.ttl",
+      "sha256": "172b2f17e8eb279f643a309b0bc33d397e9eaf8430b36f958a835a901381d073",
+      "bytes": 8968
+    },
+    {
+      "path": "ontology/zoela/household.ttl",
+      "sha256": "1fdcb0ab94434cd41a6447ee0c4407fb1bd357d60579b9daeea0dea428d81768",
+      "bytes": 9771
+    },
+    {
+      "path": "ontology/zoela/ministry.ttl",
+      "sha256": "506047c7904561224fec49cfe69da7adbc473c248ac4c5868f24ced8b879296a",
+      "bytes": 10551
+    },
+    {
+      "path": "ontology/zoela/need.ttl",
+      "sha256": "297d2ce8a03d5adba0d62b6debe74ec739c9738485c0e606d7123d7ffe3321e2",
+      "bytes": 12368
+    },
+    {
+      "path": "ontology/zoela/person.ttl",
+      "sha256": "d08cc146f75db8a3e38a86638c2b5fa656d35e5efdb4f234c4ff8b00e94942a9",
+      "bytes": 5967
+    },
+    {
+      "path": "ontology/zoela/policy.ttl",
+      "sha256": "472929d9acadeac0f44609fe7752e1c5e050793c96dced9a2aa07f903a8c81f6",
+      "bytes": 12649
+    },
+    {
+      "path": "ontology/zoela/receipt.ttl",
+      "sha256": "ccfe776ba434c24e8fba0fa9c6da4240f4a2b949a7ce78a73835817a9fd448a9",
+      "bytes": 6493
+    },
+    {
+      "path": "supabase/functions/autonomic-executor/index.ts",
+      "sha256": "e63187c2c7a1cff05ba3beea0843b02664d9b0307de7751b65f105264198f73a",
+      "bytes": 2687
+    },
+    {
+      "path": "supabase/functions/ocel-export/index.ts",
+      "sha256": "323ae86f028fd3a4fc8a35a1db2e740f85f86e132f4fb4534143e06af86a9d49",
+      "bytes": 5971
+    },
+    {
+      "path": "supabase/functions/receipt-verify/index.ts",
+      "sha256": "6e74fdf0301910523ee6545c46f3200fc1b0964537fd1832c97c74523d0b6f13",
+      "bytes": 1614
+    },
+    {
+      "path": "supabase/migrations/20260518000001_zoela_tables.sql",
+      "sha256": "f123a0982fbfeb31db23e0cf2e76d976a1860eb2cc0dcd70d05342b35c6cc07f",
+      "bytes": 7479
+    },
+    {
+      "path": "tools/p0a-emit-receipt.py",
+      "sha256": "5749b6fd26a33546301a77421132e7ad5207a200b46e9d14b9d8f4bf692481d9",
+      "bytes": 6454
+    },
+    {
+      "path": "tools/p0a-extraction-diagnostics.py",
+      "sha256": "caacbbd01276097bc7d4f8b4bef5fb6551be2e2162097ee0aa1241116f2945e4",
+      "bytes": 14533
+    },
+    {
+      "path": "tools/validate-namespace-singularity.sh",
+      "sha256": "61b6294489f492a9938e1cacc6bb020e111b9292b2f79daf9711ae1afb09cb8d",
+      "bytes": 2726
+    },
+    {
+      "path": "tools/validate-no-downstream-authority.sh",
+      "sha256": "ab86efbbe88d4cf8e68bbde59e87e1f15d2b808e62680a567c9d422862d36fcd",
+      "bytes": 3131
+    }
+  ],
+  "audit_outputs": [
+    {
+      "path": ".ggen/audit/p0-a/inventory-iris-before.txt",
+      "sha256": "d65c8b3aa61a3547a2afbc67c7564ebdb68a04b4332c3e1427e6f8095310c0f7",
+      "bytes": 2261
+    },
+    {
+      "path": ".ggen/audit/p0-a/inventory-prefixes-before.txt",
+      "sha256": "f14888a3ae6047fbc7df99007cb8f2b858223a66dc4775d679160bdc3393a3c6",
+      "bytes": 1037
+    },
+    {
+      "path": ".ggen/audit/p0-a/inventory-after.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": ".ggen/audit/p0-a/namespace-lint.txt",
+      "sha256": "1adcfda23685ecd9f387840e4648d97510a78385d8b71e66e16970fcff908b68",
+      "bytes": 80
+    },
+    {
+      "path": ".ggen/audit/p0-a/downstream-authority.txt",
+      "sha256": "eba5f4afa16270a778a28d9b3246890b40e081006c09855529a3c0070bf9626d",
+      "bytes": 254
+    },
+    {
+      "path": ".ggen/audit/p0-a/ontology-validation.txt",
+      "sha256": "c5454e68dceeb5f20e5adf269941c9294e63aa09fb938e6376db8011638b483c",
+      "bytes": 2144
+    },
+    {
+      "path": ".ggen/audit/p0-a/conformance-test.txt",
+      "sha256": "c599fbbb34afec49774612ea8d444b0e3c7d54aeefab14aafe39acf2923a737d",
+      "bytes": 529
+    },
+    {
+      "path": ".ggen/audit/p0-a/extraction-diagnostics.txt",
+      "sha256": "4a9d9d510be286219cc530644677ee35e1e2a89b32db9aa19efbeae87d21a6df",
+      "bytes": 5390
+    },
+    {
+      "path": ".ggen/audit/p0-a/extraction-diagnostics.json",
+      "sha256": "98cae6b517e735ecc2986bc7bbc4fad16a4bec7a86e7b86f0768cb3f65489173",
+      "bytes": 11693
+    }
+  ],
+  "deferred": [
+    "P0-B: remove protected_paths and emit migrations from ontology",
+    "P0-C: build \u03bc_mobile manufacturing layer + Expo shell",
+    "P1: autonomic runtime + OCEL-as-memory + receipt-as-admissibility"
+  ],
+  "signature_method": "this is a hand-crafted P0-A audit receipt, not a ggen Ed25519-signed receipt; full receipt signing returns when ggen sync re-runs in P0-B",
+  "signature": "P0A-NAMESPACE-SINGULARITY-2026-05-18"
+}

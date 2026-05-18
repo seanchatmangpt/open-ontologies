@@ -15,7 +15,7 @@
 #   ?consentRequired    — "true"/"false" per policy
 # =============================================================================
 
-PREFIX zoe:  <https://zoela.org/onto/>
+PREFIX zoe:  <https://zoela.org/ontology/>
 PREFIX odrl: <http://www.w3.org/ns/odrl/2/>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
@@ -73,9 +73,9 @@ WHERE {
   {
     # Fallback VALUES: 3 representative rows when ontology returns no data
     VALUES (?policyIri ?policyLabel ?sensitivityNotation ?appliesToClass ?roleLabel ?consentReqStr) {
-      ("https://zoela.org/onto/PersonalDataPolicy"   "Personal Data Policy"   "youth_protected"  "PersonProfile"  "Admin"       "true")
-      ("https://zoela.org/onto/ServiceHistoryPolicy" "Service History Policy" "ministry_private" "RouteInstance"  "CareWorker"  "false")
-      ("https://zoela.org/onto/PublicEventPolicy"    "Public Event Policy"    "public"           "Event"          "Volunteer"   "false")
+      ("https://zoela.org/ontology/PersonalDataPolicy"   "Personal Data Policy"   "youth_protected"  "PersonProfile"  "Admin"       "true")
+      ("https://zoela.org/ontology/ServiceHistoryPolicy" "Service History Policy" "ministry_private" "RouteInstance"  "CareWorker"  "false")
+      ("https://zoela.org/ontology/PublicEventPolicy"    "Public Event Policy"    "public"           "Event"          "Volunteer"   "false")
     }
   }
 }

@@ -1,6 +1,4 @@
 @prefix zoe:        <https://zoela.org/ontology/> .
-@prefix zoe-legacy: <urn:zoela:> .
-@prefix onto:       <https://zoela.org/onto/> .
 @prefix owl:        <http://www.w3.org/2002/07/owl#> .
 @prefix rdf:        <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 @prefix rdfs:       <http://www.w3.org/2000/01/rdf-schema#> .
@@ -20,7 +18,7 @@
 # Modules present as of 2026-05-17:
 #   campus, ministry, connect-groups, roles, permissions, consent,
 #   routes, evidence, ocel, volunteer, resource, care, need, receipt,
-#   policy, generations, person (urn:zoela: namespace), event (urn:zoela: namespace)
+#   policy, generations, person, event
 #
 # Modules added (imported below):
 #   kids, yth, leadership-college, partners, referrals, outcomes,
@@ -79,103 +77,14 @@ mcpp gates service delivery. wasm4pm mines actual routes for conformance.
 The product is CodeManufactory; ZOE LA Mobile is proof that CodeManufactory works."""@en .
 
 # ----------------------------------------------------------------------------
-# § 2  IRI bridges — urn:zoela: → https://zoela.org/ontology/
+# § 2  (Removed in P0-A — 2026-05-18)
 #
-# person.ttl and event.ttl were authored with @prefix zoe: <urn:zoela:>.
-# The canonical IRI base is <https://zoela.org/ontology/>.  These
-# owl:equivalentClass bridges make both namespaces interchangeable for
-# reasoners and SPARQL queries that join across modules.
+# This section previously contained owl:equivalentClass bridges for two
+# legacy namespace forms that were used by person, event, campus, ministry,
+# connect-groups, need, policy, and receipt modules. All eight source
+# modules now declare classes directly in the canonical
+# https://zoela.org/ontology/ namespace, so the bridges are no longer needed.
 # ----------------------------------------------------------------------------
-
-# Canonical class declarations (https://zoela.org/ontology/ namespace)
-
-zoe:PersonProfile
-    a owl:Class ;
-    rdfs:label "Person Profile"@en ;
-    rdfs:comment "A registered person in the ZOE LA Mobile system (canonical IRI)."@en ;
-    owl:equivalentClass zoe-legacy:PersonProfile .
-
-zoe:Household
-    a owl:Class ;
-    rdfs:label "Household"@en ;
-    rdfs:comment "A household grouping one or more PersonProfiles at a shared address (canonical IRI)."@en ;
-    owl:equivalentClass zoe-legacy:Household .
-
-zoe:ZoeEvent
-    a owl:Class ;
-    rdfs:label "ZOE Event"@en ;
-    rdfs:comment "A scheduled church event (service, conference, workshop) at a ZOE LA campus (canonical IRI)."@en ;
-    owl:equivalentClass zoe-legacy:ZoeEvent .
-
-zoe:EventRegistration
-    a owl:Class ;
-    rdfs:label "Event Registration"@en ;
-    rdfs:comment "A person's registration record for a specific ZOE Event (canonical IRI)."@en ;
-    owl:equivalentClass zoe-legacy:EventRegistration .
-
-# ----------------------------------------------------------------------------
-# § 2b  IRI bridges — https://zoela.org/onto/ → https://zoela.org/ontology/
-#
-# campus.ttl, ministry.ttl, connect-groups.ttl, need.ttl, policy.ttl, and
-# receipt.ttl were authored with @prefix zoe: <https://zoela.org/onto/>.
-# The canonical IRI base is <https://zoela.org/ontology/>.  These
-# owl:equivalentClass bridges make both namespaces interchangeable for
-# reasoners and SPARQL queries that join across modules.
-# ----------------------------------------------------------------------------
-
-# Campus module bridges
-onto:Campus
-    owl:equivalentClass zoe:Campus .
-
-onto:CampusLocation
-    owl:equivalentClass zoe:CampusLocation .
-
-# Ministry module bridges
-onto:Ministry
-    owl:equivalentClass zoe:Ministry .
-
-onto:MinistryRole
-    owl:equivalentClass zoe:MinistryRole .
-
-onto:GenerationSegment
-    owl:equivalentClass zoe:GenerationSegment .
-
-# Connect-groups module bridges
-onto:ConnectGroup
-    owl:equivalentClass zoe:ConnectGroup .
-
-onto:GroupMembership
-    owl:equivalentClass zoe:GroupMembership .
-
-onto:YthConnectGroup
-    owl:equivalentClass zoe:YthConnectGroup .
-
-onto:GenerationSegmentTerm
-    owl:equivalentClass zoe:GenerationSegmentTerm .
-
-# Need module bridges
-onto:Need
-    owl:equivalentClass zoe:Need .
-
-onto:NeedCategoryTerm
-    owl:equivalentClass zoe:NeedCategoryTerm .
-
-onto:NeedStatusTerm
-    owl:equivalentClass zoe:NeedStatusTerm .
-
-onto:FollowUpTask
-    owl:equivalentClass zoe:FollowUpTask .
-
-# Policy module bridges
-onto:SensitivityLevel
-    owl:equivalentClass zoe:SensitivityLevel .
-
-# Receipt module bridges
-onto:ServiceActivity
-    owl:equivalentClass zoe:ServiceActivity .
-
-onto:ServiceReceipt
-    owl:equivalentClass zoe:ServiceReceipt .
 
 # ----------------------------------------------------------------------------
 # § 3  Forward-declared stub classes for future modules

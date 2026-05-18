@@ -7,13 +7,10 @@
 --   Tier 2 — ggen sync                           (manufacturing step)
 --   Tier 3 — supabase/migrations/zoela_init.sql  (this file, applied by CLI)
 --
--- NOTE: ggen SPARQL queries currently produce no rows due to namespace mismatch
--- between TTL files. DDL is hand-authored here and protected_paths guards it
--- from being overwritten until the namespace inconsistency is resolved.
--- See: .specify/queries/zoela/extract-tables.rq (expects <urn:zoela:> prefix)
---      ontology/zoela/person.ttl     (uses <urn:zoela:>)
---      ontology/zoela/campus.ttl     (uses <https://zoela.org/onto/>)
---      ontology/zoela/connect-groups.ttl (uses <https://zoela.org/onto/>)
+-- NOTE: DDL is currently hand-authored. P0-A (2026-05-18) resolved the namespace
+-- bifurcation in ontology/zoela/*.ttl (all modules now use the canonical
+-- ZOE namespace). P0-B will wire extract-tables.rq + supabase-migration.tera
+-- into ggen.toml and remove the protected_paths entry for this file.
 
 -- ============================================================================
 -- Shared helper: updated_at trigger function (idempotent)

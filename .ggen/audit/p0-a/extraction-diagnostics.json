@@ -1,0 +1,458 @@
+{
+  "stats": {
+    "classes": 131,
+    "data_properties": 0,
+    "individuals": 397,
+    "object_properties": 462,
+    "properties": 462,
+    "triples": 6811
+  },
+  "queries": [
+    {
+      "query": "extract-admin-screens",
+      "status": "OK",
+      "rows": 3,
+      "variables": [
+        "screen_id",
+        "screen_label",
+        "nav_route",
+        "parent_tab_code",
+        "screen_stack",
+        "required_role",
+        "primary_object_type",
+        "primary_route_category",
+        "screen_order"
+      ],
+      "empty_vars_across_rows": [],
+      "populated_vars_across_rows": 9,
+      "health": "all 9 variables populated across rows"
+    },
+    {
+      "query": "extract-assignment-eligibility",
+      "status": "OK",
+      "rows": 1,
+      "variables": [
+        "route_labels",
+        "min_hours_list",
+        "requires_bgc_list",
+        "req_skill_labels",
+        "eligible_role_codes"
+      ],
+      "empty_aggregate_vars": [],
+      "populated_aggregate_vars": 5,
+      "aggregate_var_count": 5,
+      "health": "all 5 aggregate variables populated"
+    },
+    {
+      "query": "extract-bridge-tables",
+      "status": "OK",
+      "rows": 1,
+      "variables": [
+        "tableNames",
+        "tableLabels",
+        "tableComments",
+        "propTables",
+        "colNames",
+        "colTypes",
+        "colNullable"
+      ],
+      "empty_aggregate_vars": [],
+      "populated_aggregate_vars": 7,
+      "aggregate_var_count": 7,
+      "health": "all 7 aggregate variables populated"
+    },
+    {
+      "query": "extract-connect-group-admin",
+      "status": "OK",
+      "rows": 1,
+      "variables": [
+        "surface_codes",
+        "surface_labels",
+        "surface_descriptions",
+        "filter_stage_codes",
+        "surface_urgency"
+      ],
+      "empty_aggregate_vars": [],
+      "populated_aggregate_vars": 5,
+      "aggregate_var_count": 5,
+      "health": "all 5 aggregate variables populated"
+    },
+    {
+      "query": "extract-connect-group-stages",
+      "status": "OK",
+      "rows": 1,
+      "variables": [
+        "stage_codes",
+        "stage_labels",
+        "stage_orders",
+        "stage_is_entry",
+        "stage_is_terminal",
+        "predecessor_codes",
+        "ocel_event_types",
+        "autonomic_action_classes",
+        "gate_codes"
+      ],
+      "empty_aggregate_vars": [],
+      "populated_aggregate_vars": 9,
+      "aggregate_var_count": 9,
+      "health": "all 9 aggregate variables populated"
+    },
+    {
+      "query": "extract-connect-group-work-orders",
+      "status": "OK",
+      "rows": 1,
+      "variables": [
+        "work_order_codes",
+        "work_order_labels",
+        "mapped_stage_codes",
+        "autonomic_action_classes",
+        "requires_human_approval"
+      ],
+      "empty_aggregate_vars": [],
+      "populated_aggregate_vars": 5,
+      "aggregate_var_count": 5,
+      "health": "all 5 aggregate variables populated"
+    },
+    {
+      "query": "extract-consent-requirements",
+      "status": "OK",
+      "rows": 7,
+      "variables": [
+        "consent_code",
+        "consent_label",
+        "consent_definition",
+        "is_guardian_type",
+        "blocks_stages",
+        "used_in_routes"
+      ],
+      "empty_vars_across_rows": [
+        "blocks_stages",
+        "used_in_routes"
+      ],
+      "populated_vars_across_rows": 4,
+      "health": "4/6 variables populated; empty (likely OPTIONAL no-match): blocks_stages, used_in_routes"
+    },
+    {
+      "query": "extract-followup-rules",
+      "status": "OK",
+      "rows": 1,
+      "variables": [
+        "rule_iri",
+        "rule_label",
+        "trigger_condition",
+        "followup_action",
+        "days_after",
+        "assigned_role_labels"
+      ],
+      "empty_aggregate_vars": [],
+      "populated_aggregate_vars": 6,
+      "aggregate_var_count": 6,
+      "health": "all 6 aggregate variables populated"
+    },
+    {
+      "query": "extract-form-fields",
+      "status": "OK",
+      "rows": 1,
+      "variables": [
+        "formIds",
+        "formLabels",
+        "fieldForms",
+        "fieldNames",
+        "fieldLabels",
+        "fieldTypes",
+        "fieldRequired",
+        "fieldComments"
+      ],
+      "empty_aggregate_vars": [],
+      "populated_aggregate_vars": 8,
+      "aggregate_var_count": 8,
+      "health": "all 8 aggregate variables populated"
+    },
+    {
+      "query": "extract-navigation",
+      "status": "OK",
+      "rows": 7,
+      "variables": [
+        "tab_code",
+        "tab_label",
+        "screens"
+      ],
+      "empty_vars_across_rows": [],
+      "populated_vars_across_rows": 3,
+      "health": "all 3 variables populated across rows"
+    },
+    {
+      "query": "extract-ocel-events",
+      "status": "OK",
+      "rows": 1,
+      "variables": [
+        "eventCodes",
+        "eventLabels",
+        "eventDefs",
+        "eventRoutes"
+      ],
+      "empty_aggregate_vars": [],
+      "populated_aggregate_vars": 4,
+      "aggregate_var_count": 4,
+      "health": "all 4 aggregate variables populated"
+    },
+    {
+      "query": "extract-ocel-schema",
+      "status": "OK",
+      "rows": 1,
+      "variables": [
+        "object_type_labels",
+        "event_type_labels",
+        "object_attribute_labels",
+        "event_attribute_labels",
+        "object_relationship_labels"
+      ],
+      "empty_aggregate_vars": [],
+      "populated_aggregate_vars": 5,
+      "aggregate_var_count": 5,
+      "health": "all 5 aggregate variables populated"
+    },
+    {
+      "query": "extract-push-card-fields",
+      "status": "OK",
+      "rows": 9,
+      "variables": [
+        "card_iri",
+        "card_title",
+        "card_subtitle",
+        "card_body",
+        "card_action",
+        "card_deep_link",
+        "card_priority",
+        "route_labels"
+      ],
+      "empty_vars_across_rows": [
+        "route_labels"
+      ],
+      "populated_vars_across_rows": 7,
+      "health": "7/8 variables populated; empty (likely OPTIONAL no-match): route_labels"
+    },
+    {
+      "query": "extract-receipt-models",
+      "status": "OK",
+      "rows": 1,
+      "variables": [
+        "receiptCodes",
+        "receiptLabels",
+        "receiptDefinitions",
+        "ocelEventTypes",
+        "usedInRoutes"
+      ],
+      "empty_aggregate_vars": [],
+      "populated_aggregate_vars": 5,
+      "aggregate_var_count": 5,
+      "health": "all 5 aggregate variables populated"
+    },
+    {
+      "query": "extract-resource-matching-rules",
+      "status": "OK",
+      "rows": 1,
+      "variables": [
+        "resource_iri",
+        "resource_label",
+        "resource_type",
+        "capacity",
+        "eligibility_criteria",
+        "route_labels"
+      ],
+      "empty_aggregate_vars": [],
+      "populated_aggregate_vars": 6,
+      "aggregate_var_count": 6,
+      "health": "all 6 aggregate variables populated"
+    },
+    {
+      "query": "extract-rls-policies",
+      "status": "OK",
+      "rows": 1,
+      "variables": [
+        "policyCodes",
+        "policyLabels",
+        "policyTables",
+        "permPolicies",
+        "permCodes",
+        "permOps",
+        "permRoles"
+      ],
+      "empty_aggregate_vars": [
+        "permPolicies",
+        "permCodes",
+        "permOps",
+        "permRoles"
+      ],
+      "populated_aggregate_vars": 3,
+      "aggregate_var_count": 7,
+      "concern": "AGGREGATE INCOMPLETE \u2014 4/7 aggregate variables empty: permPolicies, permCodes, permOps, permRoles"
+    },
+    {
+      "query": "extract-role-requirements",
+      "status": "OK",
+      "rows": 1,
+      "variables": [
+        "role_codes",
+        "role_labels",
+        "permission_levels",
+        "can_view_sensitives",
+        "can_create_receipts",
+        "can_assign_vols",
+        "req_trainings",
+        "req_bgcs"
+      ],
+      "empty_aggregate_vars": [],
+      "populated_aggregate_vars": 8,
+      "aggregate_var_count": 8,
+      "health": "all 8 aggregate variables populated"
+    },
+    {
+      "query": "extract-screens",
+      "status": "OK",
+      "rows": 14,
+      "variables": [
+        "screen_id",
+        "screen_label",
+        "nav_route",
+        "parent_tab_code",
+        "screen_stack",
+        "required_role",
+        "primary_object_type",
+        "primary_route_category",
+        "is_admin_only",
+        "screen_order"
+      ],
+      "empty_vars_across_rows": [],
+      "populated_vars_across_rows": 10,
+      "health": "all 10 variables populated across rows"
+    },
+    {
+      "query": "extract-sensitivity-rules",
+      "status": "OK",
+      "rows": 1,
+      "variables": [
+        "policyIris",
+        "policyLabels",
+        "sensitivityLevels",
+        "appliesToClasses",
+        "requiredRoles",
+        "consentRequired"
+      ],
+      "empty_aggregate_vars": [
+        "sensitivityLevels",
+        "requiredRoles"
+      ],
+      "populated_aggregate_vars": 4,
+      "aggregate_var_count": 6,
+      "concern": "AGGREGATE INCOMPLETE \u2014 2/6 aggregate variables empty: sensitivityLevels, requiredRoles"
+    },
+    {
+      "query": "extract-service-routes",
+      "status": "OK",
+      "rows": 1,
+      "variables": [
+        "stageCodes",
+        "stageLabels",
+        "stageRouteCodes",
+        "stageOrders",
+        "stageIsEntries",
+        "stageIsTerminals",
+        "stagePredCodes",
+        "stageRoleCodes",
+        "stageConsentCodes",
+        "stageReceiptTypes",
+        "stageOcelTypes",
+        "stageTimeouts"
+      ],
+      "empty_aggregate_vars": [],
+      "populated_aggregate_vars": 12,
+      "aggregate_var_count": 12,
+      "health": "all 12 aggregate variables populated"
+    },
+    {
+      "query": "extract-skos-enums",
+      "status": "OK",
+      "rows": 1,
+      "variables": [
+        "shapeNames",
+        "shapeTargets",
+        "shapeDescriptions",
+        "fieldShapes",
+        "fieldNames",
+        "fieldTypes",
+        "fieldRequired",
+        "fieldDescriptions",
+        "fieldMinLengths",
+        "fieldMaxLengths",
+        "fieldPatterns"
+      ],
+      "empty_aggregate_vars": [
+        "shapeNames",
+        "shapeTargets",
+        "shapeDescriptions",
+        "fieldShapes",
+        "fieldNames",
+        "fieldTypes",
+        "fieldRequired",
+        "fieldDescriptions",
+        "fieldMinLengths",
+        "fieldMaxLengths",
+        "fieldPatterns"
+      ],
+      "populated_aggregate_vars": 0,
+      "aggregate_var_count": 11,
+      "concern": "AGGREGATE INCOMPLETE \u2014 11/11 aggregate variables empty: shapeNames, shapeTargets, shapeDescriptions, fieldShapes, fieldNames"
+    },
+    {
+      "query": "extract-tables",
+      "status": "OK",
+      "rows": 1,
+      "variables": [
+        "classNames",
+        "tableNames",
+        "classIris",
+        "classDescriptions",
+        "propClasses",
+        "propColumns",
+        "propSqlTypes",
+        "propRequired",
+        "propDescriptions",
+        "propFkTables"
+      ],
+      "empty_aggregate_vars": [],
+      "populated_aggregate_vars": 10,
+      "aggregate_var_count": 10,
+      "health": "all 10 aggregate variables populated"
+    },
+    {
+      "query": "extract-types",
+      "status": "OK",
+      "rows": 1,
+      "variables": [
+        "classNames",
+        "classDescriptions",
+        "classIris",
+        "propClasses",
+        "propNames",
+        "propColumns",
+        "propDescriptions",
+        "propTsTypes",
+        "propRequired",
+        "schemeNames",
+        "schemeDescriptions",
+        "conceptSchemes",
+        "conceptValues"
+      ],
+      "empty_aggregate_vars": [],
+      "populated_aggregate_vars": 13,
+      "aggregate_var_count": 13,
+      "health": "all 13 aggregate variables populated"
+    }
+  ],
+  "rows_total": 58,
+  "queries_with_rows": 23,
+  "queries_zero_rows": 0,
+  "queries_errored": 0,
+  "queries_with_concerns": 3
+}

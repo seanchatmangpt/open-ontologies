@@ -23,8 +23,8 @@
 #
 # Namespace: https://zoela.org/ontology/
 # This file defines the canonical zoe: namespace version of Household.
-# (The W22 person.ttl defines zoe:Household under urn:zoela: — that is a
-#  legacy entry; this file is the source of truth for the service graph.)
+# (W22 person.ttl previously declared zoe:Household under a legacy URN form;
+#  as of P0-A 2026-05-18 person.ttl uses the canonical namespace and this file remains the source of truth.)
 # ============================================================================
 
 zoe:HouseholdOntology a owl:Ontology ;

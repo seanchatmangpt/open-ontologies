@@ -1,0 +1,21 @@
+/Users/sac/open-ontologies/ontology/zoela/campus.ttl:1:@prefix zoe:     <https://zoela.org/onto/> .
+/Users/sac/open-ontologies/ontology/zoela/person.ttl:1:@prefix zoe:     <urn:zoela:> .
+/Users/sac/open-ontologies/ontology/zoela/need.ttl:1:@prefix zoe:     <https://zoela.org/onto/> .
+/Users/sac/open-ontologies/ontology/zoela/receipt.ttl:1:@prefix zoe:     <https://zoela.org/onto/> .
+/Users/sac/open-ontologies/ontology/zoela/event.ttl:1:@prefix zoe:     <urn:zoela:> .
+/Users/sac/open-ontologies/ontology/zoela/event.ttl:28:    owl:imports <urn:zoela:PersonOntology> .
+/Users/sac/open-ontologies/ontology/zoela/connect-groups.ttl:1:@prefix zoe:     <https://zoela.org/onto/> .
+/Users/sac/open-ontologies/ontology/zoela/connect-groups.ttl:32:    owl:imports      <https://zoela.org/onto/CampusOntology> ;
+/Users/sac/open-ontologies/ontology/zoela/ministry.ttl:1:@prefix zoe:     <https://zoela.org/onto/> .
+/Users/sac/open-ontologies/ontology/zoela/ministry.ttl:31:    owl:imports      <https://zoela.org/onto/CampusOntology> ;
+/Users/sac/open-ontologies/ontology/zoela/policy.ttl:1:@prefix zoe:     <https://zoela.org/onto/> .
+/Users/sac/open-ontologies/ontology/zoela/core.ttl:2:@prefix zoe-legacy: <urn:zoela:> .
+/Users/sac/open-ontologies/ontology/zoela/core.ttl:3:@prefix onto:       <https://zoela.org/onto/> .
+/Users/sac/open-ontologies/ontology/zoela/core.ttl:84:# person.ttl and event.ttl were authored with @prefix zoe: <urn:zoela:>.
+/Users/sac/open-ontologies/ontology/zoela/core.ttl:120:# receipt.ttl were authored with @prefix zoe: <https://zoela.org/onto/>.
+/Users/sac/open-ontologies/.specify/queries/zoela/extract-tables.rq:21:PREFIX zoe:  <urn:zoela:>
+/Users/sac/open-ontologies/.specify/queries/zoela/extract-sensitivity-rules.rq:18:PREFIX zoe:  <https://zoela.org/onto/>
+/Users/sac/open-ontologies/.specify/queries/zoela/extract-types.rq:30:PREFIX zoe:  <urn:zoela:>
+/Users/sac/open-ontologies/ggen.toml:110:    # namespace mismatch (query targets <urn:zoela:> but TTL uses <https://zoela.org/onto/>).
+/Users/sac/open-ontologies/ggen.toml:163:    # in ontology/zoela/*.ttl is resolved (extract-tables.rq targets <urn:zoela:>
+/Users/sac/open-ontologies/ggen.toml:164:    # but campus.ttl / connect-groups.ttl use <https://zoela.org/onto/>).

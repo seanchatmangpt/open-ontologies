@@ -106,9 +106,10 @@ rules = [
     { name = "revops-stages", query = { file = ".specify/queries/revops/stages_aggregated.rq" }, template = { file = ".specify/templates/revops/cmds.rs.tera" }, output_file = "src/cmds/generated_revops.rs", mode = "Overwrite" },
     # ZOE LA Mobile pipeline — canonical runtime paths (never generated/)
     { name = "zoela-mobile-types",     query = { file = ".specify/queries/zoela/extract-types.rq" },       template = { file = ".specify/templates/zoela/typescript-types.tera" }, output_file = "packages/types/zoela.ts",                                   mode = "Overwrite" },
-    # zoela-mobile-migration intentionally removed: extract-tables.rq produces no rows due to
-    # namespace mismatch (query targets <urn:zoela:> but TTL uses <https://zoela.org/onto/>).
-    # DDL is hand-authored in supabase/migrations/20260518000001_zoela_tables.sql (protected_path).
+    # zoela-mobile-migration: extract-tables.rq + supabase-migration.tera not yet wired here.
+    # P0-A (2026-05-18) resolved the namespace bifurcation (all ontology/zoela/*.ttl now use
+    # the canonical namespace), unblocking downstream regeneration. P0-B will wire the migration
+    # emission rule and remove the protected_paths entries below.
     { name = "zoela-mobile-zod",       query = { file = ".specify/queries/zoela/extract-skos-enums.rq" },  template = { file = ".specify/templates/zoela/zod-schema.tera" },          output_file = "packages/schemas/zoela.ts",                                 mode = "Overwrite" },
     # ZOE LA Mobile pipeline — data + policy rules
     # zoela-bridge-tables intentionally removed: extract-bridge-tables.rq produces no rows.
@@ -158,9 +159,8 @@ protected_paths = [
     "src/main.rs",
     "src/lib.rs",
     "src/domain/**",
-    # Supabase migrations: hand-authored DDL until SPARQL namespace inconsistency
-    # in ontology/zoela/*.ttl is resolved (extract-tables.rq targets <urn:zoela:>
-    # but campus.ttl / connect-groups.ttl use <https://zoela.org/onto/>).
+    # Supabase migrations: hand-authored DDL. P0-A (2026-05-18) resolved the namespace
+    # bifurcation; P0-B will wire ggen migration emission rules and remove these entries.
     "supabase/migrations/20260518000001_zoela_tables.sql",
     "supabase/migrations/20260518000002_zoela_bridge_tables.sql",
     "supabase/migrations/20260518000003_zoela_rls.sql",

@@ -1,0 +1,1 @@
+validate:namespace-singularity PASS — only https://zoela.org/ontology/ in use

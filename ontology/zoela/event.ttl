@@ -1,4 +1,4 @@
-@prefix zoe:     <urn:zoela:> .
+@prefix zoe:     <https://zoela.org/ontology/> .
 @prefix rdf:     <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 @prefix rdfs:    <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix owl:     <http://www.w3.org/2002/07/owl#> .
@@ -25,7 +25,7 @@ zoe:EventOntology a owl:Ontology ;
     dcterms:created "2026-05-17"^^xsd:date ;
     dcterms:license <https://opensource.org/licenses/MIT> ;
     owl:versionInfo "1.0.0" ;
-    owl:imports <urn:zoela:PersonOntology> .
+    owl:imports <https://zoela.org/ontology/PersonOntology> .
 
 # ============================================================================
 # Classes

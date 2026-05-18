@@ -1,0 +1,10 @@
+/Users/sac/open-ontologies/ontology/zoela/campus.ttl:1:@prefix zoe:     <https://zoela.org/onto/> .
+/Users/sac/open-ontologies/ontology/zoela/person.ttl:1:@prefix zoe:     <urn:zoela:> .
+/Users/sac/open-ontologies/ontology/zoela/need.ttl:1:@prefix zoe:     <https://zoela.org/onto/> .
+/Users/sac/open-ontologies/ontology/zoela/receipt.ttl:1:@prefix zoe:     <https://zoela.org/onto/> .
+/Users/sac/open-ontologies/ontology/zoela/event.ttl:1:@prefix zoe:     <urn:zoela:> .
+/Users/sac/open-ontologies/ontology/zoela/connect-groups.ttl:1:@prefix zoe:     <https://zoela.org/onto/> .
+/Users/sac/open-ontologies/ontology/zoela/ministry.ttl:1:@prefix zoe:     <https://zoela.org/onto/> .
+/Users/sac/open-ontologies/ontology/zoela/policy.ttl:1:@prefix zoe:     <https://zoela.org/onto/> .
+/Users/sac/open-ontologies/ontology/zoela/core.ttl:84:# person.ttl and event.ttl were authored with @prefix zoe: <urn:zoela:>.
+/Users/sac/open-ontologies/ontology/zoela/core.ttl:120:# receipt.ttl were authored with @prefix zoe: <https://zoela.org/onto/>.

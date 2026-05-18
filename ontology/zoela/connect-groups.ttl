@@ -1,4 +1,4 @@
-@prefix zoe:     <https://zoela.org/onto/> .
+@prefix zoe:     <https://zoela.org/ontology/> .
 @prefix rdf:     <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 @prefix rdfs:    <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix owl:     <http://www.w3.org/2002/07/owl#> .
@@ -29,7 +29,7 @@ zoe:ConnectGroupsOntology a owl:Ontology ;
     dcterms:creator  "Sean Chatman" ;
     dcterms:created  "2026-05-17"^^xsd:date ;
     dcterms:license  <https://opensource.org/licenses/MIT> ;
-    owl:imports      <https://zoela.org/onto/CampusOntology> ;
+    owl:imports      <https://zoela.org/ontology/CampusOntology> ;
     owl:versionInfo  "1.0.0" .
 
 # ── Classes ──────────────────────────────────────────────────────────────────
