@@ -141,7 +141,8 @@ ggen:AgentMaterialization a ggen:MaterializationKind , skos:Concept ;
     ggen:tableNameStrategy "pluralize-snake" ;
     ggen:emitsSql true ;
     ggen:requiresOwner false ;
-    ggen:requiresAuditTrail true .
+    ggen:requiresAuditTrail true ;
+    ggen:requiresShape ggen:AgentMaterializationShape .
 
 ggen:OrganizationMaterialization a ggen:MaterializationKind , skos:Concept ;
     skos:inScheme ggen:ZoelaSupabaseMaterializationScheme ;
@@ -153,7 +154,8 @@ ggen:OrganizationMaterialization a ggen:MaterializationKind , skos:Concept ;
     ggen:tableNameStrategy "pluralize-snake" ;
     ggen:emitsSql true ;
     ggen:requiresOwner false ;
-    ggen:requiresAuditTrail true .
+    ggen:requiresAuditTrail true ;
+    ggen:requiresShape ggen:OrganizationMaterializationShape .
 
 ggen:ContainerMaterialization a ggen:MaterializationKind , skos:Concept ;
     skos:inScheme ggen:ZoelaSupabaseMaterializationScheme ;
@@ -165,7 +167,8 @@ ggen:ContainerMaterialization a ggen:MaterializationKind , skos:Concept ;
     ggen:tableNameStrategy "pluralize-snake" ;
     ggen:emitsSql true ;
     ggen:requiresOwner true ;
-    ggen:requiresAuditTrail true .
+    ggen:requiresAuditTrail true ;
+    ggen:requiresShape ggen:ContainerMaterializationShape .
 
 ggen:EventMaterialization a ggen:MaterializationKind , skos:Concept ;
     skos:inScheme ggen:ZoelaSupabaseMaterializationScheme ;
@@ -177,7 +180,8 @@ ggen:EventMaterialization a ggen:MaterializationKind , skos:Concept ;
     ggen:tableNameStrategy "pluralize-snake" ;
     ggen:emitsSql true ;
     ggen:requiresOwner false ;
-    ggen:requiresAuditTrail true .
+    ggen:requiresAuditTrail true ;
+    ggen:requiresShape ggen:EventMaterializationShape .
 
 ggen:ActionMaterialization a ggen:MaterializationKind , skos:Concept ;
     skos:inScheme ggen:ZoelaSupabaseMaterializationScheme ;
@@ -195,7 +199,8 @@ ggen:ActionMaterialization a ggen:MaterializationKind , skos:Concept ;
     ggen:tableNameStrategy "pluralize-snake" ;
     ggen:emitsSql true ;
     ggen:requiresOwner true ;
-    ggen:requiresAuditTrail true .
+    ggen:requiresAuditTrail true ;
+    ggen:requiresShape ggen:ActionMaterializationShape .
 
 ggen:MessageMaterialization a ggen:MaterializationKind , skos:Concept ;
     skos:inScheme ggen:ZoelaSupabaseMaterializationScheme ;
@@ -207,7 +212,8 @@ ggen:MessageMaterialization a ggen:MaterializationKind , skos:Concept ;
     ggen:tableNameStrategy "pluralize-snake" ;
     ggen:emitsSql true ;
     ggen:requiresOwner true ;
-    ggen:requiresAuditTrail true .
+    ggen:requiresAuditTrail true ;
+    ggen:requiresShape ggen:MessageMaterializationShape .
 
 ggen:ActivityStreamMaterialization a ggen:MaterializationKind , skos:Concept ;
     skos:inScheme ggen:ZoelaSupabaseMaterializationScheme ;
@@ -219,7 +225,8 @@ ggen:ActivityStreamMaterialization a ggen:MaterializationKind , skos:Concept ;
     ggen:tableNameStrategy "pluralize-snake" ;
     ggen:emitsSql true ;
     ggen:requiresOwner true ;
-    ggen:requiresAuditTrail true .
+    ggen:requiresAuditTrail true ;
+    ggen:requiresShape ggen:ActivityStreamMaterializationShape .
 
 ggen:EvidenceActivityMaterialization a ggen:MaterializationKind , skos:Concept ;
     skos:inScheme ggen:ZoelaSupabaseMaterializationScheme ;
@@ -231,7 +238,8 @@ ggen:EvidenceActivityMaterialization a ggen:MaterializationKind , skos:Concept ;
     ggen:tableNameStrategy "pluralize-snake" ;
     ggen:emitsSql true ;
     ggen:requiresOwner false ;
-    ggen:requiresAuditTrail true .
+    ggen:requiresAuditTrail true ;
+    ggen:requiresShape ggen:EvidenceActivityMaterializationShape .
 
 ggen:EvidenceEntityMaterialization a ggen:MaterializationKind , skos:Concept ;
     skos:inScheme ggen:ZoelaSupabaseMaterializationScheme ;
@@ -243,7 +251,8 @@ ggen:EvidenceEntityMaterialization a ggen:MaterializationKind , skos:Concept ;
     ggen:tableNameStrategy "pluralize-snake" ;
     ggen:emitsSql true ;
     ggen:requiresOwner false ;
-    ggen:requiresAuditTrail true .
+    ggen:requiresAuditTrail true ;
+    ggen:requiresShape ggen:EvidenceEntityMaterializationShape .
 
 ggen:ConceptSchemeMaterialization a ggen:MaterializationKind , skos:Concept ;
     skos:inScheme ggen:ZoelaSupabaseMaterializationScheme ;
@@ -255,7 +264,8 @@ ggen:ConceptSchemeMaterialization a ggen:MaterializationKind , skos:Concept ;
     ggen:tableNameStrategy "as-is-snake" ;
     ggen:emitsSql true ;
     ggen:requiresOwner false ;
-    ggen:requiresAuditTrail false .
+    ggen:requiresAuditTrail false ;
+    ggen:requiresShape ggen:ConceptSchemeMaterializationShape .
 
 ggen:ConceptLookupMaterialization a ggen:MaterializationKind , skos:Concept ;
     skos:inScheme ggen:ZoelaSupabaseMaterializationScheme ;
@@ -267,7 +277,8 @@ ggen:ConceptLookupMaterialization a ggen:MaterializationKind , skos:Concept ;
     ggen:tableNameStrategy "plural-of-anchor" ;
     ggen:emitsSql false ;
     ggen:requiresOwner false ;
-    ggen:requiresAuditTrail false .
+    ggen:requiresAuditTrail false ;
+    ggen:requiresShape ggen:ConceptLookupMaterializationShape .
 
 ggen:PolicyMaterialization a ggen:MaterializationKind , skos:Concept ;
     skos:inScheme ggen:ZoelaSupabaseMaterializationScheme ;
@@ -285,7 +296,8 @@ ggen:PolicyMaterialization a ggen:MaterializationKind , skos:Concept ;
     ggen:tableNameStrategy "as-is-snake" ;
     ggen:emitsSql false ;
     ggen:requiresOwner false ;
-    ggen:requiresAuditTrail false .
+    ggen:requiresAuditTrail false ;
+    ggen:requiresShape ggen:PolicyMaterializationShape .
 
 ggen:TimeWindowMaterialization a ggen:MaterializationKind , skos:Concept ;
     skos:inScheme ggen:ZoelaSupabaseMaterializationScheme ;
@@ -297,7 +309,8 @@ ggen:TimeWindowMaterialization a ggen:MaterializationKind , skos:Concept ;
     ggen:tableNameStrategy "pluralize-snake" ;
     ggen:emitsSql true ;
     ggen:requiresOwner false ;
-    ggen:requiresAuditTrail true .
+    ggen:requiresAuditTrail true ;
+    ggen:requiresShape ggen:TimeWindowMaterializationShape .
 
 ggen:ReservationMaterialization a ggen:MaterializationKind , skos:Concept ;
     skos:inScheme ggen:ZoelaSupabaseMaterializationScheme ;
@@ -309,7 +322,8 @@ ggen:ReservationMaterialization a ggen:MaterializationKind , skos:Concept ;
     ggen:tableNameStrategy "pluralize-snake" ;
     ggen:emitsSql true ;
     ggen:requiresOwner true ;
-    ggen:requiresAuditTrail true .
+    ggen:requiresAuditTrail true ;
+    ggen:requiresShape ggen:ReservationMaterializationShape .
 
 ggen:OcelObjectMaterialization a ggen:MaterializationKind , skos:Concept ;
     skos:inScheme ggen:ZoelaSupabaseMaterializationScheme ;
@@ -321,7 +335,8 @@ ggen:OcelObjectMaterialization a ggen:MaterializationKind , skos:Concept ;
     ggen:tableNameStrategy "as-is-snake" ;
     ggen:emitsSql true ;
     ggen:requiresOwner false ;
-    ggen:requiresAuditTrail true .
+    ggen:requiresAuditTrail true ;
+    ggen:requiresShape ggen:OcelObjectMaterializationShape .
 
 ggen:OcelEventMaterialization a ggen:MaterializationKind , skos:Concept ;
     skos:inScheme ggen:ZoelaSupabaseMaterializationScheme ;
@@ -333,7 +348,8 @@ ggen:OcelEventMaterialization a ggen:MaterializationKind , skos:Concept ;
     ggen:tableNameStrategy "as-is-snake" ;
     ggen:emitsSql true ;
     ggen:requiresOwner false ;
-    ggen:requiresAuditTrail true .
+    ggen:requiresAuditTrail true ;
+    ggen:requiresShape ggen:OcelEventMaterializationShape .
 
 ggen:RouteProjectionMaterialization a ggen:MaterializationKind , skos:Concept ;
     skos:inScheme ggen:ZoelaSupabaseMaterializationScheme ;
