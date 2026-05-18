@@ -1,0 +1,25 @@
+{
+  "name": "zoela-mobile",
+  "version": "0.1.0",
+  "private": true,
+  "description": "ZOE LA Mobile — generated from open-ontologies CodeManufactory",
+  "scripts": {
+    "ontology:validate": "onto validate ontology/zoela/core.ttl",
+    "ggen:sync": "ggen sync --manifest ggen.toml",
+    "assert:no-generated-dir": "bash tools/assert-no-generated-dir.sh",
+    "supabase:start": "supabase start",
+    "supabase:stop": "supabase stop",
+    "supabase:reset": "supabase db reset",
+    "supabase:types": "supabase gen types typescript --local > packages/types/supabase.ts",
+    "validate:supabase-local": "bash tools/validate-supabase-local.sh",
+    "validate:rls": "bash tools/validate-rls.sh",
+    "validate:storage": "bash tools/validate-storage.sh",
+    "validate:realtime": "bash tools/validate-realtime.sh",
+    "validate:functions": "bash tools/validate-functions.sh",
+    "validate:receipts": "bash tools/validate-receipts.sh",
+    "validate:ocel": "bash tools/validate-ocel.sh",
+    "validate:autonomics": "bash tools/validate-autonomics.sh",
+    "validate:connect-groups": "bash tools/validate-connect-groups.sh",
+    "validate:all": "pnpm ontology:validate && pnpm ggen:sync && pnpm assert:no-generated-dir && pnpm supabase:reset && pnpm supabase:types && npx tsc --noEmit && pnpm validate:supabase-local && pnpm validate:rls && pnpm validate:storage && pnpm validate:realtime && pnpm validate:functions && pnpm validate:receipts && pnpm validate:ocel && pnpm validate:autonomics && pnpm validate:connect-groups"
+  }
+}
