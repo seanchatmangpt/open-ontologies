@@ -10,11 +10,27 @@ type StageTransitionResult = { ok: boolean; receiptType?: string; error?: string
 
 const STAGE_HANDLERS: Record<string, (routeId: string, stageId: string, actorId: string) => Promise<StageTransitionResult>> = {
 
-  // Route: FOOD_DIST_V1 | Stage: Received
-  "FOOD_DIST_V1:received": async (routeId, stageId, actorId) => {
+  // Route: FOOD_DIST_V1 | Stage: Closed
+  "FOOD_DIST_V1:closed": async (routeId, stageId, actorId) => {
     
-    // Requires role: MemberRole
-    console.log(`[FOOD_DIST_V1] Received — routeId=${routeId} stageId=${stageId} actor=${actorId}`);
+    
+    console.log(`[FOOD_DIST_V1] Closed — routeId=${routeId} stageId=${stageId} actor=${actorId}`);
+    return { ok: true, receiptType: 'CareRouteClosedReceipt' };
+  },
+
+  // Route: FOOD_DIST_V1 | Stage: Delivered
+  "FOOD_DIST_V1:delivered": async (routeId, stageId, actorId) => {
+    
+    // Requires role: VolunteerRole
+    console.log(`[FOOD_DIST_V1] Delivered — routeId=${routeId} stageId=${stageId} actor=${actorId}`);
+    return { ok: true, receiptType: 'ResourceDistributedReceipt' };
+  },
+
+  // Route: FOOD_DIST_V1 | Stage: Assigned
+  "FOOD_DIST_V1:assigned": async (routeId, stageId, actorId) => {
+    
+    // Requires role: VolunteerRole
+    console.log(`[FOOD_DIST_V1] Assigned — routeId=${routeId} stageId=${stageId} actor=${actorId}`);
     return { ok: true };
   },
 
@@ -26,28 +42,12 @@ const STAGE_HANDLERS: Record<string, (routeId: string, stageId: string, actorId:
     return { ok: true };
   },
 
-  // Route: FOOD_DIST_V1 | Stage: Assigned
-  "FOOD_DIST_V1:assigned": async (routeId, stageId, actorId) => {
+  // Route: FOOD_DIST_V1 | Stage: Received
+  "FOOD_DIST_V1:received": async (routeId, stageId, actorId) => {
     
-    // Requires role: VolunteerRole
-    console.log(`[FOOD_DIST_V1] Assigned — routeId=${routeId} stageId=${stageId} actor=${actorId}`);
+    // Requires role: MemberRole
+    console.log(`[FOOD_DIST_V1] Received — routeId=${routeId} stageId=${stageId} actor=${actorId}`);
     return { ok: true };
-  },
-
-  // Route: FOOD_DIST_V1 | Stage: Delivered
-  "FOOD_DIST_V1:delivered": async (routeId, stageId, actorId) => {
-    
-    // Requires role: VolunteerRole
-    console.log(`[FOOD_DIST_V1] Delivered — routeId=${routeId} stageId=${stageId} actor=${actorId}`);
-    return { ok: true, receiptType: 'ResourceDistributedReceipt' };
-  },
-
-  // Route: FOOD_DIST_V1 | Stage: Closed
-  "FOOD_DIST_V1:closed": async (routeId, stageId, actorId) => {
-    
-    
-    console.log(`[FOOD_DIST_V1] Closed — routeId=${routeId} stageId=${stageId} actor=${actorId}`);
-    return { ok: true, receiptType: 'CareRouteClosedReceipt' };
   },
 
 };

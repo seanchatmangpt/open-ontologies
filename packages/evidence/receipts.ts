@@ -8,8 +8,40 @@ import { blake3Hash } from '../utils/crypto';
 
 
 
-// Resource Distributed Receipt
-// Proof of food/resource distribution to recipient
+// Completion receipt: CareRouteClosedReceipt
+// Used in route: FOOD_DIST_V1
+// PROV-O subclass of prov:Entity
+export interface CareRouteClosedReceiptReceipt {
+  receiptId: string;
+  routeInstanceId: string;
+  subjectId: string;
+  subjectType: string;
+  campusId: string;
+  ministryCode: string;
+  routeStageCode: string;
+  evidenceIds: string[];
+  actorId: string;
+  issuedAt: string; // ISO 8601
+  blake3Hash: string;
+  ocelEventType: 'care_route.closed';
+}
+
+export function emitCareRouteClosedReceiptReceipt(
+  params: Omit<CareRouteClosedReceiptReceipt, 'receiptId' | 'issuedAt' | 'blake3Hash'>
+): CareRouteClosedReceiptReceipt {
+  const issuedAt = new Date().toISOString();
+  const payload = JSON.stringify({ ...params, issuedAt });
+  return {
+    ...params,
+    receiptId: crypto.randomUUID(),
+    issuedAt,
+    blake3Hash: blake3Hash(payload),
+    ocelEventType: 'care_route.closed',
+  };
+}
+
+
+// Completion receipt: ResourceDistributedReceipt
 // Used in route: FOOD_DIST_V1
 // PROV-O subclass of prov:Entity
 export interface ResourceDistributedReceiptReceipt {
@@ -42,11 +74,10 @@ export function emitResourceDistributedReceiptReceipt(
 }
 
 
-// Care Route Closed Receipt
-// Proof of care route case closure
-// Used in route: FOOD_DIST_V1
+// Receipted
+// A cryptographically-signed ServiceReceipt has been emitted for this route instance, providing tamper-evident proof of service delivery in the audit chain.
 // PROV-O subclass of prov:Entity
-export interface CareRouteClosedReceiptReceipt {
+export interface ReceiptedReceipt {
   receiptId: string;
   routeInstanceId: string;
   subjectId: string;
@@ -58,12 +89,12 @@ export interface CareRouteClosedReceiptReceipt {
   actorId: string;
   issuedAt: string; // ISO 8601
   blake3Hash: string;
-  ocelEventType: 'care_route.closed';
+  ocelEventType: '';
 }
 
-export function emitCareRouteClosedReceiptReceipt(
-  params: Omit<CareRouteClosedReceiptReceipt, 'receiptId' | 'issuedAt' | 'blake3Hash'>
-): CareRouteClosedReceiptReceipt {
+export function emitReceiptedReceipt(
+  params: Omit<ReceiptedReceipt, 'receiptId' | 'issuedAt' | 'blake3Hash'>
+): ReceiptedReceipt {
   const issuedAt = new Date().toISOString();
   const payload = JSON.stringify({ ...params, issuedAt });
   return {
@@ -71,7 +102,7 @@ export function emitCareRouteClosedReceiptReceipt(
     receiptId: crypto.randomUUID(),
     issuedAt,
     blake3Hash: blake3Hash(payload),
-    ocelEventType: 'care_route.closed',
+    ocelEventType: '',
   };
 }
 

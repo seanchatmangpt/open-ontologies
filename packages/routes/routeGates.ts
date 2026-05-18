@@ -24,46 +24,16 @@ export const ROUTE_STAGE_GATES: RouteStageGate[] = [
 
   {
     routeCode: 'FOOD_DIST_V1',
-    stageCode: 'received',
-    stageLabel: 'Received',
-    stageOrder: 0,
-    isEntry: true,
-    isTerminal: false,
-    
-    requiredRoleCode: 'MemberRole',
-    
-    
-    ocelEventType: 'food_route.received',
-    
-  },
-
-  {
-    routeCode: 'FOOD_DIST_V1',
-    stageCode: 'verified',
-    stageLabel: 'Verified',
-    stageOrder: 1,
+    stageCode: 'closed',
+    stageLabel: 'Closed',
+    stageOrder: 4,
     isEntry: false,
-    isTerminal: false,
-    predecessorCode: 'received',
-    requiredRoleCode: 'VolunteerRole',
+    isTerminal: true,
+    predecessorCode: 'delivered',
     
     
-    ocelEventType: 'food_route.verified',
-    
-  },
-
-  {
-    routeCode: 'FOOD_DIST_V1',
-    stageCode: 'assigned',
-    stageLabel: 'Assigned',
-    stageOrder: 2,
-    isEntry: false,
-    isTerminal: false,
-    predecessorCode: 'verified',
-    requiredRoleCode: 'VolunteerRole',
-    
-    
-    ocelEventType: 'food_route.assigned',
+    completionReceiptType: 'CareRouteClosedReceipt',
+    ocelEventType: 'care_route.closed',
     
   },
 
@@ -84,16 +54,46 @@ export const ROUTE_STAGE_GATES: RouteStageGate[] = [
 
   {
     routeCode: 'FOOD_DIST_V1',
-    stageCode: 'closed',
-    stageLabel: 'Closed',
-    stageOrder: 4,
+    stageCode: 'assigned',
+    stageLabel: 'Assigned',
+    stageOrder: 2,
     isEntry: false,
-    isTerminal: true,
-    predecessorCode: 'delivered',
+    isTerminal: false,
+    predecessorCode: 'verified',
+    requiredRoleCode: 'VolunteerRole',
     
     
-    completionReceiptType: 'CareRouteClosedReceipt',
-    ocelEventType: 'care_route.closed',
+    ocelEventType: 'food_route.assigned',
+    
+  },
+
+  {
+    routeCode: 'FOOD_DIST_V1',
+    stageCode: 'verified',
+    stageLabel: 'Verified',
+    stageOrder: 1,
+    isEntry: false,
+    isTerminal: false,
+    predecessorCode: 'received',
+    requiredRoleCode: 'VolunteerRole',
+    
+    
+    ocelEventType: 'food_route.verified',
+    
+  },
+
+  {
+    routeCode: 'FOOD_DIST_V1',
+    stageCode: 'received',
+    stageLabel: 'Received',
+    stageOrder: 0,
+    isEntry: true,
+    isTerminal: false,
+    
+    requiredRoleCode: 'MemberRole',
+    
+    
+    ocelEventType: 'food_route.received',
     
   },
 
