@@ -138,15 +138,22 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
 {%-       endif %}
 {%-     endfor %}
 {%-     if requires_owner %}
-  created_by  UUID        REFERENCES auth.users(id)
+  created_by  UUID NOT NULL REFERENCES auth.users(id)
 {%-     else %}
-  -- (no owner: this materialization kind does not require created_by)
-  _placeholder TEXT
+  -- final-column placeholder is omitted: this materialization kind has no
+  -- owner column. The block above must end without a trailing comma; the
+  -- extractor SHOULD return at least one domain column per materialized
+  -- class (P0-B.4d follow-up will SHACL-gate this at extraction time).
+  -- For now, classes that arrive here with zero non-id non-audit columns
+  -- are flagged in the audit bundle as 'inadmissible — no body columns'.
 {%-     endif %}
 );
 
--- Row Level Security: applied per materialization kind in P0-B.7 ODRL→RLS.
--- Until then, default to authenticated-read.
+-- Row Level Security: derived from ODRL policies (P0-B.7).
+-- Doctrine: no default authenticated-read. If this materialization kind has
+-- no ODRL permission targeting it, RLS rules are NOT emitted here — the
+-- ALTER TABLE ENABLE RLS still applies, so the table is locked by default
+-- and remains inaccessible until an ODRL policy is authored.
 ALTER TABLE {{ table }} ENABLE ROW LEVEL SECURITY;
 
 {%-     if requires_audit %}
@@ -155,18 +162,31 @@ CREATE TRIGGER set_{{ table }}_updated_at
   FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 {%-     endif %}
 
-CREATE POLICY "authenticated_read_{{ table }}"
-  ON {{ table }} FOR SELECT TO authenticated USING (true);
-{%-     if requires_owner %}
-
-CREATE POLICY "authenticated_insert_{{ table }}"
-  ON {{ table }} FOR INSERT TO authenticated WITH CHECK (auth.uid() = created_by);
-
-CREATE POLICY "owner_update_{{ table }}"
-  ON {{ table }} FOR UPDATE TO authenticated USING (auth.uid() = created_by);
-{%-     endif %}
+-- (RLS policies for this table are rendered by .specify/templates/zoela/
+--  supabase-rls.tera consuming extract-odrl-policies.rq. This template
+--  intentionally does NOT emit a fallback authenticated-read policy:
+--  default-permissive RLS is a P0 inadmissibility under the Public
+--  Vocabulary Materialization Policy. See
+--  memory/feedback_public_vocab_materialization.md hard rule.)
 {%-   endif %}
 {%- endfor %}
+
+-- =============================================================================
+-- Doctrine reminder:
+--
+-- A table appears in this file only when the underlying ZOE class satisfies
+-- all four admission conditions:
+--
+--   (1) class specializes a public anchor   (rdfs:subClassOf+ → schema/foaf/…)
+--   (2) SHACL shape declares required props (ontology/profiles/public-role-shapes.ttl)
+--   (3) ODRL policy declares access         (ontology/profiles/zoela-supabase-rls.ttl)
+--   (4) public/PROV/OCEL role requires persistence (ggen:emitsSql=true on kind)
+--
+-- RLS is rendered by supabase-rls.tera (P0-B.7); it consumes the ODRL
+-- permission tuples and emits one CREATE POLICY per (role, action) pair.
+-- No default authenticated-read fallback. No table is publicly readable
+-- unless an ODRL permission targets it.
+-- =============================================================================
 
 -- =============================================================================
 -- End of generated migration
