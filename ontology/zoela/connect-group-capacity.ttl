@@ -6,6 +6,7 @@
 @prefix skos:    <http://www.w3.org/2004/02/skos/core#> .
 @prefix schema:  <https://schema.org/> .
 @prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix odrl:     <http://www.w3.org/ns/odrl/2/> .
 
 # ============================================================================
 # ZOE LA Mobile — Connect Group Capacity Ontology
@@ -40,17 +41,20 @@
 zoe:GroupCapacityRule a owl:Class ;
     rdfs:label   "Group Capacity Rule"@en ;
     rdfs:comment "Capacity configuration for a Connect Group. Declares the maximum number of members the group can hold, the minimum viable size, reserved spots held back for late joiners, and waitlist behaviour."@en ;
-    skos:notation "group_capacity_rule" .
+    skos:notation "group_capacity_rule" ;
+    rdfs:subClassOf odrl:Constraint .
 
 zoe:SpotReservation a owl:Class ;
     rdfs:label   "Spot Reservation"@en ;
     rdfs:comment "A temporary spot hold created during the connect-group invite flow. A reservation keeps one spot off the open-capacity count for a bounded window, giving a prospective member time to confirm. Expires automatically if not confirmed within the window."@en ;
-    skos:notation "spot_reservation" .
+    skos:notation "spot_reservation" ;
+    rdfs:subClassOf schema:Reservation .
 
 zoe:WaitlistEntry a owl:Class ;
     rdfs:label   "Waitlist Entry"@en ;
     rdfs:comment "An ordered entry on the Connect Group waitlist created when a person expresses interest in a group that is at full capacity. Entries are processed in position order; when a spot opens, the front-of-list person is offered the spot."@en ;
-    skos:notation "waitlist_entry" .
+    skos:notation "waitlist_entry" ;
+    rdfs:subClassOf schema:Reservation .
 
 # ============================================================================
 # § 2  Datatype properties — GroupCapacityRule

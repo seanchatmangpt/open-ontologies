@@ -6,6 +6,7 @@
 @prefix skos:    <http://www.w3.org/2004/02/skos/core#> .
 @prefix schema:  <https://schema.org/> .
 @prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix time:     <http://www.w3.org/2006/time#> .
 
 # ============================================================================
 # ZOE LA Mobile — Connect Group Schedules Ontology
@@ -37,12 +38,14 @@
 zoe:GroupSeason a owl:Class ;
     rdfs:label   "Group Season"@en ;
     rdfs:comment "A bounded active season for a Connect Group — semester, annual cycle, or ongoing. Seasons control the time window in which GroupSchedules and GroupMeetings are valid."@en ;
-    skos:notation "group_season" .
+    skos:notation "group_season" ;
+    rdfs:subClassOf time:TemporalEntity .
 
 zoe:GroupSchedule a owl:Class ;
     rdfs:label   "Group Schedule"@en ;
     rdfs:comment "The recurring meeting schedule for a Connect Group, declaring the day of week, start time, frequency, and location mode. A single group may have multiple schedules across seasons."@en ;
-    skos:notation "group_schedule" .
+    skos:notation "group_schedule" ;
+    rdfs:subClassOf schema:Schedule .
 
 zoe:GroupMeeting a owl:Class ;
     rdfs:label   "Group Meeting"@en ;

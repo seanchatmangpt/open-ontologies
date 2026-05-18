@@ -55,7 +55,8 @@
 zoe:AdmissionCondition a owl:Class ;
     rdfs:label   "Admission Condition"@en ;
     rdfs:comment "A named conjunct in the AutonomicActionAllowed equation. Each condition corresponds to one of the 8 boolean predicates that must be true for autonomic execution to proceed."@en ;
-    rdfs:subClassOf owl:Thing .
+    rdfs:subClassOf owl:Thing ;
+    rdfs:subClassOf odrl:Constraint .
 
 # The 8 named conjuncts
 
@@ -191,7 +192,8 @@ zoe:satisfiesConditionSet a owl:ObjectProperty ;
 zoe:EscalationRule a owl:Class ;
     rdfs:label   "Escalation Rule"@en ;
     rdfs:comment "A named rule specifying which AutonomicActionClass applies when a specific AdmissionGate fails. Escalation rules override the default A4_REFUSE for gates that should route to human judgment rather than hard refusal."@en ;
-    rdfs:subClassOf owl:Thing .
+    rdfs:subClassOf owl:Thing ;
+    rdfs:subClassOf odrl:Rule .
 
 zoe:escalatesOnGate a owl:ObjectProperty ;
     rdfs:domain  zoe:EscalationRule ;

@@ -160,7 +160,7 @@ zoe:donorId a owl:DatatypeProperty ;
 # ── Class: ResourceNeedMatch ──────────────────────────────────────────────────
 
 zoe:ResourceNeedMatch a owl:Class ;
-  rdfs:subClassOf owl:Thing ;
+  rdfs:subClassOf prov:Activity ;
   rdfs:label   "Resource Need Match"@en ;
   rdfs:comment "A bridge object recording a lawful many-to-many relationship between a service need and a matching resource allocation. Carries match quantity, status, and routing metadata."@en ;
   skos:notation "resource_need_match" .

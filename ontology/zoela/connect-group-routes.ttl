@@ -6,6 +6,7 @@
 @prefix xsd:     <http://www.w3.org/2001/XMLSchema#> .
 @prefix skos:    <http://www.w3.org/2004/02/skos/core#> .
 @prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix odrl:     <http://www.w3.org/ns/odrl/2/> .
 
 # ============================================================================
 # ZOE LA Mobile — Connect Group Routes Ontology
@@ -314,7 +315,8 @@ zoe:gateCode a owl:DatatypeProperty ;
 zoe:AdmissionGate a owl:Class ;
     rdfs:label   "Admission Gate"@en ;
     rdfs:comment "A named gate condition that must evaluate to true before a route stage may execute. Gates enforce consent, capacity, schedule, policy, role, and notification-budget constraints."@en ;
-    rdfs:subClassOf owl:Thing .
+    rdfs:subClassOf owl:Thing ;
+    rdfs:subClassOf odrl:Constraint .
 
 # ============================================================================
 # § 8  Autonomic Action Class ConceptScheme (A0-A4)

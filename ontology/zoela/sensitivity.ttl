@@ -102,7 +102,8 @@ zoe:SensitivityClassification
     a owl:Class ;
     rdfs:label "Sensitivity Classification"@en ;
     rdfs:comment "Associates a ZOE LA data class with a sensitivity level, consent requirements, and the roles permitted to access it."@en ;
-    skos:notation "sensitivity_classification" .
+    skos:notation "sensitivity_classification" ;
+    rdfs:subClassOf skos:Concept .
 
 # ----------------------------------------------------------------------------
 # § 4  Properties
