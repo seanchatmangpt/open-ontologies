@@ -1,0 +1,69 @@
+# =============================================================================
+# extract-odrl-policies.rq — ODRL policy → RLS fact extractor
+# =============================================================================
+#
+# Surfaces ODRL permissions/prohibitions declared in ontology/zoela/policy.ttl
+# joined with the RLS translation profile in
+# ontology/profiles/zoela-supabase-rls.ttl, producing one row per
+# (policy, action, materialization-kind) tuple ready for RLS rendering.
+#
+# Output bindings (per row):
+#   ?policyIri          — IRI of the odrl:Policy
+#   ?policyCode         — skos:notation of the policy (e.g. "member_policy")
+#   ?policyRole         — ggen:rlsAppliesToRole value ("member" / "admin" / …)
+#   ?ruleType           — "permission" or "prohibition"
+#   ?actionIri          — IRI of the ODRL action
+#   ?actionCode         — skos:notation of the action ("view_public_events", …)
+#   ?rlsOperation       — "SELECT" / "INSERT" / "UPDATE" / "DELETE" / "ALL"
+#   ?materializationKindIri  — ggen:MaterializationKind IRI affected
+#   ?materializationKindCode — skos:notation ("EventMaterialization", …)
+#   ?constraintSql      — SQL fragment for USING/WITH CHECK (or empty)
+#
+# Doctrine: every materialization kind with ggen:rlsRequired=true MUST have
+# at least one row here, or the migration template refuses to emit RLS for
+# its tables.
+# =============================================================================
+
+PREFIX ggen:   <https://open-ontologies.org/ggen#>
+PREFIX zoe:    <https://zoela.org/ontology/>
+PREFIX odrl:   <http://www.w3.org/ns/odrl/2/>
+PREFIX skos:   <http://www.w3.org/2004/02/skos/core#>
+PREFIX rdfs:   <http://www.w3.org/2000/01/rdf-schema#>
+
+SELECT
+  (STR(?policy)              AS ?policyIri)
+  (STR(?policyCodeLit)       AS ?policyCode)
+  (STR(?policyRoleLit)       AS ?policyRole)
+  ?ruleType
+  (STR(?action)              AS ?actionIri)
+  (STR(?actionCodeLit)       AS ?actionCode)
+  (STR(?opLit)               AS ?rlsOperation)
+  (STR(?materializationKind) AS ?materializationKindIri)
+  (STR(?mkCodeLit)           AS ?materializationKindCode)
+  (STR(?constraintSqlLit)    AS ?constraintSql)
+WHERE {
+  ?policy a odrl:Policy ;
+          skos:notation ?policyCodeLit ;
+          ggen:rlsAppliesToRole ?policyRoleLit .
+
+  # Permissions OR prohibitions
+  {
+    ?policy odrl:permission ?rule .
+    BIND("permission" AS ?ruleType)
+  } UNION {
+    ?policy odrl:prohibition ?rule .
+    BIND("prohibition" AS ?ruleType)
+  }
+
+  # Extract action; require RLS translation annotations
+  ?rule odrl:action ?action .
+  ?action ggen:rlsOperation     ?opLit ;
+          ggen:rlsTargetKind    ?materializationKind ;
+          ggen:rlsConstraintSql ?constraintSqlLit .
+
+  OPTIONAL { ?action  skos:notation ?actionCodeLit }
+
+  # Resolve materialization-kind code
+  ?materializationKind skos:notation ?mkCodeLit .
+}
+ORDER BY ?policyCode ?ruleType ?actionCode

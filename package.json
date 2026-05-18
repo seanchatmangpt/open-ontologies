@@ -21,6 +21,7 @@
     "validate:autonomics": "bash tools/validate-autonomics.sh",
     "validate:connect-groups": "bash tools/validate-connect-groups.sh",
     "validate:all": "pnpm ontology:validate && pnpm ggen:sync && pnpm assert:no-generated-dir && pnpm supabase:reset && pnpm supabase:types && npx tsc --noEmit && pnpm validate:supabase-local && pnpm validate:rls && pnpm validate:storage && pnpm validate:realtime && pnpm validate:functions && pnpm validate:receipts && pnpm validate:ocel && pnpm validate:autonomics && pnpm validate:connect-groups",
-    "validate:public-anchor-closure": "bash tools/validate-public-anchor-closure.sh"
+    "validate:public-anchor-closure": "bash tools/validate-public-anchor-closure.sh",
+    "validate:rls-policy-coverage": "bash tools/validate-rls-policy-coverage.sh"
   }
 }
