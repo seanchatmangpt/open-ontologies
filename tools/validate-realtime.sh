@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 SUPABASE_URL="${SUPABASE_URL:-http://127.0.0.1:54321}"
-if ! curl -fsS "${SUPABASE_URL}/health" >/dev/null 2>&1; then
+if ! curl -fsS "${SUPABASE_URL}/auth/v1/health" >/dev/null 2>&1; then
   echo "SKIP: Supabase local not running"
   exit 0
 fi
