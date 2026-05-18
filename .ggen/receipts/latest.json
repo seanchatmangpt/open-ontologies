@@ -1,12 +1,12 @@
 {
-  "operation_id": "2095f507-e988-4d95-a426-0614130e2342",
-  "timestamp": "2026-05-13T21:27:39.772891Z",
+  "operation_id": "db5de8c7-0cc9-4c8c-a568-20e41cb3a0b8",
+  "timestamp": "2026-05-18T09:18:58.268540Z",
   "input_hashes": [
-    "ggen.toml:d6985112f15ab2ae94f3f9e3feeb040dbe0cddd36ffaa4acf4f28e59a0c3cc5f"
+    "ggen.toml:f5234f7a82dbbe7ed06ec4de2b35db48e7ea2228dd56057ee328ac42bc806e81"
   ],
   "output_hashes": [
     "./src/cmds/generated_revops.rs:b469360672c4f5b4ec53dad9080029423e86ff2c49c90e76a3977616667eb575"
   ],
-  "signature": "5a9196c655943997e634a554dfde44eb7b13dc25c491b0a8ccc7c703980f1dfe7653217aac7913a34116293a326bd63cfd114ca154b602ee156f9dded808e70d",
-  "previous_receipt_hash": "e810c00a03e9f1084ec87fd35bf01b499b3d29cb1eedbb4326002196204ea646"
+  "signature": "420fc01eca71179ec8dcdf6a4d89d2e31d4c63ff78f0e53700adba4831c716403ce0f25a8783ebf80db5933690b387dd01ed005b38bb0747faba46cdd30b5301",
+  "previous_receipt_hash": "f5ec1b1067a209b50f6919c0b0c25f6e3ed1e01ccbfc7dfbb1e8cbe7c49a533d"
 }
