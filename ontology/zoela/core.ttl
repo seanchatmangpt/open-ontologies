@@ -64,6 +64,11 @@
     owl:imports <https://zoela.org/ontology/household> ;
     owl:imports <https://zoela.org/ontology/categories> ;
     owl:imports <https://zoela.org/ontology/navigation> ;
+    owl:imports <https://zoela.org/ontology/notifications> ;
+    owl:imports <https://zoela.org/ontology/sensitivity> ;
+    owl:imports <https://zoela.org/ontology/connect-group-schedules> ;
+    owl:imports <https://zoela.org/ontology/connect-group-capacity> ;
+    owl:imports <https://zoela.org/ontology/connect-group-routes> ;
 
     rdfs:comment """ZOE LA Mobile's data architecture is a public-ontology-aligned, combinatorial service graph.
 The ontology declares the possibility space: people, households, campuses, ministries, roles, permissions,

@@ -1,0 +1,30 @@
+PREFIX zoe: <https://zoela.org/ontology/>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+
+SELECT
+  ?work_order_codes
+  ?work_order_labels
+  ?mapped_stage_codes
+  ?autonomic_action_classes
+  ?requires_human_approval
+WHERE {
+  {
+    SELECT
+      (GROUP_CONCAT(?wc; separator="|") AS ?work_order_codes)
+      (GROUP_CONCAT(?wl; separator="|") AS ?work_order_labels)
+      (GROUP_CONCAT(?ms; separator="|") AS ?mapped_stage_codes)
+      (GROUP_CONCAT(?aa; separator="|") AS ?autonomic_action_classes)
+      (GROUP_CONCAT(?rh; separator="|") AS ?requires_human_approval)
+    WHERE {
+      VALUES (?wc ?wl ?ms ?aa ?rh) {
+        ("CreateGroupInterestWorkOrder"    "Create Group Interest"    "cg-interest-expressed"    "A1" "false")
+        ("SendGroupInviteWorkOrder"        "Send Group Invite"        "cg-invite-sent"           "A2" "false")
+        ("AcceptGroupInviteWorkOrder"      "Accept Group Invite"      "cg-invite-accepted"       "A1" "false")
+        ("ReserveGroupSpotWorkOrder"       "Reserve Group Spot"       "cg-eligible-groups-found" "A2" "false")
+        ("RecordGroupAttendanceWorkOrder"  "Record Group Attendance"  "cg-first-meeting-attended" "A1" "false")
+        ("CreateGroupFollowUpWorkOrder"    "Create Group Follow-Up"   "cg-followup-completed"    "A1" "false")
+        ("CloseGroupJoinRouteWorkOrder"    "Close Group Join Route"   "cg-membership-active"     "A1" "false")
+      }
+    }
+  }
+}

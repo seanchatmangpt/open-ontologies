@@ -1,0 +1,114 @@
+# =============================================================================
+# extract-ocel-schema.rq — Extract OCEL 2.0 object type and event type schema
+# =============================================================================
+#
+# Returns ONE aggregated row with pipe-delimited values for rendering a
+# wasm4pm-compatible TypeScript OCEL schema definition.
+#
+# Template variables (all pipe-delimited GROUP_CONCAT aggregates):
+#   ?object_type_labels         — OCEL object type labels (e.g. "Person|ServiceRoute|…")
+#   ?event_type_labels          — OCEL event type labels (e.g. "Need Received|…")
+#   ?object_attribute_labels    — attribute labels on object types
+#   ?event_attribute_labels     — attribute labels on event types
+#   ?object_relationship_labels — cross-object relationship labels
+#
+# Primary path: derives event types from zoe:OcelEventTypeScheme SKOS concepts
+# in ocel.ttl, and object types from zoe:OcelObjectType named individuals if
+# present. Falls back to VALUES when named individuals do not exist.
+# =============================================================================
+
+PREFIX zoe:  <https://zoela.org/ontology/>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX owl:  <http://www.w3.org/2002/07/owl#>
+PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+PREFIX xsd:  <http://www.w3.org/2001/XMLSchema#>
+
+SELECT
+  ?object_type_labels
+  ?event_type_labels
+  ?object_attribute_labels
+  ?event_attribute_labels
+  ?object_relationship_labels
+WHERE {
+  # ── Event types: derived from OcelEventTypeScheme SKOS concepts ─────────
+  {
+    SELECT (GROUP_CONCAT(?etl; SEPARATOR="|") AS ?event_type_labels)
+    WHERE {
+      ?et skos:inScheme zoe:OcelEventTypeScheme ;
+          rdfs:label ?etlRaw .
+      BIND(STR(?etlRaw) AS ?etl)
+    }
+  }
+
+  # ── Object types: named individuals of zoe:OcelObjectType if present ────
+  {
+    SELECT (GROUP_CONCAT(?otl; SEPARATOR="|") AS ?object_type_labels_derived)
+    WHERE {
+      ?ot a zoe:OcelObjectType ;
+          rdfs:label ?otlRaw .
+      BIND(STR(?otlRaw) AS ?otl)
+    }
+  }
+
+  # ── Object attributes: named individuals of zoe:OcelObjectAttribute ─────
+  OPTIONAL {
+    SELECT (GROUP_CONCAT(?oal; SEPARATOR="|") AS ?object_attribute_labels_derived)
+    WHERE {
+      ?oa a zoe:OcelObjectAttribute ;
+          rdfs:label ?oalRaw .
+      BIND(STR(?oalRaw) AS ?oal)
+    }
+  }
+
+  # ── Event attributes: named individuals of zoe:OcelEventAttribute ───────
+  OPTIONAL {
+    SELECT (GROUP_CONCAT(?eal; SEPARATOR="|") AS ?event_attribute_labels_derived)
+    WHERE {
+      ?ea a zoe:OcelEventAttribute ;
+          rdfs:label ?ealRaw .
+      BIND(STR(?ealRaw) AS ?eal)
+    }
+  }
+
+  # ── Object relationships: named individuals of zoe:OcelObjectRelationship
+  OPTIONAL {
+    SELECT (GROUP_CONCAT(?orl; SEPARATOR="|") AS ?object_relationship_labels_derived)
+    WHERE {
+      ?or_ a zoe:OcelObjectRelationship ;
+           rdfs:label ?orlRaw .
+      BIND(STR(?orlRaw) AS ?orl)
+    }
+  }
+
+  # ── Resolve object types: prefer derived, fall back to canonical set ─────
+  BIND(
+    IF(?object_type_labels_derived != "",
+       ?object_type_labels_derived,
+       "Person|ServiceRoute|Need|Resource|Volunteer"
+    ) AS ?object_type_labels
+  )
+
+  # ── Resolve object attributes ────────────────────────────────────────────
+  BIND(
+    IF(BOUND(?object_attribute_labels_derived) && ?object_attribute_labels_derived != "",
+       ?object_attribute_labels_derived,
+       "personId|routeId|needCategory"
+    ) AS ?object_attribute_labels
+  )
+
+  # ── Resolve event attributes ─────────────────────────────────────────────
+  BIND(
+    IF(BOUND(?event_attribute_labels_derived) && ?event_attribute_labels_derived != "",
+       ?event_attribute_labels_derived,
+       "timestamp|stageCode|actorId|routeId"
+    ) AS ?event_attribute_labels
+  )
+
+  # ── Resolve object relationships ─────────────────────────────────────────
+  BIND(
+    IF(BOUND(?object_relationship_labels_derived) && ?object_relationship_labels_derived != "",
+       ?object_relationship_labels_derived,
+       "Person-ServiceRoute|ServiceRoute-Need|ServiceRoute-Resource"
+    ) AS ?object_relationship_labels
+  )
+}

@@ -1,0 +1,44 @@
+# =============================================================================
+# extract-assignment-eligibility.rq — Extract volunteer assignment eligibility rules
+# =============================================================================
+#
+# Returns ONE aggregated row with pipe-delimited values for rendering
+# TypeScript assignment rule constants. ggen v5 renders once per SELECT row.
+#
+# Source: ontology/zoela/routes.ttl (ServiceRoute named individuals)
+# Uses VALUES fallback because ggen loads ontology/cli-open-ontologies.ttl
+# as its single source; the zoela TTL files are not in ggen's RDF store.
+#
+# Template variables (all pipe-delimited GROUP_CONCAT aggregates):
+#   ?route_labels         — rdfs:label per route
+#   ?min_hours_list       — minimumVolunteerHours per route (0 if none)
+#   ?requires_bgc_list    — "true"/"false" per route
+#   ?req_skill_labels     — pipe-joined skills per route (semicolon-delimited within)
+#   ?eligible_role_codes  — pipe-joined eligible role codes per route (semicolon-delimited within)
+# =============================================================================
+
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+
+SELECT
+  (GROUP_CONCAT(?route_label;    SEPARATOR="|") AS ?route_labels)
+  (GROUP_CONCAT(?min_hours;      SEPARATOR="|") AS ?min_hours_list)
+  (GROUP_CONCAT(?req_bgc;        SEPARATOR="|") AS ?requires_bgc_list)
+  (GROUP_CONCAT(?skills;         SEPARATOR="|") AS ?req_skill_labels)
+  (GROUP_CONCAT(?eligible_roles; SEPARATOR="|") AS ?eligible_role_codes)
+WHERE {
+  VALUES (?route_label ?min_hours ?req_bgc ?skills ?eligible_roles) {
+    ("Food Distribution Route"          "2" "true"  "Food Safety"       "VOL;CARE;ADMIN;PASTOR")
+    ("Care and Pastoral Route"          "4" "true"  "First Aid"         "CARE;LEADER;ADMIN;PASTOR")
+    ("Clothing Distribution Route"      "2" "true"  "Food Safety"       "VOL;CARE;ADMIN;PASTOR")
+    ("Volunteer Assignment Route"       "0" "true"  ""                  "LEADER;ADMIN;PASTOR")
+    ("Event Registration Route"         "1" "false" ""                  "VOL;LEADER;CARE;ADMIN;PASTOR")
+    ("Kids Check-In Route"              "2" "true"  "Child Safety"      "YTH-LEAD;ADMIN;PASTOR")
+    ("Youth Event Participation Route"  "2" "true"  "Child Safety"      "YTH-LEAD;LEADER;ADMIN;PASTOR")
+    ("Camp Consent and Registration Route" "2" "true" "Child Safety"    "YTH-LEAD;ADMIN;PASTOR")
+    ("Baptism Registration Route"       "1" "false" ""                  "LEADER;CARE;ADMIN;PASTOR")
+    ("Connect Group Join Route"         "1" "false" ""                  "LEADER;ADMIN;PASTOR")
+    ("Partner Organization Referral Route" "2" "true" "Case Management" "CARE;ADMIN;PASTOR")
+    ("Care Follow-Up Route"             "2" "true"  "First Aid"         "CARE;LEADER;ADMIN;PASTOR")
+    ("Mission Trip Participation Route" "4" "true"  "First Aid"         "VOL;LEADER;ADMIN;PASTOR")
+  }
+}

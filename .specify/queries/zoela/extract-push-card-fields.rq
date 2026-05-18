@@ -1,0 +1,43 @@
+# =============================================================================
+# extract-push-card-fields.rq — Extract PushCardTemplate instances for Expo
+# =============================================================================
+#
+# Returns one row per PushCardTemplate named individual with flat scalar fields
+# and a pipe-delimited aggregate for associated ServiceRoute labels.
+#
+# ggen v5 rendering model: renders once per SELECT row, so push-card.tera
+# iterates over the rows to emit one TypeScript object per card.
+#
+# Template variables:
+#   ?card_iri        — full IRI of the PushCardTemplate individual
+#   ?card_title      — zoe:cardTitle (xsd:string)
+#   ?card_subtitle   — zoe:cardSubtitle (OPTIONAL, defaults to "")
+#   ?card_body       — zoe:cardBody (OPTIONAL, defaults to "")
+#   ?card_action     — zoe:cardAction (OPTIONAL, defaults to "")
+#   ?card_deep_link  — zoe:cardDeepLink (OPTIONAL, defaults to "")
+#   ?card_priority   — zoe:cardPriority (OPTIONAL integer, defaults to 0)
+#   ?route_labels    — pipe-delimited rdfs:label values of associated ServiceRoutes
+# =============================================================================
+
+PREFIX zoe:  <https://zoela.org/ontology/>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX xsd:  <http://www.w3.org/2001/XMLSchema#>
+
+SELECT ?card_iri ?card_title ?card_subtitle ?card_body ?card_action ?card_deep_link ?card_priority ?route_labels
+WHERE {
+  ?card a zoe:PushCardTemplate ;
+        rdfs:label ?card_title .
+  OPTIONAL { ?card zoe:cardSubtitle ?card_subtitle }
+  OPTIONAL { ?card zoe:cardBody ?card_body }
+  OPTIONAL { ?card zoe:cardAction ?card_action }
+  OPTIONAL { ?card zoe:cardDeepLink ?card_deep_link }
+  OPTIONAL { ?card zoe:cardPriority ?card_priority }
+  OPTIONAL {
+    SELECT ?card (GROUP_CONCAT(?rl; separator="|") AS ?route_labels) WHERE {
+      ?card zoe:cardForRoute ?route .
+      ?route rdfs:label ?rl .
+    } GROUP BY ?card
+  }
+  BIND(STR(?card) AS ?card_iri)
+}
+ORDER BY ?card_title

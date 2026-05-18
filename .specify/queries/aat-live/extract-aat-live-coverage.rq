@@ -1,0 +1,34 @@
+# =============================================================================
+# extract-aat-live-coverage.rq — Extract AAT-Live correlation rules with coverage
+# =============================================================================
+#
+# Returns one row per LiveRule individual from aat-live-rules.ttl.
+# Captures coverage status, required OTel span, and the wasm4pm bridge module
+# that implements the rule (when present).
+#
+# Variables:
+#   ?rule          — full IRI of the LiveRule individual (e.g. aat:LIVE-01)
+#   ?label         — rdfs:label literal (e.g. "LIVE-01")
+#   ?status        — aat:coverageStatus literal: "covered", "partial", or "none"
+#   ?span          — aat:requiredSpan literal (pipe-separated span alternatives)
+#   ?coveredBy     — aat:coveredBy literal (null when status is "none")
+# =============================================================================
+
+PREFIX aat:  <urn:ontostar:aat:live:>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+
+CONSTRUCT {
+  ?rule a aat:LiveRule ;
+        rdfs:label ?label ;
+        aat:coverageStatus ?status ;
+        aat:requiredSpan ?span ;
+        aat:coveredBy ?coveredBy .
+}
+WHERE {
+  ?rule a aat:LiveRule ;
+        rdfs:label ?label ;
+        aat:coverageStatus ?status .
+  OPTIONAL { ?rule aat:requiredSpan ?span . }
+  OPTIONAL { ?rule aat:coveredBy ?coveredBy . }
+}
+ORDER BY ?label

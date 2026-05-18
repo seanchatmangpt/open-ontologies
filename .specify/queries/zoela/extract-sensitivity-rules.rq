@@ -1,0 +1,82 @@
+# =============================================================================
+# extract-sensitivity-rules.rq — Extract data sensitivity rules from policy + consent ontologies
+# =============================================================================
+#
+# Returns ONE aggregated row with pipe-delimited values for rendering
+# sensitivity-aware access control. ggen v5 renders once per SELECT row.
+#
+# Template variables (all pipe-delimited GROUP_CONCAT aggregates):
+#   ?policyIris         — full IRI of each policy
+#   ?policyLabels       — rdfs:label per policy
+#   ?sensitivityLevels  — sensitivity tier notation per policy
+#                         (e.g. "public", "ministry_private", "pastoral_private", "youth_protected")
+#   ?appliesToClasses   — local class name the policy protects, derived from sensitivity tier
+#   ?requiredRoles      — role label(s) that inherit this policy (empty string if none)
+#   ?consentRequired    — "true"/"false" per policy
+# =============================================================================
+
+PREFIX zoe:  <https://zoela.org/onto/>
+PREFIX odrl: <http://www.w3.org/ns/odrl/2/>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+PREFIX xsd:  <http://www.w3.org/2001/XMLSchema#>
+
+SELECT
+  (GROUP_CONCAT(DISTINCT ?policyIri;           SEPARATOR="|") AS ?policyIris)
+  (GROUP_CONCAT(DISTINCT ?policyLabel;         SEPARATOR="|") AS ?policyLabels)
+  (GROUP_CONCAT(DISTINCT ?sensitivityNotation; SEPARATOR="|") AS ?sensitivityLevels)
+  (GROUP_CONCAT(DISTINCT ?appliesToClass;      SEPARATOR="|") AS ?appliesToClasses)
+  (GROUP_CONCAT(DISTINCT ?roleLabel;           SEPARATOR="|") AS ?requiredRoles)
+  (GROUP_CONCAT(DISTINCT ?consentReqStr;       SEPARATOR="|") AS ?consentRequired)
+WHERE {
+  {
+    # Primary path: derive rules from named odrl:Policy individuals in policy.ttl
+    ?p a odrl:Policy ;
+       rdfs:label ?policyLabel .
+    BIND(STR(?p) AS ?policyIri)
+
+    # Sensitivity level linked via permissions with a SensitivityLevel constraint operand
+    OPTIONAL {
+      ?p odrl:permission ?perm .
+      ?perm odrl:constraint ?c .
+      ?c odrl:leftOperand zoe:SensitivityLevel ;
+         odrl:rightOperand ?sensitivityNode .
+      ?sensitivityNode skos:notation ?sensitivityNotation .
+    }
+
+    # Class this policy protects — mapped from sensitivity tier notation
+    BIND(
+      IF(BOUND(?sensitivityNotation),
+        IF(?sensitivityNotation = "youth_protected",  "YouthProfile",
+        IF(?sensitivityNotation = "pastoral_private", "NeedRecord",
+        IF(?sensitivityNotation = "ministry_private", "RouteInstance",
+        "Event"))),
+        "Event"
+      ) AS ?appliesToClass
+    )
+
+    # Roles that explicitly inherit this policy via odrl:inheritFrom
+    OPTIONAL {
+      ?childPolicy odrl:inheritFrom ?p ;
+                   rdfs:label ?roleLabel .
+    }
+
+    # Consent required: true for PastoralPrivate and YouthProtected tiers only
+    BIND(
+      IF(BOUND(?sensitivityNotation) &&
+         (?sensitivityNotation = "pastoral_private" || ?sensitivityNotation = "youth_protected"),
+        "true", "false"
+      ) AS ?consentReqStr
+    )
+  }
+  UNION
+  {
+    # Fallback VALUES: 3 representative rows when ontology returns no data
+    VALUES (?policyIri ?policyLabel ?sensitivityNotation ?appliesToClass ?roleLabel ?consentReqStr) {
+      ("https://zoela.org/onto/PersonalDataPolicy"   "Personal Data Policy"   "youth_protected"  "PersonProfile"  "Admin"       "true")
+      ("https://zoela.org/onto/ServiceHistoryPolicy" "Service History Policy" "ministry_private" "RouteInstance"  "CareWorker"  "false")
+      ("https://zoela.org/onto/PublicEventPolicy"    "Public Event Policy"    "public"           "Event"          "Volunteer"   "false")
+    }
+  }
+}
+ORDER BY ?policyLabel

@@ -1,26 +1,32 @@
-{# expo-screen.tera — generated from extract-screens.rq #}
-{# DO NOT EDIT — regenerate via: ggen sync --rule zoela-screens #}
+{#
+  expo-screen.tera — generated from extract-screens.rq
+  DO NOT EDIT — regenerate via: ggen sync --rule zoela-screens
+
+  ggen v5 per-row rendering model: this template renders once per SELECT row.
+  SPARQL variables available directly (no "rows" wrapper):
+    screen_id, screen_label, nav_route, parent_tab_code, screen_stack,
+    required_role, primary_object_type, primary_route_category,
+    is_admin_only, screen_order
+#}
+// Screen: {{ screen_label }}
+// Tab: {{ parent_tab_code }} | Stack: {{ screen_stack }}
+// Required role: {{ required_role }}
+{% if is_admin_only == "true" %}// ADMIN ONLY
+{% endif %}
 import React from 'react';
-import { View, Text, ScrollView, StyleSheet } from 'react-native';
+import { ScrollView, Text, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 
-{% for row in rows %}
-// Screen: {{ row.screen_label }}
-// Tab: {{ row.parent_tab_code }} | Stack: {{ row.screen_stack }}
-// Required role: {{ row.required_role }}
-{% if row.is_admin_only == "true" %}// ADMIN ONLY{% endif %}
-export function {{ row.nav_route | default(value=row.screen_id) }}Screen() {
+export function {{ nav_route | default(value=screen_id) }}Screen() {
   const navigation = useNavigation();
   return (
     <ScrollView style={styles.container}>
-      <Text style={styles.title}>{{ row.screen_label }}</Text>
-      {/* Object type: {{ row.primary_object_type }} */}
+      <Text style={styles.title}>{{ screen_label }}</Text>
+      {/* Object type: {{ primary_object_type }} */}
       {/* Generated from ontology/zoela/navigation.ttl */}
     </ScrollView>
   );
 }
-
-{% endfor %}
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },

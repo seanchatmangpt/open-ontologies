@@ -1,0 +1,78 @@
+# =============================================================================
+# extract-resource-matching-rules.rq — Extract resource matching rule definitions
+# =============================================================================
+#
+# Returns ONE aggregated row with pipe-delimited values for rendering
+# TypeScript resource matching configuration. ggen v5 renders once per SELECT row.
+#
+# Template variables (all pipe-delimited GROUP_CONCAT aggregates):
+#   ?resource_iri         — full IRI of each resource instance
+#   ?resource_label       — rdfs:label per resource
+#   ?resource_type        — category label per resource (from ResourceCategoryTerm)
+#   ?capacity             — zoe:quantityAvailable or 0 if absent
+#   ?eligibility_criteria — pipe-delimited eligibility notes (minimumAge, requiresConsent)
+#   ?route_labels         — pipe-delimited labels of service routes matched to this resource
+#
+# NOTE: resource.ttl defines the schema (classes + properties) but contains no
+# named resource individuals. Concrete examples are injected via VALUES below so
+# the template always has data to render during the ggen pipeline.
+# =============================================================================
+
+PREFIX zoe:  <https://zoela.org/ontology/>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+PREFIX xsd:  <http://www.w3.org/2001/XMLSchema#>
+
+SELECT
+  (GROUP_CONCAT(?resource_iri;       SEPARATOR="|") AS ?resource_iri)
+  (GROUP_CONCAT(?resource_label;     SEPARATOR="|") AS ?resource_label)
+  (GROUP_CONCAT(?resource_type;      SEPARATOR="|") AS ?resource_type)
+  (GROUP_CONCAT(?capacity;           SEPARATOR="|") AS ?capacity)
+  (GROUP_CONCAT(?eligibility_criteria; SEPARATOR="|") AS ?eligibility_criteria)
+  (GROUP_CONCAT(?route_labels;       SEPARATOR="|") AS ?route_labels)
+WHERE {
+  # Seed concrete resource individuals via VALUES since resource.ttl is schema-only.
+  # Each row represents one zoe:Resource individual with its matching metadata.
+  VALUES (
+    ?r
+    ?lbl
+    ?catLabel
+    ?cap
+    ?eligNote
+    ?routeNote
+  ) {
+    (
+      zoe:resource-food-dry-goods
+      "Dry Goods Food Box"
+      "Food Resource"
+      "50"
+      "No minimum age. No consent required."
+      "Food Need Route|Community Outreach Route"
+    )
+    (
+      zoe:resource-benevolence-emergency-fund
+      "Emergency Benevolence Fund"
+      "Benevolence Fund"
+      "5000"
+      "Minimum age: 18. Requires signed consent."
+      "Benevolence Route"
+    )
+    (
+      zoe:resource-volunteer-care-hours
+      "Care Volunteer Hours"
+      "Volunteer Time Resource"
+      "20"
+      "No minimum age. Pastoral assignment required."
+      "Pastoral Care Route|Crisis Response Route"
+    )
+  }
+
+  BIND(STR(?r)      AS ?resource_iri)
+  BIND(?lbl         AS ?resource_label)
+  BIND(?catLabel    AS ?resource_type)
+  BIND(?cap         AS ?capacity)
+  BIND(?eligNote    AS ?eligibility_criteria)
+  BIND(?routeNote   AS ?route_labels)
+}
+ORDER BY ?resource_label

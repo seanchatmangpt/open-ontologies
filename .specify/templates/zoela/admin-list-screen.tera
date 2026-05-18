@@ -1,27 +1,32 @@
-{# admin-list-screen.tera — generated from extract-screens.rq #}
-{# DO NOT EDIT — regenerate via: ggen sync --rule zoela-admin-screens #}
+{#
+  admin-list-screen.tera — generated from extract-screens.rq
+  DO NOT EDIT — regenerate via: ggen sync --rule zoela-admin-screens
+
+  ggen v5 per-row rendering model: renders once per SELECT row.
+  Only admin screens (is_admin_only == "true") produce output.
+  SPARQL variables: screen_id, screen_label, nav_route, parent_tab_code,
+    screen_stack, required_role, primary_object_type, primary_route_category,
+    is_admin_only, screen_order
+#}
+{% if is_admin_only == "true" %}
+// Admin screen: {{ screen_label }}
+// Object type: {{ primary_object_type }}
+// Route category: {{ primary_route_category }}
 import React from 'react';
 import { View, Text, FlatList, StyleSheet } from 'react-native';
 
-{% for row in rows %}
-{% if row.is_admin_only == "true" %}
-// Admin screen: {{ row.screen_label }}
-// Object type: {{ row.primary_object_type }}
-// Route: {{ row.primary_route_category }}
-export function {{ row.nav_route | default(value=row.screen_id) }}Screen() {
+export function {{ nav_route | default(value=screen_id) }}Screen() {
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>{{ row.screen_label }}</Text>
-      {/* Filtered view of: {{ row.primary_object_type }} */}
-      {/* Required role: {{ row.required_role }} */}
+      <Text style={styles.title}>{{ screen_label }}</Text>
+      {/* Filtered view of: {{ primary_object_type }} */}
+      {/* Required role: {{ required_role }} */}
     </View>
   );
 }
-
-{% endif %}
-{% endfor %}
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 16 },
   title: { fontSize: 20, fontWeight: 'bold', marginBottom: 12 },
 });
+{% endif %}

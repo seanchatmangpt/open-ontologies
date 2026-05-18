@@ -2,58 +2,43 @@
 # extract-consent-requirements.rq — Extract consent definitions and gate facts
 # =============================================================================
 #
-# Consent types are SKOS concepts in the ConsentTypeScheme. Each consent type
-# may be associated with zoe:ConsentRequirement instances that declare which
-# route stages are blocked without the consent and what refusal message to
-# surface.
+# ggen v5 SELECT format: one row per consent type with GROUP_CONCAT aggregates
+# for multi-valued stage/route associations.
 #
-# CONSTRUCT variables:
-#   Consent definition facts:
-#     ?consent         — IRI of the SKOS concept for this consent type
-#     ?code            — skos:notation of the consent (e.g. "PHOTO-RELEASE")
-#     ?label           — rdfs:label of the consent
-#     ?def             — optional skos:definition text
-#     ?isGuardian      — optional boolean: true if consent must be from a guardian
-#
-#   Consent requirement gate facts:
-#     ?req             — IRI of the zoe:ConsentRequirement instance
-#     ?code            — code of the consent that must be on file
-#     ?stage           — IRI of the route stage that is blocked without consent
-#     ?refusal         — refusal message code to surface in the mobile UI
+# Template variables per row:
+#   ?consent_code       — skos:notation of the consent (e.g. "PHOTO-RELEASE")
+#   ?consent_label      — rdfs:label of the consent
+#   ?consent_definition — skos:definition or fallback "Consent type: <code>"
+#   ?is_guardian_type   — "true" if consent code is GUARD or MED, else "false"
+#   ?blocks_stages      — pipe-delimited stage codes blocked without this consent
+#   ?used_in_routes     — pipe-delimited route codes where this consent is needed
 # =============================================================================
 
 PREFIX zoe:  <https://zoela.org/ontology/>
 PREFIX owl:  <http://www.w3.org/2002/07/owl#>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+PREFIX xsd:  <http://www.w3.org/2001/XMLSchema#>
 
-CONSTRUCT {
-  ?consent a zoe:ConsentDefinition ;
-    zoe:consentCode ?code ;
-    zoe:consentLabel ?label ;
-    zoe:consentDefinition ?def ;
-    zoe:isGuardianConsent ?isGuardian .
-  ?req a zoe:ConsentRequirementFact ;
-    zoe:requiresConsentCode ?code ;
-    zoe:blocksStage ?stage ;
-    zoe:refusalMessage ?refusal .
-}
+SELECT
+  ?consent_code
+  ?consent_label
+  (COALESCE(?consent_def, CONCAT("Consent type: ", ?consent_code)) AS ?consent_definition)
+  (IF(?consent_code IN ("GUARD", "MED"), "true", "false") AS ?is_guardian_type)
+  (GROUP_CONCAT(DISTINCT ?stage_code; separator="|") AS ?blocks_stages)
+  (GROUP_CONCAT(DISTINCT ?route_code; separator="|") AS ?used_in_routes)
 WHERE {
   ?consent a skos:Concept ;
     skos:inScheme zoe:ConsentTypeScheme ;
-    skos:notation ?code ;
-    rdfs:label ?label .
-  OPTIONAL { ?consent skos:definition ?def }
+    skos:notation ?consent_code ;
+    rdfs:label ?consent_label .
+  OPTIONAL { ?consent skos:definition ?consent_def }
   OPTIONAL {
-    ?consentClass a owl:Class ;
-      rdfs:subClassOf ?consent .
-    ?consentClass zoe:isGuardianConsent ?isGuardian .
-  }
-
-  OPTIONAL {
-    ?req a zoe:ConsentRequirement ;
-      zoe:requiresConsentType ?consent ;
-      zoe:blocksRouteStage ?stage ;
-      zoe:refusalMessageCode ?refusal .
+    ?stage zoe:requiredConsentType ?consent ;
+      skos:notation ?stage_code ;
+      zoe:hasRoute ?route .
+    ?route skos:notation ?route_code .
   }
 }
+GROUP BY ?consent_code ?consent_label ?consent_def
+ORDER BY ?consent_code

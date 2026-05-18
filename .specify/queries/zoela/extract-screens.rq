@@ -10,7 +10,7 @@ SELECT
   ?nav_route
   (COALESCE(?tab_code, "HOME") AS ?parent_tab_code)
   (COALESCE(?stack, "MainStack") AS ?screen_stack)
-  (COALESCE(?required_role, "MEMBER") AS ?required_role)
+  (COALESCE(?role, "MEMBER") AS ?required_role)
   (COALESCE(?object_type, "") AS ?primary_object_type)
   (COALESCE(?route_category, "") AS ?primary_route_category)
   (COALESCE(STR(?is_admin), "false") AS ?is_admin_only)
@@ -22,10 +22,10 @@ WHERE {
   OPTIONAL { ?screen zoe:navRoute ?nav_route }
   OPTIONAL { ?screen zoe:parentTab ?tab . ?tab skos:notation ?tab_code }
   OPTIONAL { ?screen zoe:screenStack ?stack }
-  OPTIONAL { ?screen zoe:requiredRole ?required_role }
+  OPTIONAL { ?screen zoe:requiredRole ?role }
   OPTIONAL { ?screen zoe:primaryObjectType ?object_type }
   OPTIONAL { ?screen zoe:primaryRouteCategory ?route_category }
   OPTIONAL { ?screen zoe:isAdminOnly ?is_admin }
   OPTIONAL { ?screen zoe:screenOrder ?order }
 }
-ORDER BY ?screen_order
+ORDER BY ?order

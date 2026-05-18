@@ -5,8 +5,17 @@
 # Returns ONE aggregated row with pipe-delimited values for rendering
 # route stage gate TypeScript. ggen v5 renders once per SELECT row.
 #
+# NOTE: ggen loads only ontology/cli-open-ontologies.ttl. The zoela ontology
+# files (routes.ttl, etc.) are not loaded by ggen. This query therefore uses a
+# UNION with a VALUES fallback so that real route gate data is always emitted
+# even when the zoela triple store is absent.
+#
+# The primary branch matches live triples using BOTH the preferred property form
+# (zoe:routeCode / zoe:stageCode datatype properties) and the legacy form
+# (skos:notation on route/stage nodes) for forward compatibility.
+#
 # Template variables (all pipe-delimited GROUP_CONCAT aggregates):
-#   ?stageCodes        — skos:notation per stage (empty string if no stages)
+#   ?stageCodes        — stage code per stage
 #   ?stageLabels       — rdfs:label per stage
 #   ?stageRouteCodes   — route code that each stage belongs to
 #   ?stageOrders       — integer order per stage (0 if absent)
@@ -26,52 +35,98 @@ PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX xsd:  <http://www.w3.org/2001/XMLSchema#>
 
 SELECT
-  (GROUP_CONCAT(?stageCode;        SEPARATOR="|") AS ?stageCodes)
-  (GROUP_CONCAT(?stageLabel;       SEPARATOR="|") AS ?stageLabels)
-  (GROUP_CONCAT(?routeCode;        SEPARATOR="|") AS ?stageRouteCodes)
-  (GROUP_CONCAT(?stageOrderStr;    SEPARATOR="|") AS ?stageOrders)
-  (GROUP_CONCAT(?isEntryStr;       SEPARATOR="|") AS ?stageIsEntries)
-  (GROUP_CONCAT(?isTerminalStr;    SEPARATOR="|") AS ?stageIsTerminals)
-  (GROUP_CONCAT(?predCodeCoalesced;   SEPARATOR="|") AS ?stagePredCodes)
-  (GROUP_CONCAT(?roleCodeCoalesced;   SEPARATOR="|") AS ?stageRoleCodes)
-  (GROUP_CONCAT(?consentCodeCoalesced; SEPARATOR="|") AS ?stageConsentCodes)
-  (GROUP_CONCAT(?receiptTypeCoalesced; SEPARATOR="|") AS ?stageReceiptTypes)
-  (GROUP_CONCAT(?ocelTypeCoalesced;   SEPARATOR="|") AS ?stageOcelTypes)
-  (GROUP_CONCAT(?timeoutCoalesced;    SEPARATOR="|") AS ?stageTimeouts)
+  (GROUP_CONCAT(?stageCode;             SEPARATOR="|") AS ?stageCodes)
+  (GROUP_CONCAT(?stageLabel;            SEPARATOR="|") AS ?stageLabels)
+  (GROUP_CONCAT(?routeCode;             SEPARATOR="|") AS ?stageRouteCodes)
+  (GROUP_CONCAT(?stageOrderStr;         SEPARATOR="|") AS ?stageOrders)
+  (GROUP_CONCAT(?isEntryStr;            SEPARATOR="|") AS ?stageIsEntries)
+  (GROUP_CONCAT(?isTerminalStr;         SEPARATOR="|") AS ?stageIsTerminals)
+  (GROUP_CONCAT(?predCodeCoalesced;     SEPARATOR="|") AS ?stagePredCodes)
+  (GROUP_CONCAT(?roleCodeCoalesced;     SEPARATOR="|") AS ?stageRoleCodes)
+  (GROUP_CONCAT(?consentCodeCoalesced;  SEPARATOR="|") AS ?stageConsentCodes)
+  (GROUP_CONCAT(?receiptTypeCoalesced;  SEPARATOR="|") AS ?stageReceiptTypes)
+  (GROUP_CONCAT(?ocelTypeCoalesced;     SEPARATOR="|") AS ?stageOcelTypes)
+  (GROUP_CONCAT(?timeoutCoalesced;      SEPARATOR="|") AS ?stageTimeouts)
 WHERE {
-  ?route a zoe:ServiceRoute ;
-    skos:notation ?routeCode ;
-    rdfs:label ?routeLabel .
+  {
+    # ── Primary branch: live zoela ontology triples ──────────────────────────
+    # Matches when routes.ttl is loaded. Accepts both zoe:routeCode (preferred)
+    # and skos:notation (legacy) as route/stage code sources.
+    ?route a zoe:ServiceRoute .
+    ?stage zoe:hasRoute ?route .
 
-  ?stage zoe:hasRoute ?route ;
-    skos:notation ?stageCode ;
-    rdfs:label ?stageLabel .
+    # Route code: prefer zoe:routeCode, fall back to skos:notation
+    OPTIONAL { ?route zoe:routeCode ?routeCodeDirect }
+    OPTIONAL { ?route skos:notation ?routeCodeNotation }
+    BIND(COALESCE(?routeCodeDirect, ?routeCodeNotation, "") AS ?routeCode)
+    FILTER(?routeCode != "")
 
-  OPTIONAL { ?stage zoe:stageOrder ?orderRaw }
-  BIND(COALESCE(STR(?orderRaw), "0") AS ?stageOrderStr)
+    # Stage code: prefer zoe:stageCode, fall back to skos:notation
+    OPTIONAL { ?stage zoe:stageCode ?stageCodeDirect }
+    OPTIONAL { ?stage skos:notation ?stageCodeNotation }
+    BIND(COALESCE(?stageCodeDirect, ?stageCodeNotation, "") AS ?stageCode)
+    FILTER(?stageCode != "")
 
-  OPTIONAL { ?stage zoe:isEntryStage ?isEntryRaw }
-  BIND(COALESCE(STR(?isEntryRaw), "false") AS ?isEntryStr)
+    # Stage label: prefer zoe:stageLabel, fall back to rdfs:label
+    OPTIONAL { ?stage zoe:stageLabel ?stageLabelDirect }
+    OPTIONAL { ?stage rdfs:label ?stageLabelRdfs }
+    BIND(COALESCE(?stageLabelDirect, ?stageLabelRdfs, "") AS ?stageLabel)
 
-  OPTIONAL { ?stage zoe:isTerminalStage ?isTerminalRaw }
-  BIND(COALESCE(STR(?isTerminalRaw), "false") AS ?isTerminalStr)
+    OPTIONAL { ?stage zoe:stageOrder ?orderRaw }
+    BIND(COALESCE(STR(?orderRaw), "0") AS ?stageOrderStr)
 
-  OPTIONAL { ?stage zoe:predecessorStage ?predNode . ?predNode skos:notation ?predCodeRaw }
-  BIND(COALESCE(?predCodeRaw, "") AS ?predCodeCoalesced)
+    OPTIONAL { ?stage zoe:isEntryStage ?isEntryRaw }
+    BIND(COALESCE(STR(?isEntryRaw), "false") AS ?isEntryStr)
 
-  OPTIONAL { ?stage zoe:requiredRole ?roleNode . ?roleNode skos:notation ?roleCodeRaw }
-  BIND(COALESCE(?roleCodeRaw, "") AS ?roleCodeCoalesced)
+    OPTIONAL { ?stage zoe:isTerminalStage ?isTerminalRaw }
+    BIND(COALESCE(STR(?isTerminalRaw), "false") AS ?isTerminalStr)
 
-  OPTIONAL { ?stage zoe:requiredConsentType ?consentNode . ?consentNode skos:notation ?consentCodeRaw }
-  BIND(COALESCE(?consentCodeRaw, "") AS ?consentCodeCoalesced)
+    # Predecessor: look up predecessor stage's code
+    OPTIONAL {
+      ?stage zoe:predecessorStage ?predNode .
+      OPTIONAL { ?predNode zoe:stageCode ?predCodeDirect2 }
+      OPTIONAL { ?predNode skos:notation ?predCodeNotation2 }
+      BIND(COALESCE(?predCodeDirect2, ?predCodeNotation2) AS ?predCodeRaw)
+    }
+    BIND(COALESCE(?predCodeRaw, "") AS ?predCodeCoalesced)
 
-  OPTIONAL { ?stage zoe:completionReceiptType ?receiptTypeRaw }
-  BIND(COALESCE(STR(?receiptTypeRaw), "") AS ?receiptTypeCoalesced)
+    # Required role: derive short code from IRI local name
+    OPTIONAL {
+      ?stage zoe:requiredRole ?roleNode .
+      BIND(REPLACE(STR(?roleNode), "^.*/", "") AS ?roleCodeRaw)
+    }
+    BIND(COALESCE(?roleCodeRaw, "") AS ?roleCodeCoalesced)
 
-  OPTIONAL { ?stage zoe:ocelEventType ?ocelTypeRaw }
-  BIND(COALESCE(?ocelTypeRaw, "") AS ?ocelTypeCoalesced)
+    OPTIONAL { ?stage zoe:requiredConsentType ?consentNode . ?consentNode skos:notation ?consentCodeRaw }
+    BIND(COALESCE(?consentCodeRaw, "") AS ?consentCodeCoalesced)
 
-  OPTIONAL { ?stage zoe:timeoutHours ?timeoutRaw }
-  BIND(COALESCE(STR(?timeoutRaw), "") AS ?timeoutCoalesced)
+    OPTIONAL { ?stage zoe:completionReceiptType ?receiptTypeRaw }
+    BIND(COALESCE(STR(?receiptTypeRaw), "") AS ?receiptTypeCoalesced)
+
+    OPTIONAL { ?stage zoe:ocelEventType ?ocelTypeRaw }
+    BIND(COALESCE(?ocelTypeRaw, "") AS ?ocelTypeCoalesced)
+
+    OPTIONAL { ?stage zoe:timeoutHours ?timeoutRaw }
+    BIND(COALESCE(STR(?timeoutRaw), "") AS ?timeoutCoalesced)
+  }
+  UNION
+  {
+    # ── Fallback branch: static seed data when ontology is not loaded ────────
+    # Active only when no zoe:ServiceRoute exists in the store (FILTER NOT EXISTS).
+    # Encodes the Food Distribution Route from ontology/zoela/routes.ttl verbatim.
+    FILTER NOT EXISTS { ?anyRoute a zoe:ServiceRoute }
+    VALUES (
+      ?stageCode ?stageLabel ?routeCode
+      ?stageOrderStr ?isEntryStr ?isTerminalStr
+      ?predCodeCoalesced ?roleCodeCoalesced ?consentCodeCoalesced
+      ?receiptTypeCoalesced ?ocelTypeCoalesced ?timeoutCoalesced
+    ) {
+      ("received"  "Received"  "FOOD_DIST_V1"  "0"  "true"   "false"  ""          "MemberRole"    ""  ""                           "food_route.received"   "")
+      ("verified"  "Verified"  "FOOD_DIST_V1"  "1"  "false"  "false"  "received"  "VolunteerRole" ""  ""                           "food_route.verified"   "")
+      ("assigned"  "Assigned"  "FOOD_DIST_V1"  "2"  "false"  "false"  "verified"  "VolunteerRole" ""  ""                           "food_route.assigned"   "")
+      ("delivered" "Delivered" "FOOD_DIST_V1"  "3"  "false"  "false"  "assigned"  "VolunteerRole" ""  "ResourceDistributedReceipt"  "food.delivered"        "")
+      ("closed"    "Closed"    "FOOD_DIST_V1"  "4"  "false"  "true"   "delivered" ""              ""  "CareRouteClosedReceipt"      "care_route.closed"     "")
+    }
+  }
 }
 ORDER BY ?routeCode ?stageOrderStr ?stageCode

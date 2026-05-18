@@ -1,0 +1,103 @@
+# =============================================================================
+# extract-followup-rules.rq — Extract follow-up rule definitions
+# =============================================================================
+#
+# Returns ONE aggregated row with pipe-delimited values for rendering
+# TypeScript follow-up rule configuration. ggen v5 renders once per SELECT row.
+#
+# Template variables (all pipe-delimited GROUP_CONCAT aggregates):
+#   ?rule_iri             — full IRI of each follow-up rule or method term
+#   ?rule_label           — rdfs:label per rule
+#   ?trigger_condition    — care request type label that triggers this follow-up
+#   ?followup_action      — follow-up method label (Call, Text, Home Visit, etc.)
+#   ?days_after           — integer days after care request submission to schedule
+#   ?assigned_role_labels — pipe-delimited labels of roles responsible for this follow-up
+#
+# Source: care.ttl defines FollowUpTask, FollowUpMethodTerm, and CareRequestTypeTerm.
+# Follow-up rules are modelled as the pairing of a trigger CareRequestTypeTerm with
+# a preferred FollowUpMethodTerm and assignment roles. Named rule individuals are
+# injected via VALUES because care.ttl is schema-only (no named instances).
+# =============================================================================
+
+PREFIX zoe:  <https://zoela.org/ontology/>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+PREFIX xsd:  <http://www.w3.org/2001/XMLSchema#>
+
+SELECT
+  (GROUP_CONCAT(?rule_iri;             SEPARATOR="|") AS ?rule_iri)
+  (GROUP_CONCAT(?rule_label;           SEPARATOR="|") AS ?rule_label)
+  (GROUP_CONCAT(?trigger_condition;    SEPARATOR="|") AS ?trigger_condition)
+  (GROUP_CONCAT(?followup_action;      SEPARATOR="|") AS ?followup_action)
+  (GROUP_CONCAT(?days_after;           SEPARATOR="|") AS ?days_after)
+  (GROUP_CONCAT(?assigned_role_labels; SEPARATOR="|") AS ?assigned_role_labels)
+WHERE {
+  # Seed concrete follow-up rule individuals via VALUES since care.ttl is schema-only.
+  # Each row pairs a trigger CareRequestType with a FollowUpMethod and scheduling window.
+  VALUES (
+    ?r
+    ?lbl
+    ?triggerLabel
+    ?methodLabel
+    ?daysStr
+    ?roleLabels
+  ) {
+    (
+      zoe:followup-rule-crisis-immediate-call
+      "Crisis Immediate Call"
+      "Crisis"
+      "Call"
+      "1"
+      "Pastoral Staff|Care Team Lead"
+    )
+    (
+      zoe:followup-rule-bereavement-home-visit
+      "Bereavement Home Visit"
+      "Bereavement"
+      "Home Visit"
+      "3"
+      "Pastoral Staff"
+    )
+    (
+      zoe:followup-rule-food-need-text-confirmation
+      "Food Need Text Confirmation"
+      "Food Need"
+      "Text"
+      "2"
+      "Care Team Volunteer|Care Team Lead"
+    )
+    (
+      zoe:followup-rule-prayer-encouragement-text
+      "Prayer Encouragement Text"
+      "Prayer"
+      "Text"
+      "7"
+      "Care Team Volunteer"
+    )
+    (
+      zoe:followup-rule-hospital-pastoral-visit
+      "Hospital Pastoral Visit"
+      "Hospital"
+      "Church Visit"
+      "1"
+      "Pastoral Staff"
+    )
+    (
+      zoe:followup-rule-benevolence-email-followthrough
+      "Benevolence Email Follow-Through"
+      "Benevolence"
+      "Email"
+      "5"
+      "Care Team Lead"
+    )
+  }
+
+  BIND(STR(?r)    AS ?rule_iri)
+  BIND(?lbl       AS ?rule_label)
+  BIND(?triggerLabel AS ?trigger_condition)
+  BIND(?methodLabel  AS ?followup_action)
+  BIND(?daysStr      AS ?days_after)
+  BIND(?roleLabels   AS ?assigned_role_labels)
+}
+ORDER BY ?triggerLabel ?lbl

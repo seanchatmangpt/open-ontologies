@@ -5,6 +5,11 @@
 # Returns ONE aggregated row with pipe-delimited values for rendering
 # prov-receipt TypeScript. ggen v5 renders once per SELECT row.
 #
+# NOTE: ggen loads only ontology/cli-open-ontologies.ttl. The zoela ontology
+# files are not loaded by ggen. This query uses a UNION with a VALUES fallback
+# so that receipt emitter TypeScript is always generated even when the zoela
+# triple store is absent.
+#
 # Template variables (all pipe-delimited GROUP_CONCAT aggregates):
 #   ?receiptCodes       — receipt type code per receipt model
 #   ?receiptLabels      — human-readable label per receipt model
@@ -19,26 +24,30 @@ PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX xsd:  <http://www.w3.org/2001/XMLSchema#>
 
 SELECT
-  (GROUP_CONCAT(?receiptCode;  SEPARATOR="|") AS ?receiptCodes)
-  (GROUP_CONCAT(?receiptLabel; SEPARATOR="|") AS ?receiptLabels)
-  (GROUP_CONCAT(?defCoalesced;       SEPARATOR="|") AS ?receiptDefinitions)
-  (GROUP_CONCAT(?ocelCoalesced;      SEPARATOR="|") AS ?ocelEventTypes)
-  (GROUP_CONCAT(?routeCoalesced;     SEPARATOR="|") AS ?usedInRoutes)
+  (GROUP_CONCAT(?receiptCode;    SEPARATOR="|") AS ?receiptCodes)
+  (GROUP_CONCAT(?receiptLabel;   SEPARATOR="|") AS ?receiptLabels)
+  (GROUP_CONCAT(?defCoalesced;   SEPARATOR="|") AS ?receiptDefinitions)
+  (GROUP_CONCAT(?ocelCoalesced;  SEPARATOR="|") AS ?ocelEventTypes)
+  (GROUP_CONCAT(?routeCoalesced; SEPARATOR="|") AS ?usedInRoutes)
 WHERE {
   {
-    # Receipt types from stage completionReceiptType declarations
-    ?stage zoe:completionReceiptType ?receiptCode ;
-      zoe:ocelEventType ?ocelRaw .
+    # ── Primary branch A: receipt codes from zoe:completionReceiptType triples ─
+    # Active when routes.ttl is loaded. Derives route code via zoe:routeCode
+    # (preferred) or skos:notation (legacy).
+    ?stage zoe:completionReceiptType ?receiptCode .
     ?stage zoe:hasRoute ?route .
-    ?route skos:notation ?routeRaw .
+    OPTIONAL { ?stage zoe:ocelEventType ?ocelRaw }
+    OPTIONAL { ?route zoe:routeCode ?routeCodeDirect }
+    OPTIONAL { ?route skos:notation ?routeCodeNotation }
     BIND(CONCAT("Completion receipt: ", STR(?receiptCode)) AS ?receiptLabel)
     BIND(COALESCE(?ocelRaw, "") AS ?ocelCoalesced)
-    BIND(COALESCE(?routeRaw, "") AS ?routeCoalesced)
+    BIND(COALESCE(?routeCodeDirect, ?routeCodeNotation, "") AS ?routeCoalesced)
     BIND("" AS ?defCoalesced)
   }
   UNION
   {
-    # Receipt concepts from SKOS schemes
+    # ── Primary branch B: receipt concepts from SKOS ConceptSchemes ──────────
+    # Active when receipt SKOS concepts are loaded.
     ?receiptConcept a skos:Concept ;
       skos:notation ?receiptCode ;
       rdfs:label ?receiptLabel .
@@ -47,6 +56,17 @@ WHERE {
     BIND(COALESCE(?defRaw, "") AS ?defCoalesced)
     BIND("" AS ?ocelCoalesced)
     BIND("" AS ?routeCoalesced)
+  }
+  UNION
+  {
+    # ── Fallback branch: static seed data when ontology is not loaded ────────
+    # Active only when no zoe:ServiceRoute triples exist in the store.
+    # Encodes receipt types from ontology/zoela/routes.ttl verbatim.
+    FILTER NOT EXISTS { ?anyRoute a zoe:ServiceRoute }
+    VALUES (?receiptCode ?receiptLabel ?defCoalesced ?ocelCoalesced ?routeCoalesced) {
+      ("ResourceDistributedReceipt" "Resource Distributed Receipt"  "Proof of food/resource distribution to recipient"  "food.delivered"    "FOOD_DIST_V1")
+      ("CareRouteClosedReceipt"     "Care Route Closed Receipt"     "Proof of care route case closure"                  "care_route.closed" "FOOD_DIST_V1")
+    }
   }
 }
 ORDER BY ?receiptCode

@@ -1,0 +1,32 @@
+# =============================================================================
+# extract-powl-variants.rq — Extract POWL DiscoveryVariant individuals
+# =============================================================================
+#
+# Returns one row per DiscoveryVariant individual from powl-process-mining.ttl.
+# Captures the canonical machine-readable notation, human label, and description
+# used by the wasm4pm bridge and the mcpp manufacturing pipeline.
+#
+# Variables:
+#   ?variant    — full IRI of the DiscoveryVariant individual (e.g. powl:Maximal)
+#   ?label      — rdfs:label literal (e.g. "Maximal")
+#   ?notation   — skos:notation literal (e.g. "maximal") — matches wasm4pm enum key
+#   ?comment    — rdfs:comment description of the variant's cut order and use-case
+# =============================================================================
+
+PREFIX powl: <urn:ontostar:powl:>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+
+CONSTRUCT {
+  ?variant a powl:DiscoveryVariant ;
+           rdfs:label ?label ;
+           skos:notation ?notation ;
+           rdfs:comment ?comment .
+}
+WHERE {
+  ?variant a powl:DiscoveryVariant ;
+           rdfs:label ?label .
+  OPTIONAL { ?variant skos:notation ?notation . }
+  OPTIONAL { ?variant rdfs:comment ?comment . }
+}
+ORDER BY ?label

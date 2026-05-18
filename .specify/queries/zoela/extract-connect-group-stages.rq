@@ -1,0 +1,39 @@
+PREFIX zoe: <https://zoela.org/ontology/>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+
+SELECT
+  ?stage_codes
+  ?stage_labels
+  ?stage_orders
+  ?stage_is_entry
+  ?stage_is_terminal
+  ?predecessor_codes
+  ?ocel_event_types
+  ?autonomic_action_classes
+  ?gate_codes
+WHERE {
+  {
+    SELECT
+      (GROUP_CONCAT(?sc; separator="|") AS ?stage_codes)
+      (GROUP_CONCAT(?sl; separator="|") AS ?stage_labels)
+      (GROUP_CONCAT(?so; separator="|") AS ?stage_orders)
+      (GROUP_CONCAT(?se; separator="|") AS ?stage_is_entry)
+      (GROUP_CONCAT(?st; separator="|") AS ?stage_is_terminal)
+      (GROUP_CONCAT(?pc; separator="|") AS ?predecessor_codes)
+      (GROUP_CONCAT(?oe; separator="|") AS ?ocel_event_types)
+      (GROUP_CONCAT(?ac; separator="|") AS ?autonomic_action_classes)
+      (GROUP_CONCAT(?gc; separator="|") AS ?gate_codes)
+    WHERE {
+      VALUES (?sc ?sl ?so ?se ?st ?pc ?oe ?ac ?gc) {
+        ("cg-interest-expressed"   "Interest Expressed"    "1" "true"  "false" ""                          "connect_group.interest_expressed"    "A1" "")
+        ("cg-preferences-collected" "Preferences Collected" "2" "false" "false" "cg-interest-expressed"     "connect_group.preferences_collected"  "A1" "")
+        ("cg-eligible-groups-found" "Eligible Groups Found" "3" "false" "false" "cg-preferences-collected"  "connect_group.eligible_groups_found"  "A2" "CapacityGate|ScheduleGate")
+        ("cg-invite-sent"          "Invite Sent"           "4" "false" "false" "cg-eligible-groups-found"  "connect_group.invite_sent"            "A2" "ConsentGate|NotificationBudgetGate")
+        ("cg-invite-accepted"      "Invite Accepted"       "5" "false" "false" "cg-invite-sent"            "connect_group.invite_accepted"        "A1" "CapacityGate")
+        ("cg-first-meeting-attended" "First Meeting Attended" "6" "false" "false" "cg-invite-accepted"    "connect_group.first_meeting_attended"  "A1" "")
+        ("cg-followup-completed"   "Follow-Up Completed"   "7" "false" "false" "cg-first-meeting-attended" "connect_group.followup_completed"     "A1" "")
+        ("cg-membership-active"    "Membership Active"     "8" "false" "true"  "cg-followup-completed"     "connect_group.membership_active"      "A1" "")
+      }
+    }
+  }
+}

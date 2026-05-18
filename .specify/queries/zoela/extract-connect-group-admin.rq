@@ -1,0 +1,35 @@
+PREFIX zoe: <https://zoela.org/ontology/>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+
+SELECT
+  ?surface_codes
+  ?surface_labels
+  ?surface_descriptions
+  ?filter_stage_codes
+  ?surface_urgency
+WHERE {
+  {
+    SELECT
+      (GROUP_CONCAT(?sc; separator="|") AS ?surface_codes)
+      (GROUP_CONCAT(?sl; separator="|") AS ?surface_labels)
+      (GROUP_CONCAT(?sd; separator="|") AS ?surface_descriptions)
+      (GROUP_CONCAT(?fs; separator="|") AS ?filter_stage_codes)
+      (GROUP_CONCAT(?su; separator="|") AS ?surface_urgency)
+    WHERE {
+      VALUES (?sc ?sl ?sd ?fs ?su) {
+        ("open-interests"         "Open Group Interests"       "Interests submitted awaiting matching"              "cg-interest-expressed"     "normal")
+        ("unmatched-people"       "Unmatched People"           "No eligible groups found for expressed interests"   "cg-eligible-groups-found"  "high")
+        ("invites-not-accepted"   "Invites Sent / Not Accepted" "Invites sent with no response within 7 days"       "cg-invite-sent"            "normal")
+        ("first-meeting-missed"   "First Meeting Missed"       "Accepted invite but did not attend first meeting"   "cg-invite-accepted"        "high")
+        ("followups-overdue"      "Follow-Ups Overdue"         "Follow-ups not completed within expected window"    "cg-followup-completed"     "high")
+        ("near-capacity"          "Groups Near Capacity"       "Groups at 80% or more capacity"                    ""                          "normal")
+        ("under-capacity"         "Groups Under Capacity"      "Groups below minimum capacity threshold"            ""                          "low")
+        ("without-leader"         "Groups Without Leader"      "Active groups with no assigned leader"              ""                          "high")
+        ("private-approval"       "Private Approval Required"  "Interests requiring manual leader approval"         "cg-eligible-groups-found"  "high")
+        ("route-refusals"         "Route Refusals"             "Consent or policy refusals emitted by the system"  ""                          "normal")
+        ("autonomic-matched"      "Autonomically Matched Today" "Matches completed autonomically in last 24h"       "cg-membership-active"      "normal")
+        ("human-required"         "Human Required Today"       "Cases requiring human intervention in last 24h"    ""                          "normal")
+      }
+    }
+  }
+}

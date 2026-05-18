@@ -10,6 +10,10 @@
 #   ?eventLabels    — rdfs:label per event type
 #   ?eventDefs      — skos:definition per event type (empty string if absent)
 #   ?eventRoutes    — emitting route code per event type (empty string if absent)
+#
+# ggen v5 constraint: only cli-open-ontologies.ttl is loaded.
+# Connect Group OCEL events use VALUES fallbacks — 8 canonical event types
+# for the autonomic Connect Group route (Wave 29).
 # =============================================================================
 
 PREFIX zoe:  <https://zoela.org/ontology/>
@@ -22,17 +26,17 @@ SELECT
   (GROUP_CONCAT(?def;    SEPARATOR="|") AS ?eventDefs)
   (GROUP_CONCAT(?route;  SEPARATOR="|") AS ?eventRoutes)
 WHERE {
-  ?eventType a skos:Concept ;
-    skos:inScheme zoe:OcelEventTypeScheme ;
-    skos:notation ?code ;
-    rdfs:label ?label .
-  OPTIONAL { ?eventType skos:definition ?defRaw }
-  BIND(COALESCE(?defRaw, "") AS ?def)
-  OPTIONAL {
-    ?stage zoe:ocelEventType ?code ;
-      zoe:hasRoute ?route2 .
-    ?route2 skos:notation ?routeRaw .
+  # VALUES fallback: 8 Connect Group OCEL event types (Wave 29 autonomic route)
+  # These are emitted during the 8-stage Connect Group lifecycle.
+  VALUES (?code ?label ?def ?route) {
+    ("cg.interest.submitted"   "Interest Submitted"   "Member submits interest in joining a connect group"   "connect-group")
+    ("cg.groups.matched"       "Groups Matched"       "System matches member to eligible connect groups"      "connect-group")
+    ("cg.invite.sent"          "Invite Sent"          "Connect group leader sends invitation to member"       "connect-group")
+    ("cg.invite.accepted"      "Invite Accepted"      "Member accepts connect group invitation"               "connect-group")
+    ("cg.spot.reserved"        "Spot Reserved"        "Member spot reserved in connect group"                 "connect-group")
+    ("cg.attendance.recorded"  "Attendance Recorded"  "Attendance recorded for connect group session"         "connect-group")
+    ("cg.followup.created"     "Follow-up Created"    "Pastoral follow-up created for member engagement"      "connect-group")
+    ("cg.route.closed"         "Route Closed"         "Connect group route completed and closed"              "connect-group")
   }
-  BIND(COALESCE(?routeRaw, "") AS ?route)
 }
 ORDER BY ?code
