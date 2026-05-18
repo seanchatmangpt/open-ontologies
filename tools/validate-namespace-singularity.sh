@@ -24,6 +24,7 @@ CANONICAL='https://zoela.org/ontology/'
 
 SCOPE_PATHS=(
   "${REPO_ROOT}/ontology/zoela"
+  "${REPO_ROOT}/ontology/profiles"
   "${REPO_ROOT}/.specify/queries/zoela"
   "${REPO_ROOT}/.specify/templates/zoela"
   "${REPO_ROOT}/ggen.toml"
