@@ -2,7 +2,7 @@
   "name": "zoela-mobile",
   "version": "0.1.0",
   "private": true,
-  "description": "ZOE LA Mobile — generated from open-ontologies CodeManufactory",
+  "description": "ZOE LA Mobile \u2014 generated from open-ontologies CodeManufactory",
   "scripts": {
     "ontology:validate": "onto validate ontology/zoela/core.ttl",
     "ggen:sync": "ggen sync --manifest ggen.toml",
@@ -20,6 +20,7 @@
     "validate:ocel": "bash tools/validate-ocel.sh",
     "validate:autonomics": "bash tools/validate-autonomics.sh",
     "validate:connect-groups": "bash tools/validate-connect-groups.sh",
-    "validate:all": "pnpm ontology:validate && pnpm ggen:sync && pnpm assert:no-generated-dir && pnpm supabase:reset && pnpm supabase:types && npx tsc --noEmit && pnpm validate:supabase-local && pnpm validate:rls && pnpm validate:storage && pnpm validate:realtime && pnpm validate:functions && pnpm validate:receipts && pnpm validate:ocel && pnpm validate:autonomics && pnpm validate:connect-groups"
+    "validate:all": "pnpm ontology:validate && pnpm ggen:sync && pnpm assert:no-generated-dir && pnpm supabase:reset && pnpm supabase:types && npx tsc --noEmit && pnpm validate:supabase-local && pnpm validate:rls && pnpm validate:storage && pnpm validate:realtime && pnpm validate:functions && pnpm validate:receipts && pnpm validate:ocel && pnpm validate:autonomics && pnpm validate:connect-groups",
+    "validate:public-anchor-closure": "bash tools/validate-public-anchor-closure.sh"
   }
 }
