@@ -7,6 +7,9 @@
 @prefix schema:     <https://schema.org/> .
 @prefix prov:       <http://www.w3.org/ns/prov#> .
 @prefix dcterms:    <http://purl.org/dc/terms/> .
+@prefix foaf:       <http://xmlns.com/foaf/0.1/> .
+@prefix org:        <http://www.w3.org/ns/org#> .
+@prefix odrl:       <http://www.w3.org/ns/odrl/2/> .
 
 # ============================================================================
 # ZOE LA Mobile — Core Integration Ontology
@@ -128,77 +131,91 @@ zoe:RouteOutcome
 zoe:LeadershipCollegeCohort
     a owl:Class ;
     rdfs:label "Leadership College Cohort"@en ;
-    rdfs:comment "A ZOE Leadership College cohort group — from leadership-college.ttl"@en .
+    rdfs:comment "A ZOE Leadership College cohort group — from leadership-college.ttl"@en ;
+    rdfs:subClassOf schema:EducationalOccupationalProgram, org:OrganizationalUnit .
 
 zoe:LCModule
     a owl:Class ;
     rdfs:label "LC Module"@en ;
-    rdfs:comment "A single curriculum module within a Leadership College cohort — from leadership-college.ttl"@en .
+    rdfs:comment "A single curriculum module within a Leadership College cohort — from leadership-college.ttl"@en ;
+    rdfs:subClassOf schema:Course .
 
 zoe:LCEnrollment
     a owl:Class ;
     rdfs:label "LC Enrollment"@en ;
-    rdfs:comment "A person's enrollment record for a Leadership College module — from leadership-college.ttl"@en .
+    rdfs:comment "A person's enrollment record for a Leadership College module — from leadership-college.ttl"@en ;
+    rdfs:subClassOf schema:RegisterAction, prov:Activity .
 
 zoe:LCCredential
     a owl:Class ;
     rdfs:label "LC Credential"@en ;
-    rdfs:comment "A credential awarded upon completing Leadership College requirements — from leadership-college.ttl"@en .
+    rdfs:comment "A credential awarded upon completing Leadership College requirements — from leadership-college.ttl"@en ;
+    rdfs:subClassOf schema:EducationalOccupationalCredential .
 
 # ZOE Kids (kids.ttl)
 zoe:ZoeKidsSession
     a owl:Class ;
     rdfs:label "ZOE Kids Session"@en ;
-    rdfs:comment "A scheduled ZOE Kids ministry session for children — from kids.ttl"@en .
+    rdfs:comment "A scheduled ZOE Kids ministry session for children — from kids.ttl"@en ;
+    rdfs:subClassOf schema:Event .
 
 zoe:KidsCheckIn
     a owl:Class ;
     rdfs:label "Kids Check-In"@en ;
-    rdfs:comment "A check-in record for a child at a ZOE Kids session — from kids.ttl"@en .
+    rdfs:comment "A check-in record for a child at a ZOE Kids session — from kids.ttl"@en ;
+    rdfs:subClassOf schema:CheckInAction, prov:Activity .
 
 zoe:KidsCampRegistration
     a owl:Class ;
     rdfs:label "Kids Camp Registration"@en ;
-    rdfs:comment "A child's registration for a ZOE Kids camp event — from kids.ttl"@en .
+    rdfs:comment "A child's registration for a ZOE Kids camp event — from kids.ttl"@en ;
+    rdfs:subClassOf schema:RegisterAction, prov:Activity .
 
 # ZOE Youth (yth.ttl)
 zoe:YthNight
     a owl:Class ;
     rdfs:label "Yth Night"@en ;
-    rdfs:comment "A scheduled ZOE Youth ministry night event — from yth.ttl"@en .
+    rdfs:comment "A scheduled ZOE Youth ministry night event — from yth.ttl"@en ;
+    rdfs:subClassOf schema:Event .
 
 zoe:YthConnectGroup
     a owl:Class ;
     rdfs:label "Yth Connect Group"@en ;
-    rdfs:comment "A youth-specific connect group within the ZOE Youth ministry — from yth.ttl"@en .
+    rdfs:comment "A youth-specific connect group within the ZOE Youth ministry — from yth.ttl"@en ;
+    rdfs:subClassOf schema:Organization, foaf:Group .
 
 zoe:YthCampRegistration
     a owl:Class ;
     rdfs:label "Yth Camp Registration"@en ;
-    rdfs:comment "A youth participant's registration for a ZOE Youth camp — from yth.ttl"@en .
+    rdfs:comment "A youth participant's registration for a ZOE Youth camp — from yth.ttl"@en ;
+    rdfs:subClassOf schema:RegisterAction .
 
 # Household (household.ttl)
 zoe:HouseholdMember
     a owl:Class ;
     rdfs:label "Household Member"@en ;
-    rdfs:comment "A person's membership role within a household grouping — from household.ttl"@en .
+    rdfs:comment "A person's membership role within a household grouping — from household.ttl"@en ;
+    rdfs:subClassOf org:Membership .
 
 zoe:HouseholdNeed
     a owl:Class ;
     rdfs:label "Household Need"@en ;
-    rdfs:comment "A care or resource need attributed to an entire household rather than a single person — from household.ttl"@en .
+    rdfs:comment "A care or resource need attributed to an entire household rather than a single person — from household.ttl"@en ;
+    rdfs:subClassOf schema:RequestAction, prov:Activity .
 
 # Categories (categories.ttl)
 zoe:CategoryRegistry
     a owl:Class ;
     rdfs:label "Category Registry"@en ;
-    rdfs:comment "A registry of ministry and service categories used for navigation and filtering — from categories.ttl"@en .
+    rdfs:comment "A registry of ministry and service categories used for navigation and filtering — from categories.ttl"@en ;
+    rdfs:subClassOf skos:ConceptScheme .
 
 # Navigation (navigation.ttl)
 zoe:AppScreen
     a owl:Class ;
     rdfs:label "App Screen"@en ;
-    rdfs:comment "A mobile app screen or navigation destination in the ZOE LA app — from navigation.ttl"@en .
+    rdfs:comment "A mobile app screen or navigation destination in the ZOE LA app — from navigation.ttl"@en ;
+    rdfs:subClassOf schema:WebPage .
 
 # ----------------------------------------------------------------------------
 # § 4  Cross-module object properties
