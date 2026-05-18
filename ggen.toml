@@ -23,6 +23,15 @@ license = "MIT"
 source = "ontology/cli-open-ontologies.ttl"
 base_uri = "https://ggen.io/onto/cli/open-ontologies/"
 format = "turtle"
+imports = [
+    # ZOE LA Mobile domain modules — loaded so zoela/* SPARQL queries have data
+    "ontology/zoela/categories.ttl",
+    "ontology/zoela/navigation.ttl",
+    "ontology/zoela/notifications.ttl",
+    "ontology/zoela/routes.ttl",
+    "ontology/zoela/connect-groups.ttl",
+    "ontology/zoela/connect-group-routes.ttl",
+]
 
 [rdf]
 base_uri = "https://ggen.io/onto/cli/open-ontologies/"
@@ -97,19 +106,23 @@ rules = [
     { name = "revops-stages", query = { file = ".specify/queries/revops/stages_aggregated.rq" }, template = { file = ".specify/templates/revops/cmds.rs.tera" }, output_file = "src/cmds/generated_revops.rs", mode = "Overwrite" },
     # ZOE LA Mobile pipeline — canonical runtime paths (never generated/)
     { name = "zoela-mobile-types",     query = { file = ".specify/queries/zoela/extract-types.rq" },       template = { file = ".specify/templates/zoela/typescript-types.tera" }, output_file = "packages/types/zoela.ts",                                   mode = "Overwrite" },
-    { name = "zoela-mobile-migration", query = { file = ".specify/queries/zoela/extract-tables.rq" },      template = { file = ".specify/templates/zoela/supabase-migration.tera" }, output_file = "supabase/migrations/20260518000001_zoela_tables.sql",      mode = "Overwrite" },
+    # zoela-mobile-migration intentionally removed: extract-tables.rq produces no rows due to
+    # namespace mismatch (query targets <urn:zoela:> but TTL uses <https://zoela.org/onto/>).
+    # DDL is hand-authored in supabase/migrations/20260518000001_zoela_tables.sql (protected_path).
     { name = "zoela-mobile-zod",       query = { file = ".specify/queries/zoela/extract-skos-enums.rq" },  template = { file = ".specify/templates/zoela/zod-schema.tera" },          output_file = "packages/schemas/zoela.ts",                                 mode = "Overwrite" },
     # ZOE LA Mobile pipeline — data + policy rules
-    { name = "zoela-bridge-tables", query = { file = ".specify/queries/zoela/extract-bridge-tables.rq" }, template = { file = ".specify/templates/zoela/supabase-bridge-table.tera" }, output_file = "supabase/migrations/20260518000002_zoela_bridge_tables.sql", mode = "Overwrite" },
-    { name = "zoela-rls",           query = { file = ".specify/queries/zoela/extract-rls-policies.rq" },  template = { file = ".specify/templates/zoela/supabase-rls.tera" },           output_file = "supabase/migrations/20260518000003_zoela_rls.sql",            mode = "Overwrite" },
+    # zoela-bridge-tables intentionally removed: extract-bridge-tables.rq produces no rows.
+    # DDL is hand-authored in supabase/migrations/20260518000002_zoela_bridge_tables.sql (protected_path).
+    # zoela-rls intentionally removed: extract-rls-policies.rq produces no rows.
+    # DDL is hand-authored in supabase/migrations/20260518000003_zoela_rls.sql (protected_path).
     { name = "zoela-forms",         query = { file = ".specify/queries/zoela/extract-form-fields.rq" },   template = { file = ".specify/templates/zoela/react-hook-form.tera" },         output_file = "packages/forms/zoela.tsx",                                    mode = "Overwrite" },
     { name = "zoela-ocel",          query = { file = ".specify/queries/zoela/extract-ocel-events.rq" },   template = { file = ".specify/templates/zoela/ocel-event.tera" },              output_file = "packages/evidence/OcelEvents.ts",                            mode = "Overwrite" },
     { name = "zoela-service-routes", query = { file = ".specify/queries/zoela/extract-service-routes.rq" }, template = { file = ".specify/templates/zoela/route-stage-gate.tera" }, output_file = "packages/routes/routeGates.ts",                               mode = "Overwrite" },
     { name = "zoela-receipts",       query = { file = ".specify/queries/zoela/extract-receipt-models.rq" }, template = { file = ".specify/templates/zoela/prov-receipt.tera" },     output_file = "packages/evidence/receipts.ts",                               mode = "Overwrite" },
     # ZOE LA Mobile pipeline — screen + navigation generation rules
     { name = "zoela-screens",       query = { file = ".specify/queries/zoela/extract-screens.rq" },        template = { file = ".specify/templates/zoela/expo-screen.tera" },            output_file = "packages/screens/zoela.tsx",                                  mode = "Overwrite" },
-    { name = "zoela-admin-screens", query = { file = ".specify/queries/zoela/extract-screens.rq" },        template = { file = ".specify/templates/zoela/admin-list-screen.tera" },      output_file = "packages/screens/adminScreens.tsx",                           mode = "Overwrite" },
-    { name = "zoela-navigation",    query = { file = ".specify/queries/zoela/extract-navigation.rq" },     template = { file = ".specify/templates/zoela/expo-screen.tera" },            output_file = "packages/navigation/zoela.ts",                                mode = "Overwrite" },
+    { name = "zoela-admin-screens", query = { file = ".specify/queries/zoela/extract-admin-screens.rq" },  template = { file = ".specify/templates/zoela/admin-list-screen.tera" },      output_file = "packages/screens/adminScreens.tsx",                           mode = "Overwrite" },
+    { name = "zoela-navigation",    query = { file = ".specify/queries/zoela/extract-navigation.rq" },     template = { file = ".specify/templates/zoela/expo-navigation-stack.tera" }, output_file = "packages/navigation/zoela.ts",                                mode = "Overwrite" },
     # ZOE LA Mobile pipeline — role + consent access control
     { name = "zoela-roles", query = { file = ".specify/queries/zoela/extract-role-requirements.rq" }, template = { file = ".specify/templates/zoela/role-access.tera" }, output_file = "packages/types/roles.ts",                                      mode = "Overwrite" },
     { name = "zoela-assignment-eligibility", query = { file = ".specify/queries/zoela/extract-assignment-eligibility.rq" }, template = { file = ".specify/templates/zoela/assignment-eligibility.tera" }, output_file = "packages/routes/assignmentEligibility.ts", mode = "Overwrite" },
@@ -119,7 +132,7 @@ rules = [
     { name = "zoela-followup-rules",    query = { file = ".specify/queries/zoela/extract-followup-rules.rq" },        template = { file = ".specify/templates/zoela/followup-rule.tera" },                output_file = "packages/routes/followupRules.ts",            mode = "Overwrite" },
     { name = "zoela-ocel-schema",       query = { file = ".specify/queries/zoela/extract-ocel-schema.rq" },           template = { file = ".specify/templates/zoela/ocel-schema.tera" },                  output_file = "packages/evidence/ocelSchema.ts",             mode = "Overwrite" },
     # ZOE LA Mobile pipeline — admin detail + expo navigation stack
-    { name = "zoela-admin-detail",      query = { file = ".specify/queries/zoela/extract-screens.rq" },               template = { file = ".specify/templates/zoela/admin-detail-screen.tera" },          output_file = "packages/screens/adminDetailScreen.tsx",      mode = "Overwrite" },
+    { name = "zoela-admin-detail",      query = { file = ".specify/queries/zoela/extract-admin-screens.rq" },            template = { file = ".specify/templates/zoela/admin-detail-screen.tera" },          output_file = "packages/screens/adminDetailScreen.tsx",      mode = "Overwrite" },
     { name = "zoela-nav-stack",         query = { file = ".specify/queries/zoela/extract-navigation.rq" },            template = { file = ".specify/templates/zoela/expo-navigation-stack.tera" },         output_file = "packages/navigation/navigationStack.ts",      mode = "Overwrite" },
     # ZOE LA Mobile pipeline — connect group rules (cg-stages, cg-work-orders, cg-admin)
     { name = "zoela-cg-stages",         query = { file = ".specify/queries/zoela/extract-connect-group-stages.rq" },  template = { file = ".specify/templates/zoela/connect-group-route-stages.tera" },   output_file = "packages/routes/connectGroupStages.ts",       mode = "Overwrite" },
@@ -145,6 +158,12 @@ protected_paths = [
     "src/main.rs",
     "src/lib.rs",
     "src/domain/**",
+    # Supabase migrations: hand-authored DDL until SPARQL namespace inconsistency
+    # in ontology/zoela/*.ttl is resolved (extract-tables.rq targets <urn:zoela:>
+    # but campus.ttl / connect-groups.ttl use <https://zoela.org/onto/>).
+    "supabase/migrations/20260518000001_zoela_tables.sql",
+    "supabase/migrations/20260518000002_zoela_bridge_tables.sql",
+    "supabase/migrations/20260518000003_zoela_rls.sql",
 ]
 
 # Regeneratable — tier-3 artifacts managed by ggen
@@ -179,10 +198,6 @@ regenerate_paths = [
     "packages/evidence/OcelEvents.ts",
     "packages/evidence/receipts.ts",
     "packages/evidence/ocelSchema.ts",
-    # supabase/migrations
-    "supabase/migrations/20260518000001_zoela_tables.sql",
-    "supabase/migrations/20260518000002_zoela_bridge_tables.sql",
-    "supabase/migrations/20260518000003_zoela_rls.sql",
     # supabase/functions
     "supabase/functions/route-gate/index.ts",
 ]
