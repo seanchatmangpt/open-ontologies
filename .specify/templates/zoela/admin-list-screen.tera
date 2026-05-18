@@ -1,14 +1,15 @@
 {#
-  admin-list-screen.tera — generated from extract-screens.rq
+  admin-list-screen.tera — generated from extract-admin-screens.rq
   DO NOT EDIT — regenerate via: ggen sync --rule zoela-admin-screens
 
   ggen v5 per-row rendering model: renders once per SELECT row.
-  Only admin screens (is_admin_only == "true") produce output.
+  extract-admin-screens.rq filters to admin-only screens (WHERE zoe:isAdminOnly true).
+  Every row is guaranteed to be an admin screen — no conditional needed.
+
   SPARQL variables: screen_id, screen_label, nav_route, parent_tab_code,
     screen_stack, required_role, primary_object_type, primary_route_category,
-    is_admin_only, screen_order
+    screen_order
 #}
-{% if is_admin_only == "true" %}
 // Admin screen: {{ screen_label }}
 // Object type: {{ primary_object_type }}
 // Route category: {{ primary_route_category }}
@@ -29,4 +30,3 @@ const styles = StyleSheet.create({
   container: { flex: 1, padding: 16 },
   title: { fontSize: 20, fontWeight: 'bold', marginBottom: 12 },
 });
-{% endif %}

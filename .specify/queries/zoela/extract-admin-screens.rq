@@ -1,0 +1,54 @@
+PREFIX zoe: <https://zoela.org/ontology/>
+PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX owl: <http://www.w3.org/2002/07/owl#>
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+
+# =============================================================================
+# extract-admin-screens.rq — Extract admin-only AppScreen individuals
+# =============================================================================
+#
+# Returns one row per admin-gated AppScreen (is_admin_only = true).
+# Used by:
+#   admin-list-screen.tera   → packages/screens/adminScreens.tsx
+#   admin-detail-screen.tera → packages/screens/adminDetailScreen.tsx
+#
+# ggen v5 per-row rendering model: renders once per SELECT row.
+# SPARQL WHERE clause filters to admin-only screens so every row is admin.
+#
+# Template variables:
+#   ?screen_id             — skos:notation
+#   ?screen_label          — rdfs:label
+#   ?nav_route             — zoe:navRoute
+#   ?parent_tab_code       — zoe:parentTab skos:notation (default: "ADMIN")
+#   ?screen_stack          — zoe:screenStack (default: "AdminStack")
+#   ?required_role         — zoe:requiredRole (default: "CARE")
+#   ?primary_object_type   — zoe:primaryObjectType (default: "")
+#   ?primary_route_category — zoe:primaryRouteCategory (default: "")
+#   ?screen_order          — zoe:screenOrder (default: "0")
+# =============================================================================
+
+SELECT
+  ?screen_id
+  ?screen_label
+  ?nav_route
+  (COALESCE(?tab_code, "ADMIN") AS ?parent_tab_code)
+  (COALESCE(?stack, "AdminStack") AS ?screen_stack)
+  (COALESCE(?role, "CARE") AS ?required_role)
+  (COALESCE(?object_type, "") AS ?primary_object_type)
+  (COALESCE(?route_category, "") AS ?primary_route_category)
+  (COALESCE(STR(?order), "0") AS ?screen_order)
+WHERE {
+  ?screen a zoe:AppScreen ;
+    rdfs:label ?screen_label ;
+    skos:notation ?screen_id ;
+    zoe:isAdminOnly true .
+  OPTIONAL { ?screen zoe:navRoute ?nav_route }
+  OPTIONAL { ?screen zoe:parentTab ?tab . ?tab skos:notation ?tab_code }
+  OPTIONAL { ?screen zoe:screenStack ?stack }
+  OPTIONAL { ?screen zoe:requiredRole ?role }
+  OPTIONAL { ?screen zoe:primaryObjectType ?object_type }
+  OPTIONAL { ?screen zoe:primaryRouteCategory ?route_category }
+  OPTIONAL { ?screen zoe:screenOrder ?order }
+}
+ORDER BY ?order

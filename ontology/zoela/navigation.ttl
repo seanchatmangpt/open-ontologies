@@ -221,6 +221,54 @@ zoe:ConnectGroupListScreen a owl:NamedIndividual, zoe:AppScreen ;
   zoe:screenOrder         1 ;
   skos:notation           "connect_group_list" .
 
+zoe:ConnectGroupsHomeScreen a owl:NamedIndividual, zoe:AppScreen ;
+  rdfs:label              "Connect Groups Home"@en ;
+  rdfs:comment            "Home screen for the Connect Groups experience, showing the member's active group, upcoming meetings, and discovery entry point."@en ;
+  zoe:screenId            "connect_groups_home" ;
+  zoe:navRoute            "ConnectGroupsHome" ;
+  zoe:parentTab           zoe:GroupsTab ;
+  zoe:screenStack         "GroupsStack" ;
+  zoe:requiredRole        "MEMBER" ;
+  zoe:primaryObjectType   "connect_groups" ;
+  zoe:screenOrder         2 ;
+  skos:notation           "connect_groups_home" .
+
+zoe:ConnectGroupDetailScreen a owl:NamedIndividual, zoe:AppScreen ;
+  rdfs:label              "Connect Group Detail"@en ;
+  rdfs:comment            "Detail view for a single Connect Group, showing group description, leader, meeting schedule, and join/leave actions."@en ;
+  zoe:screenId            "connect_group_detail" ;
+  zoe:navRoute            "ConnectGroupDetail" ;
+  zoe:parentTab           zoe:GroupsTab ;
+  zoe:screenStack         "GroupsStack" ;
+  zoe:requiredRole        "MEMBER" ;
+  zoe:primaryObjectType   "connect_groups" ;
+  zoe:screenOrder         3 ;
+  skos:notation           "connect_group_detail" .
+
+zoe:MyGroupsScreen a owl:NamedIndividual, zoe:AppScreen ;
+  rdfs:label              "My Groups"@en ;
+  rdfs:comment            "Screen listing all Connect Groups the current member belongs to, with attendance tracking and meeting history."@en ;
+  zoe:screenId            "my_groups" ;
+  zoe:navRoute            "MyGroups" ;
+  zoe:parentTab           zoe:GroupsTab ;
+  zoe:screenStack         "GroupsStack" ;
+  zoe:requiredRole        "MEMBER" ;
+  zoe:primaryObjectType   "connect_groups" ;
+  zoe:screenOrder         4 ;
+  skos:notation           "my_groups" .
+
+zoe:GroupInterestFormScreen a owl:NamedIndividual, zoe:AppScreen ;
+  rdfs:label              "Group Interest Form"@en ;
+  rdfs:comment            "Form screen for a member to submit interest in joining a Connect Group, collecting availability, campus preference, and ministry interests."@en ;
+  zoe:screenId            "group_interest_form" ;
+  zoe:navRoute            "GroupInterestForm" ;
+  zoe:parentTab           zoe:GroupsTab ;
+  zoe:screenStack         "GroupsStack" ;
+  zoe:requiredRole        "MEMBER" ;
+  zoe:primaryObjectType   "connect_groups" ;
+  zoe:screenOrder         5 ;
+  skos:notation           "group_interest_form" .
+
 # ── ADMIN TAB (role-gated) ────────────────────────────────────────────────────
 
 zoe:AdminNeedsScreen a owl:NamedIndividual, zoe:AppScreen ;

@@ -309,6 +309,48 @@ zoe:UrgentEscalationCard
     zoe:cardDeepLink <zoela://escalation/urgent> ;
     zoe:cardPriority 0 .
 
+# ── Connect Groups push card templates (W30-16) ──────────────────────────────
+
+zoe:ConnectGroupInviteCard
+    a zoe:PushCardTemplate ;
+    rdfs:label "Connect Group Invite Card"@en ;
+    zoe:cardTitle "Connect Group Invitation" ;
+    zoe:cardSubtitle "ZOE LA Connect Groups" ;
+    zoe:cardBody "You have been invited to join a Connect Group. Tap to view the group details and accept or decline the invitation." ;
+    zoe:cardAction "View Invitation" ;
+    zoe:cardDeepLink <zoela://groups/invite> ;
+    zoe:cardPriority 1 .
+
+zoe:ConnectGroupMeetingReminderCard
+    a zoe:PushCardTemplate ;
+    rdfs:label "Connect Group Meeting Reminder Card"@en ;
+    zoe:cardTitle "Group Meeting Tonight" ;
+    zoe:cardSubtitle "ZOE LA Connect Groups" ;
+    zoe:cardBody "Your Connect Group meets tonight. Tap to view the meeting details, location, and any materials shared by your group leader." ;
+    zoe:cardAction "View Meeting" ;
+    zoe:cardDeepLink <zoela://groups/meeting> ;
+    zoe:cardPriority 1 .
+
+zoe:ConnectGroupJoinApprovedCard
+    a zoe:PushCardTemplate ;
+    rdfs:label "Connect Group Join Approved Card"@en ;
+    zoe:cardTitle "Welcome to the Group!" ;
+    zoe:cardSubtitle "ZOE LA Connect Groups" ;
+    zoe:cardBody "Your request to join the Connect Group has been approved by the group leader. Tap to see your group details and upcoming schedule." ;
+    zoe:cardAction "See My Group" ;
+    zoe:cardDeepLink <zoela://groups/my-groups> ;
+    zoe:cardPriority 2 .
+
+zoe:ConnectGroupInterestReceivedCard
+    a zoe:PushCardTemplate ;
+    rdfs:label "Connect Group Interest Received Card"@en ;
+    zoe:cardTitle "Interest Form Received" ;
+    zoe:cardSubtitle "ZOE LA Connect Groups" ;
+    zoe:cardBody "We received your Connect Group interest form. Our team will match you with a group that fits your schedule and interests." ;
+    zoe:cardAction "Check Status" ;
+    zoe:cardDeepLink <zoela://groups/interest-status> ;
+    zoe:cardPriority 3 .
+
 # ============================================================================
 # End of ontology/zoela/notifications.ttl
 # ============================================================================
