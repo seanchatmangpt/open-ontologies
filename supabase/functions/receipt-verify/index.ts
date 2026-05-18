@@ -22,7 +22,11 @@ serve(async (req: Request) => {
     return new Response("Method not allowed", { status: 405 });
   }
 
-  const body: ReceiptVerifyRequest = await req.json();
+  const raw = await req.json();
+  if (!raw || typeof raw !== "object") {
+    return new Response("Invalid request body", { status: 400 });
+  }
+  const body = raw as ReceiptVerifyRequest;
 
   if (!body.receiptId || !body.claimedHash) {
     return new Response(

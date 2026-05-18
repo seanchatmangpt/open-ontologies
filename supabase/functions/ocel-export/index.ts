@@ -92,11 +92,14 @@ serve(async (req: Request): Promise<Response> => {
 
   if (req.method === "POST") {
     try {
-      const body = await req.json();
-      runId = runId ?? body.run_id ?? null;
-      routeId = routeId ?? body.route_id ?? null;
-      fromTs = fromTs ?? body.from ?? null;
-      toTs = toTs ?? body.to ?? null;
+      const raw = await req.json();
+      if (raw && typeof raw === "object") {
+        const body = raw as Record<string, unknown>;
+        runId = runId ?? (typeof body.run_id === "string" ? body.run_id : null);
+        routeId = routeId ?? (typeof body.route_id === "string" ? body.route_id : null);
+        fromTs = fromTs ?? (typeof body.from === "string" ? body.from : null);
+        toTs = toTs ?? (typeof body.to === "string" ? body.to : null);
+      }
     } catch {
       // ignore parse errors — params already set from query string
     }
@@ -139,7 +142,7 @@ serve(async (req: Request): Promise<Response> => {
     );
   }
 
-  const rows: OcelEventRow[] = await pgResp.json();
+  const rows = await pgResp.json() as OcelEventRow[];
 
   // Collect unique event types for global-event-types
   const eventTypeSet = new Set<string>(rows.map((r) => r.event_type));
