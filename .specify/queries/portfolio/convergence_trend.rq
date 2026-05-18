@@ -1,0 +1,46 @@
+# =============================================================================
+# convergence_trend.rq — Fitness % over time (uses qb:DataSet)
+# =============================================================================
+#
+# Queries portfolio convergence observations as a qb:DataSet, extracting
+# fitness percentage by tick timestamp. Shows trend of portfolio health
+# improvement or degradation over time.
+#
+# Uses W3C Data Cube (QB) pattern:
+#   - qb:Observation for each tick
+#   - qb:measure for fitness_pct
+#   - qb:dimension for tick_ts
+#
+# Input: port:Convergence instances with qb:measure properties
+# Output: Fitness metric time series, ordered chronologically
+#
+# Variables:
+#   ?tickTs         — observation timestamp
+#   ?fitnessPct     — fitness percentage (0-100)
+#   ?cellCount      — count of cells in portfolio at this tick
+#   ?receiptCount   — count of receipts at this tick
+#   ?andonCount     — count of open andons at this tick
+# =============================================================================
+
+PREFIX port:    <https://ggen.io/onto/portfolio-os/>
+PREFIX qb:      <http://purl.org/linked-data/cube#>
+PREFIX dcterms: <http://purl.org/dc/terms/>
+PREFIX xsd:     <http://www.w3.org/2001/XMLSchema#>
+
+SELECT ?tickTs ?fitnessPct ?cellCount ?receiptCount ?andonCount
+WHERE {
+  # Query convergence observations (portfolio snapshots)
+  ?obs a port:Convergence ;
+      a qb:Observation ;
+      port:observationTimestamp ?tickTs .
+
+  # Extract fitness metric from qb:measure
+  ?obs qb:measure ?fitnessMeasure ;
+      port:fitnessPct ?fitnessPct .
+
+  # Optional: extract dimension values for context
+  OPTIONAL { ?obs port:cellCount ?cellCount . }
+  OPTIONAL { ?obs port:receiptCount ?receiptCount . }
+  OPTIONAL { ?obs port:andonCount ?andonCount . }
+}
+ORDER BY ?tickTs

@@ -143,6 +143,24 @@ serve:
 serve-http:
 	cargo run --release -- serve-http
 
+# ─── Thesis Manufacturing ──────────────────────────────────────────────────────
+
+.PHONY: thesis-doctor thesis-verify thesis-certify thesis-seed
+
+thesis-doctor:
+	cargo run --release -- thesis doctor
+
+thesis-verify:
+	cargo run --release -- thesis audit
+
+thesis-certify:
+	cargo run --release -- thesis certify
+
+thesis-seed:
+	cargo run --release -- thesis ingest docs/THESIS.md || true
+	cargo run --release -- thesis ingest docs/THESIS_V2.md || true
+	@echo "✓ Thesis seed ingest complete"
+
 # ─── Cleanup ─────────────────────────────────────────────────────────────────
 
 clean:

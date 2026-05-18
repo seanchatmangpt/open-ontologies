@@ -31,6 +31,7 @@ onto:OntoInterface a cli:Interface ;
                    onto:AlignmentCommand,
                    onto:ClinicalCommand,
                    onto:MarketplaceCommand,
+                   onto:ThesisCommand,
                    onto:DoctorCommand .
 
 #################################################################
@@ -91,7 +92,8 @@ onto:GovernanceCommand a cli:Command ;
                       onto:GovernanceMonitorCommand,
                       onto:GovernanceMonitorClearCommand,
                       onto:GovernanceLineageCommand,
-                      onto:GovernanceDriftCommand .
+                      onto:GovernanceDriftCommand,
+                      onto:GovernanceVerifyCommand .
 
 onto:AlignmentCommand a cli:Command ;
     cli:name "alignment" ;
@@ -116,6 +118,21 @@ onto:MarketplaceCommand a cli:Command ;
     cli:description """Browse and install standard ontologies from the curated catalogue.""" ;
     cli:hasSubcommand onto:MarketplaceListCommand,
                       onto:MarketplaceInstallCommand .
+
+onto:ThesisCommand a cli:Command ;
+    cli:name "thesis" ;
+    cli:summary "Research artifact manufacturing" ;
+    cli:description """Ingest, extract, validate, route and synthesize research claims and evidence into thesis artifacts.""" ;
+    cli:hasSubcommand onto:ThesisIngestCommand,
+                      onto:ThesisExtractCommand,
+                      onto:ThesisBindCommand,
+                      onto:ThesisAuditCommand,
+                      onto:ThesisRouteCommand,
+                      onto:ThesisProjectCommand,
+                      onto:ThesisCertifyCommand,
+                      onto:ThesisDoctorCommand,
+                      onto:ThesisWizardCommand,
+                      onto:ThesisExplainCommand .
 
 onto:DoctorCommand a cli:Command ;
     cli:name "doctor" ;
@@ -399,6 +416,14 @@ onto:GovernanceDriftCommand a cli:Command ;
     cli:hasOption onto:FileAOption,
                   onto:FileBOption .
 
+onto:GovernanceVerifyCommand a cli:Command ;
+    cli:name "verify" ;
+    cli:summary "Verify artifact receipt chain" ;
+    cli:description """Strip-and-rehash artifact, walk receipt chain. Non-zero exit on non-Admitted.""" ;
+    cli:hasPositionalArgument onto:PathArg ;
+    cli:hasOption onto:DbOption,
+                  onto:AsciiTreeFlag .
+
 #################################################################
 # alignment subcommands
 #################################################################
@@ -478,6 +503,68 @@ onto:MarketplaceInstallCommand a cli:Command ;
     cli:summary "Install a standard ontology from the marketplace" ;
     cli:description """Download and load a named ontology from the marketplace catalogue.""" ;
     cli:hasPositionalArgument onto:IdArg .
+
+#################################################################
+# thesis subcommands
+#################################################################
+
+onto:ThesisIngestCommand a cli:Command ;
+    cli:name "ingest" ;
+    cli:summary "Hash and classify raw research material" ;
+    cli:description """Parse structured data files (Markdown, PDF, JSON) into SourcePacket RDF triples with blake3 hashing and auto-classification.""" ;
+    cli:hasPositionalArgument onto:PathArg .
+
+onto:ThesisExtractCommand a cli:Command ;
+    cli:name "extract" ;
+    cli:summary "LLM-powered claim and evidence extraction" ;
+    cli:description """Use Gemini 3.1 Flash to extract claim IDs and evidence IDs from ingested source material, emit CandidateClaimPacket and CandidateEvidencePacket RDF.""" ;
+    cli:hasOption onto:SourceIdOption .
+
+onto:ThesisBindCommand a cli:Command ;
+    cli:name "bind" ;
+    cli:summary "Link claim to evidence" ;
+    cli:description """Create tm:evidenceLink triples binding claim_id to evidence_id, update support status in RDF.""" ;
+    cli:hasPositionalArgument onto:ClaimIdArg ;
+    cli:hasPositionalArgument onto:EvidenceIdArg .
+
+onto:ThesisAuditCommand a cli:Command ;
+    cli:name "audit" ;
+    cli:summary "SHACL validation and anti-theater check" ;
+    cli:description """Validate thesis RDF against SHACL shapes, emit DefectPacket for each violation, flag unsupported or circular claims.""" ;
+    cli:hasOption onto:DataDirOption .
+
+onto:ThesisRouteCommand a cli:Command ;
+    cli:name "route" ;
+    cli:summary "Update chapter routing" ;
+    cli:description """Execute construct_chapter_routes.rq SPARQL CONSTRUCT, populate tm:Chapter instances with dcat:hasPart references.""" ;
+    cli:hasOption onto:DataDirOption .
+
+onto:ThesisProjectCommand a cli:Command ;
+    cli:name "project" ;
+    cli:summary "Render thesis to Markdown" ;
+    cli:description """Synthesize admitted packets into thesis.md output, with <!-- UNSUPPORTED: claim-id --> markers for rejected claims.""" ;
+    cli:hasOption onto:OutputPathOption .
+
+onto:ThesisCertifyCommand a cli:Command ;
+    cli:name "certify" ;
+    cli:summary "Full manufacturing pipeline" ;
+    cli:description """Complete certification flow: ingest → extract → audit → route → project. Emit EARL receipt. Fail if earl:failed count > 0.""" .
+
+onto:ThesisDoctorCommand a cli:Command ;
+    cli:name "doctor" ;
+    cli:summary "Thesis health check" ;
+    cli:description """Health check for thesis manufacturing: check RDF store, verify shapefile, confirm Gemini connectivity.""" .
+
+onto:ThesisWizardCommand a cli:Command ;
+    cli:name "wizard" ;
+    cli:summary "Interactive thesis setup" ;
+    cli:description """Guided workflow: prompts for input files, source metadata, chapter structure, then runs full certify.""" .
+
+onto:ThesisExplainCommand a cli:Command ;
+    cli:name "explain" ;
+    cli:summary "Trace packet provenance" ;
+    cli:description """Print full lineage of a packet: inbound links (what created it), outbound links (what depends on it), and computed support score.""" ;
+    cli:hasPositionalArgument onto:PacketIdArg .
 
 #################################################################
 # doctor subcommands
@@ -887,6 +974,27 @@ onto:IdArg a cli:PositionalArgument ;
     cli:name "id" ;
     cli:summary "Marketplace ontology identifier" ;
     cli:required true .
+
+onto:ClaimIdArg a cli:PositionalArgument ;
+    cli:name "claim-id" ;
+    cli:summary "Research claim identifier" ;
+    cli:required true .
+
+onto:EvidenceIdArg a cli:PositionalArgument ;
+    cli:name "evidence-id" ;
+    cli:summary "Evidence packet identifier" ;
+    cli:required true .
+
+onto:PacketIdArg a cli:PositionalArgument ;
+    cli:name "packet-id" ;
+    cli:summary "Thesis packet identifier (source, claim, evidence, or defect)" ;
+    cli:required true .
+
+onto:SourceIdOption a cli:ValueOption ;
+    cli:name "source-id" ;
+    cli:longName "--source-id" ;
+    cli:summary "Filter extraction by source packet ID" ;
+    cli:required false .
 
 #################################################################
 # Outputs

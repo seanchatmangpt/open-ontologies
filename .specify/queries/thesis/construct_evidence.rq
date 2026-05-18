@@ -1,0 +1,59 @@
+# =============================================================================
+# construct_evidence.rq — Build EvidencePacket from prov:Entity assertions
+# =============================================================================
+#
+# Constructs tm:Evidence instances from prov:Entity assertions with
+# prov:wasDerivedFrom links. Binds evidence type (empirical, citational,
+# computational) and target claim reference. Supports nanopub-style citation
+# patterns for published evidence.
+#
+# Input: prov:Entity triples with prov:wasDerivedFrom provenance chains
+# Output: Constructed tm:Evidence graph with provenance and claim binding
+#
+# Variables (used in CONSTRUCT):
+#   ?evidence       — new tm:Evidence URI
+#   ?evidenceType   — extracted evidence type (empirical|citational|computational)
+#   ?claimSupported — reference to claim this evidence supports
+#   ?source         — prov:wasDerivedFrom link
+# =============================================================================
+
+PREFIX prov:    <http://www.w3.org/ns/prov#>
+PREFIX tm:      <https://ggen.io/onto/thesis-manufacturing/>
+PREFIX dcterms: <http://purl.org/dc/terms/>
+PREFIX nanopub: <http://purl.org/nanopub/>
+PREFIX bibo:    <http://purl.org/ontology/bibo/>
+PREFIX rdfs:    <http://www.w3.org/2000/01/rdf-schema#>
+
+CONSTRUCT {
+  ?evidence a tm:Evidence ;
+           tm:evidenceType ?evidenceType ;
+           tm:claimSupported ?claimSupported ;
+           prov:wasDerivedFrom ?source ;
+           dcterms:title ?title ;
+           dcterms:created ?created ;
+           dcterms:creator ?creator .
+}
+WHERE {
+  ?evidence a prov:Entity ;
+           prov:wasDerivedFrom ?source .
+
+  OPTIONAL { ?evidence dcterms:title ?title . }
+  OPTIONAL { ?evidence dcterms:created ?created . }
+  OPTIONAL { ?evidence dcterms:creator ?creator . }
+
+  # Determine evidence type
+  {
+    ?evidence tm:evidenceType ?evidenceType .
+  } UNION {
+    ?evidence bibo:doi ?doi .
+    BIND("citational" AS ?evidenceType)
+  } UNION {
+    ?evidence prov:wasGeneratedBy ?activity .
+    BIND("computational" AS ?evidenceType)
+  } UNION {
+    BIND("empirical" AS ?evidenceType)
+  }
+
+  # Link to supported claim if present
+  OPTIONAL { ?evidence tm:claimSupported ?claimSupported . }
+}

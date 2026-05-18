@@ -1,0 +1,44 @@
+# =============================================================================
+# construct_claims.rq — Build ClaimPacket graph from raw ingested triples
+# =============================================================================
+#
+# Constructs tm:Claim instances from raw:SourcePacket properties, extracting
+# claim scope, domain, and description. Each claim is bound to required SHACL
+# properties (tm:scope, tm:domain, dcterms:description) needed for admission.
+#
+# Input: Raw RDF triples with raw:SourcePacket assertions
+# Output: Constructed tm:Claim graph with required metadata
+#
+# Variables (used in CONSTRUCT):
+#   ?claim          — new tm:Claim URI (constructed from source packet ID)
+#   ?scope          — extracted tm:scope literal
+#   ?domain         — extracted tm:domain literal
+#   ?description    — dcterms:description literal
+# =============================================================================
+
+PREFIX raw:     <https://ggen.io/onto/raw-ingest/>
+PREFIX tm:      <https://ggen.io/onto/thesis-manufacturing/>
+PREFIX dcterms: <http://purl.org/dc/terms/>
+PREFIX rdf:     <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX rdfs:    <http://www.w3.org/2000/01/rdf-schema#>
+
+CONSTRUCT {
+  ?claim a tm:Claim ;
+         tm:scope ?scope ;
+         tm:domain ?domain ;
+         dcterms:description ?description ;
+         dcterms:created ?created ;
+         dcterms:creator ?creator .
+}
+WHERE {
+  ?packet a raw:SourcePacket ;
+          raw:claimScope ?scope ;
+          raw:claimDomain ?domain ;
+          raw:claimText ?description .
+
+  OPTIONAL { ?packet raw:created ?created . }
+  OPTIONAL { ?packet raw:creator ?creator . }
+
+  # Construct claim URI from packet ID
+  BIND(IRI(CONCAT(STR(tm:), "claim-", MD5(STR(?packet)))) AS ?claim)
+}

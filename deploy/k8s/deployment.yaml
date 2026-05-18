@@ -60,14 +60,16 @@ spec:
               cpu: "2"
               memory: "4Gi"
           livenessProbe:
-            tcpSocket:
+            httpGet:
+              path: /health
               port: 3050
             initialDelaySeconds: 20
             periodSeconds: 30
             timeoutSeconds: 5
             failureThreshold: 3
           readinessProbe:
-            tcpSocket:
+            httpGet:
+              path: /health
               port: 3050
             initialDelaySeconds: 5
             periodSeconds: 10

@@ -1,0 +1,72 @@
+# =============================================================================
+# construct_defects.rq — Extract DefectPackets from SHACL violation inspection
+# =============================================================================
+#
+# Constructs tm:Defect instances from SHACL validation reports
+# (sh:ValidationReport). Extracts violation details: defect class, severity,
+# target claim, and resolution status. Maps SHACL failure reasons to
+# thesis-specific defect classes.
+#
+# Input: SHACL validation report triples (sh:ValidationReport, sh:result)
+# Output: Constructed tm:Defect graph with severity and target binding
+#
+# Variables (used in CONSTRUCT):
+#   ?defect         — new tm:Defect URI
+#   ?defectClass    — classified defect type (UnsupportedClaim, LogicError, etc.)
+#   ?targetClaim    — sh:focusNode (claim that failed validation)
+#   ?severity       — extracted severity (CRITICAL, HIGH, MEDIUM, LOW)
+#   ?detail         — sh:resultMessage
+# =============================================================================
+
+PREFIX sh:      <http://www.w3.org/ns/shacl#>
+PREFIX tm:      <https://ggen.io/onto/thesis-manufacturing/>
+PREFIX earl:    <http://www.w3.org/ns/earl#>
+PREFIX dcterms: <http://purl.org/dc/terms/>
+PREFIX xsd:     <http://www.w3.org/2001/XMLSchema#>
+
+CONSTRUCT {
+  ?defect a tm:Defect ;
+         a earl:TestResult ;
+         tm:defectClass ?defectClass ;
+         tm:targetClaim ?targetClaim ;
+         tm:severity ?severity ;
+         dcterms:description ?detail ;
+         earl:result ?result ;
+         dcterms:created ?created .
+}
+WHERE {
+  ?report a sh:ValidationReport ;
+         sh:conforms false ;
+         sh:result ?result .
+
+  ?result sh:focusNode ?targetClaim ;
+         sh:resultMessage ?detail .
+
+  OPTIONAL { ?result sh:resultSeverity ?resultSeverity . }
+
+  # Map SHACL result severity to thesis severity levels
+  BIND(
+    IF(BOUND(?resultSeverity),
+      IF(?resultSeverity = sh:Violation, "CRITICAL",
+      IF(?resultSeverity = sh:Warning, "MEDIUM",
+      IF(?resultSeverity = sh:Info, "LOW", "HIGH"))),
+      "HIGH")
+    AS ?severity)
+
+  # Classify defect type from result path and severity
+  BIND(
+    IF(STRSTARTS(STR(?resultSeverity), STR(sh:Violation)),
+      tm:UnsupportedClaimDefect,
+    IF(STRSTARTS(?detail, "Missing"),
+      tm:MissingEvidenceDefect,
+    IF(STRSTARTS(?detail, "Contradicted"),
+      tm:ContradictionDefect,
+      tm:GeneralDefect)))
+    AS ?defectClass)
+
+  OPTIONAL { ?report sh:shapesGraphWellFormed ?wf . }
+  BIND(NOW() AS ?created)
+
+  # Map earl:FAILED or earl:UNTESTED to result
+  BIND(earl:FAILED AS ?result)
+}

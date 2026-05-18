@@ -1,0 +1,19 @@
+{
+  "operation_id": "a7e3cf99-7845-4cd0-b9a1-5074a4b7b519",
+  "timestamp": "2026-05-12T21:37:52.185445Z",
+  "input_hashes": [
+    "ggen.toml:0d29dae41bd4e09367aed9246b713de9ad654de2d68c7c200cd59cd90ad59a2f"
+  ],
+  "output_hashes": [
+    "./src/cmds/generated.rs:84742b5acde04605251bf962ae98074576443f7318bc2c34d82b49ff741ea919",
+    "./src/cmds/generated.rs:84742b5acde04605251bf962ae98074576443f7318bc2c34d82b49ff741ea919",
+    "./src/cmds/generated.rs:84742b5acde04605251bf962ae98074576443f7318bc2c34d82b49ff741ea919",
+    "./src/cmds/generated.rs:84742b5acde04605251bf962ae98074576443f7318bc2c34d82b49ff741ea919",
+    "./src/cmds/generated.rs:84742b5acde04605251bf962ae98074576443f7318bc2c34d82b49ff741ea919",
+    "./src/cmds/generated.rs:84742b5acde04605251bf962ae98074576443f7318bc2c34d82b49ff741ea919",
+    "./src/cmds/generated.rs:84742b5acde04605251bf962ae98074576443f7318bc2c34d82b49ff741ea919",
+    "./src/cmds/generated.rs:84742b5acde04605251bf962ae98074576443f7318bc2c34d82b49ff741ea919"
+  ],
+  "signature": "71d17da5cca49733d3c600b9045add5bf276003d23050a09ea629d95c2ccedd04ff3265a821051c1a03c2d1537ddffad5db279cfbd5f5829ce28a3dd7d08eb08",
+  "previous_receipt_hash": "57cb01948bc1068566b7c17b766a5e67d77102ebac18ee1a0bf7c24ced94d203"
+}

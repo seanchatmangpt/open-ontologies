@@ -244,6 +244,20 @@ CREATE TABLE IF NOT EXISTS bootstrap_lock (
     locked_by TEXT NOT NULL,
     CHECK (id = 1)
 );
+
+-- T2-2 — A2A (Agent-to-Agent) protocol task store
+CREATE TABLE IF NOT EXISTS a2a_tasks (
+    task_id    TEXT PRIMARY KEY,
+    context_id TEXT NOT NULL,
+    state      TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    messages   TEXT NOT NULL DEFAULT '[]',
+    artifacts  TEXT,
+    tenant_id  TEXT NOT NULL DEFAULT 'default'
+);
+CREATE INDEX IF NOT EXISTS idx_a2a_tasks_tenant ON a2a_tasks(tenant_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_a2a_tasks_state  ON a2a_tasks(state, updated_at DESC);
 ";
 
 /// Minimal SQLite state store for ontology versioning.

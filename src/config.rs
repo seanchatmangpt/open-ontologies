@@ -60,6 +60,8 @@ pub struct Config {
     /// When set (or via `OPEN_ONTOLOGIES_ATTESTATION_ENDPOINT`), `cell_ready`
     /// POSTs the replay+OCEL hash pair to this URL for external witnessing.
     pub attestation_endpoint: Option<String>,
+    /// `[a2a]` — T2-1 Agent-to-Agent protocol configuration.
+    pub a2a: A2aConfig,
 }
 
 
@@ -770,6 +772,12 @@ pub struct HttpConfig {
     pub request_timeout_secs: u64,
     /// HTTP keep-alive timeout in seconds. `0` ⇒ no explicit cap.
     pub keep_alive_secs: u64,
+    /// CORS allowed origins. Empty vec ⇒ permissive (dev default).
+    /// Non-empty ⇒ strict allowlist. Override with `OPEN_ONTOLOGIES_HTTP_CORS_ORIGINS` (colon-separated).
+    pub cors_origins: Vec<String>,
+    /// Rate limit in requests per second. `None` ⇒ no limit.
+    /// Override with `OPEN_ONTOLOGIES_HTTP_RATE_LIMIT_RPS`.
+    pub rate_limit_rps: Option<u32>,
 }
 impl Default for HttpConfig {
     fn default() -> Self {
@@ -780,6 +788,8 @@ impl Default for HttpConfig {
             stateful_mode: true,
             request_timeout_secs: 0,
             keep_alive_secs: 0,
+            cors_origins: Vec::new(),
+            rate_limit_rps: None,
         }
     }
 }
@@ -1042,6 +1052,28 @@ impl Default for CodegenConfig {
     }
 }
 
+/// `[a2a]` — T2-1 Agent-to-Agent protocol configuration.
+#[derive(Debug, Deserialize, Clone)]
+#[serde(default)]
+pub struct A2aConfig {
+    /// Enable A2A protocol support. Default: false.
+    pub enabled: bool,
+    /// Agent name for A2A identification. Default: "open-ontologies".
+    pub agent_name: String,
+    /// Agent URL for A2A callbacks. Default: "http://localhost:8080".
+    pub agent_url: String,
+}
+
+impl Default for A2aConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            agent_name: "open-ontologies".to_string(),
+            agent_url: "http://localhost:8080".to_string(),
+        }
+    }
+}
+
 /// `[authority]` — R5 WC-1 §28 HumanOverride closure.
 ///
 /// `admin_principals` lists the principal IDs (currently the
@@ -1200,12 +1232,55 @@ pub fn resolve_http_token(cfg: &HttpConfig) -> Option<String> {
         .or_else(|| Some(cfg.token.clone()).filter(|v| !v.trim().is_empty()))
 }
 
+/// Resolve CORS allowed origins. Precedence: `OPEN_ONTOLOGIES_HTTP_CORS_ORIGINS` > config > empty.
+/// Empty list = permissive (dev); non-empty = strict allowlist.
+pub fn resolve_cors_origins(cfg: &HttpConfig) -> Vec<String> {
+    std::env::var("OPEN_ONTOLOGIES_HTTP_CORS_ORIGINS")
+        .ok()
+        .filter(|v| !v.trim().is_empty())
+        .map(|v| v.split(':').map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect())
+        .unwrap_or_else(|| cfg.cors_origins.clone())
+}
+
+/// Resolve HTTP rate limit (requests per second). Precedence:
+/// `OPEN_ONTOLOGIES_HTTP_RATE_LIMIT_RPS` > config > `None`.
+pub fn resolve_http_rate_limit_rps(cfg: &HttpConfig) -> Option<u32> {
+    std::env::var("OPEN_ONTOLOGIES_HTTP_RATE_LIMIT_RPS")
+        .ok()
+        .and_then(|v| v.trim().parse::<u32>().ok())
+        .or(cfg.rate_limit_rps)
+}
+
 /// Resolve the logging directives. Precedence: `RUST_LOG` > config > default.
 pub fn resolve_logging_level(cfg: &LoggingConfig) -> String {
     std::env::var("RUST_LOG")
         .ok()
         .filter(|v| !v.trim().is_empty())
         .unwrap_or_else(|| cfg.level.clone())
+}
+
+/// Resolve the OTLP endpoint. Precedence: `OPEN_ONTOLOGIES_OTLP_ENDPOINT` > config > `None`.
+pub fn resolve_telemetry_otlp_endpoint(cfg: &TelemetryConfig) -> Option<String> {
+    std::env::var("OPEN_ONTOLOGIES_OTLP_ENDPOINT")
+        .ok()
+        .filter(|v| !v.trim().is_empty())
+        .or_else(|| cfg.otlp_endpoint.clone().filter(|v| !v.trim().is_empty()))
+}
+
+/// Resolve the telemetry service name. Precedence: `OPEN_ONTOLOGIES_SERVICE_NAME` > config > default.
+pub fn resolve_telemetry_service_name(cfg: &TelemetryConfig) -> String {
+    std::env::var("OPEN_ONTOLOGIES_SERVICE_NAME")
+        .ok()
+        .filter(|v| !v.trim().is_empty())
+        .unwrap_or_else(|| cfg.service_name.clone())
+}
+
+/// T2-3 — Resolve A2A agent URL: env var > config > default.
+pub fn resolve_a2a_agent_url(cfg: &A2aConfig) -> String {
+    std::env::var("OPEN_ONTOLOGIES_A2A_AGENT_URL")
+        .ok()
+        .filter(|v| !v.trim().is_empty())
+        .unwrap_or_else(|| cfg.agent_url.clone())
 }
 
 fn parse_env_u64(var: &str) -> Option<u64> {

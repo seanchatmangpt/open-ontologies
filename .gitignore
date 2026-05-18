@@ -22,6 +22,14 @@ secrets/
 cell8-ggen/
 ontology/cell8-*.ttl
 
+# ggen pipeline runtime state — regenerable cache and current sync state.
+# `.ggen/receipts/` is left tracked: it is the project's audit trail.
+.ggen/cache/
+.ggen/sync-state.json
+
+# Source-code backup files (e.g. *.rs.backup left by code generators).
+*.rs.backup
+
 # Erlang / AtomVM build outputs.
 *.beam
 *.avm
@@ -30,5 +38,9 @@ ontology/cell8-*.ttl
 .DS_Store
 *.swp
 *.swo
-.ggen/
+
+# Backup files left by tools.
 *.backup
+
+# DuckDB database files.
+*.duckdb

@@ -1,0 +1,36 @@
+# =============================================================================
+# andon_history.rq — Andon events by cell and severity
+# =============================================================================
+#
+# Queries andon history: count of andon events per cell, grouped by severity
+# (red|orange|yellow). Shows which cells are signaling the most and which
+# severities are prevalent.
+#
+# Input: port:Andon instances with port:andonCell and port:andonSeverity
+# Output: Andon count per cell per severity, sorted by severity desc
+#
+# Variables:
+#   ?cell           — cell URI
+#   ?cellId         — cell identifier
+#   ?severity       — andon severity (red|orange|yellow)
+#   ?count          — count of andons at this severity
+#   ?latestTs       — most recent andon timestamp
+# =============================================================================
+
+PREFIX port:    <https://ggen.io/onto/portfolio-os/>
+PREFIX earl:    <http://www.w3.org/ns/earl#>
+PREFIX dcterms: <http://purl.org/dc/terms/>
+PREFIX xsd:     <http://www.w3.org/2001/XMLSchema#>
+
+SELECT ?cellId ?severity (COUNT(?andon) AS ?count) (MAX(?andonTs) AS ?latestTs)
+WHERE {
+  # Find all andons with cell and severity
+  ?andon a port:Andon ;
+        port:andonCell ?cell ;
+        port:andonSeverity ?severity ;
+        port:andonTimestamp ?andonTs .
+
+  ?cell port:cellId ?cellId .
+}
+GROUP BY ?cellId ?severity
+ORDER BY DESC(?severity) DESC(?count) ?cellId
