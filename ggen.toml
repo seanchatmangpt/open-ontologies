@@ -164,6 +164,7 @@ protected_paths = [
     "supabase/migrations/20260518000001_zoela_tables.sql",
     "supabase/migrations/20260518000002_zoela_bridge_tables.sql",
     "supabase/migrations/20260518000003_zoela_rls.sql",
+    "supabase/migrations/20260518000004_zoela_ocel_events.sql",
 ]
 
 # Regeneratable — tier-3 artifacts managed by ggen

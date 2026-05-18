@@ -47,3 +47,52 @@ INSERT INTO group_interests (id, person_id, campus_id, schedule_preference, loca
   -- Pat's interest → will be REFUSED (A4: ConsentGate fails)
   ('66666666-0000-0000-0000-000000000002', '44444444-0000-0000-0000-000000000002', '11111111-0000-0000-0000-000000000001', 'Sunday evenings', 'in-person', NOW())
 ON CONFLICT (id) DO NOTHING;
+
+-- ============================================================================
+-- OCEL 2.0 events — Sam's happy-path trace through ConnectGroupJoinRoute
+-- Validates: wasm4pm can ingest real OCEL events from ZOE LA route executions
+-- Person: Sam WithConsent (44444444-0000-0000-0000-000000000001)
+-- Run ID: a fixed UUID so tests can query by run_id deterministically
+-- ============================================================================
+INSERT INTO ocel_events (id, event_type, object_id, object_type, route_id, stage_code, action_class, run_id, ts_ns, fields)
+VALUES
+  -- Stage 1: Member submits interest in joining a connect group
+  (
+    '77777777-0000-0000-0000-000000000001',
+    'cg.interest.submitted',
+    '44444444-0000-0000-0000-000000000001',
+    'Person',
+    'ConnectGroupJoinRoute',
+    'interest_submitted',
+    'A1',
+    'aaaaaaaa-0000-0000-0000-000000000001'::uuid,
+    (EXTRACT(EPOCH FROM NOW()) * 1e9)::BIGINT,
+    '{"campus_id": "11111111-0000-0000-0000-000000000001"}'::jsonb
+  ),
+  -- Stage 2: Group leader sends invitation to member
+  (
+    '77777777-0000-0000-0000-000000000002',
+    'cg.invite.sent',
+    '44444444-0000-0000-0000-000000000001',
+    'Person',
+    'ConnectGroupJoinRoute',
+    'invite_sent',
+    'A1',
+    'aaaaaaaa-0000-0000-0000-000000000001'::uuid,
+    (EXTRACT(EPOCH FROM NOW()) * 1e9)::BIGINT + 1000000000,
+    '{"group_id": "33333333-0000-0000-0000-000000000001"}'::jsonb
+  ),
+  -- Stage 3: Route completed — membership active
+  (
+    '77777777-0000-0000-0000-000000000003',
+    'cg.route.closed',
+    '44444444-0000-0000-0000-000000000001',
+    'Person',
+    'ConnectGroupJoinRoute',
+    'route_closed',
+    'A1',
+    'aaaaaaaa-0000-0000-0000-000000000001'::uuid,
+    (EXTRACT(EPOCH FROM NOW()) * 1e9)::BIGINT + 2000000000,
+    '{"receipt_required": true, "group_id": "33333333-0000-0000-0000-000000000001"}'::jsonb
+  )
+ON CONFLICT (id) DO NOTHING;
