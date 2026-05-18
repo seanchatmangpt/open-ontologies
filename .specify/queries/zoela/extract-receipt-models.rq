@@ -1,0 +1,52 @@
+# =============================================================================
+# extract-receipt-models.rq — Extract provenance receipt model definitions
+# =============================================================================
+#
+# Returns ONE aggregated row with pipe-delimited values for rendering
+# prov-receipt TypeScript. ggen v5 renders once per SELECT row.
+#
+# Template variables (all pipe-delimited GROUP_CONCAT aggregates):
+#   ?receiptCodes       — receipt type code per receipt model
+#   ?receiptLabels      — human-readable label per receipt model
+#   ?receiptDefinitions — definition per receipt model (empty string if absent)
+#   ?ocelEventTypes     — OCEL event type emitted per receipt (empty string if absent)
+#   ?usedInRoutes       — route code that uses each receipt (empty string if absent)
+# =============================================================================
+
+PREFIX zoe:  <https://zoela.org/ontology/>
+PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX xsd:  <http://www.w3.org/2001/XMLSchema#>
+
+SELECT
+  (GROUP_CONCAT(?receiptCode;  SEPARATOR="|") AS ?receiptCodes)
+  (GROUP_CONCAT(?receiptLabel; SEPARATOR="|") AS ?receiptLabels)
+  (GROUP_CONCAT(?defCoalesced;       SEPARATOR="|") AS ?receiptDefinitions)
+  (GROUP_CONCAT(?ocelCoalesced;      SEPARATOR="|") AS ?ocelEventTypes)
+  (GROUP_CONCAT(?routeCoalesced;     SEPARATOR="|") AS ?usedInRoutes)
+WHERE {
+  {
+    # Receipt types from stage completionReceiptType declarations
+    ?stage zoe:completionReceiptType ?receiptCode ;
+      zoe:ocelEventType ?ocelRaw .
+    ?stage zoe:hasRoute ?route .
+    ?route skos:notation ?routeRaw .
+    BIND(CONCAT("Completion receipt: ", STR(?receiptCode)) AS ?receiptLabel)
+    BIND(COALESCE(?ocelRaw, "") AS ?ocelCoalesced)
+    BIND(COALESCE(?routeRaw, "") AS ?routeCoalesced)
+    BIND("" AS ?defCoalesced)
+  }
+  UNION
+  {
+    # Receipt concepts from SKOS schemes
+    ?receiptConcept a skos:Concept ;
+      skos:notation ?receiptCode ;
+      rdfs:label ?receiptLabel .
+    FILTER(CONTAINS(LCASE(STR(?receiptCode)), "receipt") || CONTAINS(LCASE(STR(?receiptLabel)), "receipt"))
+    OPTIONAL { ?receiptConcept skos:definition ?defRaw }
+    BIND(COALESCE(?defRaw, "") AS ?defCoalesced)
+    BIND("" AS ?ocelCoalesced)
+    BIND("" AS ?routeCoalesced)
+  }
+}
+ORDER BY ?receiptCode

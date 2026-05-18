@@ -1,0 +1,28 @@
+{# expo-screen.tera — generated from extract-screens.rq #}
+{# DO NOT EDIT — regenerate via: ggen sync --rule zoela-screens #}
+import React from 'react';
+import { View, Text, ScrollView, StyleSheet } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+
+{% for row in rows %}
+// Screen: {{ row.screen_label }}
+// Tab: {{ row.parent_tab_code }} | Stack: {{ row.screen_stack }}
+// Required role: {{ row.required_role }}
+{% if row.is_admin_only == "true" %}// ADMIN ONLY{% endif %}
+export function {{ row.nav_route | default(value=row.screen_id) }}Screen() {
+  const navigation = useNavigation();
+  return (
+    <ScrollView style={styles.container}>
+      <Text style={styles.title}>{{ row.screen_label }}</Text>
+      {/* Object type: {{ row.primary_object_type }} */}
+      {/* Generated from ontology/zoela/navigation.ttl */}
+    </ScrollView>
+  );
+}
+
+{% endfor %}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#fff' },
+  title: { fontSize: 24, fontWeight: 'bold', padding: 16 },
+});

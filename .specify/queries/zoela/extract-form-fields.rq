@@ -1,0 +1,63 @@
+# =============================================================================
+# extract-form-fields.rq — Extract form field definitions from DatatypeProperties
+# =============================================================================
+#
+# Returns ONE aggregated row with pipe-delimited values for rendering
+# react-hook-form field configs. ggen v5 renders once per SELECT row.
+#
+# Template variables (all pipe-delimited GROUP_CONCAT aggregates):
+#   ?formIds       — skos:notation per form class (form id, e.g. "client_profile")
+#   ?formLabels    — rdfs:label per form class (human title)
+#   ?fieldForms    — form id repeated per field
+#   ?fieldNames    — skos:notation per property (field name / column name)
+#   ?fieldLabels   — rdfs:label per property (display label)
+#   ?fieldTypes    — HTML input type: text|number|checkbox|date|datetime-local
+#   ?fieldRequired — "true" or "false"
+#   ?fieldComments — rdfs:comment per field (empty string if absent)
+# =============================================================================
+
+PREFIX zoe:  <https://zoela.org/ontology/>
+PREFIX owl:  <http://www.w3.org/2002/07/owl#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+PREFIX xsd:  <http://www.w3.org/2001/XMLSchema#>
+
+SELECT
+  (GROUP_CONCAT(DISTINCT ?fi; SEPARATOR="|") AS ?formIds)
+  (GROUP_CONCAT(DISTINCT ?fl; SEPARATOR="|") AS ?formLabels)
+  (GROUP_CONCAT(?fi; SEPARATOR="|") AS ?fieldForms)
+  (GROUP_CONCAT(?fn; SEPARATOR="|") AS ?fieldNames)
+  (GROUP_CONCAT(?flbl; SEPARATOR="|") AS ?fieldLabels)
+  (GROUP_CONCAT(?ftypeResult; SEPARATOR="|") AS ?fieldTypes)
+  (GROUP_CONCAT(?freqResult; SEPARATOR="|") AS ?fieldRequired)
+  (GROUP_CONCAT(?fcomCoalesced; SEPARATOR="|") AS ?fieldComments)
+WHERE {
+  ?formClass a owl:Class ;
+    skos:notation ?fi ;
+    rdfs:label ?fl .
+  FILTER(NOT EXISTS { ?formClass owl:equivalentClass ?x })
+  ?prop a owl:DatatypeProperty ;
+    rdfs:domain ?formClass ;
+    skos:notation ?fn ;
+    rdfs:label ?flbl .
+  OPTIONAL { ?prop rdfs:comment ?fcomRaw }
+  BIND(COALESCE(?fcomRaw, "") AS ?fcomCoalesced)
+  OPTIONAL { ?prop rdfs:range ?range }
+  BIND(
+    IF(?range = xsd:boolean,  "checkbox",
+    IF(?range = xsd:integer,  "number",
+    IF(?range = xsd:decimal,  "number",
+    IF(?range = xsd:dateTime, "datetime-local",
+    IF(?range = xsd:date,     "date",
+    "text"))))) AS ?ftypeResult
+  )
+  BIND(
+    IF(?fn = "id",        "false",
+    IF(?fn = "created_at", "false",
+    IF(?fn = "updated_at", "false",
+    IF(?fn = "blake3_hash","false",
+    IF(?fn = "signature",  "false",
+    "true"))))) AS ?freqResult
+  )
+}
+ORDER BY ?fi ?fn

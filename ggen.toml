@@ -95,6 +95,19 @@ rules = [
     # stages_aggregated.rq aggregates revops:ManufacturingStage individuals into
     # ONE row; template renders REVOPS_STAGES constant in one pass.
     { name = "revops-stages", query = { file = ".specify/queries/revops/stages_aggregated.rq" }, template = { file = ".specify/templates/revops/cmds.rs.tera" }, output_file = "src/cmds/generated_revops.rs", mode = "Overwrite" },
+    # ZOE LA Mobile pipeline — existing rules
+    { name = "zoela-mobile-types",     query = { file = ".specify/queries/zoela/extract-types.rq" },       template = { file = ".specify/templates/zoela/typescript-types.tera" }, output_file = "generated/zoela/types.ts",       mode = "Overwrite" },
+    { name = "zoela-mobile-migration", query = { file = ".specify/queries/zoela/extract-tables.rq" },      template = { file = ".specify/templates/zoela/supabase-migration.tera" }, output_file = "generated/zoela/migration.sql", mode = "Overwrite" },
+    { name = "zoela-mobile-zod",       query = { file = ".specify/queries/zoela/extract-skos-enums.rq" },  template = { file = ".specify/templates/zoela/zod-schema.tera" },          output_file = "generated/zoela/schema.ts",     mode = "Overwrite" },
+    # ZOE LA Mobile pipeline — new rules
+    { name = "zoela-bridge-tables", query = { file = ".specify/queries/zoela/extract-bridge-tables.rq" }, template = { file = ".specify/templates/zoela/supabase-bridge-table.tera" }, output_file = "generated/zoela/bridge_tables.sql", mode = "Overwrite" },
+    { name = "zoela-rls",           query = { file = ".specify/queries/zoela/extract-rls-policies.rq" },  template = { file = ".specify/templates/zoela/supabase-rls.tera" },           output_file = "generated/zoela/rls.sql",           mode = "Overwrite" },
+    { name = "zoela-forms",         query = { file = ".specify/queries/zoela/extract-form-fields.rq" },   template = { file = ".specify/templates/zoela/react-hook-form.tera" },         output_file = "generated/zoela/forms.ts",          mode = "Overwrite" },
+    { name = "zoela-ocel",          query = { file = ".specify/queries/zoela/extract-ocel-events.rq" },   template = { file = ".specify/templates/zoela/ocel-event.tera" },              output_file = "generated/zoela/ocel_events.ts",    mode = "Overwrite" },
+    # ZOE LA Mobile pipeline — screen + navigation generation rules
+    { name = "zoela-screens",       query = { file = ".specify/queries/zoela/extract-screens.rq" },        template = { file = ".specify/templates/zoela/expo-screen.tera" },            output_file = "generated/zoela/screens.tsx",       mode = "Overwrite" },
+    { name = "zoela-admin-screens", query = { file = ".specify/queries/zoela/extract-screens.rq" },        template = { file = ".specify/templates/zoela/admin-list-screen.tera" },      output_file = "generated/zoela/admin_screens.tsx", mode = "Overwrite" },
+    { name = "zoela-navigation",    query = { file = ".specify/queries/zoela/extract-navigation.rq" },     template = { file = ".specify/templates/zoela/expo-screen.tera" },            output_file = "generated/zoela/navigation.ts",     mode = "Overwrite" },
 ]
 
 # Protected paths — the hand-written implementations; never overwrite
@@ -118,6 +131,16 @@ protected_paths = [
 regenerate_paths = [
     "src/cmds/generated.rs",
     "src/cmds/generated_revops.rs",
+    "generated/zoela/types.ts",
+    "generated/zoela/migration.sql",
+    "generated/zoela/schema.ts",
+    "generated/zoela/bridge_tables.sql",
+    "generated/zoela/rls.sql",
+    "generated/zoela/forms.ts",
+    "generated/zoela/ocel_events.ts",
+    "generated/zoela/screens.tsx",
+    "generated/zoela/admin_screens.tsx",
+    "generated/zoela/navigation.ts",
 ]
 
 generated_header = """

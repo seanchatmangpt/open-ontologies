@@ -1,0 +1,27 @@
+{# admin-list-screen.tera — generated from extract-screens.rq #}
+{# DO NOT EDIT — regenerate via: ggen sync --rule zoela-admin-screens #}
+import React from 'react';
+import { View, Text, FlatList, StyleSheet } from 'react-native';
+
+{% for row in rows %}
+{% if row.is_admin_only == "true" %}
+// Admin screen: {{ row.screen_label }}
+// Object type: {{ row.primary_object_type }}
+// Route: {{ row.primary_route_category }}
+export function {{ row.nav_route | default(value=row.screen_id) }}Screen() {
+  return (
+    <View style={styles.container}>
+      <Text style={styles.title}>{{ row.screen_label }}</Text>
+      {/* Filtered view of: {{ row.primary_object_type }} */}
+      {/* Required role: {{ row.required_role }} */}
+    </View>
+  );
+}
+
+{% endif %}
+{% endfor %}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, padding: 16 },
+  title: { fontSize: 20, fontWeight: 'bold', marginBottom: 12 },
+});

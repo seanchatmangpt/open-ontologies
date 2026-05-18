@@ -1,0 +1,31 @@
+PREFIX zoe: <https://zoela.org/ontology/>
+PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX owl: <http://www.w3.org/2002/07/owl#>
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+
+SELECT
+  ?screen_id
+  ?screen_label
+  ?nav_route
+  (COALESCE(?tab_code, "HOME") AS ?parent_tab_code)
+  (COALESCE(?stack, "MainStack") AS ?screen_stack)
+  (COALESCE(?required_role, "MEMBER") AS ?required_role)
+  (COALESCE(?object_type, "") AS ?primary_object_type)
+  (COALESCE(?route_category, "") AS ?primary_route_category)
+  (COALESCE(STR(?is_admin), "false") AS ?is_admin_only)
+  (COALESCE(STR(?order), "0") AS ?screen_order)
+WHERE {
+  ?screen a zoe:AppScreen ;
+    rdfs:label ?screen_label ;
+    skos:notation ?screen_id .
+  OPTIONAL { ?screen zoe:navRoute ?nav_route }
+  OPTIONAL { ?screen zoe:parentTab ?tab . ?tab skos:notation ?tab_code }
+  OPTIONAL { ?screen zoe:screenStack ?stack }
+  OPTIONAL { ?screen zoe:requiredRole ?required_role }
+  OPTIONAL { ?screen zoe:primaryObjectType ?object_type }
+  OPTIONAL { ?screen zoe:primaryRouteCategory ?route_category }
+  OPTIONAL { ?screen zoe:isAdminOnly ?is_admin }
+  OPTIONAL { ?screen zoe:screenOrder ?order }
+}
+ORDER BY ?screen_order

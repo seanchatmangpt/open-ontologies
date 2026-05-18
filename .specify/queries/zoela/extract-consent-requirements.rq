@@ -1,0 +1,59 @@
+# =============================================================================
+# extract-consent-requirements.rq — Extract consent definitions and gate facts
+# =============================================================================
+#
+# Consent types are SKOS concepts in the ConsentTypeScheme. Each consent type
+# may be associated with zoe:ConsentRequirement instances that declare which
+# route stages are blocked without the consent and what refusal message to
+# surface.
+#
+# CONSTRUCT variables:
+#   Consent definition facts:
+#     ?consent         — IRI of the SKOS concept for this consent type
+#     ?code            — skos:notation of the consent (e.g. "PHOTO-RELEASE")
+#     ?label           — rdfs:label of the consent
+#     ?def             — optional skos:definition text
+#     ?isGuardian      — optional boolean: true if consent must be from a guardian
+#
+#   Consent requirement gate facts:
+#     ?req             — IRI of the zoe:ConsentRequirement instance
+#     ?code            — code of the consent that must be on file
+#     ?stage           — IRI of the route stage that is blocked without consent
+#     ?refusal         — refusal message code to surface in the mobile UI
+# =============================================================================
+
+PREFIX zoe:  <https://zoela.org/ontology/>
+PREFIX owl:  <http://www.w3.org/2002/07/owl#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+
+CONSTRUCT {
+  ?consent a zoe:ConsentDefinition ;
+    zoe:consentCode ?code ;
+    zoe:consentLabel ?label ;
+    zoe:consentDefinition ?def ;
+    zoe:isGuardianConsent ?isGuardian .
+  ?req a zoe:ConsentRequirementFact ;
+    zoe:requiresConsentCode ?code ;
+    zoe:blocksStage ?stage ;
+    zoe:refusalMessage ?refusal .
+}
+WHERE {
+  ?consent a skos:Concept ;
+    skos:inScheme zoe:ConsentTypeScheme ;
+    skos:notation ?code ;
+    rdfs:label ?label .
+  OPTIONAL { ?consent skos:definition ?def }
+  OPTIONAL {
+    ?consentClass a owl:Class ;
+      rdfs:subClassOf ?consent .
+    ?consentClass zoe:isGuardianConsent ?isGuardian .
+  }
+
+  OPTIONAL {
+    ?req a zoe:ConsentRequirement ;
+      zoe:requiresConsentType ?consent ;
+      zoe:blocksRouteStage ?stage ;
+      zoe:refusalMessageCode ?refusal .
+  }
+}

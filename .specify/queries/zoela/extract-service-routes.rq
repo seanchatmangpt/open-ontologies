@@ -1,0 +1,77 @@
+# =============================================================================
+# extract-service-routes.rq — Extract service route and stage definitions
+# =============================================================================
+#
+# Returns ONE aggregated row with pipe-delimited values for rendering
+# route stage gate TypeScript. ggen v5 renders once per SELECT row.
+#
+# Template variables (all pipe-delimited GROUP_CONCAT aggregates):
+#   ?stageCodes        — skos:notation per stage (empty string if no stages)
+#   ?stageLabels       — rdfs:label per stage
+#   ?stageRouteCodes   — route code that each stage belongs to
+#   ?stageOrders       — integer order per stage (0 if absent)
+#   ?stageIsEntries    — "true"/"false" per stage
+#   ?stageIsTerminals  — "true"/"false" per stage
+#   ?stagePredCodes    — predecessor stage code per stage (empty string if absent)
+#   ?stageRoleCodes    — required role code per stage (empty string if absent)
+#   ?stageConsentCodes — required consent code per stage (empty string if absent)
+#   ?stageReceiptTypes — completion receipt type per stage (empty string if absent)
+#   ?stageOcelTypes    — OCEL event type per stage (empty string if absent)
+#   ?stageTimeouts     — timeout hours per stage (empty string if absent)
+# =============================================================================
+
+PREFIX zoe:  <https://zoela.org/ontology/>
+PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX xsd:  <http://www.w3.org/2001/XMLSchema#>
+
+SELECT
+  (GROUP_CONCAT(?stageCode;        SEPARATOR="|") AS ?stageCodes)
+  (GROUP_CONCAT(?stageLabel;       SEPARATOR="|") AS ?stageLabels)
+  (GROUP_CONCAT(?routeCode;        SEPARATOR="|") AS ?stageRouteCodes)
+  (GROUP_CONCAT(?stageOrderStr;    SEPARATOR="|") AS ?stageOrders)
+  (GROUP_CONCAT(?isEntryStr;       SEPARATOR="|") AS ?stageIsEntries)
+  (GROUP_CONCAT(?isTerminalStr;    SEPARATOR="|") AS ?stageIsTerminals)
+  (GROUP_CONCAT(?predCodeCoalesced;   SEPARATOR="|") AS ?stagePredCodes)
+  (GROUP_CONCAT(?roleCodeCoalesced;   SEPARATOR="|") AS ?stageRoleCodes)
+  (GROUP_CONCAT(?consentCodeCoalesced; SEPARATOR="|") AS ?stageConsentCodes)
+  (GROUP_CONCAT(?receiptTypeCoalesced; SEPARATOR="|") AS ?stageReceiptTypes)
+  (GROUP_CONCAT(?ocelTypeCoalesced;   SEPARATOR="|") AS ?stageOcelTypes)
+  (GROUP_CONCAT(?timeoutCoalesced;    SEPARATOR="|") AS ?stageTimeouts)
+WHERE {
+  ?route a zoe:ServiceRoute ;
+    skos:notation ?routeCode ;
+    rdfs:label ?routeLabel .
+
+  ?stage zoe:hasRoute ?route ;
+    skos:notation ?stageCode ;
+    rdfs:label ?stageLabel .
+
+  OPTIONAL { ?stage zoe:stageOrder ?orderRaw }
+  BIND(COALESCE(STR(?orderRaw), "0") AS ?stageOrderStr)
+
+  OPTIONAL { ?stage zoe:isEntryStage ?isEntryRaw }
+  BIND(COALESCE(STR(?isEntryRaw), "false") AS ?isEntryStr)
+
+  OPTIONAL { ?stage zoe:isTerminalStage ?isTerminalRaw }
+  BIND(COALESCE(STR(?isTerminalRaw), "false") AS ?isTerminalStr)
+
+  OPTIONAL { ?stage zoe:predecessorStage ?predNode . ?predNode skos:notation ?predCodeRaw }
+  BIND(COALESCE(?predCodeRaw, "") AS ?predCodeCoalesced)
+
+  OPTIONAL { ?stage zoe:requiredRole ?roleNode . ?roleNode skos:notation ?roleCodeRaw }
+  BIND(COALESCE(?roleCodeRaw, "") AS ?roleCodeCoalesced)
+
+  OPTIONAL { ?stage zoe:requiredConsentType ?consentNode . ?consentNode skos:notation ?consentCodeRaw }
+  BIND(COALESCE(?consentCodeRaw, "") AS ?consentCodeCoalesced)
+
+  OPTIONAL { ?stage zoe:completionReceiptType ?receiptTypeRaw }
+  BIND(COALESCE(STR(?receiptTypeRaw), "") AS ?receiptTypeCoalesced)
+
+  OPTIONAL { ?stage zoe:ocelEventType ?ocelTypeRaw }
+  BIND(COALESCE(?ocelTypeRaw, "") AS ?ocelTypeCoalesced)
+
+  OPTIONAL { ?stage zoe:timeoutHours ?timeoutRaw }
+  BIND(COALESCE(STR(?timeoutRaw), "") AS ?timeoutCoalesced)
+}
+ORDER BY ?routeCode ?stageOrderStr ?stageCode

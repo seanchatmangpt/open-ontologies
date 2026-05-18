@@ -1,0 +1,32 @@
+PREFIX zoe: <https://zoela.org/ontology/>
+PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+
+SELECT
+  ?tab_code
+  ?tab_label
+  (GROUP_CONCAT(DISTINCT ?screen_entry; separator="||") AS ?screens)
+WHERE {
+  ?tab a skos:Concept ;
+    skos:inScheme zoe:AppTabScheme ;
+    skos:notation ?tab_code ;
+    rdfs:label ?tab_label .
+  OPTIONAL {
+    ?screen a zoe:AppScreen ;
+      zoe:parentTab ?tab ;
+      skos:notation ?screen_id .
+    OPTIONAL { ?screen zoe:navRoute ?nav_route }
+    OPTIONAL { ?screen zoe:screenStack ?stack }
+    OPTIONAL { ?screen zoe:screenOrder ?order }
+    OPTIONAL { ?screen zoe:isAdminOnly ?is_admin }
+    BIND(CONCAT(
+      COALESCE(?screen_id, ""), "|",
+      COALESCE(?nav_route, ""), "|",
+      COALESCE(?stack, ""), "|",
+      COALESCE(STR(?order), "0"), "|",
+      COALESCE(STR(?is_admin), "false")
+    ) AS ?screen_entry)
+  }
+}
+GROUP BY ?tab_code ?tab_label
+ORDER BY ?tab_code

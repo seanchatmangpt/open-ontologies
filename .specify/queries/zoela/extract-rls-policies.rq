@@ -1,0 +1,46 @@
+# =============================================================================
+# extract-rls-policies.rq — Extract RLS policy and permission facts
+# =============================================================================
+#
+# Returns ONE aggregated row with pipe-delimited values for rendering
+# Supabase RLS policy SQL. ggen v5 renders once per SELECT row.
+#
+# Template variables (all pipe-delimited GROUP_CONCAT aggregates):
+#   ?policyCodes    — skos:notation per policy
+#   ?policyLabels   — rdfs:label per policy
+#   ?policyTables   — target table name per policy (empty if unset)
+#   ?permPolicies   — policy code repeated per permission
+#   ?permCodes      — skos:notation per permission
+#   ?permOps        — SQL operation per permission
+#   ?permRoles      — required role code per permission
+# =============================================================================
+
+PREFIX zoe:  <https://zoela.org/ontology/>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+
+SELECT
+  (GROUP_CONCAT(DISTINCT ?pcCoalesced; SEPARATOR="|") AS ?policyCodes)
+  (GROUP_CONCAT(DISTINCT ?pl; SEPARATOR="|") AS ?policyLabels)
+  (GROUP_CONCAT(DISTINCT ?ptCoalesced; SEPARATOR="|") AS ?policyTables)
+  (GROUP_CONCAT(?pp;    SEPARATOR="|") AS ?permPolicies)
+  (GROUP_CONCAT(?permC; SEPARATOR="|") AS ?permCodes)
+  (GROUP_CONCAT(?op;    SEPARATOR="|") AS ?permOps)
+  (GROUP_CONCAT(?roleCoalesced; SEPARATOR="|") AS ?permRoles)
+WHERE {
+  ?policy a zoe:ZoePolicy ;
+    skos:notation ?pcCoalesced ;
+    rdfs:label ?pl .
+  OPTIONAL { ?policy zoe:rls_table ?ptRaw }
+  BIND(COALESCE(?ptRaw, "") AS ?ptCoalesced)
+  OPTIONAL {
+    ?perm a zoe:ZoePermission ;
+      skos:notation ?permC ;
+      zoe:operation ?op ;
+      zoe:belongsToPolicy ?policy .
+    OPTIONAL { ?perm zoe:requiredRole ?roleRaw }
+    BIND(COALESCE(?roleRaw, "") AS ?roleCoalesced)
+    BIND(?pcCoalesced AS ?pp)
+  }
+}
+ORDER BY ?pcCoalesced ?permC

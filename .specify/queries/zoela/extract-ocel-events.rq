@@ -1,0 +1,38 @@
+# =============================================================================
+# extract-ocel-events.rq — Extract OCEL event type definitions
+# =============================================================================
+#
+# Returns ONE aggregated row with pipe-delimited values for rendering
+# OCEL TypeScript emitters. ggen v5 renders once per SELECT row.
+#
+# Template variables (all pipe-delimited GROUP_CONCAT aggregates):
+#   ?eventCodes     — skos:notation per event type
+#   ?eventLabels    — rdfs:label per event type
+#   ?eventDefs      — skos:definition per event type (empty string if absent)
+#   ?eventRoutes    — emitting route code per event type (empty string if absent)
+# =============================================================================
+
+PREFIX zoe:  <https://zoela.org/ontology/>
+PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+
+SELECT
+  (GROUP_CONCAT(?code;   SEPARATOR="|") AS ?eventCodes)
+  (GROUP_CONCAT(?label;  SEPARATOR="|") AS ?eventLabels)
+  (GROUP_CONCAT(?def;    SEPARATOR="|") AS ?eventDefs)
+  (GROUP_CONCAT(?route;  SEPARATOR="|") AS ?eventRoutes)
+WHERE {
+  ?eventType a skos:Concept ;
+    skos:inScheme zoe:OcelEventTypeScheme ;
+    skos:notation ?code ;
+    rdfs:label ?label .
+  OPTIONAL { ?eventType skos:definition ?defRaw }
+  BIND(COALESCE(?defRaw, "") AS ?def)
+  OPTIONAL {
+    ?stage zoe:ocelEventType ?code ;
+      zoe:hasRoute ?route2 .
+    ?route2 skos:notation ?routeRaw .
+  }
+  BIND(COALESCE(?routeRaw, "") AS ?route)
+}
+ORDER BY ?code

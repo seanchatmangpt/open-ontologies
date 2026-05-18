@@ -1,0 +1,32 @@
+PREFIX zoe: <https://zoela.org/ontology/>
+PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX owl: <http://www.w3.org/2002/07/owl#>
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+
+SELECT
+  ?role_code
+  ?role_label
+  (COALESCE(STR(?perm_level), "1") AS ?permission_level)
+  (COALESCE(STR(?can_view_sensitive), "false") AS ?can_view_sensitive)
+  (COALESCE(STR(?can_create_receipts), "false") AS ?can_create_receipts)
+  (COALESCE(STR(?can_assign_volunteers), "false") AS ?can_assign_volunteers)
+  (COALESCE(STR(?requires_training), "false") AS ?requires_training)
+  (COALESCE(STR(?requires_bgc), "false") AS ?requires_background_check)
+WHERE {
+  ?role a skos:Concept ;
+    skos:inScheme zoe:RoleScheme ;
+    skos:notation ?role_code ;
+    rdfs:label ?role_label .
+  OPTIONAL {
+    ?roleDef a owl:Class ;
+      skos:notation ?role_code ;
+      zoe:permissionLevel ?perm_level .
+    OPTIONAL { ?roleDef zoe:canViewSensitive ?can_view_sensitive }
+    OPTIONAL { ?roleDef zoe:canCreateReceipts ?can_create_receipts }
+    OPTIONAL { ?roleDef zoe:canAssignVolunteers ?can_assign_volunteers }
+    OPTIONAL { ?roleDef zoe:requiresTraining ?requires_training }
+    OPTIONAL { ?roleDef zoe:requiresBackgroundCheck ?requires_bgc }
+  }
+}
+ORDER BY ?permission_level

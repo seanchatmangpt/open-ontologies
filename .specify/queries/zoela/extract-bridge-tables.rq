@@ -1,0 +1,56 @@
+# =============================================================================
+# extract-bridge-tables.rq — Extract bridge table definitions from OWL classes
+# =============================================================================
+#
+# Returns ONE aggregated row with pipe-delimited values for rendering
+# bridge table SQL. ggen v5 renders once per SELECT row.
+#
+# Bridge tables are OWL classes with skos:notation containing an underscore.
+#
+# Template variables (all pipe-delimited GROUP_CONCAT aggregates):
+#   ?tableNames    — skos:notation of each bridge class (snake_case table name)
+#   ?tableLabels   — rdfs:label of each bridge class
+#   ?tableComments — rdfs:comment per bridge class (empty string if absent)
+#   ?propTables    — table name repeated per column
+#   ?colNames      — skos:notation of each column property
+#   ?colTypes      — xsd type short name per column
+#   ?colNullable   — "true" (all bridge columns are nullable)
+# =============================================================================
+
+PREFIX zoe:  <https://zoela.org/ontology/>
+PREFIX owl:  <http://www.w3.org/2002/07/owl#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+PREFIX xsd:  <http://www.w3.org/2001/XMLSchema#>
+
+SELECT
+  (GROUP_CONCAT(DISTINCT ?tn; SEPARATOR="|") AS ?tableNames)
+  (GROUP_CONCAT(DISTINCT ?tl; SEPARATOR="|") AS ?tableLabels)
+  (GROUP_CONCAT(DISTINCT ?tcCoalesced; SEPARATOR="|") AS ?tableComments)
+  (GROUP_CONCAT(?tn; SEPARATOR="|") AS ?propTables)
+  (GROUP_CONCAT(?cn; SEPARATOR="|") AS ?colNames)
+  (GROUP_CONCAT(?ctypeResult; SEPARATOR="|") AS ?colTypes)
+  (GROUP_CONCAT(?null; SEPARATOR="|") AS ?colNullable)
+WHERE {
+  ?bridgeClass a owl:Class ;
+    rdfs:subClassOf owl:Thing ;
+    rdfs:label ?tl ;
+    skos:notation ?tn .
+  FILTER(CONTAINS(STR(?tn), "_"))
+  OPTIONAL { ?bridgeClass rdfs:comment ?tcRaw }
+  BIND(COALESCE(?tcRaw, "") AS ?tcCoalesced)
+  ?prop rdfs:domain ?bridgeClass ;
+        a owl:DatatypeProperty ;
+        skos:notation ?cn .
+  OPTIONAL { ?prop rdfs:range ?range }
+  BIND(
+    IF(?range = xsd:boolean,  "boolean",
+    IF(?range = xsd:integer,  "integer",
+    IF(?range = xsd:decimal,  "decimal",
+    IF(?range = xsd:dateTime, "date",
+    IF(?range = xsd:date,     "date",
+    "string"))))) AS ?ctypeResult
+  )
+  BIND("true" AS ?null)
+}
+ORDER BY ?tn ?cn

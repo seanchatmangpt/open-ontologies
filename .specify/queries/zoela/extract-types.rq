@@ -1,0 +1,98 @@
+# =============================================================================
+# extract-types.rq — Extract TypeScript interface shapes from OWL properties
+# =============================================================================
+#
+# Returns ONE aggregated row with pipe-delimited values for rendering
+# TypeScript interface declarations. ggen v5 renders once per SELECT row.
+#
+# Template variables (all pipe-delimited GROUP_CONCAT aggregates):
+#   ?classNames        — rdfs:label of each OWL class
+#   ?classDescriptions — rdfs:comment per class (empty string if absent)
+#   ?classIris         — full IRI of each class
+#   ?propClasses       — owning class label repeated per property
+#   ?propNames         — rdfs:label of each property (camelCase TS field name)
+#   ?propColumns       — skos:notation of each property (snake_case DB column)
+#   ?propDescriptions  — rdfs:comment per property (empty string if absent)
+#   ?propTsTypes       — mapped TypeScript type string per property
+#   ?propRequired      — "true" or "false" per property
+#   ?schemeNames       — rdfs:label of each SKOS ConceptScheme
+#   ?schemeDescriptions — rdfs:comment per scheme (empty string if absent)
+#   ?conceptSchemes    — scheme label repeated per concept
+#   ?conceptValues     — skos:notation (or label fallback) per concept
+# =============================================================================
+
+PREFIX zoe:  <urn:zoela:>
+PREFIX owl:  <http://www.w3.org/2002/07/owl#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+PREFIX sh:   <http://www.w3.org/ns/shacl#>
+PREFIX xsd:  <http://www.w3.org/2001/XMLSchema#>
+
+SELECT
+  (GROUP_CONCAT(DISTINCT ?className; SEPARATOR="|") AS ?classNames)
+  (GROUP_CONCAT(DISTINCT ?cdCoalesced; SEPARATOR="|") AS ?classDescriptions)
+  (GROUP_CONCAT(DISTINCT ?classIri; SEPARATOR="|") AS ?classIris)
+  (GROUP_CONCAT(?className; SEPARATOR="|") AS ?propClasses)
+  (GROUP_CONCAT(?pn; SEPARATOR="|") AS ?propNames)
+  (GROUP_CONCAT(?col; SEPARATOR="|") AS ?propColumns)
+  (GROUP_CONCAT(?pdCoalesced; SEPARATOR="|") AS ?propDescriptions)
+  (GROUP_CONCAT(?ttResult; SEPARATOR="|") AS ?propTsTypes)
+  (GROUP_CONCAT(?reqResult; SEPARATOR="|") AS ?propRequired)
+  (GROUP_CONCAT(DISTINCT ?schemeName; SEPARATOR="|") AS ?schemeNames)
+  (GROUP_CONCAT(DISTINCT ?sdCoalesced; SEPARATOR="|") AS ?schemeDescriptions)
+  (GROUP_CONCAT(?schemeName; SEPARATOR="|") AS ?conceptSchemes)
+  (GROUP_CONCAT(?cvCoalesced; SEPARATOR="|") AS ?conceptValues)
+WHERE {
+  ?class a owl:Class ;
+         rdfs:label ?className .
+  BIND(STR(?class) AS ?classIri)
+  OPTIONAL { ?class rdfs:comment ?cdRaw }
+  BIND(COALESCE(?cdRaw, "") AS ?cdCoalesced)
+  ?prop rdfs:domain ?class ;
+        rdfs:label ?pn ;
+        skos:notation ?col ;
+        rdfs:range ?colType .
+  OPTIONAL { ?prop rdfs:comment ?pdRaw }
+  BIND(COALESCE(?pdRaw, "") AS ?pdCoalesced)
+  BIND(
+    IF(EXISTS { ?prop a owl:DatatypeProperty }, "DatatypeProperty",
+    IF(EXISTS { ?prop a owl:ObjectProperty },   "ObjectProperty",
+    "Property")) AS ?propKind
+  )
+  BIND(
+    IF(?colType = xsd:string,          "string",
+    IF(?colType = xsd:normalizedString, "string",
+    IF(?colType = xsd:token,            "string",
+    IF(?colType = xsd:boolean,          "boolean",
+    IF(?colType = xsd:integer,          "number",
+    IF(?colType = xsd:int,              "number",
+    IF(?colType = xsd:long,             "number",
+    IF(?colType = xsd:decimal,          "number",
+    IF(?colType = xsd:float,            "number",
+    IF(?colType = xsd:double,           "number",
+    IF(?colType = xsd:dateTime,         "string",
+    IF(?colType = xsd:date,             "string",
+    IF(?colType = xsd:time,             "string",
+    IF(?colType = xsd:anyURI,           "string",
+    IF(?propKind = "ObjectProperty",    "string",
+    "unknown"))))))))))))))) AS ?ttResult
+  )
+  OPTIONAL {
+    ?shape sh:targetClass ?class ;
+           sh:property ?pc .
+    ?pc sh:path ?prop ;
+        sh:minCount ?minCount .
+  }
+  BIND(IF(BOUND(?minCount) && ?minCount >= 1, "true", "false") AS ?reqResult)
+  OPTIONAL {
+    ?scheme a skos:ConceptScheme ;
+            rdfs:label ?schemeName .
+    OPTIONAL { ?scheme rdfs:comment ?sdRaw2 }
+    BIND(COALESCE(?sdRaw2, "") AS ?sdCoalesced)
+    ?concept skos:inScheme ?scheme ;
+             rdfs:label ?cl .
+    OPTIONAL { ?concept skos:notation ?notation }
+    BIND(COALESCE(?notation, ?cl) AS ?cvCoalesced)
+  }
+}
+ORDER BY ?className ?pn

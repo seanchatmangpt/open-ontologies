@@ -1,0 +1,72 @@
+# =============================================================================
+# extract-skos-enums.rq — Extract SHACL shapes and fields for Zod schemas
+# =============================================================================
+#
+# Returns ONE aggregated row with pipe-delimited values for rendering
+# Zod validation schemas. ggen v5 renders once per SELECT row.
+#
+# Template variables (all pipe-delimited GROUP_CONCAT aggregates):
+#   ?shapeNames        — sh:NodeShape rdfs:label per shape
+#   ?shapeTargets      — target class local name per shape (empty if absent)
+#   ?shapeDescriptions — rdfs:comment per shape (empty string if absent)
+#   ?fieldShapes       — owning shape label repeated per field
+#   ?fieldNames        — sh:path local name per field
+#   ?fieldTypes        — mapped Zod type string
+#   ?fieldRequired     — "true" or "false"
+#   ?fieldDescriptions — rdfs:comment per field (empty string if absent)
+#   ?fieldMinLengths   — sh:minLength or empty string
+#   ?fieldMaxLengths   — sh:maxLength or empty string
+#   ?fieldPatterns     — sh:pattern or empty string
+# =============================================================================
+
+PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+PREFIX sh:   <http://www.w3.org/ns/shacl#>
+PREFIX owl:  <http://www.w3.org/2002/07/owl#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX xsd:  <http://www.w3.org/2001/XMLSchema#>
+
+SELECT
+  (GROUP_CONCAT(DISTINCT ?shapeName;  SEPARATOR="|") AS ?shapeNames)
+  (GROUP_CONCAT(DISTINCT ?stCoalesced; SEPARATOR="|") AS ?shapeTargets)
+  (GROUP_CONCAT(DISTINCT ?sdCoalesced; SEPARATOR="|") AS ?shapeDescriptions)
+  (GROUP_CONCAT(?fsn;    SEPARATOR="|") AS ?fieldShapes)
+  (GROUP_CONCAT(?fnCoalesced; SEPARATOR="|") AS ?fieldNames)
+  (GROUP_CONCAT(?ftype;  SEPARATOR="|") AS ?fieldTypes)
+  (GROUP_CONCAT(?freq;   SEPARATOR="|") AS ?fieldRequired)
+  (GROUP_CONCAT(?fdesc;  SEPARATOR="|") AS ?fieldDescriptions)
+  (GROUP_CONCAT(?fmin;   SEPARATOR="|") AS ?fieldMinLengths)
+  (GROUP_CONCAT(?fmax;   SEPARATOR="|") AS ?fieldMaxLengths)
+  (GROUP_CONCAT(?fpat;   SEPARATOR="|") AS ?fieldPatterns)
+WHERE {
+  ?shape a sh:NodeShape ;
+         rdfs:label ?shapeName ;
+         sh:property ?propConstraint .
+  OPTIONAL { ?shape sh:targetClass ?tc . ?tc rdfs:label ?stRaw }
+  OPTIONAL { ?shape rdfs:comment ?sdRaw }
+  ?propConstraint sh:path ?pathProp .
+  OPTIONAL { ?pathProp rdfs:label ?fnRaw }
+  OPTIONAL { ?propConstraint rdfs:comment ?fcomment }
+  OPTIONAL { ?propConstraint sh:datatype ?dtype }
+  OPTIONAL { ?propConstraint sh:minCount ?mc }
+  OPTIONAL { ?propConstraint sh:minLength ?fminRaw }
+  OPTIONAL { ?propConstraint sh:maxLength ?fmaxRaw }
+  OPTIONAL { ?propConstraint sh:pattern ?fpatRaw }
+  BIND(?shapeName AS ?fsn)
+  BIND(COALESCE(?fnRaw, REPLACE(STR(?pathProp), ".*[/#]", "")) AS ?fnCoalesced)
+  BIND(COALESCE(?stRaw, "") AS ?stCoalesced)
+  BIND(COALESCE(?sdRaw, "") AS ?sdCoalesced)
+  BIND(COALESCE(?fcomment, "") AS ?fdesc)
+  BIND(
+    IF(?dtype = xsd:boolean,  "boolean",
+    IF(?dtype = xsd:integer,  "number",
+    IF(?dtype = xsd:decimal,  "number",
+    IF(?dtype = xsd:dateTime, "datetime",
+    IF(?dtype = xsd:anyURI,   "url",
+    "string"))))) AS ?ftype
+  )
+  BIND(IF(BOUND(?mc) && ?mc >= 1, "true", "false") AS ?freq)
+  BIND(COALESCE(STR(?fminRaw), "") AS ?fmin)
+  BIND(COALESCE(STR(?fmaxRaw), "") AS ?fmax)
+  BIND(COALESCE(?fpatRaw, "") AS ?fpat)
+}
+ORDER BY ?shapeName ?fnCoalesced

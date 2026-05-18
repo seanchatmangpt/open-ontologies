@@ -1,0 +1,73 @@
+# =============================================================================
+# extract-tables.rq — Extract Postgres table definitions from OWL classes
+# =============================================================================
+#
+# Returns ONE aggregated row with pipe-delimited values for rendering
+# Supabase migration SQL. ggen v5 renders once per SELECT row.
+#
+# Template variables (all pipe-delimited GROUP_CONCAT aggregates):
+#   ?classNames        — rdfs:label of each OWL class (table entity name)
+#   ?tableNames        — skos:notation of each class (snake_case Postgres table)
+#   ?classIris         — full IRI of each class
+#   ?classDescriptions — rdfs:comment per class (empty string if absent)
+#   ?propClasses       — owning class label repeated per property
+#   ?propColumns       — skos:notation of each property (snake_case column name)
+#   ?propSqlTypes      — mapped Postgres SQL type per property
+#   ?propRequired      — "true" or "false" per property
+#   ?propDescriptions  — rdfs:comment per property (empty string if absent)
+#   ?propFkTables      — FK target table name or empty string
+# =============================================================================
+
+PREFIX zoe:  <urn:zoela:>
+PREFIX owl:  <http://www.w3.org/2002/07/owl#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+PREFIX xsd:  <http://www.w3.org/2001/XMLSchema#>
+
+SELECT
+  (GROUP_CONCAT(DISTINCT ?className; SEPARATOR="|") AS ?classNames)
+  (GROUP_CONCAT(DISTINCT ?tableName; SEPARATOR="|") AS ?tableNames)
+  (GROUP_CONCAT(DISTINCT ?classIri; SEPARATOR="|") AS ?classIris)
+  (GROUP_CONCAT(DISTINCT ?cdCoalesced; SEPARATOR="|") AS ?classDescriptions)
+  (GROUP_CONCAT(?className; SEPARATOR="|") AS ?propClasses)
+  (GROUP_CONCAT(?col; SEPARATOR="|") AS ?propColumns)
+  (GROUP_CONCAT(?sqlTResult; SEPARATOR="|") AS ?propSqlTypes)
+  (GROUP_CONCAT(?reqResult; SEPARATOR="|") AS ?propRequired)
+  (GROUP_CONCAT(?pdCoalesced; SEPARATOR="|") AS ?propDescriptions)
+  (GROUP_CONCAT(?fktCoalesced; SEPARATOR="|") AS ?propFkTables)
+WHERE {
+  ?class a owl:Class ;
+         rdfs:label ?className ;
+         skos:notation ?tableName .
+  BIND(STR(?class) AS ?classIri)
+  OPTIONAL { ?class rdfs:comment ?cdRaw }
+  BIND(COALESCE(?cdRaw, "") AS ?cdCoalesced)
+  ?prop rdfs:domain ?class ;
+        skos:notation ?col ;
+        rdfs:range ?colType .
+  OPTIONAL { ?prop rdfs:comment ?pdRaw }
+  BIND(COALESCE(?pdRaw, "") AS ?pdCoalesced)
+  BIND(
+    IF(EXISTS { ?prop a owl:ObjectProperty }, "UUID",
+    IF(?colType = xsd:boolean,                "BOOLEAN",
+    IF(?colType = xsd:integer,                "INTEGER",
+    IF(?colType = xsd:int,                    "INTEGER",
+    IF(?colType = xsd:long,                   "BIGINT",
+    IF(?colType = xsd:decimal,                "NUMERIC",
+    IF(?colType = xsd:float,                  "REAL",
+    IF(?colType = xsd:double,                 "DOUBLE PRECISION",
+    IF(?colType = xsd:dateTime,               "TIMESTAMPTZ",
+    IF(?colType = xsd:date,                   "DATE",
+    IF(?colType = xsd:time,                   "TIME",
+    IF(?colType = xsd:anyURI,                 "TEXT",
+    "TEXT")))))))))))) AS ?sqlTResult
+  )
+  BIND("false" AS ?reqResult)
+  OPTIONAL {
+    ?rangeClass a owl:Class ;
+                skos:notation ?fktRaw .
+    FILTER(?colType = ?rangeClass)
+  }
+  BIND(COALESCE(?fktRaw, "") AS ?fktCoalesced)
+}
+ORDER BY ?className ?col
