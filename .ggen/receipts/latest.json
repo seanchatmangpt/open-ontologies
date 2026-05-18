@@ -1,12 +1,12 @@
 {
-  "operation_id": "db5de8c7-0cc9-4c8c-a568-20e41cb3a0b8",
-  "timestamp": "2026-05-18T09:18:58.268540Z",
+  "operation_id": "49649598-5c0b-4d3a-b3b6-3650b7cc651d",
+  "timestamp": "2026-05-18T09:32:34.213832Z",
   "input_hashes": [
     "ggen.toml:f5234f7a82dbbe7ed06ec4de2b35db48e7ea2228dd56057ee328ac42bc806e81"
   ],
   "output_hashes": [
     "./src/cmds/generated_revops.rs:b469360672c4f5b4ec53dad9080029423e86ff2c49c90e76a3977616667eb575"
   ],
-  "signature": "420fc01eca71179ec8dcdf6a4d89d2e31d4c63ff78f0e53700adba4831c716403ce0f25a8783ebf80db5933690b387dd01ed005b38bb0747faba46cdd30b5301",
-  "previous_receipt_hash": "f5ec1b1067a209b50f6919c0b0c25f6e3ed1e01ccbfc7dfbb1e8cbe7c49a533d"
+  "signature": "99f2fa2efb5c2aa09d331459f2fdc3ed5c2e6d2e85a7cdc19a10abcce499ba80b41788e2a1d394458d1c72ab5fb6918be7b7ffa73bd9f513ecf5da2e0fe37703",
+  "previous_receipt_hash": "f698cb0835673bbffb8e826e98f488b635ac60765f81b77500b7b4344ef55309"
 }
