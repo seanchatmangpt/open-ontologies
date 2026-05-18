@@ -8,11 +8,6 @@ import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 // Types
 // ─────────────────────────────────────────────────────────────────────────────
 
-interface OcelAttribute {
-  name: string;
-  value: unknown;
-}
-
 interface OcelRelationship {
   objectId: string;
   qualifier: string;
