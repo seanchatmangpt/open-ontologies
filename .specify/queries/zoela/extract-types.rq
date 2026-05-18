@@ -19,6 +19,12 @@
 #   ?schemeDescriptions — rdfs:comment per scheme (empty string if absent)
 #   ?conceptSchemes    — scheme label repeated per concept
 #   ?conceptValues     — skos:notation (or label fallback) per concept
+#
+# Note: property deduplication (SHACL-induced duplicates) is handled in the
+# Tera template via set_global/seen_cols. SKOS concept deduplication uses
+# GROUP_CONCAT(DISTINCT ...) and template-level seen_concepts tracking.
+# The SKOS OPTIONAL creates a cartesian product with property rows but the
+# 10MB limit is not reached because duplicate properties are filtered in template.
 # =============================================================================
 
 PREFIX zoe:  <urn:zoela:>

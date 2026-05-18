@@ -65,3 +65,45 @@ declare module 'react-hook-form' {
 declare module '@hookform/resolvers/zod' {
   export function zodResolver(schema: unknown): unknown;
 }
+
+declare module '@react-navigation/native' {
+  import * as React from 'react';
+  export type ParamListBase = Record<string, object | undefined>;
+  export interface NavigationProp<ParamList extends ParamListBase> {
+    navigate: (screen: keyof ParamList, params?: ParamList[keyof ParamList]) => void;
+    goBack: () => void;
+  }
+  export interface RouteProp<ParamList extends ParamListBase, RouteName extends keyof ParamList = keyof ParamList> {
+    key: string;
+    name: RouteName;
+    params: ParamList[RouteName];
+  }
+  export function useNavigation<T = NavigationProp<ParamListBase>>(): T;
+  export function useRoute<T = RouteProp<ParamListBase>>(): T;
+}
+
+declare module '@react-navigation/native-stack' {
+  import * as React from 'react';
+  import type { ParamListBase } from '@react-navigation/native';
+  export interface NativeStackScreenProps<ParamList extends ParamListBase, RouteName extends keyof ParamList = keyof ParamList> {
+    navigation: { navigate: (screen: keyof ParamList, params?: ParamList[keyof ParamList]) => void; goBack: () => void };
+    route: { key: string; name: RouteName; params: ParamList[RouteName] };
+  }
+  export interface NativeStackNavigatorProps {
+    children?: React.ReactNode;
+    [key: string]: unknown;
+  }
+  export interface NativeStackScreenConfig {
+    name: string;
+    getComponent?: () => React.ComponentType<unknown>;
+    component?: React.ComponentType<unknown>;
+    children?: React.ReactNode;
+    [key: string]: unknown;
+  }
+  interface NativeStackNavigator<ParamList extends ParamListBase> {
+    Navigator: React.ComponentType<NativeStackNavigatorProps>;
+    Screen: React.ComponentType<NativeStackScreenConfig>;
+    Group: React.ComponentType<{ children?: React.ReactNode; [key: string]: unknown }>;
+  }
+  export function createNativeStackNavigator<ParamList extends ParamListBase = ParamListBase>(): NativeStackNavigator<ParamList>;
+}
