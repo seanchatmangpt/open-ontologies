@@ -1,0 +1,55 @@
+{
+  "events": [
+    {
+      "id": "evt_care_followup_completed_1779344250473",
+      "activity": "CareFollowUpCompleted",
+      "timestamp": "2026-05-20T00:00:00.000Z",
+      "objects": [
+        {
+          "id": "care_001",
+          "type": "CareRequest",
+          "qualifier": "request"
+        },
+        {
+          "id": "followup_001",
+          "type": "CareFollowUp",
+          "qualifier": "completed-follow-up"
+        },
+        {
+          "id": "actor_zoela_care_001",
+          "type": "CareActor",
+          "qualifier": "responsible-actor"
+        },
+        {
+          "id": "route_care_followup_v1",
+          "type": "CareRoute",
+          "qualifier": "route-law"
+        }
+      ],
+      "attributes": {
+        "from_status": "AwaitingFollowUp",
+        "to_status": "FollowUpCompleted",
+        "boundary": "CoreExecutionHarness",
+        "synthetic": false
+      }
+    }
+  ],
+  "objects": [
+    {
+      "id": "care_001",
+      "type": "CareRequest"
+    },
+    {
+      "id": "followup_001",
+      "type": "CareFollowUp"
+    },
+    {
+      "id": "actor_zoela_care_001",
+      "type": "CareActor"
+    },
+    {
+      "id": "route_care_followup_v1",
+      "type": "CareRoute"
+    }
+  ]
+}

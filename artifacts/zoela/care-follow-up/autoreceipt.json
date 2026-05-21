@@ -1,0 +1,14 @@
+{
+  "receipt_type": "AutoReceipt",
+  "bound_evidence": {
+    "expected_route_hash": "8601c37bfd3fb0616db9a477c8d0b4b255d5595ba378605dfc4731ce25006546",
+    "execution_operator_hash": "fe06602c524b470fdd92c16b2382b20540c7ba0ad29af9003a86f085341e6680",
+    "observed_artifact_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "expected_ocel_hash": "52877e6268869be9af12f2678520201414f42fc112bed7bb84b199735c4a1f86",
+    "observed_ocel_hash": "6676de5e8e9ddf7ac4ec5e50c473a04a03111b8c2194098d9a93cd495068cd1d",
+    "alignment_hash": "6ffae0060a5e671e0635f641dd3a1dc592948a2e95ebd3c51be35726af9939a1"
+  },
+  "policy_epoch": "epoch-1",
+  "projection_basis": "CoreExecutionHarness",
+  "emitted_at": "2026-05-21T06:18:49Z"
+}
