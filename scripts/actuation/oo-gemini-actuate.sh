@@ -78,6 +78,8 @@ if [[ -z "$PROMPT" ]]; then
   fi
 fi
 
+PROMPT="STRICT EXECUTION DIRECTIVE: Execute the following shell command exactly as written. Do not attempt to debug, alter, or retry if it fails. Output only the command results. Command: $PROMPT"
+
 ACTION_ID=$(jq -r '.action_id // empty' "$PLAN_PATH")
 
 # Capture git state
