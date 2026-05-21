@@ -319,6 +319,11 @@
       "id": "IS-8",
       "state": "AutoReceiptReady",
       "alignment_receipt": "artifacts/autoreceipt/alignment/IS-8.alignment.receipt.json"
+    },
+    {
+      "id": "JTBD-001",
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/JTBD-001.alignment.receipt.json"
     }
   ]
 }

@@ -1,6 +1,6 @@
 {
-  "operation_id": "180ba945-8c17-4565-93c8-a3df7963755a",
-  "timestamp": "2026-05-21T07:48:57.582068Z",
+  "operation_id": "666d7a38-21c3-4058-ad55-56a8fd458f9d",
+  "timestamp": "2026-05-21T08:59:54.030186Z",
   "input_hashes": [
     "ggen.toml:511e5bd7333808bc9d4c08e59509ce3a57bf0fb17bb64d22395038bc94dc9b72"
   ],
@@ -60,6 +60,6 @@
     "./docs/ghf-proof-matrix.md:2797efc18ab731907202d788bec1568a8afc49404b6c478bb5688bc512ecd87b",
     "./docs/weekly-ledger-template.md:0038b23d696326d6947764672e8142a2eef29e322fecd8a90f32a8b7083c4f11"
   ],
-  "signature": "494dffe6fcfed5dc49c79b755598895211d6aabe86234189737f2ae3e06ec982680386a7f610a392440c0ccd746664c6a7f5cc4f9bc1c9510fedced35f5bc00f",
-  "previous_receipt_hash": "503ac792b58dde7d911acb5319d6192a0d02c15d284f1189706146fca456b82d"
+  "signature": "145ab48055108099a1b331261bf6e5076d4fc6422e343a849cc45473ba724ae31af24cfbfa04e64369492564aa363337dc1ae69df8b18a447327969de472c008",
+  "previous_receipt_hash": "382b2e5279f542faea310ac794a704c04fbb56e635cc26ad794b6bf84f5dcf6f"
 }

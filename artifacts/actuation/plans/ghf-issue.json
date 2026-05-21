@@ -1,9 +1,9 @@
 {
-  "action_id": "ghf_contribution_1",
+  "action_id": "JTBD-001",
   "emitted_by": "open-ontologies",
   "policy_id": "auto_receipt_batch",
   "actor_basis8": "persona_architect",
   "allowed": true,
   "working_directory": "/Users/sac/open-ontologies",
-  "command": "bash scripts/gh-create-issue.sh 'JTBD-001' 'architect' 'Autonomic Governance: Implement GHF-V2 Verification Loop'"
+  "command": "bash scripts/gh-create-issue.sh JTBD-001 architect 'Autonomic GHF Verification'"
 }

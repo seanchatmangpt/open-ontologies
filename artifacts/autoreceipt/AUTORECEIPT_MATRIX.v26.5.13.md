@@ -66,3 +66,4 @@
 | IS-6 | AutoReceiptReady | OcelAlignmentPassed |
 | IS-7 | AutoReceiptReady | OcelAlignmentPassed |
 | IS-8 | AutoReceiptReady | OcelAlignmentPassed |
+| JTBD-001 | AutoReceiptReady | OcelAlignmentPassed |
