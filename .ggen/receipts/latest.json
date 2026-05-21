@@ -1,6 +1,6 @@
 {
-  "operation_id": "82026d4b-7c44-4a78-bf23-5cd2a20f480d",
-  "timestamp": "2026-05-21T06:37:27.875022Z",
+  "operation_id": "180ba945-8c17-4565-93c8-a3df7963755a",
+  "timestamp": "2026-05-21T07:48:57.582068Z",
   "input_hashes": [
     "ggen.toml:511e5bd7333808bc9d4c08e59509ce3a57bf0fb17bb64d22395038bc94dc9b72"
   ],
@@ -53,13 +53,13 @@
     "./.github/workflows/receipt-verify.yml:4f33359a788f7368b42640b7006909ec71448a3f0cc26ab39d8f64d2a5ce98c8",
     "./.github/workflows/contribution-ledger.yml:cbfe406e6e26f552438113b2194020860b1b4d2675f4e2ca387834da770fadba",
     "./.github/ISSUE_TEMPLATE/work-order.yml:a7bb297e9b7143ead090c7da80130160e0fd6455fd81eb0be1d605b6242b8fba",
-    "./scripts/gh-create-issue.sh:4dad76f5c9f38cdaa9647cd5a5cf26e5062470cf95e7df25606ff0635dcce68c",
-    "./scripts/gh-create-pr.sh:20011553724d4df16ef605b4f171583208edf9b34f10f7ae56bcf9c2ce5204bd",
+    "./scripts/gh-create-issue.sh:2d972fef0af7839d33b735255648e58ec282350be10f3fdb797345e00648627b",
+    "./scripts/gh-create-pr.sh:88ac5e30c17a3035c2f46bbfe2aa09d28d2e07dae3e8935218e90a17724170ba",
     "./scripts/collect-github-evidence.sh:818eb9cd37aa05c4d3a2b7f1ef4570d43a4dbfea83b42de7abe4ea8323c050a0",
     "./artifacts/ghf/ocel/expected.ocel.jsonl:85eee78de21ba7a2ce41e355376246c01bc6d20c630a5ee510ca853db097bfb7",
     "./docs/ghf-proof-matrix.md:2797efc18ab731907202d788bec1568a8afc49404b6c478bb5688bc512ecd87b",
     "./docs/weekly-ledger-template.md:0038b23d696326d6947764672e8142a2eef29e322fecd8a90f32a8b7083c4f11"
   ],
-  "signature": "fbb1784219c876c80fa4112d2ddc9ef28a3c0e9278e921aef8d3bf8816820986b0803ecb74791da174670fd8e7ac11be74abaa7cdfe48d067bd4b51a24db070d",
-  "previous_receipt_hash": "70e832dbd2e3b2ad35653b1ea5d8b4c2992e9eab5059e2d165d6a94a87370c0c"
+  "signature": "494dffe6fcfed5dc49c79b755598895211d6aabe86234189737f2ae3e06ec982680386a7f610a392440c0ccd746664c6a7f5cc4f9bc1c9510fedced35f5bc00f",
+  "previous_receipt_hash": "503ac792b58dde7d911acb5319d6192a0d02c15d284f1189706146fca456b82d"
 }

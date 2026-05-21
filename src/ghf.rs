@@ -284,3 +284,4 @@ mod tests {
         assert!(result.unwrap_err().to_string().contains("Expected closure hash mismatch"));
     }
 }
+// Verified GHF closure
