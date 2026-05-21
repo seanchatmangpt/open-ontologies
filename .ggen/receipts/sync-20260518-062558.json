@@ -1,0 +1,12 @@
+{
+  "operation_id": "09b6244d-9b94-48dd-be6c-be7893a5ea9d",
+  "timestamp": "2026-05-18T06:25:58.736501Z",
+  "input_hashes": [
+    "ggen.toml:c812802ed6828e9d17ca2f9b36bc2460e53816f2ad9b2ecadfd2c81dd283111c"
+  ],
+  "output_hashes": [
+    "generated/zoela/types.ts:2284f448f505adb7f7f400f6689839d0657d1738c9359526348b9731bfa3e14e"
+  ],
+  "signature": "ff11e578e71fee804bfb7885fae8f9885799886772d0c9039d974bbc3e51229793f0ef24a41048cb0329d25e635d60a6004d4109dbaf80095dfb3ae275828003",
+  "previous_receipt_hash": "ab0914d8833df0752701070a2d75d1a80f9600510b289c0bfe66d24ecd5b7589"
+}

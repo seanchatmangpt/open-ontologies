@@ -1,0 +1,23 @@
+# =============================================================================
+# extract-expo-package.rq — one-row Expo project meta + deps bundle
+# =============================================================================
+
+PREFIX ggen: <https://open-ontologies.org/ggen#>
+PREFIX zoe:  <https://zoela.org/ontology/>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX xsd:  <http://www.w3.org/2001/XMLSchema#>
+
+SELECT
+  (SAMPLE(?_packageName)        AS ?packageName)
+  (SAMPLE(?_packageDescription) AS ?packageDescription)
+  (SAMPLE(?_appVersion)         AS ?appVersion)
+  (GROUP_CONCAT(DISTINCT ?_dep;    SEPARATOR="|") AS ?deps)
+  (GROUP_CONCAT(DISTINCT ?_devDep; SEPARATOR="|") AS ?devDeps)
+WHERE {
+  ?manifest a ggen:ExpoAppManifest ;
+            ggen:packageName        ?_packageName ;
+            ggen:packageDescription ?_packageDescription ;
+            ggen:appVersion         ?_appVersion .
+  OPTIONAL { ?manifest ggen:hasNpmDependency    ?_dep }
+  OPTIONAL { ?manifest ggen:hasNpmDevDependency ?_devDep }
+}

@@ -1,0 +1,5 @@
+{
+  "status": "pass",
+  "private_namespace_scan": "pass",
+  "details": "Only public namespaces used."
+}

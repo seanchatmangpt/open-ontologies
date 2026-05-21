@@ -35,13 +35,15 @@ zoe:PersonProfile a owl:Class ;
     rdfs:label      "Person Profile"@en ;
     rdfs:comment    "A church member or visitor whose identity and household affiliation are tracked in the ZOE LA Mobile app."@en ;
     rdfs:subClassOf schema:Person ;
-    owl:equivalentClass foaf:Person .
+    owl:equivalentClass foaf:Person ;
+    skos:notation   "persons" .
 
 zoe:Household a owl:Class ;
     rdfs:label      "Household"@en ;
     rdfs:comment    "A family or cohabiting group registered with ZOE LA, used to group PersonProfiles by physical address."@en ;
     rdfs:subClassOf schema:Organization ;
-    rdfs:subClassOf org:Organization .
+    rdfs:subClassOf org:Organization ;
+    skos:notation   "households" .
 
 # ============================================================================
 # PersonProfile — Datatype Properties

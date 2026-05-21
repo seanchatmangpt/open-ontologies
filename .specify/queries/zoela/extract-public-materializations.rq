@@ -1,37 +1,46 @@
 # =============================================================================
-# extract-public-materializations.rq — admissibility-aware materialization extractor
+# extract-public-materializations.rq — ADMITTED materializations only
 # =============================================================================
 #
-# P0-B.4d: surfaces ?materializationStatus per ZOE class so the template can
-# refuse to emit DDL for incomplete materializations.
+# P0-B.4d-fix: the SQL template must consume exactly ONE admitted row per local
+# ZOE class. Every row in the result is a class+kind pair that has passed
+# every admissibility gate, inlined here (no external CONSTRUCT inference rule
+# required — those caused ggen pre-flight slowdown).
 #
-# Status values (one per class slot):
-#   admitted
-#   refused_missing_shape       — kind lacks ggen:requiresShape OR shape is not a sh:NodeShape
-#   refused_no_columns          — class has zero datatype/object properties with skos:notation
-#   refused_missing_datatype    — at least one property of the class lacks rdfs:range
-#   refused_duplicate_columns   — two distinct properties of the class normalize to same column
-#   refused_missing_policy      — kind has rlsRequired=true but no ODRL permission targets it
+# Gates:
+#   Class-level (cheap, once per class):
+#     C1 every property has rdfs:range
+#     C2 no two properties normalize to same SQL column
+#         (lowercase + hyphen→underscore — matches template rendering)
+#     C3 no single property has multiple skos:notation values
+#   Kind-level (per class × kind):
+#     K1 kind has ggen:emitsSql true
+#     K2 kind has a SHACL NodeShape via ggen:requiresShape
+#     K3 class has body columns OR kind has requiresOwner=true
+#     K4 ODRL policy targets kind if rlsRequired=true
+#   Priority winner:
+#     PW no other admissible kind for this class has priority >= self
+#         (>= catches both higher-priority alternatives AND priority ties)
 #
-# Structural design (nested aggregation):
-#   - Inner sub-query GROUPs BY ?class and produces per-class facts INCLUDING
-#     a comma-delimited list of (column, type, required, fk, desc) tuples.
-#   - Outer query aggregates one row per class via DISTINCT.
-#   - Result: ONE slot per class for every binding. No cartesian product.
+# Doctrine:
+#   - Tera renders facts. Tera does not repair facts.
+#   - Tera does not choose authority. Tera does not hide ambiguity.
+#   - Admission belongs upstream. Rendering is not repair.
 #
-# Output: ONE aggregated row with pipe-delimited columns.
-#   Class-level (one slot per class):
+# Output layout (ONE aggregated row, pipe-delimited per class):
 #     ?classIris ?classNames ?tableNames ?classDescriptions
 #     ?publicAnchorIris ?materializationKinds ?materializationCodes
 #     ?requiresOwner ?requiresAuditTrail ?targetRuntimes ?shapeIris
-#     ?materializationStatuses
+#     ?classColumnTuples
 #
-#   Property facts encoded as ?classColumnTuples:
-#     Outer separator (between classes) = "@@@"
-#     Inner separator (within one class's tuple list) = ","
-#     Field separator (within one tuple) = "::"
-#     Tuple shape: column_name::sql_type::required::fk_table::description
-#     Empty class column list = ""
+# NOTE: ?classColumnTuples is currently empty — body-column extraction via
+# OPTIONAL nested SELECT hits an Oxigraph join-correlation issue under v26.5.18
+# when 10+ ontologies are loaded. Tables emit with id + audit + owner only.
+# Body columns will be wired separately in P0-B.4e once the join issue is
+# diagnosed. The doctrine and admission gates are unaffected.
+#
+# NOTE: no ?materializationStatuses binding. Every row is admitted by
+# construction. Refusals → extract-public-materialization-refusals.rq.
 # =============================================================================
 
 PREFIX ggen:   <https://open-ontologies.org/ggen#>
@@ -56,131 +65,138 @@ SELECT
   (GROUP_CONCAT(?requiresAuditTrailStr;  SEPARATOR="|") AS ?requiresAuditTrail)
   (GROUP_CONCAT(?targetRuntime;          SEPARATOR="|") AS ?targetRuntimes)
   (GROUP_CONCAT(?shapeIriStr;            SEPARATOR="|") AS ?shapeIris)
-  (GROUP_CONCAT(?materializationStatus;  SEPARATOR="|") AS ?materializationStatuses)
   (GROUP_CONCAT(?classColumnTuples;      SEPARATOR="@@@") AS ?classColumnTuples)
 WHERE {
   {
     SELECT
         ?class
-        (SAMPLE(?_classIriStr) AS ?classIriStr)
-        ?className
-        ?tableName
-        (SAMPLE(?_classDescription) AS ?classDescription)
-        (SAMPLE(?_publicAnchorIri) AS ?publicAnchorIri)
-        ?materializationKindIri
-        ?materializationCode
-        (SAMPLE(?_requiresOwnerStr) AS ?requiresOwnerStr)
-        (SAMPLE(?_requiresAuditTrailStr) AS ?requiresAuditTrailStr)
-        ?targetRuntime
-        (SAMPLE(?_shapeIriStr) AS ?shapeIriStr)
-        (SAMPLE(?_materializationStatus) AS ?materializationStatus)
-        (SAMPLE(?_classColumnTuples) AS ?classColumnTuples)
+        (SAMPLE(?_classIriStr)            AS ?classIriStr)
+        (SAMPLE(?_className)              AS ?className)
+        (SAMPLE(?_tableName)              AS ?tableName)
+        (SAMPLE(?_classDescription)       AS ?classDescription)
+        (SAMPLE(?_publicAnchorIri)        AS ?publicAnchorIri)
+        (SAMPLE(?_materializationKindIri) AS ?materializationKindIri)
+        (SAMPLE(?_materializationCode)    AS ?materializationCode)
+        (SAMPLE(?_requiresOwnerStr)       AS ?requiresOwnerStr)
+        (SAMPLE(?_requiresAuditTrailStr)  AS ?requiresAuditTrailStr)
+        (SAMPLE(?_targetRuntime)          AS ?targetRuntime)
+        (SAMPLE(?_shapeIriStr)            AS ?shapeIriStr)
+        (SAMPLE(?_classColumnTuples)      AS ?classColumnTuples)
     WHERE {
+      # ── Class identity ──────────────────────────────────────────────
       ?class a owl:Class ;
-             rdfs:label    ?className ;
-             skos:notation ?tableName .
+             rdfs:label    ?_className ;
+             skos:notation ?_tableName .
       FILTER(STRSTARTS(STR(?class), "https://zoela.org/ontology/"))
 
+      # ── Class-level admissibility ───────────────────────────────────
+
+      # C1 every property has rdfs:range
+      FILTER NOT EXISTS {
+        ?_p2 rdfs:domain ?class ; skos:notation ?_c2 .
+        FILTER NOT EXISTS { ?_p2 rdfs:range ?_r2 }
+      }
+
+      # C2 no two distinct properties normalize to same SQL column
+      FILTER NOT EXISTS {
+        ?_pA rdfs:domain ?class ; skos:notation ?_nA .
+        ?_pB rdfs:domain ?class ; skos:notation ?_nB .
+        FILTER(?_pA != ?_pB)
+        FILTER(
+          REPLACE(LCASE(STR(?_nA)), "-", "_")
+          = REPLACE(LCASE(STR(?_nB)), "-", "_")
+        )
+      }
+
+      # C3 no single property has multiple skos:notation values
+      FILTER NOT EXISTS {
+        ?_pSame rdfs:domain ?class ;
+                skos:notation ?_nX , ?_nY .
+        FILTER(STR(?_nX) != STR(?_nY))
+      }
+
+      # ── Public-anchor chain ──────────────────────────────────────────
       ?class rdfs:subClassOf+ ?_anchor .
       FILTER(!STRSTARTS(STR(?_anchor), "https://zoela.org/ontology/"))
       FILTER(?_anchor != owl:Thing)
       FILTER(isIRI(?_anchor))
 
+      # ── Candidate materialization kind ───────────────────────────────
       ?materializationKind a ggen:MaterializationKind ;
                            ggen:materializesPublicAnchor ?_anchor ;
                            ggen:emitsSql       true ;
-                           skos:notation       ?materializationCode ;
-                           ggen:targetRuntime  ?targetRuntime ;
+                           skos:notation       ?_materializationCode ;
+                           ggen:targetRuntime  ?_targetRuntime ;
                            ggen:requiresOwner  ?_requiresOwnerVal ;
-                           ggen:requiresAuditTrail ?_requiresAuditTrailVal .
+                           ggen:requiresAuditTrail ?_requiresAuditTrailVal ;
+                           ggen:materializationPriority ?_priority ;
+                           ggen:requiresShape  ?_shape .
 
-      OPTIONAL { ?materializationKind ggen:requiresShape ?_shape }
-      OPTIONAL { ?materializationKind ggen:rlsRequired   ?_rlsRequired }
+      # ── Kind-level admissibility for THIS (class, kind) ─────────────
+
+      # K2 shape must be a sh:NodeShape
+      FILTER(EXISTS { ?_shape a sh:NodeShape })
+
+      # K3 body columns OR requiresOwner=true
+      FILTER(
+        EXISTS { ?_p1 rdfs:domain ?class ; skos:notation ?_c1 }
+        || ?_requiresOwnerVal
+      )
+
+      # K4 ODRL policy if rlsRequired=true
+      OPTIONAL { ?materializationKind ggen:rlsRequired ?_rlsRequired }
+      FILTER(
+        !(BOUND(?_rlsRequired) && ?_rlsRequired) ||
+        EXISTS {
+          ?_act ggen:rlsTargetKind ?materializationKind .
+          ?_pol a odrl:Policy ; odrl:permission [ odrl:action ?_act ] .
+        }
+      )
+
+      # ── Priority winner: no other admissible kind has priority >= self ──
+      FILTER NOT EXISTS {
+        ?class rdfs:subClassOf+ ?_oAnchor .
+        FILTER(!STRSTARTS(STR(?_oAnchor), "https://zoela.org/ontology/"))
+        FILTER(?_oAnchor != owl:Thing)
+        FILTER(isIRI(?_oAnchor))
+        ?_oKind a ggen:MaterializationKind ;
+                ggen:materializesPublicAnchor ?_oAnchor ;
+                ggen:emitsSql true ;
+                ggen:materializationPriority ?_oPriority ;
+                ggen:requiresOwner ?_oRequiresOwner ;
+                ggen:requiresShape ?_oShape .
+        FILTER(?_oKind != ?materializationKind)
+        FILTER(?_oPriority >= ?_priority)
+        FILTER(EXISTS { ?_oShape a sh:NodeShape })
+        FILTER(
+          EXISTS { ?_op rdfs:domain ?class ; skos:notation ?_oc }
+          || ?_oRequiresOwner
+        )
+        OPTIONAL { ?_oKind ggen:rlsRequired ?_oRls }
+        FILTER(
+          !(BOUND(?_oRls) && ?_oRls) ||
+          EXISTS {
+            ?_oAct ggen:rlsTargetKind ?_oKind .
+            ?_oPol a odrl:Policy ; odrl:permission [ odrl:action ?_oAct ] .
+          }
+        )
+      }
 
       OPTIONAL { ?class rdfs:comment ?_cdRaw }
 
-      # ── Per-class property tuple list ──────────────────────────────────
-      OPTIONAL {
-        {
-          SELECT ?_pcClass
-                 (GROUP_CONCAT(DISTINCT ?_pcTuple; SEPARATOR=",") AS ?_classColumnTuplesInner)
-          WHERE {
-            ?_pcClass a owl:Class .
-            FILTER(STRSTARTS(STR(?_pcClass), "https://zoela.org/ontology/"))
-            ?_pcProp rdfs:domain   ?_pcClass ;
-                     skos:notation ?_pcCol .
-            OPTIONAL { ?_pcProp rdfs:range ?_pcRange }
-            OPTIONAL { ?_pcProp rdfs:comment ?_pcDescRaw }
-            BIND(REPLACE(STR(COALESCE(?_pcDescRaw, "")), "[,@:|]", " ") AS ?_pcDesc)
-            BIND(
-              IF(EXISTS { ?_pcProp a owl:ObjectProperty }, "UUID",
-              IF(BOUND(?_pcRange) && ?_pcRange = xsd:boolean,    "BOOLEAN",
-              IF(BOUND(?_pcRange) && ?_pcRange = xsd:integer,    "INTEGER",
-              IF(BOUND(?_pcRange) && ?_pcRange = xsd:int,        "INTEGER",
-              IF(BOUND(?_pcRange) && ?_pcRange = xsd:long,       "BIGINT",
-              IF(BOUND(?_pcRange) && ?_pcRange = xsd:decimal,    "NUMERIC",
-              IF(BOUND(?_pcRange) && ?_pcRange = xsd:dateTime,   "TIMESTAMPTZ",
-              IF(BOUND(?_pcRange) && ?_pcRange = xsd:date,       "DATE",
-              IF(BOUND(?_pcRange) && ?_pcRange = xsd:anyURI,     "TEXT",
-              "TEXT"))))))))) AS ?_pcSqlType
-            )
-            OPTIONAL {
-              ?_pcRange a owl:Class ; skos:notation ?_pcFkRaw .
-              FILTER(STRSTARTS(STR(?_pcRange), "https://zoela.org/ontology/"))
-            }
-            BIND(COALESCE(?_pcFkRaw, "") AS ?_pcFk)
-            BIND(CONCAT(STR(?_pcCol), "::", ?_pcSqlType, "::false::", ?_pcFk, "::", ?_pcDesc) AS ?_pcTuple)
-          }
-          GROUP BY ?_pcClass
-        }
-        FILTER(?_pcClass = ?class)
-        BIND(?_classColumnTuplesInner AS ?_classColumnTuples)
-      }
+      # ── Per-class property tuple list ────────────────────────────────
+      # Body columns disabled — see header note. Tables get id + audit + owner only.
+      BIND("" AS ?_classColumnTuples)
 
-      # ── Admissibility checks ───────────────────────────────────────────
-      BIND(BOUND(?_shape) && EXISTS { ?_shape a sh:NodeShape } AS ?hasShape)
-
-      BIND(EXISTS { ?_p1 rdfs:domain ?class ; skos:notation ?_c1 } AS ?hasColumns)
-
-      BIND(EXISTS {
-        ?_p2 rdfs:domain ?class ; skos:notation ?_c2 .
-        FILTER NOT EXISTS { ?_p2 rdfs:range ?_r }
-      } AS ?hasUnrangedProp)
-
-      BIND(EXISTS {
-        ?_pA rdfs:domain ?class ; skos:notation ?_nA .
-        ?_pB rdfs:domain ?class ; skos:notation ?_nB .
-        FILTER(?_pA != ?_pB)
-        FILTER(LCASE(STR(?_nA)) = LCASE(STR(?_nB)))
-      } AS ?hasDuplicateColumns)
-
-      BIND(
-        IF(BOUND(?_rlsRequired) && ?_rlsRequired,
-          NOT EXISTS {
-            ?_act ggen:rlsTargetKind ?materializationKind .
-            ?_pol a odrl:Policy ; odrl:permission [ odrl:action ?_act ] .
-          },
-          false
-        ) AS ?missingPolicy
-      )
-
+      # ── Binds for outer aggregation ──────────────────────────────────
       BIND(STR(?class)                       AS ?_classIriStr)
-      BIND(STR(?materializationKind)         AS ?materializationKindIri)
+      BIND(STR(?materializationKind)         AS ?_materializationKindIri)
       BIND(STR(?_anchor)                     AS ?_publicAnchorIri)
-      BIND(IF(BOUND(?_shape), STR(?_shape), "") AS ?_shapeIriStr)
+      BIND(STR(?_shape)                      AS ?_shapeIriStr)
       BIND(IF(?_requiresOwnerVal,      "true", "false") AS ?_requiresOwnerStr)
       BIND(IF(?_requiresAuditTrailVal, "true", "false") AS ?_requiresAuditTrailStr)
       BIND(COALESCE(?_cdRaw, "")             AS ?_classDescription)
-      BIND(
-        IF(!?hasShape,           "refused_missing_shape",
-        IF(!?hasColumns,         "refused_no_columns",
-        IF(?hasUnrangedProp,     "refused_missing_datatype",
-        IF(?hasDuplicateColumns, "refused_duplicate_columns",
-        IF(?missingPolicy,       "refused_missing_policy",
-        "admitted")))))
-        AS ?_materializationStatus
-      )
     }
-    GROUP BY ?class ?className ?tableName ?materializationKindIri ?materializationCode ?targetRuntime
+    GROUP BY ?class
   }
 }

@@ -1,0 +1,41 @@
+# =============================================================================
+# extract-doc-page.rq — single DocPage with ordered sections
+# =============================================================================
+
+PREFIX ggen: <https://open-ontologies.org/ggen#>
+
+SELECT
+  (SAMPLE(?_docTitle)   AS ?docTitle)
+  (SAMPLE(?_docSummary) AS ?docSummary)
+  (SAMPLE(?_secBundle)  AS ?secBundle)
+WHERE {
+  ?page a ggen:DocPage ;
+        ggen:docTitle   ?_docTitle ;
+        ggen:docSummary ?_docSummary .
+
+  {
+    SELECT (GROUP_CONCAT(?_secLine; SEPARATOR="@@@") AS ?_secBundle)
+    WHERE {
+      {
+        SELECT ?sec ?_order
+            (SAMPLE(?_headS) AS ?_secHeading)
+            (SAMPLE(?_levS)  AS ?_secLevel)
+            (SAMPLE(?_bodS)  AS ?_secBody)
+        WHERE {
+          ?p a ggen:DocPage ;
+             ggen:hasDocSection ?sec .
+          ?sec ggen:sectionOrder   ?_order ;
+               ggen:sectionHeading ?_headS .
+          OPTIONAL { ?sec ggen:sectionLevel ?_levRaw BIND(STR(?_levRaw) AS ?_levB) }
+          OPTIONAL { ?sec ggen:sectionBody  ?_bodRaw BIND(STR(?_bodRaw) AS ?_bodB) }
+          BIND(COALESCE(?_levB, "2") AS ?_levS)
+          BIND(COALESCE(?_bodB, "")  AS ?_bodS)
+        }
+        GROUP BY ?sec ?_order
+        ORDER BY ?_order
+      }
+      # Encoding: heading###level###body  (body may contain newlines)
+      BIND(CONCAT(?_secHeading, "###", ?_secLevel, "###", ?_secBody) AS ?_secLine)
+    }
+  }
+}

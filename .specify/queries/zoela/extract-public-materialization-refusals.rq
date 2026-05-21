@@ -1,0 +1,323 @@
+# =============================================================================
+# extract-public-materialization-refusals.rq — refused candidates ONLY
+# =============================================================================
+#
+# P0-B.4d-fix: this query surfaces every (class, kind) pair that COULD have
+# been a materialization candidate but did NOT pass admissibility.
+#
+# The SQL template never consumes this query. Only the audit template does.
+#
+# Refusal reasons (one row emitted per pair-per-failing-condition):
+#
+#   refused_missing_shape
+#       Kind has ggen:requiresShape but the referenced node isn't a sh:NodeShape.
+#
+#   refused_no_body_columns
+#       Class has zero properties with skos:notation AND kind has requiresOwner=false.
+#       (No placeholder columns are tolerated — the materialization is refused.)
+#
+#   refused_missing_datatype
+#       At least one property of the class lacks rdfs:range. Emitted only when
+#       the shape is otherwise valid (avoids double-reporting with missing_shape).
+#
+#   refused_duplicate_columns
+#       Two distinct properties of the class normalize (lowercase + hyphen→
+#       underscore) to the same SQL column. Same normalization rule as the
+#       template's column-rendering pipeline.
+#
+#   refused_missing_policy
+#       Kind declares ggen:rlsRequired true but no ODRL permission has an
+#       action with ggen:rlsTargetKind pointing to it.
+#
+#   refused_ambiguous_materialization_kind
+#       Class passes all admissibility checks for TWO OR MORE kinds tied at
+#       the same ggen:materializationPriority. No winner — both refused.
+#       (When priorities differ, the lower-priority kind is "outranked" and
+#       is NOT considered a refusal — the class is admitted via the winner.)
+#
+# Output layout (ONE aggregated row, pipe-delimited per refusal):
+#     ?refClassIris       — ZOE class IRI (string)
+#     ?refClassNames      — rdfs:label of the class
+#     ?refTableNames      — skos:notation of the class
+#     ?refKindIris        — materialization kind IRI (string)
+#     ?refKindCodes       — kind's skos:notation
+#     ?refAnchors         — public anchor IRI (string)
+#     ?refReasons         — refusal code (e.g. "refused_missing_shape")
+# =============================================================================
+
+PREFIX ggen:   <https://open-ontologies.org/ggen#>
+PREFIX zoe:    <https://zoela.org/ontology/>
+PREFIX owl:    <http://www.w3.org/2002/07/owl#>
+PREFIX rdf:    <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX rdfs:   <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX sh:     <http://www.w3.org/ns/shacl#>
+PREFIX skos:   <http://www.w3.org/2004/02/skos/core#>
+PREFIX xsd:    <http://www.w3.org/2001/XMLSchema#>
+PREFIX odrl:   <http://www.w3.org/ns/odrl/2/>
+
+SELECT
+  (GROUP_CONCAT(?refClassIri;    SEPARATOR="|") AS ?refClassIris)
+  (GROUP_CONCAT(?refClassName;   SEPARATOR="|") AS ?refClassNames)
+  (GROUP_CONCAT(?refTableName;   SEPARATOR="|") AS ?refTableNames)
+  (GROUP_CONCAT(?refKindIri;     SEPARATOR="|") AS ?refKindIris)
+  (GROUP_CONCAT(?refKindCode;    SEPARATOR="|") AS ?refKindCodes)
+  (GROUP_CONCAT(?refAnchor;      SEPARATOR="|") AS ?refAnchors)
+  (GROUP_CONCAT(?refReason;      SEPARATOR="|") AS ?refReasons)
+WHERE {
+  {
+    SELECT DISTINCT ?refClassIri ?refClassName ?refTableName
+                    ?refKindIri ?refKindCode ?refAnchor ?refReason
+    WHERE {
+      {
+        # ── 1. Refused: missing shape ─────────────────────────────────
+        ?_class a owl:Class ;
+                rdfs:label    ?refClassName ;
+                skos:notation ?refTableName .
+        FILTER(STRSTARTS(STR(?_class), "https://zoela.org/ontology/"))
+        ?_class rdfs:subClassOf+ ?_anchor .
+        FILTER(!STRSTARTS(STR(?_anchor), "https://zoela.org/ontology/"))
+        FILTER(?_anchor != owl:Thing)
+        FILTER(isIRI(?_anchor))
+        ?_kind a ggen:MaterializationKind ;
+               ggen:materializesPublicAnchor ?_anchor ;
+               ggen:emitsSql      true ;
+               skos:notation      ?refKindCode ;
+               ggen:requiresShape ?_shape .
+        FILTER NOT EXISTS { ?_shape a sh:NodeShape }
+        BIND(STR(?_class)  AS ?refClassIri)
+        BIND(STR(?_kind)   AS ?refKindIri)
+        BIND(STR(?_anchor) AS ?refAnchor)
+        BIND("refused_missing_shape" AS ?refReason)
+      }
+      UNION
+      {
+        # ── 2. Refused: no body columns AND no required owner ─────────
+        ?_class a owl:Class ;
+                rdfs:label    ?refClassName ;
+                skos:notation ?refTableName .
+        FILTER(STRSTARTS(STR(?_class), "https://zoela.org/ontology/"))
+        ?_class rdfs:subClassOf+ ?_anchor .
+        FILTER(!STRSTARTS(STR(?_anchor), "https://zoela.org/ontology/"))
+        FILTER(?_anchor != owl:Thing)
+        FILTER(isIRI(?_anchor))
+        ?_kind a ggen:MaterializationKind ;
+               ggen:materializesPublicAnchor ?_anchor ;
+               ggen:emitsSql      true ;
+               skos:notation      ?refKindCode ;
+               ggen:requiresOwner ?_requiresOwner ;
+               ggen:requiresShape ?_shape .
+        FILTER(EXISTS { ?_shape a sh:NodeShape })
+        FILTER NOT EXISTS { ?_p rdfs:domain ?_class ; skos:notation ?_n }
+        FILTER(!?_requiresOwner)
+        BIND(STR(?_class)  AS ?refClassIri)
+        BIND(STR(?_kind)   AS ?refKindIri)
+        BIND(STR(?_anchor) AS ?refAnchor)
+        BIND("refused_no_body_columns" AS ?refReason)
+      }
+      UNION
+      {
+        # ── 3. Refused: at least one property without rdfs:range ──────
+        ?_class a owl:Class ;
+                rdfs:label    ?refClassName ;
+                skos:notation ?refTableName .
+        FILTER(STRSTARTS(STR(?_class), "https://zoela.org/ontology/"))
+        ?_class rdfs:subClassOf+ ?_anchor .
+        FILTER(!STRSTARTS(STR(?_anchor), "https://zoela.org/ontology/"))
+        FILTER(?_anchor != owl:Thing)
+        FILTER(isIRI(?_anchor))
+        ?_kind a ggen:MaterializationKind ;
+               ggen:materializesPublicAnchor ?_anchor ;
+               ggen:emitsSql      true ;
+               skos:notation      ?refKindCode ;
+               ggen:requiresShape ?_shape .
+        FILTER(EXISTS { ?_shape a sh:NodeShape })
+        FILTER EXISTS {
+          ?_p2 rdfs:domain ?_class ; skos:notation ?_c2 .
+          FILTER NOT EXISTS { ?_p2 rdfs:range ?_r2 }
+        }
+        BIND(STR(?_class)  AS ?refClassIri)
+        BIND(STR(?_kind)   AS ?refKindIri)
+        BIND(STR(?_anchor) AS ?refAnchor)
+        BIND("refused_missing_datatype" AS ?refReason)
+      }
+      UNION
+      {
+        # ── 4. Refused: duplicate normalized columns ──────────────────
+        ?_class a owl:Class ;
+                rdfs:label    ?refClassName ;
+                skos:notation ?refTableName .
+        FILTER(STRSTARTS(STR(?_class), "https://zoela.org/ontology/"))
+        ?_class rdfs:subClassOf+ ?_anchor .
+        FILTER(!STRSTARTS(STR(?_anchor), "https://zoela.org/ontology/"))
+        FILTER(?_anchor != owl:Thing)
+        FILTER(isIRI(?_anchor))
+        ?_kind a ggen:MaterializationKind ;
+               ggen:materializesPublicAnchor ?_anchor ;
+               ggen:emitsSql      true ;
+               skos:notation      ?refKindCode ;
+               ggen:requiresShape ?_shape .
+        FILTER(EXISTS { ?_shape a sh:NodeShape })
+        FILTER EXISTS {
+          ?_pA rdfs:domain ?_class ; skos:notation ?_nA .
+          ?_pB rdfs:domain ?_class ; skos:notation ?_nB .
+          FILTER(?_pA != ?_pB)
+          FILTER(
+            REPLACE(LCASE(STR(?_nA)), "-", "_")
+            = REPLACE(LCASE(STR(?_nB)), "-", "_")
+          )
+        }
+        BIND(STR(?_class)  AS ?refClassIri)
+        BIND(STR(?_kind)   AS ?refKindIri)
+        BIND(STR(?_anchor) AS ?refAnchor)
+        BIND("refused_duplicate_columns" AS ?refReason)
+      }
+      UNION
+      {
+        # ── 4b. Refused: property has multiple skos:notation values ────
+        ?_class a owl:Class ;
+                rdfs:label    ?refClassName ;
+                skos:notation ?refTableName .
+        FILTER(STRSTARTS(STR(?_class), "https://zoela.org/ontology/"))
+        ?_class rdfs:subClassOf+ ?_anchor .
+        FILTER(!STRSTARTS(STR(?_anchor), "https://zoela.org/ontology/"))
+        FILTER(?_anchor != owl:Thing)
+        FILTER(isIRI(?_anchor))
+        ?_kind a ggen:MaterializationKind ;
+               ggen:materializesPublicAnchor ?_anchor ;
+               ggen:emitsSql      true ;
+               skos:notation      ?refKindCode ;
+               ggen:requiresShape ?_shape .
+        FILTER(EXISTS { ?_shape a sh:NodeShape })
+        FILTER EXISTS {
+          ?_pSame rdfs:domain ?_class ;
+                  skos:notation ?_nX , ?_nY .
+          FILTER(STR(?_nX) != STR(?_nY))
+        }
+        BIND(STR(?_class)  AS ?refClassIri)
+        BIND(STR(?_kind)   AS ?refKindIri)
+        BIND(STR(?_anchor) AS ?refAnchor)
+        BIND("refused_property_notation_ambiguity" AS ?refReason)
+      }
+      UNION
+      {
+        # ── 5. Refused: ODRL policy required but missing ──────────────
+        ?_class a owl:Class ;
+                rdfs:label    ?refClassName ;
+                skos:notation ?refTableName .
+        FILTER(STRSTARTS(STR(?_class), "https://zoela.org/ontology/"))
+        ?_class rdfs:subClassOf+ ?_anchor .
+        FILTER(!STRSTARTS(STR(?_anchor), "https://zoela.org/ontology/"))
+        FILTER(?_anchor != owl:Thing)
+        FILTER(isIRI(?_anchor))
+        ?_kind a ggen:MaterializationKind ;
+               ggen:materializesPublicAnchor ?_anchor ;
+               ggen:emitsSql      true ;
+               skos:notation      ?refKindCode ;
+               ggen:requiresShape ?_shape ;
+               ggen:rlsRequired   true .
+        FILTER(EXISTS { ?_shape a sh:NodeShape })
+        FILTER NOT EXISTS {
+          ?_act ggen:rlsTargetKind ?_kind .
+          ?_pol a odrl:Policy ; odrl:permission [ odrl:action ?_act ] .
+        }
+        BIND(STR(?_class)  AS ?refClassIri)
+        BIND(STR(?_kind)   AS ?refKindIri)
+        BIND(STR(?_anchor) AS ?refAnchor)
+        BIND("refused_missing_policy" AS ?refReason)
+      }
+      UNION
+      {
+        # ── 6. Refused: ambiguous (priority tie at max) ───────────────
+        # Both candidates pass every admissibility check, but two distinct
+        # kinds have the SAME ggen:materializationPriority. No winner.
+        ?_class a owl:Class ;
+                rdfs:label    ?refClassName ;
+                skos:notation ?refTableName .
+        FILTER(STRSTARTS(STR(?_class), "https://zoela.org/ontology/"))
+        ?_class rdfs:subClassOf+ ?_anchor .
+        FILTER(!STRSTARTS(STR(?_anchor), "https://zoela.org/ontology/"))
+        FILTER(?_anchor != owl:Thing)
+        FILTER(isIRI(?_anchor))
+        ?_kind a ggen:MaterializationKind ;
+               ggen:materializesPublicAnchor ?_anchor ;
+               ggen:emitsSql      true ;
+               skos:notation      ?refKindCode ;
+               ggen:requiresOwner ?_requiresOwner ;
+               ggen:requiresShape ?_shape ;
+               ggen:materializationPriority ?_priority .
+        # This kind passes every admissibility check
+        FILTER(EXISTS { ?_shape a sh:NodeShape })
+        FILTER(
+          EXISTS { ?_p1 rdfs:domain ?_class ; skos:notation ?_c1 }
+          || ?_requiresOwner
+        )
+        FILTER NOT EXISTS {
+          ?_p2 rdfs:domain ?_class ; skos:notation ?_c2 .
+          FILTER NOT EXISTS { ?_p2 rdfs:range ?_r2 }
+        }
+        FILTER NOT EXISTS {
+          ?_pA rdfs:domain ?_class ; skos:notation ?_nA .
+          ?_pB rdfs:domain ?_class ; skos:notation ?_nB .
+          FILTER(?_pA != ?_pB)
+          FILTER(
+            REPLACE(LCASE(STR(?_nA)), "-", "_")
+            = REPLACE(LCASE(STR(?_nB)), "-", "_")
+          )
+        }
+        OPTIONAL { ?_kind ggen:rlsRequired ?_rls }
+        FILTER(
+          !(BOUND(?_rls) && ?_rls) ||
+          EXISTS {
+            ?_act ggen:rlsTargetKind ?_kind .
+            ?_pol a odrl:Policy ; odrl:permission [ odrl:action ?_act ] .
+          }
+        )
+        # But another admissible kind exists at the SAME priority
+        FILTER EXISTS {
+          ?_class rdfs:subClassOf+ ?_oAnchor .
+          FILTER(!STRSTARTS(STR(?_oAnchor), "https://zoela.org/ontology/"))
+          FILTER(?_oAnchor != owl:Thing)
+          FILTER(isIRI(?_oAnchor))
+          ?_oKind a ggen:MaterializationKind ;
+                  ggen:materializesPublicAnchor ?_oAnchor ;
+                  ggen:emitsSql true ;
+                  ggen:materializationPriority ?_oPriority ;
+                  ggen:requiresOwner ?_oRequiresOwner ;
+                  ggen:requiresShape ?_oShape .
+          FILTER(?_oKind != ?_kind)
+          FILTER(?_oPriority = ?_priority)
+          FILTER(EXISTS { ?_oShape a sh:NodeShape })
+          FILTER(
+            EXISTS { ?_op rdfs:domain ?_class ; skos:notation ?_oc }
+            || ?_oRequiresOwner
+          )
+          FILTER NOT EXISTS {
+            ?_op2 rdfs:domain ?_class ; skos:notation ?_oc2 .
+            FILTER NOT EXISTS { ?_op2 rdfs:range ?_or2 }
+          }
+          FILTER NOT EXISTS {
+            ?_opA rdfs:domain ?_class ; skos:notation ?_onA .
+            ?_opB rdfs:domain ?_class ; skos:notation ?_onB .
+            FILTER(?_opA != ?_opB)
+            FILTER(
+              REPLACE(LCASE(STR(?_onA)), "-", "_")
+              = REPLACE(LCASE(STR(?_onB)), "-", "_")
+            )
+          }
+          OPTIONAL { ?_oKind ggen:rlsRequired ?_oRls }
+          FILTER(
+            !(BOUND(?_oRls) && ?_oRls) ||
+            EXISTS {
+              ?_oAct ggen:rlsTargetKind ?_oKind .
+              ?_oPol a odrl:Policy ; odrl:permission [ odrl:action ?_oAct ] .
+            }
+          )
+        }
+        BIND(STR(?_class)  AS ?refClassIri)
+        BIND(STR(?_kind)   AS ?refKindIri)
+        BIND(STR(?_anchor) AS ?refAnchor)
+        BIND("refused_ambiguous_materialization_kind" AS ?refReason)
+      }
+    }
+  }
+}

@@ -259,9 +259,10 @@ fn test_empty_store_no_errors() {
 }
 
 #[test]
-fn test_unknown_profile_defaults_to_rdfs() {
+fn test_unknown_profile_returns_error() {
     let store = Arc::new(GraphStore::new());
-    let result = Reasoner::run(&store, "unknown-profile", true).unwrap();
-    let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
-    assert_eq!(parsed["profile_used"].as_str().unwrap(), "rdfs");
+    let result = Reasoner::run(&store, "unknown-profile", true);
+    assert!(result.is_err(), "Expected an error for unknown profile");
+    let err_msg = result.unwrap_err().to_string();
+    assert!(err_msg.contains("invalid profile \"unknown-profile\""), "Unexpected error message: {}", err_msg);
 }

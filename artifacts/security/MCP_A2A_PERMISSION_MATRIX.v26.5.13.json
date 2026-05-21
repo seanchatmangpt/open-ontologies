@@ -1,0 +1,1428 @@
+{
+  "tools": [
+    {
+      "tool_name": "onto_status",
+      "can_read_files": false,
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "can_write_files": false,
+      "can_execute_shell": false,
+      "can_access_network": false,
+      "can_modify_git": false,
+      "can_publish_package": false,
+      "can_call_llm": false,
+      "can_call_other_agents": false,
+      "requires_human_confirmation": false,
+      "receipt_required": false
+    },
+    {
+      "tool_name": "onto_validate",
+      "can_read_files": false,
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "can_write_files": false,
+      "can_execute_shell": false,
+      "can_access_network": false,
+      "can_modify_git": false,
+      "can_publish_package": false,
+      "can_call_llm": false,
+      "can_call_other_agents": false,
+      "requires_human_confirmation": false,
+      "receipt_required": false
+    },
+    {
+      "tool_name": "onto_convert",
+      "can_read_files": false,
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "can_write_files": false,
+      "can_execute_shell": false,
+      "can_access_network": false,
+      "can_modify_git": false,
+      "can_publish_package": false,
+      "can_call_llm": false,
+      "can_call_other_agents": false,
+      "requires_human_confirmation": false,
+      "receipt_required": false
+    },
+    {
+      "tool_name": "onto_load",
+      "can_read_files": false,
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "can_write_files": false,
+      "can_execute_shell": false,
+      "can_access_network": false,
+      "can_modify_git": false,
+      "can_publish_package": false,
+      "can_call_llm": false,
+      "can_call_other_agents": false,
+      "requires_human_confirmation": false,
+      "receipt_required": false
+    },
+    {
+      "tool_name": "onto_repo_list",
+      "can_read_files": true,
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "can_write_files": false,
+      "can_execute_shell": false,
+      "can_access_network": false,
+      "can_modify_git": false,
+      "can_publish_package": false,
+      "can_call_llm": false,
+      "can_call_other_agents": false,
+      "requires_human_confirmation": false,
+      "receipt_required": false
+    },
+    {
+      "tool_name": "onto_repo_load",
+      "can_read_files": true,
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "can_write_files": false,
+      "can_execute_shell": false,
+      "can_access_network": false,
+      "can_modify_git": false,
+      "can_publish_package": false,
+      "can_call_llm": false,
+      "can_call_other_agents": false,
+      "requires_human_confirmation": false,
+      "receipt_required": false
+    },
+    {
+      "tool_name": "onto_query",
+      "can_read_files": false,
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "can_write_files": false,
+      "can_execute_shell": false,
+      "can_access_network": false,
+      "can_modify_git": false,
+      "can_publish_package": false,
+      "can_call_llm": false,
+      "can_call_other_agents": false,
+      "requires_human_confirmation": false,
+      "receipt_required": false
+    },
+    {
+      "tool_name": "onto_save",
+      "can_read_files": false,
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "can_write_files": true,
+      "can_execute_shell": false,
+      "can_access_network": false,
+      "can_modify_git": true,
+      "can_publish_package": false,
+      "can_call_llm": false,
+      "can_call_other_agents": false,
+      "requires_human_confirmation": true,
+      "receipt_required": true
+    },
+    {
+      "tool_name": "onto_stats",
+      "can_read_files": false,
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "can_write_files": false,
+      "can_execute_shell": false,
+      "can_access_network": false,
+      "can_modify_git": false,
+      "can_publish_package": false,
+      "can_call_llm": false,
+      "can_call_other_agents": false,
+      "requires_human_confirmation": false,
+      "receipt_required": false
+    },
+    {
+      "tool_name": "onto_diff",
+      "can_read_files": false,
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "can_write_files": false,
+      "can_execute_shell": false,
+      "can_access_network": false,
+      "can_modify_git": false,
+      "can_publish_package": false,
+      "can_call_llm": false,
+      "can_call_other_agents": false,
+      "requires_human_confirmation": false,
+      "receipt_required": false
+    },
+    {
+      "tool_name": "onto_lint",
+      "can_read_files": false,
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "can_write_files": false,
+      "can_execute_shell": false,
+      "can_access_network": false,
+      "can_modify_git": false,
+      "can_publish_package": false,
+      "can_call_llm": false,
+      "can_call_other_agents": false,
+      "requires_human_confirmation": false,
+      "receipt_required": false
+    },
+    {
+      "tool_name": "onto_clear",
+      "can_read_files": false,
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "can_write_files": false,
+      "can_execute_shell": false,
+      "can_access_network": false,
+      "can_modify_git": false,
+      "can_publish_package": false,
+      "can_call_llm": false,
+      "can_call_other_agents": false,
+      "requires_human_confirmation": false,
+      "receipt_required": false
+    },
+    {
+      "tool_name": "onto_unload",
+      "can_read_files": false,
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "can_write_files": false,
+      "can_execute_shell": false,
+      "can_access_network": false,
+      "can_modify_git": false,
+      "can_publish_package": false,
+      "can_call_llm": false,
+      "can_call_other_agents": false,
+      "requires_human_confirmation": false,
+      "receipt_required": false
+    },
+    {
+      "tool_name": "onto_recompile",
+      "can_read_files": false,
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "can_write_files": false,
+      "can_execute_shell": false,
+      "can_access_network": false,
+      "can_modify_git": false,
+      "can_publish_package": false,
+      "can_call_llm": false,
+      "can_call_other_agents": false,
+      "requires_human_confirmation": false,
+      "receipt_required": false
+    },
+    {
+      "tool_name": "onto_cache_status",
+      "can_read_files": false,
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "can_write_files": false,
+      "can_execute_shell": false,
+      "can_access_network": false,
+      "can_modify_git": false,
+      "can_publish_package": false,
+      "can_call_llm": false,
+      "can_call_other_agents": false,
+      "requires_human_confirmation": false,
+      "receipt_required": false
+    },
+    {
+      "tool_name": "onto_cache_list",
+      "can_read_files": false,
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "can_write_files": false,
+      "can_execute_shell": false,
+      "can_access_network": false,
+      "can_modify_git": false,
+      "can_publish_package": false,
+      "can_call_llm": false,
+      "can_call_other_agents": false,
+      "requires_human_confirmation": false,
+      "receipt_required": false
+    },
+    {
+      "tool_name": "onto_cache_remove",
+      "can_read_files": false,
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "can_write_files": false,
+      "can_execute_shell": false,
+      "can_access_network": false,
+      "can_modify_git": false,
+      "can_publish_package": false,
+      "can_call_llm": false,
+      "can_call_other_agents": false,
+      "requires_human_confirmation": false,
+      "receipt_required": false
+    },
+    {
+      "tool_name": "onto_pull",
+      "can_read_files": false,
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "can_write_files": false,
+      "can_execute_shell": false,
+      "can_access_network": true,
+      "can_modify_git": false,
+      "can_publish_package": false,
+      "can_call_llm": false,
+      "can_call_other_agents": false,
+      "requires_human_confirmation": false,
+      "receipt_required": false
+    },
+    {
+      "tool_name": "onto_push",
+      "can_read_files": false,
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "can_write_files": false,
+      "can_execute_shell": false,
+      "can_access_network": false,
+      "can_modify_git": false,
+      "can_publish_package": false,
+      "can_call_llm": false,
+      "can_call_other_agents": false,
+      "requires_human_confirmation": false,
+      "receipt_required": false
+    },
+    {
+      "tool_name": "onto_import",
+      "can_read_files": false,
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "can_write_files": false,
+      "can_execute_shell": false,
+      "can_access_network": false,
+      "can_modify_git": false,
+      "can_publish_package": false,
+      "can_call_llm": false,
+      "can_call_other_agents": false,
+      "requires_human_confirmation": false,
+      "receipt_required": false
+    },
+    {
+      "tool_name": "onto_marketplace",
+      "can_read_files": false,
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "can_write_files": false,
+      "can_execute_shell": false,
+      "can_access_network": false,
+      "can_modify_git": false,
+      "can_publish_package": false,
+      "can_call_llm": false,
+      "can_call_other_agents": false,
+      "requires_human_confirmation": false,
+      "receipt_required": false
+    },
+    {
+      "tool_name": "onto_version",
+      "can_read_files": false,
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "can_write_files": false,
+      "can_execute_shell": false,
+      "can_access_network": false,
+      "can_modify_git": false,
+      "can_publish_package": false,
+      "can_call_llm": false,
+      "can_call_other_agents": false,
+      "requires_human_confirmation": false,
+      "receipt_required": false
+    },
+    {
+      "tool_name": "onto_history",
+      "can_read_files": false,
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "can_write_files": false,
+      "can_execute_shell": false,
+      "can_access_network": false,
+      "can_modify_git": false,
+      "can_publish_package": false,
+      "can_call_llm": false,
+      "can_call_other_agents": false,
+      "requires_human_confirmation": false,
+      "receipt_required": false
+    },
+    {
+      "tool_name": "onto_rollback",
+      "can_read_files": false,
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "can_write_files": false,
+      "can_execute_shell": false,
+      "can_access_network": false,
+      "can_modify_git": false,
+      "can_publish_package": false,
+      "can_call_llm": false,
+      "can_call_other_agents": false,
+      "requires_human_confirmation": false,
+      "receipt_required": false
+    },
+    {
+      "tool_name": "onto_ingest",
+      "can_read_files": false,
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "can_write_files": false,
+      "can_execute_shell": false,
+      "can_access_network": false,
+      "can_modify_git": false,
+      "can_publish_package": false,
+      "can_call_llm": false,
+      "can_call_other_agents": false,
+      "requires_human_confirmation": false,
+      "receipt_required": false
+    },
+    {
+      "tool_name": "onto_map",
+      "can_read_files": false,
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "can_write_files": false,
+      "can_execute_shell": false,
+      "can_access_network": false,
+      "can_modify_git": false,
+      "can_publish_package": false,
+      "can_call_llm": false,
+      "can_call_other_agents": false,
+      "requires_human_confirmation": false,
+      "receipt_required": false
+    },
+    {
+      "tool_name": "onto_shacl",
+      "can_read_files": false,
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "can_write_files": false,
+      "can_execute_shell": false,
+      "can_access_network": false,
+      "can_modify_git": false,
+      "can_publish_package": false,
+      "can_call_llm": false,
+      "can_call_other_agents": false,
+      "requires_human_confirmation": false,
+      "receipt_required": false
+    },
+    {
+      "tool_name": "onto_reason",
+      "can_read_files": false,
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "can_write_files": false,
+      "can_execute_shell": false,
+      "can_access_network": false,
+      "can_modify_git": false,
+      "can_publish_package": false,
+      "can_call_llm": false,
+      "can_call_other_agents": false,
+      "requires_human_confirmation": false,
+      "receipt_required": false
+    },
+    {
+      "tool_name": "onto_dl_explain",
+      "can_read_files": false,
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "can_write_files": false,
+      "can_execute_shell": false,
+      "can_access_network": false,
+      "can_modify_git": false,
+      "can_publish_package": false,
+      "can_call_llm": false,
+      "can_call_other_agents": false,
+      "requires_human_confirmation": false,
+      "receipt_required": false
+    },
+    {
+      "tool_name": "onto_dl_check",
+      "can_read_files": false,
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "can_write_files": false,
+      "can_execute_shell": false,
+      "can_access_network": false,
+      "can_modify_git": false,
+      "can_publish_package": false,
+      "can_call_llm": false,
+      "can_call_other_agents": false,
+      "requires_human_confirmation": false,
+      "receipt_required": false
+    },
+    {
+      "tool_name": "onto_plan",
+      "can_read_files": false,
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "can_write_files": false,
+      "can_execute_shell": false,
+      "can_access_network": false,
+      "can_modify_git": false,
+      "can_publish_package": false,
+      "can_call_llm": false,
+      "can_call_other_agents": false,
+      "requires_human_confirmation": false,
+      "receipt_required": false
+    },
+    {
+      "tool_name": "onto_apply",
+      "can_read_files": false,
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "can_write_files": true,
+      "can_execute_shell": false,
+      "can_access_network": false,
+      "can_modify_git": true,
+      "can_publish_package": false,
+      "can_call_llm": false,
+      "can_call_other_agents": false,
+      "requires_human_confirmation": true,
+      "receipt_required": true
+    },
+    {
+      "tool_name": "onto_lock",
+      "can_read_files": false,
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "can_write_files": false,
+      "can_execute_shell": false,
+      "can_access_network": false,
+      "can_modify_git": false,
+      "can_publish_package": false,
+      "can_call_llm": false,
+      "can_call_other_agents": false,
+      "requires_human_confirmation": false,
+      "receipt_required": false
+    },
+    {
+      "tool_name": "onto_drift",
+      "can_read_files": false,
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "can_write_files": false,
+      "can_execute_shell": false,
+      "can_access_network": false,
+      "can_modify_git": false,
+      "can_publish_package": false,
+      "can_call_llm": false,
+      "can_call_other_agents": false,
+      "requires_human_confirmation": false,
+      "receipt_required": false
+    },
+    {
+      "tool_name": "onto_enforce",
+      "can_read_files": false,
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "can_write_files": false,
+      "can_execute_shell": false,
+      "can_access_network": false,
+      "can_modify_git": false,
+      "can_publish_package": false,
+      "can_call_llm": false,
+      "can_call_other_agents": false,
+      "requires_human_confirmation": false,
+      "receipt_required": false
+    },
+    {
+      "tool_name": "onto_monitor",
+      "can_read_files": false,
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "can_write_files": false,
+      "can_execute_shell": false,
+      "can_access_network": false,
+      "can_modify_git": false,
+      "can_publish_package": false,
+      "can_call_llm": false,
+      "can_call_other_agents": false,
+      "requires_human_confirmation": false,
+      "receipt_required": false
+    },
+    {
+      "tool_name": "onto_monitor_clear",
+      "can_read_files": false,
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "can_write_files": false,
+      "can_execute_shell": false,
+      "can_access_network": false,
+      "can_modify_git": false,
+      "can_publish_package": false,
+      "can_call_llm": false,
+      "can_call_other_agents": false,
+      "requires_human_confirmation": false,
+      "receipt_required": false
+    },
+    {
+      "tool_name": "onto_crosswalk",
+      "can_read_files": false,
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "can_write_files": false,
+      "can_execute_shell": false,
+      "can_access_network": false,
+      "can_modify_git": false,
+      "can_publish_package": false,
+      "can_call_llm": false,
+      "can_call_other_agents": false,
+      "requires_human_confirmation": false,
+      "receipt_required": false
+    },
+    {
+      "tool_name": "onto_enrich",
+      "can_read_files": false,
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "can_write_files": false,
+      "can_execute_shell": false,
+      "can_access_network": false,
+      "can_modify_git": false,
+      "can_publish_package": false,
+      "can_call_llm": false,
+      "can_call_other_agents": false,
+      "requires_human_confirmation": false,
+      "receipt_required": false
+    },
+    {
+      "tool_name": "onto_validate_clinical",
+      "can_read_files": false,
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "can_write_files": false,
+      "can_execute_shell": false,
+      "can_access_network": false,
+      "can_modify_git": false,
+      "can_publish_package": false,
+      "can_call_llm": false,
+      "can_call_other_agents": false,
+      "requires_human_confirmation": false,
+      "receipt_required": false
+    },
+    {
+      "tool_name": "onto_lineage",
+      "can_read_files": false,
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "can_write_files": false,
+      "can_execute_shell": false,
+      "can_access_network": false,
+      "can_modify_git": false,
+      "can_publish_package": false,
+      "can_call_llm": false,
+      "can_call_other_agents": false,
+      "requires_human_confirmation": false,
+      "receipt_required": false
+    },
+    {
+      "tool_name": "onto_extend",
+      "can_read_files": false,
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "can_write_files": false,
+      "can_execute_shell": false,
+      "can_access_network": false,
+      "can_modify_git": false,
+      "can_publish_package": false,
+      "can_call_llm": false,
+      "can_call_other_agents": false,
+      "requires_human_confirmation": false,
+      "receipt_required": false
+    },
+    {
+      "tool_name": "onto_import_schema",
+      "can_read_files": false,
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "can_write_files": false,
+      "can_execute_shell": false,
+      "can_access_network": false,
+      "can_modify_git": false,
+      "can_publish_package": false,
+      "can_call_llm": false,
+      "can_call_other_agents": false,
+      "requires_human_confirmation": false,
+      "receipt_required": false
+    },
+    {
+      "tool_name": "onto_sql_ingest",
+      "can_read_files": false,
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "can_write_files": false,
+      "can_execute_shell": false,
+      "can_access_network": false,
+      "can_modify_git": false,
+      "can_publish_package": false,
+      "can_call_llm": false,
+      "can_call_other_agents": false,
+      "requires_human_confirmation": false,
+      "receipt_required": false
+    },
+    {
+      "tool_name": "onto_align",
+      "can_read_files": false,
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "can_write_files": false,
+      "can_execute_shell": false,
+      "can_access_network": false,
+      "can_modify_git": false,
+      "can_publish_package": false,
+      "can_call_llm": false,
+      "can_call_other_agents": false,
+      "requires_human_confirmation": false,
+      "receipt_required": false
+    },
+    {
+      "tool_name": "onto_align_feedback",
+      "can_read_files": false,
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "can_write_files": false,
+      "can_execute_shell": false,
+      "can_access_network": false,
+      "can_modify_git": false,
+      "can_publish_package": false,
+      "can_call_llm": false,
+      "can_call_other_agents": false,
+      "requires_human_confirmation": false,
+      "receipt_required": false
+    },
+    {
+      "tool_name": "onto_planner_demos",
+      "can_read_files": false,
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "can_write_files": false,
+      "can_execute_shell": false,
+      "can_access_network": false,
+      "can_modify_git": false,
+      "can_publish_package": false,
+      "can_call_llm": false,
+      "can_call_other_agents": false,
+      "requires_human_confirmation": false,
+      "receipt_required": false
+    },
+    {
+      "tool_name": "onto_threshold_status",
+      "can_read_files": false,
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "can_write_files": false,
+      "can_execute_shell": false,
+      "can_access_network": false,
+      "can_modify_git": false,
+      "can_publish_package": false,
+      "can_call_llm": false,
+      "can_call_other_agents": false,
+      "requires_human_confirmation": false,
+      "receipt_required": false
+    },
+    {
+      "tool_name": "onto_threshold_sweep",
+      "can_read_files": false,
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "can_write_files": false,
+      "can_execute_shell": false,
+      "can_access_network": false,
+      "can_modify_git": false,
+      "can_publish_package": false,
+      "can_call_llm": false,
+      "can_call_other_agents": false,
+      "requires_human_confirmation": false,
+      "receipt_required": false
+    },
+    {
+      "tool_name": "onto_workflow_discover",
+      "can_read_files": false,
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "can_write_files": false,
+      "can_execute_shell": false,
+      "can_access_network": false,
+      "can_modify_git": false,
+      "can_publish_package": false,
+      "can_call_llm": false,
+      "can_call_other_agents": false,
+      "requires_human_confirmation": false,
+      "receipt_required": false
+    },
+    {
+      "tool_name": "onto_workflow_feedback",
+      "can_read_files": false,
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "can_write_files": false,
+      "can_execute_shell": false,
+      "can_access_network": false,
+      "can_modify_git": false,
+      "can_publish_package": false,
+      "can_call_llm": false,
+      "can_call_other_agents": false,
+      "requires_human_confirmation": false,
+      "receipt_required": false
+    },
+    {
+      "tool_name": "onto_lint_feedback",
+      "can_read_files": false,
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "can_write_files": false,
+      "can_execute_shell": false,
+      "can_access_network": false,
+      "can_modify_git": false,
+      "can_publish_package": false,
+      "can_call_llm": false,
+      "can_call_other_agents": false,
+      "requires_human_confirmation": false,
+      "receipt_required": false
+    },
+    {
+      "tool_name": "onto_enforce_feedback",
+      "can_read_files": false,
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "can_write_files": false,
+      "can_execute_shell": false,
+      "can_access_network": false,
+      "can_modify_git": false,
+      "can_publish_package": false,
+      "can_call_llm": false,
+      "can_call_other_agents": false,
+      "requires_human_confirmation": false,
+      "receipt_required": false
+    },
+    {
+      "tool_name": "onto_embed",
+      "can_read_files": false,
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "can_write_files": false,
+      "can_execute_shell": false,
+      "can_access_network": false,
+      "can_modify_git": false,
+      "can_publish_package": false,
+      "can_call_llm": false,
+      "can_call_other_agents": false,
+      "requires_human_confirmation": false,
+      "receipt_required": false
+    },
+    {
+      "tool_name": "onto_search",
+      "can_read_files": false,
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "can_write_files": false,
+      "can_execute_shell": false,
+      "can_access_network": false,
+      "can_modify_git": false,
+      "can_publish_package": false,
+      "can_call_llm": false,
+      "can_call_other_agents": false,
+      "requires_human_confirmation": false,
+      "receipt_required": false
+    },
+    {
+      "tool_name": "onto_similarity",
+      "can_read_files": false,
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "can_write_files": false,
+      "can_execute_shell": false,
+      "can_access_network": false,
+      "can_modify_git": false,
+      "can_publish_package": false,
+      "can_call_llm": false,
+      "can_call_other_agents": false,
+      "requires_human_confirmation": false,
+      "receipt_required": false
+    },
+    {
+      "tool_name": "onto_process_validate_claim",
+      "can_read_files": false,
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "can_write_files": false,
+      "can_execute_shell": false,
+      "can_access_network": false,
+      "can_modify_git": false,
+      "can_publish_package": false,
+      "can_call_llm": false,
+      "can_call_other_agents": false,
+      "requires_human_confirmation": false,
+      "receipt_required": false
+    },
+    {
+      "tool_name": "onto_process_check_soundness",
+      "can_read_files": false,
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "can_write_files": false,
+      "can_execute_shell": false,
+      "can_access_network": false,
+      "can_modify_git": false,
+      "can_publish_package": false,
+      "can_call_llm": false,
+      "can_call_other_agents": false,
+      "requires_human_confirmation": false,
+      "receipt_required": false
+    },
+    {
+      "tool_name": "onto_mustar_solve",
+      "can_read_files": false,
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "can_write_files": false,
+      "can_execute_shell": false,
+      "can_access_network": false,
+      "can_modify_git": false,
+      "can_publish_package": false,
+      "can_call_llm": false,
+      "can_call_other_agents": false,
+      "requires_human_confirmation": false,
+      "receipt_required": false
+    },
+    {
+      "tool_name": "onto_alphastar_solve",
+      "can_read_files": false,
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "can_write_files": false,
+      "can_execute_shell": false,
+      "can_access_network": false,
+      "can_modify_git": false,
+      "can_publish_package": false,
+      "can_call_llm": false,
+      "can_call_other_agents": false,
+      "requires_human_confirmation": false,
+      "receipt_required": false
+    },
+    {
+      "tool_name": "onto_codegen",
+      "can_read_files": false,
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "can_write_files": false,
+      "can_execute_shell": false,
+      "can_access_network": false,
+      "can_modify_git": false,
+      "can_publish_package": false,
+      "can_call_llm": false,
+      "can_call_other_agents": false,
+      "requires_human_confirmation": false,
+      "receipt_required": false
+    },
+    {
+      "tool_name": "onto_declare_workflow",
+      "can_read_files": false,
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "can_write_files": false,
+      "can_execute_shell": false,
+      "can_access_network": false,
+      "can_modify_git": false,
+      "can_publish_package": false,
+      "can_call_llm": false,
+      "can_call_other_agents": false,
+      "requires_human_confirmation": false,
+      "receipt_required": false
+    },
+    {
+      "tool_name": "onto_close_workflow",
+      "can_read_files": false,
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "can_write_files": false,
+      "can_execute_shell": false,
+      "can_access_network": false,
+      "can_modify_git": false,
+      "can_publish_package": false,
+      "can_call_llm": false,
+      "can_call_other_agents": false,
+      "requires_human_confirmation": false,
+      "receipt_required": false
+    },
+    {
+      "tool_name": "onto_admission_check",
+      "can_read_files": false,
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "can_write_files": false,
+      "can_execute_shell": false,
+      "can_access_network": false,
+      "can_modify_git": false,
+      "can_publish_package": false,
+      "can_call_llm": false,
+      "can_call_other_agents": false,
+      "requires_human_confirmation": false,
+      "receipt_required": false
+    },
+    {
+      "tool_name": "onto_cell8_attest",
+      "can_read_files": false,
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "can_write_files": false,
+      "can_execute_shell": false,
+      "can_access_network": false,
+      "can_modify_git": false,
+      "can_publish_package": false,
+      "can_call_llm": false,
+      "can_call_other_agents": false,
+      "requires_human_confirmation": false,
+      "receipt_required": false
+    },
+    {
+      "tool_name": "onto_session_reset",
+      "can_read_files": false,
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "can_write_files": false,
+      "can_execute_shell": false,
+      "can_access_network": false,
+      "can_modify_git": false,
+      "can_publish_package": false,
+      "can_call_llm": false,
+      "can_call_other_agents": false,
+      "requires_human_confirmation": false,
+      "receipt_required": false
+    },
+    {
+      "tool_name": "onto_conformance_check",
+      "can_read_files": false,
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "can_write_files": false,
+      "can_execute_shell": false,
+      "can_access_network": false,
+      "can_modify_git": false,
+      "can_publish_package": false,
+      "can_call_llm": false,
+      "can_call_other_agents": false,
+      "requires_human_confirmation": false,
+      "receipt_required": false
+    },
+    {
+      "tool_name": "onto_plan_workflow",
+      "can_read_files": false,
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "can_write_files": false,
+      "can_execute_shell": false,
+      "can_access_network": false,
+      "can_modify_git": false,
+      "can_publish_package": false,
+      "can_call_llm": false,
+      "can_call_other_agents": false,
+      "requires_human_confirmation": false,
+      "receipt_required": false
+    },
+    {
+      "tool_name": "onto_exemplar_seed",
+      "can_read_files": false,
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "can_write_files": false,
+      "can_execute_shell": false,
+      "can_access_network": false,
+      "can_modify_git": false,
+      "can_publish_package": false,
+      "can_call_llm": false,
+      "can_call_other_agents": false,
+      "requires_human_confirmation": false,
+      "receipt_required": false
+    },
+    {
+      "tool_name": "onto_counterfactual",
+      "can_read_files": false,
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "can_write_files": false,
+      "can_execute_shell": false,
+      "can_access_network": false,
+      "can_modify_git": false,
+      "can_publish_package": false,
+      "can_call_llm": false,
+      "can_call_other_agents": false,
+      "requires_human_confirmation": false,
+      "receipt_required": false
+    },
+    {
+      "tool_name": "onto_propose_requirement",
+      "can_read_files": false,
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "can_write_files": false,
+      "can_execute_shell": false,
+      "can_access_network": false,
+      "can_modify_git": false,
+      "can_publish_package": false,
+      "can_call_llm": false,
+      "can_call_other_agents": false,
+      "requires_human_confirmation": false,
+      "receipt_required": false
+    },
+    {
+      "tool_name": "onto_translate_candidate",
+      "can_read_files": false,
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "can_write_files": false,
+      "can_execute_shell": false,
+      "can_access_network": false,
+      "can_modify_git": false,
+      "can_publish_package": false,
+      "can_call_llm": false,
+      "can_call_other_agents": false,
+      "requires_human_confirmation": false,
+      "receipt_required": false
+    },
+    {
+      "tool_name": "onto_admit_ctq",
+      "can_read_files": false,
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "can_write_files": false,
+      "can_execute_shell": false,
+      "can_access_network": false,
+      "can_modify_git": false,
+      "can_publish_package": false,
+      "can_call_llm": false,
+      "can_call_other_agents": false,
+      "requires_human_confirmation": false,
+      "receipt_required": false
+    },
+    {
+      "tool_name": "onto_propose_work_order",
+      "can_read_files": false,
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "can_write_files": false,
+      "can_execute_shell": false,
+      "can_access_network": false,
+      "can_modify_git": false,
+      "can_publish_package": false,
+      "can_call_llm": false,
+      "can_call_other_agents": false,
+      "requires_human_confirmation": false,
+      "receipt_required": false
+    },
+    {
+      "tool_name": "onto_admit_work_order",
+      "can_read_files": false,
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "can_write_files": false,
+      "can_execute_shell": false,
+      "can_access_network": false,
+      "can_modify_git": false,
+      "can_publish_package": false,
+      "can_call_llm": false,
+      "can_call_other_agents": false,
+      "requires_human_confirmation": false,
+      "receipt_required": false
+    },
+    {
+      "tool_name": "onto_manufacture_solution",
+      "can_read_files": false,
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "can_write_files": false,
+      "can_execute_shell": false,
+      "can_access_network": false,
+      "can_modify_git": false,
+      "can_publish_package": false,
+      "can_call_llm": false,
+      "can_call_other_agents": false,
+      "requires_human_confirmation": false,
+      "receipt_required": false
+    },
+    {
+      "tool_name": "onto_old_ai_station",
+      "can_read_files": false,
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "can_write_files": false,
+      "can_execute_shell": false,
+      "can_access_network": false,
+      "can_modify_git": false,
+      "can_publish_package": false,
+      "can_call_llm": false,
+      "can_call_other_agents": false,
+      "requires_human_confirmation": false,
+      "receipt_required": false
+    },
+    {
+      "tool_name": "onto_executive_projection",
+      "can_read_files": false,
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "can_write_files": false,
+      "can_execute_shell": false,
+      "can_access_network": false,
+      "can_modify_git": false,
+      "can_publish_package": false,
+      "can_call_llm": false,
+      "can_call_other_agents": false,
+      "requires_human_confirmation": false,
+      "receipt_required": false
+    },
+    {
+      "tool_name": "onto_groq_status",
+      "can_read_files": false,
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "can_write_files": false,
+      "can_execute_shell": false,
+      "can_access_network": false,
+      "can_modify_git": false,
+      "can_publish_package": false,
+      "can_call_llm": false,
+      "can_call_other_agents": false,
+      "requires_human_confirmation": false,
+      "receipt_required": false
+    },
+    {
+      "tool_name": "onto_gemini_status",
+      "can_read_files": false,
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "can_write_files": false,
+      "can_execute_shell": false,
+      "can_access_network": false,
+      "can_modify_git": false,
+      "can_publish_package": false,
+      "can_call_llm": false,
+      "can_call_other_agents": false,
+      "requires_human_confirmation": false,
+      "receipt_required": false
+    },
+    {
+      "tool_name": "onto_attestation_rotate_keys",
+      "can_read_files": false,
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "can_write_files": false,
+      "can_execute_shell": false,
+      "can_access_network": false,
+      "can_modify_git": false,
+      "can_publish_package": false,
+      "can_call_llm": false,
+      "can_call_other_agents": false,
+      "requires_human_confirmation": false,
+      "receipt_required": false
+    },
+    {
+      "tool_name": "onto_bootstrap_unlock",
+      "can_read_files": false,
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "can_write_files": false,
+      "can_execute_shell": false,
+      "can_access_network": false,
+      "can_modify_git": false,
+      "can_publish_package": false,
+      "can_call_llm": false,
+      "can_call_other_agents": false,
+      "requires_human_confirmation": false,
+      "receipt_required": false
+    },
+    {
+      "tool_name": "onto_receipts_revoke_batch",
+      "can_read_files": false,
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "can_write_files": false,
+      "can_execute_shell": false,
+      "can_access_network": false,
+      "can_modify_git": false,
+      "can_publish_package": false,
+      "can_call_llm": false,
+      "can_call_other_agents": false,
+      "requires_human_confirmation": false,
+      "receipt_required": false
+    },
+    {
+      "tool_name": "onto_session_revoke_by_principal",
+      "can_read_files": false,
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "can_write_files": false,
+      "can_execute_shell": false,
+      "can_access_network": false,
+      "can_modify_git": false,
+      "can_publish_package": false,
+      "can_call_llm": false,
+      "can_call_other_agents": false,
+      "requires_human_confirmation": false,
+      "receipt_required": false
+    },
+    {
+      "tool_name": "onto_retention_pause",
+      "can_read_files": false,
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "can_write_files": false,
+      "can_execute_shell": false,
+      "can_access_network": false,
+      "can_modify_git": false,
+      "can_publish_package": false,
+      "can_call_llm": false,
+      "can_call_other_agents": false,
+      "requires_human_confirmation": false,
+      "receipt_required": false
+    },
+    {
+      "tool_name": "onto_retention_resume",
+      "can_read_files": false,
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "can_write_files": false,
+      "can_execute_shell": false,
+      "can_access_network": false,
+      "can_modify_git": false,
+      "can_publish_package": false,
+      "can_call_llm": false,
+      "can_call_other_agents": false,
+      "requires_human_confirmation": false,
+      "receipt_required": false
+    },
+    {
+      "tool_name": "onto_ontostar_attest",
+      "can_read_files": false,
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "can_write_files": false,
+      "can_execute_shell": false,
+      "can_access_network": false,
+      "can_modify_git": false,
+      "can_publish_package": false,
+      "can_call_llm": false,
+      "can_call_other_agents": false,
+      "requires_human_confirmation": false,
+      "receipt_required": false
+    },
+    {
+      "tool_name": "onto_guide",
+      "can_read_files": false,
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "can_write_files": false,
+      "can_execute_shell": false,
+      "can_access_network": false,
+      "can_modify_git": false,
+      "can_publish_package": false,
+      "can_call_llm": false,
+      "can_call_other_agents": false,
+      "requires_human_confirmation": false,
+      "receipt_required": false
+    },
+    {
+      "tool_name": "...",
+      "can_read_files": false,
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "can_write_files": false,
+      "can_execute_shell": false,
+      "can_access_network": false,
+      "can_modify_git": false,
+      "can_publish_package": false,
+      "can_call_llm": false,
+      "can_call_other_agents": false,
+      "requires_human_confirmation": false,
+      "receipt_required": false
+    }
+  ]
+}

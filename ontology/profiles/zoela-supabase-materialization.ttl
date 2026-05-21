@@ -102,6 +102,12 @@ ggen:requiresShape a owl:ObjectProperty ;
     rdfs:domain ggen:MaterializationKind ;
     rdfs:range  owl:Class .
 
+ggen:materializationPriority a owl:DatatypeProperty ;
+    rdfs:label "materialization priority"@en ;
+    rdfs:comment "Numeric priority rank (0-100) used to deterministically resolve ambiguous class×kind mappings. When a class specializes multiple public anchors triggering different materialization kinds, the kind with the highest priority is admitted; others are refused with 'refused_ambiguous_materialization_kind'. If no priority is declared, ambiguity is refused. Lower numbers = lower priority; 100 = highest."@en ;
+    rdfs:domain ggen:MaterializationKind ;
+    rdfs:range  xsd:integer .
+
 # ============================================================================
 # § 2  Materialization-kind concept scheme
 # ============================================================================
@@ -142,7 +148,8 @@ ggen:AgentMaterialization a ggen:MaterializationKind , skos:Concept ;
     ggen:emitsSql true ;
     ggen:requiresOwner false ;
     ggen:requiresAuditTrail true ;
-    ggen:requiresShape ggen:AgentMaterializationShape .
+    ggen:requiresShape ggen:AgentMaterializationShape ;
+    ggen:materializationPriority 60 .
 
 ggen:OrganizationMaterialization a ggen:MaterializationKind , skos:Concept ;
     skos:inScheme ggen:ZoelaSupabaseMaterializationScheme ;
@@ -155,7 +162,8 @@ ggen:OrganizationMaterialization a ggen:MaterializationKind , skos:Concept ;
     ggen:emitsSql true ;
     ggen:requiresOwner false ;
     ggen:requiresAuditTrail true ;
-    ggen:requiresShape ggen:OrganizationMaterializationShape .
+    ggen:requiresShape ggen:OrganizationMaterializationShape ;
+    ggen:materializationPriority 65 .  # > 60 wins over EventMaterialization for ConnectGroup-style classes (both an event and an org unit; org identity dominates persistence)
 
 ggen:ContainerMaterialization a ggen:MaterializationKind , skos:Concept ;
     skos:inScheme ggen:ZoelaSupabaseMaterializationScheme ;
@@ -168,7 +176,8 @@ ggen:ContainerMaterialization a ggen:MaterializationKind , skos:Concept ;
     ggen:emitsSql true ;
     ggen:requiresOwner true ;
     ggen:requiresAuditTrail true ;
-    ggen:requiresShape ggen:ContainerMaterializationShape .
+    ggen:requiresShape ggen:ContainerMaterializationShape ;
+    ggen:materializationPriority 50 .
 
 ggen:EventMaterialization a ggen:MaterializationKind , skos:Concept ;
     skos:inScheme ggen:ZoelaSupabaseMaterializationScheme ;
@@ -181,7 +190,8 @@ ggen:EventMaterialization a ggen:MaterializationKind , skos:Concept ;
     ggen:emitsSql true ;
     ggen:requiresOwner false ;
     ggen:requiresAuditTrail true ;
-    ggen:requiresShape ggen:EventMaterializationShape .
+    ggen:requiresShape ggen:EventMaterializationShape ;
+    ggen:materializationPriority 60 .
 
 ggen:ActionMaterialization a ggen:MaterializationKind , skos:Concept ;
     skos:inScheme ggen:ZoelaSupabaseMaterializationScheme ;
@@ -200,7 +210,8 @@ ggen:ActionMaterialization a ggen:MaterializationKind , skos:Concept ;
     ggen:emitsSql true ;
     ggen:requiresOwner true ;
     ggen:requiresAuditTrail true ;
-    ggen:requiresShape ggen:ActionMaterializationShape .
+    ggen:requiresShape ggen:ActionMaterializationShape ;
+    ggen:materializationPriority 80 .
 
 ggen:MessageMaterialization a ggen:MaterializationKind , skos:Concept ;
     skos:inScheme ggen:ZoelaSupabaseMaterializationScheme ;
@@ -213,7 +224,8 @@ ggen:MessageMaterialization a ggen:MaterializationKind , skos:Concept ;
     ggen:emitsSql true ;
     ggen:requiresOwner true ;
     ggen:requiresAuditTrail true ;
-    ggen:requiresShape ggen:MessageMaterializationShape .
+    ggen:requiresShape ggen:MessageMaterializationShape ;
+    ggen:materializationPriority 50 .
 
 ggen:ActivityStreamMaterialization a ggen:MaterializationKind , skos:Concept ;
     skos:inScheme ggen:ZoelaSupabaseMaterializationScheme ;
@@ -226,7 +238,8 @@ ggen:ActivityStreamMaterialization a ggen:MaterializationKind , skos:Concept ;
     ggen:emitsSql true ;
     ggen:requiresOwner true ;
     ggen:requiresAuditTrail true ;
-    ggen:requiresShape ggen:ActivityStreamMaterializationShape .
+    ggen:requiresShape ggen:ActivityStreamMaterializationShape ;
+    ggen:materializationPriority 45 .
 
 ggen:EvidenceActivityMaterialization a ggen:MaterializationKind , skos:Concept ;
     skos:inScheme ggen:ZoelaSupabaseMaterializationScheme ;
@@ -239,7 +252,8 @@ ggen:EvidenceActivityMaterialization a ggen:MaterializationKind , skos:Concept ;
     ggen:emitsSql true ;
     ggen:requiresOwner false ;
     ggen:requiresAuditTrail true ;
-    ggen:requiresShape ggen:EvidenceActivityMaterializationShape .
+    ggen:requiresShape ggen:EvidenceActivityMaterializationShape ;
+    ggen:materializationPriority 75 .
 
 ggen:EvidenceEntityMaterialization a ggen:MaterializationKind , skos:Concept ;
     skos:inScheme ggen:ZoelaSupabaseMaterializationScheme ;
@@ -252,7 +266,8 @@ ggen:EvidenceEntityMaterialization a ggen:MaterializationKind , skos:Concept ;
     ggen:emitsSql true ;
     ggen:requiresOwner false ;
     ggen:requiresAuditTrail true ;
-    ggen:requiresShape ggen:EvidenceEntityMaterializationShape .
+    ggen:requiresShape ggen:EvidenceEntityMaterializationShape ;
+    ggen:materializationPriority 70 .
 
 ggen:ConceptSchemeMaterialization a ggen:MaterializationKind , skos:Concept ;
     skos:inScheme ggen:ZoelaSupabaseMaterializationScheme ;
@@ -265,7 +280,8 @@ ggen:ConceptSchemeMaterialization a ggen:MaterializationKind , skos:Concept ;
     ggen:emitsSql true ;
     ggen:requiresOwner false ;
     ggen:requiresAuditTrail false ;
-    ggen:requiresShape ggen:ConceptSchemeMaterializationShape .
+    ggen:requiresShape ggen:ConceptSchemeMaterializationShape ;
+    ggen:materializationPriority 25 .
 
 ggen:ConceptLookupMaterialization a ggen:MaterializationKind , skos:Concept ;
     skos:inScheme ggen:ZoelaSupabaseMaterializationScheme ;
@@ -278,7 +294,8 @@ ggen:ConceptLookupMaterialization a ggen:MaterializationKind , skos:Concept ;
     ggen:emitsSql false ;
     ggen:requiresOwner false ;
     ggen:requiresAuditTrail false ;
-    ggen:requiresShape ggen:ConceptLookupMaterializationShape .
+    ggen:requiresShape ggen:ConceptLookupMaterializationShape ;
+    ggen:materializationPriority 20 .
 
 ggen:PolicyMaterialization a ggen:MaterializationKind , skos:Concept ;
     skos:inScheme ggen:ZoelaSupabaseMaterializationScheme ;
@@ -297,7 +314,8 @@ ggen:PolicyMaterialization a ggen:MaterializationKind , skos:Concept ;
     ggen:emitsSql false ;
     ggen:requiresOwner false ;
     ggen:requiresAuditTrail false ;
-    ggen:requiresShape ggen:PolicyMaterializationShape .
+    ggen:requiresShape ggen:PolicyMaterializationShape ;
+    ggen:materializationPriority 15 .
 
 ggen:TimeWindowMaterialization a ggen:MaterializationKind , skos:Concept ;
     skos:inScheme ggen:ZoelaSupabaseMaterializationScheme ;
@@ -310,7 +328,8 @@ ggen:TimeWindowMaterialization a ggen:MaterializationKind , skos:Concept ;
     ggen:emitsSql true ;
     ggen:requiresOwner false ;
     ggen:requiresAuditTrail true ;
-    ggen:requiresShape ggen:TimeWindowMaterializationShape .
+    ggen:requiresShape ggen:TimeWindowMaterializationShape ;
+    ggen:materializationPriority 40 .
 
 ggen:ReservationMaterialization a ggen:MaterializationKind , skos:Concept ;
     skos:inScheme ggen:ZoelaSupabaseMaterializationScheme ;
@@ -323,7 +342,8 @@ ggen:ReservationMaterialization a ggen:MaterializationKind , skos:Concept ;
     ggen:emitsSql true ;
     ggen:requiresOwner true ;
     ggen:requiresAuditTrail true ;
-    ggen:requiresShape ggen:ReservationMaterializationShape .
+    ggen:requiresShape ggen:ReservationMaterializationShape ;
+    ggen:materializationPriority 40 .
 
 ggen:OcelObjectMaterialization a ggen:MaterializationKind , skos:Concept ;
     skos:inScheme ggen:ZoelaSupabaseMaterializationScheme ;
@@ -336,7 +356,8 @@ ggen:OcelObjectMaterialization a ggen:MaterializationKind , skos:Concept ;
     ggen:emitsSql true ;
     ggen:requiresOwner false ;
     ggen:requiresAuditTrail true ;
-    ggen:requiresShape ggen:OcelObjectMaterializationShape .
+    ggen:requiresShape ggen:OcelObjectMaterializationShape ;
+    ggen:materializationPriority 35 .
 
 ggen:OcelEventMaterialization a ggen:MaterializationKind , skos:Concept ;
     skos:inScheme ggen:ZoelaSupabaseMaterializationScheme ;
@@ -349,7 +370,8 @@ ggen:OcelEventMaterialization a ggen:MaterializationKind , skos:Concept ;
     ggen:emitsSql true ;
     ggen:requiresOwner false ;
     ggen:requiresAuditTrail true ;
-    ggen:requiresShape ggen:OcelEventMaterializationShape .
+    ggen:requiresShape ggen:OcelEventMaterializationShape ;
+    ggen:materializationPriority 35 .
 
 ggen:RouteProjectionMaterialization a ggen:MaterializationKind , skos:Concept ;
     skos:inScheme ggen:ZoelaSupabaseMaterializationScheme ;
@@ -361,7 +383,8 @@ ggen:RouteProjectionMaterialization a ggen:MaterializationKind , skos:Concept ;
     ggen:tableNameStrategy "as-is-snake" ;
     ggen:emitsSql false ;
     ggen:requiresOwner false ;
-    ggen:requiresAuditTrail false .
+    ggen:requiresAuditTrail false ;
+    ggen:materializationPriority 30 .
 
 # ============================================================================
 # End of profile

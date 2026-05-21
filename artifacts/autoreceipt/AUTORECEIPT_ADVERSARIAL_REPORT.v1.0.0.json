@@ -1,0 +1,5 @@
+{
+  "state": "SyntheticObservedOcelRejected",
+  "status": "AutoReceiptBlocked",
+  "reason": "Previous implementation falsely claimed AutoReceipt closure using cloned events and a simulated execution hash. The AutoReceipt Closure Law is now enforced in GEMINI.md, align.rs, receipts.rs, and actuation.rs. The pipeline correctly rejects synthetic evidence and halts."
+}

@@ -3618,7 +3618,7 @@ dependencies = [
 
 [[package]]
 name = "prolog8"
-version = "26.5.15"
+version = "26.5.19"
 dependencies = [
  "blake3",
  "once_cell",
@@ -5830,7 +5830,7 @@ dependencies = [
 
 [[package]]
 name = "wasm4pm"
-version = "26.5.15"
+version = "26.5.19"
 dependencies = [
  "blake3",
  "chrono",
@@ -5860,7 +5860,7 @@ dependencies = [
 
 [[package]]
 name = "wasm4pm-algos"
-version = "26.5.15"
+version = "26.5.19"
 dependencies = [
  "hashbrown 0.17.0",
  "itertools 0.14.0",
@@ -5872,14 +5872,16 @@ dependencies = [
 
 [[package]]
 name = "wasm4pm-cognition"
-version = "26.5.15"
+version = "26.5.19"
 dependencies = [
  "blake3",
+ "ed25519-dalek",
  "hex",
  "indexmap",
  "lazy_static",
  "once_cell",
  "prolog8",
+ "rand_core 0.6.4",
  "regex",
  "serde",
  "serde_json",
@@ -5888,7 +5890,7 @@ dependencies = [
 
 [[package]]
 name = "wasm4pm-types"
-version = "26.5.15"
+version = "26.5.19"
 dependencies = [
  "blake3",
  "chrono",

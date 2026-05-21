@@ -28,8 +28,8 @@
 zoe:RouteOutcome
     a owl:Class ;
     rdfs:subClassOf prov:Entity ;
-    rdfs:label "Route Outcome" ;
-    rdfs:comment "The final or current outcome state of a single service route instance. Each route instance resolves to exactly one outcome, which is emitted as an OCEL event for process mining." .
+    rdfs:label "Route Outcome"@en ;
+    rdfs:comment "The final or current outcome state of a single service route instance. Each route instance resolves to exactly one outcome, which is emitted as an OCEL event for process mining."@en .
 
 zoe:OutcomeSummary
     a owl:Class ;

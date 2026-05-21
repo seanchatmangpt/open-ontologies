@@ -1,0 +1,3048 @@
+{
+  "server_name": "open-ontologies",
+  "server_version": "26.5.13",
+  "transport": "stdio/http",
+  "tool_count": 89,
+  "resource_count": 0,
+  "prompt_count": 0,
+  "sampling_support": false,
+  "elicitation_support": false,
+  "roots_support": true,
+  "auth_model": "tenant_extract_layer",
+  "permission_model": "tenant_extract_layer",
+  "descriptor_hash": "24c59e3ac55822208f7f98b9a2dfd986fdcfb5528000b87e1c182d39e70a9050",
+  "server_source_file": "src/server.rs",
+  "test_coverage_status": "pass",
+  "tools": [
+    {
+      "tool_name": "onto_status",
+      "description": "Handler for onto_status",
+      "input_schema": {
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "side_effects": [],
+      "required_permissions": [
+        "tenant_read"
+      ],
+      "reads_files": false,
+      "writes_files": false,
+      "calls_network": false,
+      "calls_shell": false,
+      "mutates_repo": false,
+      "emits_receipts": false,
+      "receipt_type": "None",
+      "positive_case": "test_onto_status_ok",
+      "negative_case": "test_onto_status_err",
+      "descriptor_hash": "e7864b5fd4d40ba74559545849b768b0e38b3834eede66c92f5ff7b99952ae0f",
+      "implementation_source": "src/server.rs",
+      "implementation_symbol": "onto_status",
+      "implementation_hash": "eb7a0d5828c0ceafac091e8f1c9a9161aedfa3a8568054aec4874d7841cc8d4b",
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "refusal_case": "test_onto_status_unauthorized",
+      "receipt_obligation": "none",
+      "public_ontology_mapping": "schema:Action",
+      "AutoReceipt_ready": true
+    },
+    {
+      "tool_name": "onto_validate",
+      "description": "Handler for onto_validate",
+      "input_schema": {
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "side_effects": [],
+      "required_permissions": [
+        "tenant_read"
+      ],
+      "reads_files": false,
+      "writes_files": false,
+      "calls_network": false,
+      "calls_shell": false,
+      "mutates_repo": false,
+      "emits_receipts": false,
+      "receipt_type": "None",
+      "positive_case": "test_onto_validate_ok",
+      "negative_case": "test_onto_validate_err",
+      "descriptor_hash": "bfe635625ef786e36ea7fef2fbfd5a5b570365eabe871f2e0e4fa48c8b207533",
+      "implementation_source": "src/server.rs",
+      "implementation_symbol": "onto_validate",
+      "implementation_hash": "a6e318019aa3aed088a9b7da7c37aaa15f7c8ffbe17f90448d7113ce8a15aa9f",
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "refusal_case": "test_onto_validate_unauthorized",
+      "receipt_obligation": "none",
+      "public_ontology_mapping": "schema:Action",
+      "AutoReceipt_ready": true
+    },
+    {
+      "tool_name": "onto_convert",
+      "description": "Handler for onto_convert",
+      "input_schema": {
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "side_effects": [],
+      "required_permissions": [
+        "tenant_read"
+      ],
+      "reads_files": false,
+      "writes_files": false,
+      "calls_network": false,
+      "calls_shell": false,
+      "mutates_repo": false,
+      "emits_receipts": false,
+      "receipt_type": "None",
+      "positive_case": "test_onto_convert_ok",
+      "negative_case": "test_onto_convert_err",
+      "descriptor_hash": "fd9df2679941e1e6c1379f78054c40b4c7182f0472fb9b56835546c9ebeb4281",
+      "implementation_source": "src/server.rs",
+      "implementation_symbol": "onto_convert",
+      "implementation_hash": "3f8f86e3f1d3e280053dc6df40926c64ba20b44419543b39be7bc06810d70f74",
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "refusal_case": "test_onto_convert_unauthorized",
+      "receipt_obligation": "none",
+      "public_ontology_mapping": "schema:Action",
+      "AutoReceipt_ready": true
+    },
+    {
+      "tool_name": "onto_load",
+      "description": "Handler for onto_load",
+      "input_schema": {
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "side_effects": [],
+      "required_permissions": [
+        "tenant_read"
+      ],
+      "reads_files": false,
+      "writes_files": false,
+      "calls_network": false,
+      "calls_shell": false,
+      "mutates_repo": false,
+      "emits_receipts": false,
+      "receipt_type": "None",
+      "positive_case": "test_onto_load_ok",
+      "negative_case": "test_onto_load_err",
+      "descriptor_hash": "253538b13e3e3b96ff27e51b480e153c6a784bbcb32b5d9b6b22858a9bf3e7ab",
+      "implementation_source": "src/server.rs",
+      "implementation_symbol": "onto_load",
+      "implementation_hash": "0965e1108ad5fab2db6e02c3de071380734ef7d4eb3ec7169ee2d2423b47ec2c",
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "refusal_case": "test_onto_load_unauthorized",
+      "receipt_obligation": "none",
+      "public_ontology_mapping": "schema:Action",
+      "AutoReceipt_ready": true
+    },
+    {
+      "tool_name": "onto_repo_list",
+      "description": "Handler for onto_repo_list",
+      "input_schema": {
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "side_effects": [],
+      "required_permissions": [
+        "tenant_read"
+      ],
+      "reads_files": true,
+      "writes_files": false,
+      "calls_network": false,
+      "calls_shell": false,
+      "mutates_repo": false,
+      "emits_receipts": false,
+      "receipt_type": "None",
+      "positive_case": "test_onto_repo_list_ok",
+      "negative_case": "test_onto_repo_list_err",
+      "descriptor_hash": "9661412f8ea943571e8a5e3cd4676b1f8cd5a1d7ab38ed7f247839bc2629ad2e",
+      "implementation_source": "src/server.rs",
+      "implementation_symbol": "onto_repo_list",
+      "implementation_hash": "06bccbaf71af1b58fa8a506dae13796ff573d7397dbf2b2a42c7e8ea38b52614",
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "refusal_case": "test_onto_repo_list_unauthorized",
+      "receipt_obligation": "none",
+      "public_ontology_mapping": "schema:Action",
+      "AutoReceipt_ready": true
+    },
+    {
+      "tool_name": "onto_repo_load",
+      "description": "Handler for onto_repo_load",
+      "input_schema": {
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "side_effects": [],
+      "required_permissions": [
+        "tenant_read"
+      ],
+      "reads_files": true,
+      "writes_files": false,
+      "calls_network": false,
+      "calls_shell": false,
+      "mutates_repo": false,
+      "emits_receipts": false,
+      "receipt_type": "None",
+      "positive_case": "test_onto_repo_load_ok",
+      "negative_case": "test_onto_repo_load_err",
+      "descriptor_hash": "767d940be1c93789673055b5b81ba279f996069f47cb2ea2b7b0fb21885a4e45",
+      "implementation_source": "src/server.rs",
+      "implementation_symbol": "onto_repo_load",
+      "implementation_hash": "98c17bc12d71b8c05335de4836a797847d8d9d34885f771bbd04409dccd5c04f",
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "refusal_case": "test_onto_repo_load_unauthorized",
+      "receipt_obligation": "none",
+      "public_ontology_mapping": "schema:Action",
+      "AutoReceipt_ready": true
+    },
+    {
+      "tool_name": "onto_query",
+      "description": "Handler for onto_query",
+      "input_schema": {
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "side_effects": [],
+      "required_permissions": [
+        "tenant_read"
+      ],
+      "reads_files": false,
+      "writes_files": false,
+      "calls_network": false,
+      "calls_shell": false,
+      "mutates_repo": false,
+      "emits_receipts": false,
+      "receipt_type": "None",
+      "positive_case": "test_onto_query_ok",
+      "negative_case": "test_onto_query_err",
+      "descriptor_hash": "2f1397a496aa5f8d57aaa15dc1ddbfcf3b83a867bddc1229ab8edd3c4aa13861",
+      "implementation_source": "src/server.rs",
+      "implementation_symbol": "onto_query",
+      "implementation_hash": "3da98c73358cbfe766e4bea1c2bcf707c291f32c78434bbbb172f02cf4dd2218",
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "refusal_case": "test_onto_query_unauthorized",
+      "receipt_obligation": "none",
+      "public_ontology_mapping": "schema:Action",
+      "AutoReceipt_ready": true
+    },
+    {
+      "tool_name": "onto_save",
+      "description": "Handler for onto_save",
+      "input_schema": {
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "side_effects": [
+        "state_mutation"
+      ],
+      "required_permissions": [
+        "tenant_write"
+      ],
+      "reads_files": false,
+      "writes_files": true,
+      "calls_network": false,
+      "calls_shell": false,
+      "mutates_repo": true,
+      "emits_receipts": true,
+      "receipt_type": "AutoReceipt",
+      "positive_case": "test_onto_save_ok",
+      "negative_case": "test_onto_save_err",
+      "descriptor_hash": "ec85e4b2df3f66bea89dd213fbbff4f80028de8e13c626f85ef99b9ad79bf112",
+      "implementation_source": "src/server.rs",
+      "implementation_symbol": "onto_save",
+      "implementation_hash": "4eb997b89dc3aa10c049b504f0301f85d16a0f64d2be067f5c61f7495fb0a0ed",
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "refusal_case": "test_onto_save_unauthorized",
+      "receipt_obligation": "prove_onto_save",
+      "public_ontology_mapping": "schema:Action",
+      "AutoReceipt_ready": true
+    },
+    {
+      "tool_name": "onto_stats",
+      "description": "Handler for onto_stats",
+      "input_schema": {
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "side_effects": [],
+      "required_permissions": [
+        "tenant_read"
+      ],
+      "reads_files": false,
+      "writes_files": false,
+      "calls_network": false,
+      "calls_shell": false,
+      "mutates_repo": false,
+      "emits_receipts": false,
+      "receipt_type": "None",
+      "positive_case": "test_onto_stats_ok",
+      "negative_case": "test_onto_stats_err",
+      "descriptor_hash": "6c392dccba5a2ed52dc227bb6907ef1699f897f6c8ef171458ebccacf943c006",
+      "implementation_source": "src/server.rs",
+      "implementation_symbol": "onto_stats",
+      "implementation_hash": "ea09f1041e02d1362c73e1bfc30bc69f667155e8238e621d6bf385b52eb77dca",
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "refusal_case": "test_onto_stats_unauthorized",
+      "receipt_obligation": "none",
+      "public_ontology_mapping": "schema:Action",
+      "AutoReceipt_ready": true
+    },
+    {
+      "tool_name": "onto_diff",
+      "description": "Handler for onto_diff",
+      "input_schema": {
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "side_effects": [],
+      "required_permissions": [
+        "tenant_read"
+      ],
+      "reads_files": false,
+      "writes_files": false,
+      "calls_network": false,
+      "calls_shell": false,
+      "mutates_repo": false,
+      "emits_receipts": false,
+      "receipt_type": "None",
+      "positive_case": "test_onto_diff_ok",
+      "negative_case": "test_onto_diff_err",
+      "descriptor_hash": "88c7c132a5d562198ca3f16a8b2c46d004b74bec8e44ec40b91457ace0ff3dc3",
+      "implementation_source": "src/server.rs",
+      "implementation_symbol": "onto_diff",
+      "implementation_hash": "25284960197ef58cb38cfc9949c52e586325a618935123d96d243968a2257b87",
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "refusal_case": "test_onto_diff_unauthorized",
+      "receipt_obligation": "none",
+      "public_ontology_mapping": "schema:Action",
+      "AutoReceipt_ready": true
+    },
+    {
+      "tool_name": "onto_lint",
+      "description": "Handler for onto_lint",
+      "input_schema": {
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "side_effects": [],
+      "required_permissions": [
+        "tenant_read"
+      ],
+      "reads_files": false,
+      "writes_files": false,
+      "calls_network": false,
+      "calls_shell": false,
+      "mutates_repo": false,
+      "emits_receipts": false,
+      "receipt_type": "None",
+      "positive_case": "test_onto_lint_ok",
+      "negative_case": "test_onto_lint_err",
+      "descriptor_hash": "27080b982fb51a9fc230a40f13273f3c3d1d01a1f8bc3a53a446f312614176e4",
+      "implementation_source": "src/server.rs",
+      "implementation_symbol": "onto_lint",
+      "implementation_hash": "3e8dd8b6b5205dd2c8da624837a5f0712f31a5bad76d555454048da14db923a6",
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "refusal_case": "test_onto_lint_unauthorized",
+      "receipt_obligation": "none",
+      "public_ontology_mapping": "schema:Action",
+      "AutoReceipt_ready": true
+    },
+    {
+      "tool_name": "onto_clear",
+      "description": "Handler for onto_clear",
+      "input_schema": {
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "side_effects": [],
+      "required_permissions": [
+        "tenant_read"
+      ],
+      "reads_files": false,
+      "writes_files": false,
+      "calls_network": false,
+      "calls_shell": false,
+      "mutates_repo": false,
+      "emits_receipts": false,
+      "receipt_type": "None",
+      "positive_case": "test_onto_clear_ok",
+      "negative_case": "test_onto_clear_err",
+      "descriptor_hash": "d0c89e4e5787b5901fceefffeb7db41e26bf665309a56d9c84840a514db5b4d3",
+      "implementation_source": "src/server.rs",
+      "implementation_symbol": "onto_clear",
+      "implementation_hash": "9c8a57bd5618abd5d01c9bd64cfa703fa76f4aafa8273bb3b7f09dee64582ec4",
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "refusal_case": "test_onto_clear_unauthorized",
+      "receipt_obligation": "none",
+      "public_ontology_mapping": "schema:Action",
+      "AutoReceipt_ready": true
+    },
+    {
+      "tool_name": "onto_unload",
+      "description": "Handler for onto_unload",
+      "input_schema": {
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "side_effects": [],
+      "required_permissions": [
+        "tenant_read"
+      ],
+      "reads_files": false,
+      "writes_files": false,
+      "calls_network": false,
+      "calls_shell": false,
+      "mutates_repo": false,
+      "emits_receipts": false,
+      "receipt_type": "None",
+      "positive_case": "test_onto_unload_ok",
+      "negative_case": "test_onto_unload_err",
+      "descriptor_hash": "99b56298a452a5ecdf70c3ee78fafcc9da3f1191b2beb99bec0eb4248f590620",
+      "implementation_source": "src/server.rs",
+      "implementation_symbol": "onto_unload",
+      "implementation_hash": "bcbbdb9c29537ee5320597f270e78f5f94815e970ebac1e327924bcf2801d52d",
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "refusal_case": "test_onto_unload_unauthorized",
+      "receipt_obligation": "none",
+      "public_ontology_mapping": "schema:Action",
+      "AutoReceipt_ready": true
+    },
+    {
+      "tool_name": "onto_recompile",
+      "description": "Handler for onto_recompile",
+      "input_schema": {
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "side_effects": [],
+      "required_permissions": [
+        "tenant_read"
+      ],
+      "reads_files": false,
+      "writes_files": false,
+      "calls_network": false,
+      "calls_shell": false,
+      "mutates_repo": false,
+      "emits_receipts": false,
+      "receipt_type": "None",
+      "positive_case": "test_onto_recompile_ok",
+      "negative_case": "test_onto_recompile_err",
+      "descriptor_hash": "b01f4ede35cda3cb78c5376415f1621127b18a616727443c0959e8c13d6d7700",
+      "implementation_source": "src/server.rs",
+      "implementation_symbol": "onto_recompile",
+      "implementation_hash": "710d1c10eb58be95d4bfe9572dc458694c9babe0d91e246dd80e9170793e5380",
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "refusal_case": "test_onto_recompile_unauthorized",
+      "receipt_obligation": "none",
+      "public_ontology_mapping": "schema:Action",
+      "AutoReceipt_ready": true
+    },
+    {
+      "tool_name": "onto_cache_status",
+      "description": "Handler for onto_cache_status",
+      "input_schema": {
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "side_effects": [],
+      "required_permissions": [
+        "tenant_read"
+      ],
+      "reads_files": false,
+      "writes_files": false,
+      "calls_network": false,
+      "calls_shell": false,
+      "mutates_repo": false,
+      "emits_receipts": false,
+      "receipt_type": "None",
+      "positive_case": "test_onto_cache_status_ok",
+      "negative_case": "test_onto_cache_status_err",
+      "descriptor_hash": "894159cc7ebecf70adabc54c97bebd16b3d0c31ca5fc1b6074565fa6e2798461",
+      "implementation_source": "src/server.rs",
+      "implementation_symbol": "onto_cache_status",
+      "implementation_hash": "e51381d885c43c4e601a43255e3ca420a2cbbd531bd8618d15a6d2c2480a6162",
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "refusal_case": "test_onto_cache_status_unauthorized",
+      "receipt_obligation": "none",
+      "public_ontology_mapping": "schema:Action",
+      "AutoReceipt_ready": true
+    },
+    {
+      "tool_name": "onto_cache_list",
+      "description": "Handler for onto_cache_list",
+      "input_schema": {
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "side_effects": [],
+      "required_permissions": [
+        "tenant_read"
+      ],
+      "reads_files": false,
+      "writes_files": false,
+      "calls_network": false,
+      "calls_shell": false,
+      "mutates_repo": false,
+      "emits_receipts": false,
+      "receipt_type": "None",
+      "positive_case": "test_onto_cache_list_ok",
+      "negative_case": "test_onto_cache_list_err",
+      "descriptor_hash": "023a50c755704dcdabcad1d273fe4584133553c34b40b6ffa5c017a76250bc3b",
+      "implementation_source": "src/server.rs",
+      "implementation_symbol": "onto_cache_list",
+      "implementation_hash": "0102051e72c025a130672dec82220251cfdb13cd0f828f0caf35a6b8b3b45026",
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "refusal_case": "test_onto_cache_list_unauthorized",
+      "receipt_obligation": "none",
+      "public_ontology_mapping": "schema:Action",
+      "AutoReceipt_ready": true
+    },
+    {
+      "tool_name": "onto_cache_remove",
+      "description": "Handler for onto_cache_remove",
+      "input_schema": {
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "side_effects": [],
+      "required_permissions": [
+        "tenant_read"
+      ],
+      "reads_files": false,
+      "writes_files": false,
+      "calls_network": false,
+      "calls_shell": false,
+      "mutates_repo": false,
+      "emits_receipts": false,
+      "receipt_type": "None",
+      "positive_case": "test_onto_cache_remove_ok",
+      "negative_case": "test_onto_cache_remove_err",
+      "descriptor_hash": "ca96ea10596fdc7f7d503ca3527b50ba0ab666cfafc88727d009f10f93648005",
+      "implementation_source": "src/server.rs",
+      "implementation_symbol": "onto_cache_remove",
+      "implementation_hash": "7f67a3b7655a7242b77acf2e5b2a712e0a76e41dc4d2f8d5c31e335f5e119c5f",
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "refusal_case": "test_onto_cache_remove_unauthorized",
+      "receipt_obligation": "none",
+      "public_ontology_mapping": "schema:Action",
+      "AutoReceipt_ready": true
+    },
+    {
+      "tool_name": "onto_pull",
+      "description": "Handler for onto_pull",
+      "input_schema": {
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "side_effects": [],
+      "required_permissions": [
+        "tenant_read"
+      ],
+      "reads_files": false,
+      "writes_files": false,
+      "calls_network": true,
+      "calls_shell": false,
+      "mutates_repo": false,
+      "emits_receipts": false,
+      "receipt_type": "None",
+      "positive_case": "test_onto_pull_ok",
+      "negative_case": "test_onto_pull_err",
+      "descriptor_hash": "884a0e2530c794a0f1a097e0b575d71105e205388d0463793be7d81ffe35bf84",
+      "implementation_source": "src/server.rs",
+      "implementation_symbol": "onto_pull",
+      "implementation_hash": "57bdbd7ef9decbf7d6fb374caa85cb34c255e166941b5cea9cadb12f150e9252",
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "refusal_case": "test_onto_pull_unauthorized",
+      "receipt_obligation": "none",
+      "public_ontology_mapping": "schema:Action",
+      "AutoReceipt_ready": true
+    },
+    {
+      "tool_name": "onto_push",
+      "description": "Handler for onto_push",
+      "input_schema": {
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "side_effects": [],
+      "required_permissions": [
+        "tenant_read"
+      ],
+      "reads_files": false,
+      "writes_files": false,
+      "calls_network": false,
+      "calls_shell": false,
+      "mutates_repo": false,
+      "emits_receipts": false,
+      "receipt_type": "None",
+      "positive_case": "test_onto_push_ok",
+      "negative_case": "test_onto_push_err",
+      "descriptor_hash": "398e3acd1b7c3b63e26f21bb324c727cacb74e8c61b3c3a689efca099abdebab",
+      "implementation_source": "src/server.rs",
+      "implementation_symbol": "onto_push",
+      "implementation_hash": "d20b912f70a82bb099d2333a40300cdbf3546373036db2a3f4dee5813c3d446a",
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "refusal_case": "test_onto_push_unauthorized",
+      "receipt_obligation": "none",
+      "public_ontology_mapping": "schema:Action",
+      "AutoReceipt_ready": true
+    },
+    {
+      "tool_name": "onto_import",
+      "description": "Handler for onto_import",
+      "input_schema": {
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "side_effects": [],
+      "required_permissions": [
+        "tenant_read"
+      ],
+      "reads_files": false,
+      "writes_files": false,
+      "calls_network": false,
+      "calls_shell": false,
+      "mutates_repo": false,
+      "emits_receipts": false,
+      "receipt_type": "None",
+      "positive_case": "test_onto_import_ok",
+      "negative_case": "test_onto_import_err",
+      "descriptor_hash": "8ac2d2329f0d1f336e210bfb455f7b595320d8cb090a87416e6025d1ff1194ac",
+      "implementation_source": "src/server.rs",
+      "implementation_symbol": "onto_import",
+      "implementation_hash": "705272b18a6c661243dd11f20186bbb4a96336e6c0380f078a460f0824628c8d",
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "refusal_case": "test_onto_import_unauthorized",
+      "receipt_obligation": "none",
+      "public_ontology_mapping": "schema:Action",
+      "AutoReceipt_ready": true
+    },
+    {
+      "tool_name": "onto_marketplace",
+      "description": "Handler for onto_marketplace",
+      "input_schema": {
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "side_effects": [],
+      "required_permissions": [
+        "tenant_read"
+      ],
+      "reads_files": false,
+      "writes_files": false,
+      "calls_network": false,
+      "calls_shell": false,
+      "mutates_repo": false,
+      "emits_receipts": false,
+      "receipt_type": "None",
+      "positive_case": "test_onto_marketplace_ok",
+      "negative_case": "test_onto_marketplace_err",
+      "descriptor_hash": "b6097f0f9bee61993116930696bddaba830817da978dac9ede2c7e572c7db1d1",
+      "implementation_source": "src/server.rs",
+      "implementation_symbol": "onto_marketplace",
+      "implementation_hash": "e9b7c50d22a15a2448122413267cd7bd4d0d856c283556bc27e92937c5e427b8",
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "refusal_case": "test_onto_marketplace_unauthorized",
+      "receipt_obligation": "none",
+      "public_ontology_mapping": "schema:Action",
+      "AutoReceipt_ready": true
+    },
+    {
+      "tool_name": "onto_version",
+      "description": "Handler for onto_version",
+      "input_schema": {
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "side_effects": [],
+      "required_permissions": [
+        "tenant_read"
+      ],
+      "reads_files": false,
+      "writes_files": false,
+      "calls_network": false,
+      "calls_shell": false,
+      "mutates_repo": false,
+      "emits_receipts": false,
+      "receipt_type": "None",
+      "positive_case": "test_onto_version_ok",
+      "negative_case": "test_onto_version_err",
+      "descriptor_hash": "084155b59ff77377de29aca7e7f7b53b0cc20c4c681600ae3260c976e918f6c7",
+      "implementation_source": "src/server.rs",
+      "implementation_symbol": "onto_version",
+      "implementation_hash": "bb3904c0b81ec3b8fdc9ac4c855ca7dc0b3ef3751ccb991b01b7cc07435e8550",
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "refusal_case": "test_onto_version_unauthorized",
+      "receipt_obligation": "none",
+      "public_ontology_mapping": "schema:Action",
+      "AutoReceipt_ready": true
+    },
+    {
+      "tool_name": "onto_history",
+      "description": "Handler for onto_history",
+      "input_schema": {
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "side_effects": [],
+      "required_permissions": [
+        "tenant_read"
+      ],
+      "reads_files": false,
+      "writes_files": false,
+      "calls_network": false,
+      "calls_shell": false,
+      "mutates_repo": false,
+      "emits_receipts": false,
+      "receipt_type": "None",
+      "positive_case": "test_onto_history_ok",
+      "negative_case": "test_onto_history_err",
+      "descriptor_hash": "a469ffa8affabf7679443c2e301db879e7f3dd0cf56444d3b5f7912d47b5a199",
+      "implementation_source": "src/server.rs",
+      "implementation_symbol": "onto_history",
+      "implementation_hash": "9b87a6514672faad2add859254bb2785aa2975903d10e6cc00a8b4d0f0005ba2",
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "refusal_case": "test_onto_history_unauthorized",
+      "receipt_obligation": "none",
+      "public_ontology_mapping": "schema:Action",
+      "AutoReceipt_ready": true
+    },
+    {
+      "tool_name": "onto_rollback",
+      "description": "Handler for onto_rollback",
+      "input_schema": {
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "side_effects": [],
+      "required_permissions": [
+        "tenant_read"
+      ],
+      "reads_files": false,
+      "writes_files": false,
+      "calls_network": false,
+      "calls_shell": false,
+      "mutates_repo": false,
+      "emits_receipts": false,
+      "receipt_type": "None",
+      "positive_case": "test_onto_rollback_ok",
+      "negative_case": "test_onto_rollback_err",
+      "descriptor_hash": "86fd3e9e5ec3fd3a13174130ecd2a15432e1bc0b603597007c459a929544d6ee",
+      "implementation_source": "src/server.rs",
+      "implementation_symbol": "onto_rollback",
+      "implementation_hash": "01d1ac09d5a7db81fdcf852a73ed472e8b249eab51c39363b2b98bde70859552",
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "refusal_case": "test_onto_rollback_unauthorized",
+      "receipt_obligation": "none",
+      "public_ontology_mapping": "schema:Action",
+      "AutoReceipt_ready": true
+    },
+    {
+      "tool_name": "onto_ingest",
+      "description": "Handler for onto_ingest",
+      "input_schema": {
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "side_effects": [],
+      "required_permissions": [
+        "tenant_read"
+      ],
+      "reads_files": false,
+      "writes_files": false,
+      "calls_network": false,
+      "calls_shell": false,
+      "mutates_repo": false,
+      "emits_receipts": false,
+      "receipt_type": "None",
+      "positive_case": "test_onto_ingest_ok",
+      "negative_case": "test_onto_ingest_err",
+      "descriptor_hash": "72f58087b9043181dd2d6c5639945724b91e2602050c87c3857f4b1522ca5cf3",
+      "implementation_source": "src/server.rs",
+      "implementation_symbol": "onto_ingest",
+      "implementation_hash": "86cbba3cb89ca6b3a0b094db4bfa3402ae2efbea81b61b648a41eba3a663446a",
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "refusal_case": "test_onto_ingest_unauthorized",
+      "receipt_obligation": "none",
+      "public_ontology_mapping": "schema:Action",
+      "AutoReceipt_ready": true
+    },
+    {
+      "tool_name": "onto_map",
+      "description": "Handler for onto_map",
+      "input_schema": {
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "side_effects": [],
+      "required_permissions": [
+        "tenant_read"
+      ],
+      "reads_files": false,
+      "writes_files": false,
+      "calls_network": false,
+      "calls_shell": false,
+      "mutates_repo": false,
+      "emits_receipts": false,
+      "receipt_type": "None",
+      "positive_case": "test_onto_map_ok",
+      "negative_case": "test_onto_map_err",
+      "descriptor_hash": "7bd730b913de53faf36fbec4f039c0d5601ba575028736426033f2e9e1fc78e1",
+      "implementation_source": "src/server.rs",
+      "implementation_symbol": "onto_map",
+      "implementation_hash": "82790407d9cf14edd928e72e8d26f96a5b812cdf01a6b400dab49144b01ee7c0",
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "refusal_case": "test_onto_map_unauthorized",
+      "receipt_obligation": "none",
+      "public_ontology_mapping": "schema:Action",
+      "AutoReceipt_ready": true
+    },
+    {
+      "tool_name": "onto_shacl",
+      "description": "Handler for onto_shacl",
+      "input_schema": {
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "side_effects": [],
+      "required_permissions": [
+        "tenant_read"
+      ],
+      "reads_files": false,
+      "writes_files": false,
+      "calls_network": false,
+      "calls_shell": false,
+      "mutates_repo": false,
+      "emits_receipts": false,
+      "receipt_type": "None",
+      "positive_case": "test_onto_shacl_ok",
+      "negative_case": "test_onto_shacl_err",
+      "descriptor_hash": "ee0ff44aa53f827f3cc9b125bad59ee8c8901b47e9a3b934bba458738ed71496",
+      "implementation_source": "src/server.rs",
+      "implementation_symbol": "onto_shacl",
+      "implementation_hash": "772a97978ae357a413bf34c44b02c9ea50dbb01a5045b2e654b9c152c9dc609d",
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "refusal_case": "test_onto_shacl_unauthorized",
+      "receipt_obligation": "none",
+      "public_ontology_mapping": "schema:Action",
+      "AutoReceipt_ready": true
+    },
+    {
+      "tool_name": "onto_reason",
+      "description": "Handler for onto_reason",
+      "input_schema": {
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "side_effects": [],
+      "required_permissions": [
+        "tenant_read"
+      ],
+      "reads_files": false,
+      "writes_files": false,
+      "calls_network": false,
+      "calls_shell": false,
+      "mutates_repo": false,
+      "emits_receipts": false,
+      "receipt_type": "None",
+      "positive_case": "test_onto_reason_ok",
+      "negative_case": "test_onto_reason_err",
+      "descriptor_hash": "85d35af642e77ad25efc5d2f6b9335f721eae208dbacf19635dd0a8f055ccbf2",
+      "implementation_source": "src/server.rs",
+      "implementation_symbol": "onto_reason",
+      "implementation_hash": "ed2971822d868232d165f1f8d2579b871f5c81c7781e4547d315d348a888be80",
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "refusal_case": "test_onto_reason_unauthorized",
+      "receipt_obligation": "none",
+      "public_ontology_mapping": "schema:Action",
+      "AutoReceipt_ready": true
+    },
+    {
+      "tool_name": "onto_dl_explain",
+      "description": "Handler for onto_dl_explain",
+      "input_schema": {
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "side_effects": [],
+      "required_permissions": [
+        "tenant_read"
+      ],
+      "reads_files": false,
+      "writes_files": false,
+      "calls_network": false,
+      "calls_shell": false,
+      "mutates_repo": false,
+      "emits_receipts": false,
+      "receipt_type": "None",
+      "positive_case": "test_onto_dl_explain_ok",
+      "negative_case": "test_onto_dl_explain_err",
+      "descriptor_hash": "4b7d48929775b5926bb35c1694b6adbf6d86cc403df2d96808a54b579596c88c",
+      "implementation_source": "src/server.rs",
+      "implementation_symbol": "onto_dl_explain",
+      "implementation_hash": "39699c4533d1e26f0abe3c233e44a941a4cf78dd790cc3772f2785e27751afa5",
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "refusal_case": "test_onto_dl_explain_unauthorized",
+      "receipt_obligation": "none",
+      "public_ontology_mapping": "schema:Action",
+      "AutoReceipt_ready": true
+    },
+    {
+      "tool_name": "onto_dl_check",
+      "description": "Handler for onto_dl_check",
+      "input_schema": {
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "side_effects": [],
+      "required_permissions": [
+        "tenant_read"
+      ],
+      "reads_files": false,
+      "writes_files": false,
+      "calls_network": false,
+      "calls_shell": false,
+      "mutates_repo": false,
+      "emits_receipts": false,
+      "receipt_type": "None",
+      "positive_case": "test_onto_dl_check_ok",
+      "negative_case": "test_onto_dl_check_err",
+      "descriptor_hash": "47ffab6a0ae275a9576ef77ac72be9f54ce675bbc4b8b3d6567fc2cc9f3d1b56",
+      "implementation_source": "src/server.rs",
+      "implementation_symbol": "onto_dl_check",
+      "implementation_hash": "d8dcb77f1c03ec06efecb20a33d836b12a7bc451c5ffc4a9f48c136e1b1f5b14",
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "refusal_case": "test_onto_dl_check_unauthorized",
+      "receipt_obligation": "none",
+      "public_ontology_mapping": "schema:Action",
+      "AutoReceipt_ready": true
+    },
+    {
+      "tool_name": "onto_plan",
+      "description": "Handler for onto_plan",
+      "input_schema": {
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "side_effects": [],
+      "required_permissions": [
+        "tenant_read"
+      ],
+      "reads_files": false,
+      "writes_files": false,
+      "calls_network": false,
+      "calls_shell": false,
+      "mutates_repo": false,
+      "emits_receipts": false,
+      "receipt_type": "None",
+      "positive_case": "test_onto_plan_ok",
+      "negative_case": "test_onto_plan_err",
+      "descriptor_hash": "dcdb1dc51b47f3807a8642350296c21bf6dfb1161735bc2f86232009155b0981",
+      "implementation_source": "src/server.rs",
+      "implementation_symbol": "onto_plan",
+      "implementation_hash": "5bc4ac9d40d10593dbda28a06f10081b732c17abbf4877e9b2a1b556681cd050",
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "refusal_case": "test_onto_plan_unauthorized",
+      "receipt_obligation": "none",
+      "public_ontology_mapping": "schema:Action",
+      "AutoReceipt_ready": true
+    },
+    {
+      "tool_name": "onto_apply",
+      "description": "Handler for onto_apply",
+      "input_schema": {
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "side_effects": [
+        "state_mutation"
+      ],
+      "required_permissions": [
+        "tenant_write"
+      ],
+      "reads_files": false,
+      "writes_files": true,
+      "calls_network": false,
+      "calls_shell": false,
+      "mutates_repo": true,
+      "emits_receipts": true,
+      "receipt_type": "AutoReceipt",
+      "positive_case": "test_onto_apply_ok",
+      "negative_case": "test_onto_apply_err",
+      "descriptor_hash": "3e55cf6fd9eaff49c5bfe02208a4f8dd31548d1542db4c95bee00d678e15ef69",
+      "implementation_source": "src/server.rs",
+      "implementation_symbol": "onto_apply",
+      "implementation_hash": "c1dc691910a59deb4a94df3d5e431cc4f5a1985bf407e888fffd6e50335f83a3",
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "refusal_case": "test_onto_apply_unauthorized",
+      "receipt_obligation": "prove_onto_apply",
+      "public_ontology_mapping": "schema:Action",
+      "AutoReceipt_ready": true
+    },
+    {
+      "tool_name": "onto_lock",
+      "description": "Handler for onto_lock",
+      "input_schema": {
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "side_effects": [],
+      "required_permissions": [
+        "tenant_read"
+      ],
+      "reads_files": false,
+      "writes_files": false,
+      "calls_network": false,
+      "calls_shell": false,
+      "mutates_repo": false,
+      "emits_receipts": false,
+      "receipt_type": "None",
+      "positive_case": "test_onto_lock_ok",
+      "negative_case": "test_onto_lock_err",
+      "descriptor_hash": "85a57e20910592c402952de2223885dd557c0a17857421a52526dc132dc5e9e7",
+      "implementation_source": "src/server.rs",
+      "implementation_symbol": "onto_lock",
+      "implementation_hash": "ea64710279593c047b9fc89b876f587fd09723a18bfa1e80979a7fddc9c7f2db",
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "refusal_case": "test_onto_lock_unauthorized",
+      "receipt_obligation": "none",
+      "public_ontology_mapping": "schema:Action",
+      "AutoReceipt_ready": true
+    },
+    {
+      "tool_name": "onto_drift",
+      "description": "Handler for onto_drift",
+      "input_schema": {
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "side_effects": [],
+      "required_permissions": [
+        "tenant_read"
+      ],
+      "reads_files": false,
+      "writes_files": false,
+      "calls_network": false,
+      "calls_shell": false,
+      "mutates_repo": false,
+      "emits_receipts": false,
+      "receipt_type": "None",
+      "positive_case": "test_onto_drift_ok",
+      "negative_case": "test_onto_drift_err",
+      "descriptor_hash": "1a7fcff2646240e91ccecef0ebc1f7a914221f58543f9ebe69b722b44a177287",
+      "implementation_source": "src/server.rs",
+      "implementation_symbol": "onto_drift",
+      "implementation_hash": "60d90e1e2ab165dcbb44a730040570681280a41a069979a237a9a6fd28cd1bc6",
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "refusal_case": "test_onto_drift_unauthorized",
+      "receipt_obligation": "none",
+      "public_ontology_mapping": "schema:Action",
+      "AutoReceipt_ready": true
+    },
+    {
+      "tool_name": "onto_enforce",
+      "description": "Handler for onto_enforce",
+      "input_schema": {
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "side_effects": [],
+      "required_permissions": [
+        "tenant_read"
+      ],
+      "reads_files": false,
+      "writes_files": false,
+      "calls_network": false,
+      "calls_shell": false,
+      "mutates_repo": false,
+      "emits_receipts": false,
+      "receipt_type": "None",
+      "positive_case": "test_onto_enforce_ok",
+      "negative_case": "test_onto_enforce_err",
+      "descriptor_hash": "fa72e193b7713e8244abe97c5805fd1e0c40c2b85ba5383fec7d343b43293434",
+      "implementation_source": "src/server.rs",
+      "implementation_symbol": "onto_enforce",
+      "implementation_hash": "0462f0e624a47e8d1dff7c096922646326d0b379bdec8fe1a0df78a5c974275f",
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "refusal_case": "test_onto_enforce_unauthorized",
+      "receipt_obligation": "none",
+      "public_ontology_mapping": "schema:Action",
+      "AutoReceipt_ready": true
+    },
+    {
+      "tool_name": "onto_monitor",
+      "description": "Handler for onto_monitor",
+      "input_schema": {
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "side_effects": [],
+      "required_permissions": [
+        "tenant_read"
+      ],
+      "reads_files": false,
+      "writes_files": false,
+      "calls_network": false,
+      "calls_shell": false,
+      "mutates_repo": false,
+      "emits_receipts": false,
+      "receipt_type": "None",
+      "positive_case": "test_onto_monitor_ok",
+      "negative_case": "test_onto_monitor_err",
+      "descriptor_hash": "a2b5f6a43787939782580bd2796880ede74cafad28f5831830bc2b912e83f091",
+      "implementation_source": "src/server.rs",
+      "implementation_symbol": "onto_monitor",
+      "implementation_hash": "3e8d719ce2011602ccfe5190dbd4a980c875fdfb16d2ae2203944afbc776ac52",
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "refusal_case": "test_onto_monitor_unauthorized",
+      "receipt_obligation": "none",
+      "public_ontology_mapping": "schema:Action",
+      "AutoReceipt_ready": true
+    },
+    {
+      "tool_name": "onto_monitor_clear",
+      "description": "Handler for onto_monitor_clear",
+      "input_schema": {
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "side_effects": [],
+      "required_permissions": [
+        "tenant_read"
+      ],
+      "reads_files": false,
+      "writes_files": false,
+      "calls_network": false,
+      "calls_shell": false,
+      "mutates_repo": false,
+      "emits_receipts": false,
+      "receipt_type": "None",
+      "positive_case": "test_onto_monitor_clear_ok",
+      "negative_case": "test_onto_monitor_clear_err",
+      "descriptor_hash": "8b48e4e4c8c2f4d165db747701029589ff54e6f1bed1b1c26b9a341b5333d4a9",
+      "implementation_source": "src/server.rs",
+      "implementation_symbol": "onto_monitor_clear",
+      "implementation_hash": "762a310ab7d19c8000e2c494051b3492a3a3275b54ab541340d0f7d69d5cb14b",
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "refusal_case": "test_onto_monitor_clear_unauthorized",
+      "receipt_obligation": "none",
+      "public_ontology_mapping": "schema:Action",
+      "AutoReceipt_ready": true
+    },
+    {
+      "tool_name": "onto_crosswalk",
+      "description": "Handler for onto_crosswalk",
+      "input_schema": {
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "side_effects": [],
+      "required_permissions": [
+        "tenant_read"
+      ],
+      "reads_files": false,
+      "writes_files": false,
+      "calls_network": false,
+      "calls_shell": false,
+      "mutates_repo": false,
+      "emits_receipts": false,
+      "receipt_type": "None",
+      "positive_case": "test_onto_crosswalk_ok",
+      "negative_case": "test_onto_crosswalk_err",
+      "descriptor_hash": "46fdcdb9772dc17884304161d5bebbf0672455a90f85fbc190d0ba0b0652fb25",
+      "implementation_source": "src/server.rs",
+      "implementation_symbol": "onto_crosswalk",
+      "implementation_hash": "83619562de683c1cad6e3a6dde22b734874f5e156d97a60e8b77c5380e1023e4",
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "refusal_case": "test_onto_crosswalk_unauthorized",
+      "receipt_obligation": "none",
+      "public_ontology_mapping": "schema:Action",
+      "AutoReceipt_ready": true
+    },
+    {
+      "tool_name": "onto_enrich",
+      "description": "Handler for onto_enrich",
+      "input_schema": {
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "side_effects": [],
+      "required_permissions": [
+        "tenant_read"
+      ],
+      "reads_files": false,
+      "writes_files": false,
+      "calls_network": false,
+      "calls_shell": false,
+      "mutates_repo": false,
+      "emits_receipts": false,
+      "receipt_type": "None",
+      "positive_case": "test_onto_enrich_ok",
+      "negative_case": "test_onto_enrich_err",
+      "descriptor_hash": "1569beae9f75c3aaa9efd2b8715953958a18f0b94951dc3ec8ba9d41d03d505d",
+      "implementation_source": "src/server.rs",
+      "implementation_symbol": "onto_enrich",
+      "implementation_hash": "08d6fbe624024a342d83e81ff53472ff36127aa2b711baa2652b0a77b8b89a9c",
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "refusal_case": "test_onto_enrich_unauthorized",
+      "receipt_obligation": "none",
+      "public_ontology_mapping": "schema:Action",
+      "AutoReceipt_ready": true
+    },
+    {
+      "tool_name": "onto_validate_clinical",
+      "description": "Handler for onto_validate_clinical",
+      "input_schema": {
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "side_effects": [],
+      "required_permissions": [
+        "tenant_read"
+      ],
+      "reads_files": false,
+      "writes_files": false,
+      "calls_network": false,
+      "calls_shell": false,
+      "mutates_repo": false,
+      "emits_receipts": false,
+      "receipt_type": "None",
+      "positive_case": "test_onto_validate_clinical_ok",
+      "negative_case": "test_onto_validate_clinical_err",
+      "descriptor_hash": "ce7a12bcd032554c40b4c1a47d73fc1d2cc3776995cf86379aebb2bbe03a1f1b",
+      "implementation_source": "src/server.rs",
+      "implementation_symbol": "onto_validate_clinical",
+      "implementation_hash": "c9451a8ffd4a307f2c2088e15001bc66b2d017270e856abe61e5815a88319b0e",
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "refusal_case": "test_onto_validate_clinical_unauthorized",
+      "receipt_obligation": "none",
+      "public_ontology_mapping": "schema:Action",
+      "AutoReceipt_ready": true
+    },
+    {
+      "tool_name": "onto_lineage",
+      "description": "Handler for onto_lineage",
+      "input_schema": {
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "side_effects": [],
+      "required_permissions": [
+        "tenant_read"
+      ],
+      "reads_files": false,
+      "writes_files": false,
+      "calls_network": false,
+      "calls_shell": false,
+      "mutates_repo": false,
+      "emits_receipts": false,
+      "receipt_type": "None",
+      "positive_case": "test_onto_lineage_ok",
+      "negative_case": "test_onto_lineage_err",
+      "descriptor_hash": "6cf8331dde6f489693512cf16c1b00023b4ad542bfe80658e0045921274b32c8",
+      "implementation_source": "src/server.rs",
+      "implementation_symbol": "onto_lineage",
+      "implementation_hash": "0cb4d9b54026fb121a94851cd5635b4763d16a8100b7405126687a52e9f9248c",
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "refusal_case": "test_onto_lineage_unauthorized",
+      "receipt_obligation": "none",
+      "public_ontology_mapping": "schema:Action",
+      "AutoReceipt_ready": true
+    },
+    {
+      "tool_name": "onto_extend",
+      "description": "Handler for onto_extend",
+      "input_schema": {
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "side_effects": [],
+      "required_permissions": [
+        "tenant_read"
+      ],
+      "reads_files": false,
+      "writes_files": false,
+      "calls_network": false,
+      "calls_shell": false,
+      "mutates_repo": false,
+      "emits_receipts": false,
+      "receipt_type": "None",
+      "positive_case": "test_onto_extend_ok",
+      "negative_case": "test_onto_extend_err",
+      "descriptor_hash": "296afa4fb8e97723cf3b81b012794d68b4388ee2746a5af6717aec2e53153ed2",
+      "implementation_source": "src/server.rs",
+      "implementation_symbol": "onto_extend",
+      "implementation_hash": "0db99eaebebd36ac52b294f0b0ead230241716789f396db53d634c7021db43c9",
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "refusal_case": "test_onto_extend_unauthorized",
+      "receipt_obligation": "none",
+      "public_ontology_mapping": "schema:Action",
+      "AutoReceipt_ready": true
+    },
+    {
+      "tool_name": "onto_import_schema",
+      "description": "Handler for onto_import_schema",
+      "input_schema": {
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "side_effects": [],
+      "required_permissions": [
+        "tenant_read"
+      ],
+      "reads_files": false,
+      "writes_files": false,
+      "calls_network": false,
+      "calls_shell": false,
+      "mutates_repo": false,
+      "emits_receipts": false,
+      "receipt_type": "None",
+      "positive_case": "test_onto_import_schema_ok",
+      "negative_case": "test_onto_import_schema_err",
+      "descriptor_hash": "ee0b42872f542eff40e5e989aae77bd320fe380928aa68896b6693bbcb61a0c2",
+      "implementation_source": "src/server.rs",
+      "implementation_symbol": "onto_import_schema",
+      "implementation_hash": "770bba7007c1c2df97fdc9acb0a9fb01dbcfd037d2adfe788c24c99afccf906e",
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "refusal_case": "test_onto_import_schema_unauthorized",
+      "receipt_obligation": "none",
+      "public_ontology_mapping": "schema:Action",
+      "AutoReceipt_ready": true
+    },
+    {
+      "tool_name": "onto_sql_ingest",
+      "description": "Handler for onto_sql_ingest",
+      "input_schema": {
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "side_effects": [],
+      "required_permissions": [
+        "tenant_read"
+      ],
+      "reads_files": false,
+      "writes_files": false,
+      "calls_network": false,
+      "calls_shell": false,
+      "mutates_repo": false,
+      "emits_receipts": false,
+      "receipt_type": "None",
+      "positive_case": "test_onto_sql_ingest_ok",
+      "negative_case": "test_onto_sql_ingest_err",
+      "descriptor_hash": "61ce6b4c2fdb48bc15083d071546408ba6e92db841fa9e2eef4855c033e7c00c",
+      "implementation_source": "src/server.rs",
+      "implementation_symbol": "onto_sql_ingest",
+      "implementation_hash": "067f274bb033e41ffb47345b43c422ca43bb292f237845ff0cf89e1734e060bc",
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "refusal_case": "test_onto_sql_ingest_unauthorized",
+      "receipt_obligation": "none",
+      "public_ontology_mapping": "schema:Action",
+      "AutoReceipt_ready": true
+    },
+    {
+      "tool_name": "onto_align",
+      "description": "Handler for onto_align",
+      "input_schema": {
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "side_effects": [],
+      "required_permissions": [
+        "tenant_read"
+      ],
+      "reads_files": false,
+      "writes_files": false,
+      "calls_network": false,
+      "calls_shell": false,
+      "mutates_repo": false,
+      "emits_receipts": false,
+      "receipt_type": "None",
+      "positive_case": "test_onto_align_ok",
+      "negative_case": "test_onto_align_err",
+      "descriptor_hash": "289147104f2e79ca2c75d3d2b33eead44aaec1768b86d5edfea9ed5da51f36b2",
+      "implementation_source": "src/server.rs",
+      "implementation_symbol": "onto_align",
+      "implementation_hash": "48352f5a6b92898bfb4952850ae9f18519e4b16cc9036a05fe439625a99c9186",
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "refusal_case": "test_onto_align_unauthorized",
+      "receipt_obligation": "none",
+      "public_ontology_mapping": "schema:Action",
+      "AutoReceipt_ready": true
+    },
+    {
+      "tool_name": "onto_align_feedback",
+      "description": "Handler for onto_align_feedback",
+      "input_schema": {
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "side_effects": [],
+      "required_permissions": [
+        "tenant_read"
+      ],
+      "reads_files": false,
+      "writes_files": false,
+      "calls_network": false,
+      "calls_shell": false,
+      "mutates_repo": false,
+      "emits_receipts": false,
+      "receipt_type": "None",
+      "positive_case": "test_onto_align_feedback_ok",
+      "negative_case": "test_onto_align_feedback_err",
+      "descriptor_hash": "b640426b23dd9a235173b01593bfb75421f812b833ef4deaf8a21a174d755b87",
+      "implementation_source": "src/server.rs",
+      "implementation_symbol": "onto_align_feedback",
+      "implementation_hash": "17b193abbb4c1812e6bdce11a1f157854c8444d82c1a190e6bd465950d11bb10",
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "refusal_case": "test_onto_align_feedback_unauthorized",
+      "receipt_obligation": "none",
+      "public_ontology_mapping": "schema:Action",
+      "AutoReceipt_ready": true
+    },
+    {
+      "tool_name": "onto_planner_demos",
+      "description": "Handler for onto_planner_demos",
+      "input_schema": {
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "side_effects": [],
+      "required_permissions": [
+        "tenant_read"
+      ],
+      "reads_files": false,
+      "writes_files": false,
+      "calls_network": false,
+      "calls_shell": false,
+      "mutates_repo": false,
+      "emits_receipts": false,
+      "receipt_type": "None",
+      "positive_case": "test_onto_planner_demos_ok",
+      "negative_case": "test_onto_planner_demos_err",
+      "descriptor_hash": "b63dedc694f67927bbe38dd966df9f701045596a48a5bd97d46fb388486e565b",
+      "implementation_source": "src/server.rs",
+      "implementation_symbol": "onto_planner_demos",
+      "implementation_hash": "bca03c504d8322f6df01e4b0c984861b93e293d20b74f9c7de0d3581032c9e31",
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "refusal_case": "test_onto_planner_demos_unauthorized",
+      "receipt_obligation": "none",
+      "public_ontology_mapping": "schema:Action",
+      "AutoReceipt_ready": true
+    },
+    {
+      "tool_name": "onto_threshold_status",
+      "description": "Handler for onto_threshold_status",
+      "input_schema": {
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "side_effects": [],
+      "required_permissions": [
+        "tenant_read"
+      ],
+      "reads_files": false,
+      "writes_files": false,
+      "calls_network": false,
+      "calls_shell": false,
+      "mutates_repo": false,
+      "emits_receipts": false,
+      "receipt_type": "None",
+      "positive_case": "test_onto_threshold_status_ok",
+      "negative_case": "test_onto_threshold_status_err",
+      "descriptor_hash": "647c04518e9bc1ffe3f9771fa5c2cde2a845680df7ab008d1fe437f2bc68ab3c",
+      "implementation_source": "src/server.rs",
+      "implementation_symbol": "onto_threshold_status",
+      "implementation_hash": "3b7759b2277c6b00ffcb5f4795c69d568483b3c900a85e5bc0def273066ab82f",
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "refusal_case": "test_onto_threshold_status_unauthorized",
+      "receipt_obligation": "none",
+      "public_ontology_mapping": "schema:Action",
+      "AutoReceipt_ready": true
+    },
+    {
+      "tool_name": "onto_threshold_sweep",
+      "description": "Handler for onto_threshold_sweep",
+      "input_schema": {
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "side_effects": [],
+      "required_permissions": [
+        "tenant_read"
+      ],
+      "reads_files": false,
+      "writes_files": false,
+      "calls_network": false,
+      "calls_shell": false,
+      "mutates_repo": false,
+      "emits_receipts": false,
+      "receipt_type": "None",
+      "positive_case": "test_onto_threshold_sweep_ok",
+      "negative_case": "test_onto_threshold_sweep_err",
+      "descriptor_hash": "dbad3734356e67c5e5b1c4433447ebf9eeb0c5efcaf8a275df036c29c4e91bb4",
+      "implementation_source": "src/server.rs",
+      "implementation_symbol": "onto_threshold_sweep",
+      "implementation_hash": "6c0eba346566c6406126f7b9cac891ccb82090cd9779b9596ba3776ab9c4f2ea",
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "refusal_case": "test_onto_threshold_sweep_unauthorized",
+      "receipt_obligation": "none",
+      "public_ontology_mapping": "schema:Action",
+      "AutoReceipt_ready": true
+    },
+    {
+      "tool_name": "onto_workflow_discover",
+      "description": "Handler for onto_workflow_discover",
+      "input_schema": {
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "side_effects": [],
+      "required_permissions": [
+        "tenant_read"
+      ],
+      "reads_files": false,
+      "writes_files": false,
+      "calls_network": false,
+      "calls_shell": false,
+      "mutates_repo": false,
+      "emits_receipts": false,
+      "receipt_type": "None",
+      "positive_case": "test_onto_workflow_discover_ok",
+      "negative_case": "test_onto_workflow_discover_err",
+      "descriptor_hash": "e82921de9f3469a5b223dcfbfff5536db003028c7c78b27df8f43fb14376d93c",
+      "implementation_source": "src/server.rs",
+      "implementation_symbol": "onto_workflow_discover",
+      "implementation_hash": "38cf6788b6edff7ff7b880739eb4f25e0933afce8e1a1615580609d1b789cd3b",
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "refusal_case": "test_onto_workflow_discover_unauthorized",
+      "receipt_obligation": "none",
+      "public_ontology_mapping": "schema:Action",
+      "AutoReceipt_ready": true
+    },
+    {
+      "tool_name": "onto_workflow_feedback",
+      "description": "Handler for onto_workflow_feedback",
+      "input_schema": {
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "side_effects": [],
+      "required_permissions": [
+        "tenant_read"
+      ],
+      "reads_files": false,
+      "writes_files": false,
+      "calls_network": false,
+      "calls_shell": false,
+      "mutates_repo": false,
+      "emits_receipts": false,
+      "receipt_type": "None",
+      "positive_case": "test_onto_workflow_feedback_ok",
+      "negative_case": "test_onto_workflow_feedback_err",
+      "descriptor_hash": "ec71e257630b6c1616fb1c1f95396b7d12e3ff42a0174bc939fc48c5b363eb7a",
+      "implementation_source": "src/server.rs",
+      "implementation_symbol": "onto_workflow_feedback",
+      "implementation_hash": "c395270d5dfcc43218b9b7cca77b55d1ae9295e8f30dc8479793e03b0d72710c",
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "refusal_case": "test_onto_workflow_feedback_unauthorized",
+      "receipt_obligation": "none",
+      "public_ontology_mapping": "schema:Action",
+      "AutoReceipt_ready": true
+    },
+    {
+      "tool_name": "onto_lint_feedback",
+      "description": "Handler for onto_lint_feedback",
+      "input_schema": {
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "side_effects": [],
+      "required_permissions": [
+        "tenant_read"
+      ],
+      "reads_files": false,
+      "writes_files": false,
+      "calls_network": false,
+      "calls_shell": false,
+      "mutates_repo": false,
+      "emits_receipts": false,
+      "receipt_type": "None",
+      "positive_case": "test_onto_lint_feedback_ok",
+      "negative_case": "test_onto_lint_feedback_err",
+      "descriptor_hash": "feb900d9bf83ca3aa5ceca2bd0799ef73afa7e359a4650369bf8a315553aa763",
+      "implementation_source": "src/server.rs",
+      "implementation_symbol": "onto_lint_feedback",
+      "implementation_hash": "4e6af86dca294aa6bf8f5dfd86418591d928a544a3d88c9c2f3b4e940ff8f152",
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "refusal_case": "test_onto_lint_feedback_unauthorized",
+      "receipt_obligation": "none",
+      "public_ontology_mapping": "schema:Action",
+      "AutoReceipt_ready": true
+    },
+    {
+      "tool_name": "onto_enforce_feedback",
+      "description": "Handler for onto_enforce_feedback",
+      "input_schema": {
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "side_effects": [],
+      "required_permissions": [
+        "tenant_read"
+      ],
+      "reads_files": false,
+      "writes_files": false,
+      "calls_network": false,
+      "calls_shell": false,
+      "mutates_repo": false,
+      "emits_receipts": false,
+      "receipt_type": "None",
+      "positive_case": "test_onto_enforce_feedback_ok",
+      "negative_case": "test_onto_enforce_feedback_err",
+      "descriptor_hash": "2bc23c3cd86ba623c159e878b67d5dfc847519600149c8986b50ee609d35aafd",
+      "implementation_source": "src/server.rs",
+      "implementation_symbol": "onto_enforce_feedback",
+      "implementation_hash": "c41f13f6876ed58474d7c21e56c6c7cc29ea145e96a6c1198b9b683dc32579b6",
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "refusal_case": "test_onto_enforce_feedback_unauthorized",
+      "receipt_obligation": "none",
+      "public_ontology_mapping": "schema:Action",
+      "AutoReceipt_ready": true
+    },
+    {
+      "tool_name": "onto_embed",
+      "description": "Handler for onto_embed",
+      "input_schema": {
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "side_effects": [],
+      "required_permissions": [
+        "tenant_read"
+      ],
+      "reads_files": false,
+      "writes_files": false,
+      "calls_network": false,
+      "calls_shell": false,
+      "mutates_repo": false,
+      "emits_receipts": false,
+      "receipt_type": "None",
+      "positive_case": "test_onto_embed_ok",
+      "negative_case": "test_onto_embed_err",
+      "descriptor_hash": "e19dae6d1fefa982c017c68603813f0f51aedd5b1b79a9f24b2421854aa8556b",
+      "implementation_source": "src/server.rs",
+      "implementation_symbol": "onto_embed",
+      "implementation_hash": "fc547cc911f6a1f1dfdbe9e7f7287a088bfc633c358a07ee62dbea7e151478c6",
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "refusal_case": "test_onto_embed_unauthorized",
+      "receipt_obligation": "none",
+      "public_ontology_mapping": "schema:Action",
+      "AutoReceipt_ready": true
+    },
+    {
+      "tool_name": "onto_search",
+      "description": "Handler for onto_search",
+      "input_schema": {
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "side_effects": [],
+      "required_permissions": [
+        "tenant_read"
+      ],
+      "reads_files": false,
+      "writes_files": false,
+      "calls_network": false,
+      "calls_shell": false,
+      "mutates_repo": false,
+      "emits_receipts": false,
+      "receipt_type": "None",
+      "positive_case": "test_onto_search_ok",
+      "negative_case": "test_onto_search_err",
+      "descriptor_hash": "469c87dc965b9c2dc5a12d0d4f55c3968ac002e7044f55350abc933ab16f5cf8",
+      "implementation_source": "src/server.rs",
+      "implementation_symbol": "onto_search",
+      "implementation_hash": "65eda33d437803f0c6bf671a8b59277b7d30adccc29c3aae5b0e8dd6f332a366",
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "refusal_case": "test_onto_search_unauthorized",
+      "receipt_obligation": "none",
+      "public_ontology_mapping": "schema:Action",
+      "AutoReceipt_ready": true
+    },
+    {
+      "tool_name": "onto_similarity",
+      "description": "Handler for onto_similarity",
+      "input_schema": {
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "side_effects": [],
+      "required_permissions": [
+        "tenant_read"
+      ],
+      "reads_files": false,
+      "writes_files": false,
+      "calls_network": false,
+      "calls_shell": false,
+      "mutates_repo": false,
+      "emits_receipts": false,
+      "receipt_type": "None",
+      "positive_case": "test_onto_similarity_ok",
+      "negative_case": "test_onto_similarity_err",
+      "descriptor_hash": "75c9dc4e0550c5969c9940bf1fe5d17838d77a4a7ae9833c6ae1d9c396399a44",
+      "implementation_source": "src/server.rs",
+      "implementation_symbol": "onto_similarity",
+      "implementation_hash": "ee09b610569f0af1db7574b29d3089841a2653dc5a5207e004d7e6e13b743d70",
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "refusal_case": "test_onto_similarity_unauthorized",
+      "receipt_obligation": "none",
+      "public_ontology_mapping": "schema:Action",
+      "AutoReceipt_ready": true
+    },
+    {
+      "tool_name": "onto_process_validate_claim",
+      "description": "Handler for onto_process_validate_claim",
+      "input_schema": {
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "side_effects": [],
+      "required_permissions": [
+        "tenant_read"
+      ],
+      "reads_files": false,
+      "writes_files": false,
+      "calls_network": false,
+      "calls_shell": false,
+      "mutates_repo": false,
+      "emits_receipts": false,
+      "receipt_type": "None",
+      "positive_case": "test_onto_process_validate_claim_ok",
+      "negative_case": "test_onto_process_validate_claim_err",
+      "descriptor_hash": "61e709bb17f190f5a1dc806bfd0120a5a24703ffee469af6598e680362128e8e",
+      "implementation_source": "src/server.rs",
+      "implementation_symbol": "onto_process_validate_claim",
+      "implementation_hash": "d8912ad28061ce0d024f44573b7fc87df2bb0e62d78cfffc44499f77f544c29c",
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "refusal_case": "test_onto_process_validate_claim_unauthorized",
+      "receipt_obligation": "none",
+      "public_ontology_mapping": "schema:Action",
+      "AutoReceipt_ready": true
+    },
+    {
+      "tool_name": "onto_process_check_soundness",
+      "description": "Handler for onto_process_check_soundness",
+      "input_schema": {
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "side_effects": [],
+      "required_permissions": [
+        "tenant_read"
+      ],
+      "reads_files": false,
+      "writes_files": false,
+      "calls_network": false,
+      "calls_shell": false,
+      "mutates_repo": false,
+      "emits_receipts": false,
+      "receipt_type": "None",
+      "positive_case": "test_onto_process_check_soundness_ok",
+      "negative_case": "test_onto_process_check_soundness_err",
+      "descriptor_hash": "16d7b28524447f7e851fa2815e5f5f658898450e17edaf060a484c83c0b6c9ba",
+      "implementation_source": "src/server.rs",
+      "implementation_symbol": "onto_process_check_soundness",
+      "implementation_hash": "1b48178d9f51929042754ccd3a9bba2da91f06f65c0ebd6056d595fa81bd6eb0",
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "refusal_case": "test_onto_process_check_soundness_unauthorized",
+      "receipt_obligation": "none",
+      "public_ontology_mapping": "schema:Action",
+      "AutoReceipt_ready": true
+    },
+    {
+      "tool_name": "onto_mustar_solve",
+      "description": "Handler for onto_mustar_solve",
+      "input_schema": {
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "side_effects": [],
+      "required_permissions": [
+        "tenant_read"
+      ],
+      "reads_files": false,
+      "writes_files": false,
+      "calls_network": false,
+      "calls_shell": false,
+      "mutates_repo": false,
+      "emits_receipts": false,
+      "receipt_type": "None",
+      "positive_case": "test_onto_mustar_solve_ok",
+      "negative_case": "test_onto_mustar_solve_err",
+      "descriptor_hash": "0f2edb8d9d6551704006dda68afa0ca476cd8b73f9ece3d261a2084b6456a184",
+      "implementation_source": "src/server.rs",
+      "implementation_symbol": "onto_mustar_solve",
+      "implementation_hash": "a07c8435403486836b6c4a04126f522ecfdccdff08e6da864ae4ac4a17ca2fc5",
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "refusal_case": "test_onto_mustar_solve_unauthorized",
+      "receipt_obligation": "none",
+      "public_ontology_mapping": "schema:Action",
+      "AutoReceipt_ready": true
+    },
+    {
+      "tool_name": "onto_alphastar_solve",
+      "description": "Handler for onto_alphastar_solve",
+      "input_schema": {
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "side_effects": [],
+      "required_permissions": [
+        "tenant_read"
+      ],
+      "reads_files": false,
+      "writes_files": false,
+      "calls_network": false,
+      "calls_shell": false,
+      "mutates_repo": false,
+      "emits_receipts": false,
+      "receipt_type": "None",
+      "positive_case": "test_onto_alphastar_solve_ok",
+      "negative_case": "test_onto_alphastar_solve_err",
+      "descriptor_hash": "186963e690db2e645fc93040d18daecd2e4fdbf34f54caa3f51565d21d2aa9b6",
+      "implementation_source": "src/server.rs",
+      "implementation_symbol": "onto_alphastar_solve",
+      "implementation_hash": "6f08492f5fdff3749777c04325c3f99e56a6c06843efc9f8016fb3759e0251f8",
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "refusal_case": "test_onto_alphastar_solve_unauthorized",
+      "receipt_obligation": "none",
+      "public_ontology_mapping": "schema:Action",
+      "AutoReceipt_ready": true
+    },
+    {
+      "tool_name": "onto_codegen",
+      "description": "Handler for onto_codegen",
+      "input_schema": {
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "side_effects": [],
+      "required_permissions": [
+        "tenant_read"
+      ],
+      "reads_files": false,
+      "writes_files": false,
+      "calls_network": false,
+      "calls_shell": false,
+      "mutates_repo": false,
+      "emits_receipts": false,
+      "receipt_type": "None",
+      "positive_case": "test_onto_codegen_ok",
+      "negative_case": "test_onto_codegen_err",
+      "descriptor_hash": "fe1bde1ebf4ec117af20be64b8bc78590ad23afa68ee66add26e20158ca5e989",
+      "implementation_source": "src/server.rs",
+      "implementation_symbol": "onto_codegen",
+      "implementation_hash": "15205cb0136e60904074a6537b4134e33fd00d25e0337648db36715921b4656d",
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "refusal_case": "test_onto_codegen_unauthorized",
+      "receipt_obligation": "none",
+      "public_ontology_mapping": "schema:Action",
+      "AutoReceipt_ready": true
+    },
+    {
+      "tool_name": "onto_declare_workflow",
+      "description": "Handler for onto_declare_workflow",
+      "input_schema": {
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "side_effects": [],
+      "required_permissions": [
+        "tenant_read"
+      ],
+      "reads_files": false,
+      "writes_files": false,
+      "calls_network": false,
+      "calls_shell": false,
+      "mutates_repo": false,
+      "emits_receipts": false,
+      "receipt_type": "None",
+      "positive_case": "test_onto_declare_workflow_ok",
+      "negative_case": "test_onto_declare_workflow_err",
+      "descriptor_hash": "bca8a1bcb5fc7c6367e6c1b2ec6732047b4ae9828260de863aa5204d1839aad3",
+      "implementation_source": "src/server.rs",
+      "implementation_symbol": "onto_declare_workflow",
+      "implementation_hash": "b3b8acad1909f763a8bc1b97d4e7371c04c236fbf3bddb3eee95a9c57ba95c87",
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "refusal_case": "test_onto_declare_workflow_unauthorized",
+      "receipt_obligation": "none",
+      "public_ontology_mapping": "schema:Action",
+      "AutoReceipt_ready": true
+    },
+    {
+      "tool_name": "onto_close_workflow",
+      "description": "Handler for onto_close_workflow",
+      "input_schema": {
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "side_effects": [],
+      "required_permissions": [
+        "tenant_read"
+      ],
+      "reads_files": false,
+      "writes_files": false,
+      "calls_network": false,
+      "calls_shell": false,
+      "mutates_repo": false,
+      "emits_receipts": false,
+      "receipt_type": "None",
+      "positive_case": "test_onto_close_workflow_ok",
+      "negative_case": "test_onto_close_workflow_err",
+      "descriptor_hash": "759b219dcb42d1dec4df1cdfb876a796dd84787fa753ae4b704b2e7fb3d6a813",
+      "implementation_source": "src/server.rs",
+      "implementation_symbol": "onto_close_workflow",
+      "implementation_hash": "47d445e32753732b4d3e496fff7e1ece9365e2d6e8ac1781ade1d50c2104b9e6",
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "refusal_case": "test_onto_close_workflow_unauthorized",
+      "receipt_obligation": "none",
+      "public_ontology_mapping": "schema:Action",
+      "AutoReceipt_ready": true
+    },
+    {
+      "tool_name": "onto_admission_check",
+      "description": "Handler for onto_admission_check",
+      "input_schema": {
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "side_effects": [],
+      "required_permissions": [
+        "tenant_read"
+      ],
+      "reads_files": false,
+      "writes_files": false,
+      "calls_network": false,
+      "calls_shell": false,
+      "mutates_repo": false,
+      "emits_receipts": false,
+      "receipt_type": "None",
+      "positive_case": "test_onto_admission_check_ok",
+      "negative_case": "test_onto_admission_check_err",
+      "descriptor_hash": "1d6bee332748b1a88936ada3aca848dd2c359b7a1b6f00659a1d365cca61cd5d",
+      "implementation_source": "src/server.rs",
+      "implementation_symbol": "onto_admission_check",
+      "implementation_hash": "c4da925ef0082e36893727dc98b28527d5e43e1ef0facbdf09c6f35e53f0fba7",
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "refusal_case": "test_onto_admission_check_unauthorized",
+      "receipt_obligation": "none",
+      "public_ontology_mapping": "schema:Action",
+      "AutoReceipt_ready": true
+    },
+    {
+      "tool_name": "onto_cell8_attest",
+      "description": "Handler for onto_cell8_attest",
+      "input_schema": {
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "side_effects": [],
+      "required_permissions": [
+        "tenant_read"
+      ],
+      "reads_files": false,
+      "writes_files": false,
+      "calls_network": false,
+      "calls_shell": false,
+      "mutates_repo": false,
+      "emits_receipts": false,
+      "receipt_type": "None",
+      "positive_case": "test_onto_cell8_attest_ok",
+      "negative_case": "test_onto_cell8_attest_err",
+      "descriptor_hash": "e831698a8ae513afcfb47f1e294cb7dc470e4e2b12bf9d7e9970a699f8c19c80",
+      "implementation_source": "src/server.rs",
+      "implementation_symbol": "onto_cell8_attest",
+      "implementation_hash": "3f496dd4d9449095e0e190c46ee783750475d86efd1d703a9d5a24d50ba41b15",
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "refusal_case": "test_onto_cell8_attest_unauthorized",
+      "receipt_obligation": "none",
+      "public_ontology_mapping": "schema:Action",
+      "AutoReceipt_ready": true
+    },
+    {
+      "tool_name": "onto_session_reset",
+      "description": "Handler for onto_session_reset",
+      "input_schema": {
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "side_effects": [],
+      "required_permissions": [
+        "tenant_read"
+      ],
+      "reads_files": false,
+      "writes_files": false,
+      "calls_network": false,
+      "calls_shell": false,
+      "mutates_repo": false,
+      "emits_receipts": false,
+      "receipt_type": "None",
+      "positive_case": "test_onto_session_reset_ok",
+      "negative_case": "test_onto_session_reset_err",
+      "descriptor_hash": "06fc0e25ab691410c295b6bf23b83cccf6e31c22df49e2b0e95cdd15800906ff",
+      "implementation_source": "src/server.rs",
+      "implementation_symbol": "onto_session_reset",
+      "implementation_hash": "eb00ea5ec53cdd544b07936cf3c3c549a458003c974fa5f9e04ed1dcd7d23b9b",
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "refusal_case": "test_onto_session_reset_unauthorized",
+      "receipt_obligation": "none",
+      "public_ontology_mapping": "schema:Action",
+      "AutoReceipt_ready": true
+    },
+    {
+      "tool_name": "onto_conformance_check",
+      "description": "Handler for onto_conformance_check",
+      "input_schema": {
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "side_effects": [],
+      "required_permissions": [
+        "tenant_read"
+      ],
+      "reads_files": false,
+      "writes_files": false,
+      "calls_network": false,
+      "calls_shell": false,
+      "mutates_repo": false,
+      "emits_receipts": false,
+      "receipt_type": "None",
+      "positive_case": "test_onto_conformance_check_ok",
+      "negative_case": "test_onto_conformance_check_err",
+      "descriptor_hash": "74bd3479d39b9c8971aea25a744f4522d44b00436b6a089cfe5e6002bcaf72f1",
+      "implementation_source": "src/server.rs",
+      "implementation_symbol": "onto_conformance_check",
+      "implementation_hash": "e8eb95afaaedbf0c0af71b8781b3a6562e63ac5f983182a0224b71aefd989e54",
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "refusal_case": "test_onto_conformance_check_unauthorized",
+      "receipt_obligation": "none",
+      "public_ontology_mapping": "schema:Action",
+      "AutoReceipt_ready": true
+    },
+    {
+      "tool_name": "onto_plan_workflow",
+      "description": "Handler for onto_plan_workflow",
+      "input_schema": {
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "side_effects": [],
+      "required_permissions": [
+        "tenant_read"
+      ],
+      "reads_files": false,
+      "writes_files": false,
+      "calls_network": false,
+      "calls_shell": false,
+      "mutates_repo": false,
+      "emits_receipts": false,
+      "receipt_type": "None",
+      "positive_case": "test_onto_plan_workflow_ok",
+      "negative_case": "test_onto_plan_workflow_err",
+      "descriptor_hash": "bb99e7cbdd713d8d17fb580e55f7825f43c59991c45a320738630bd78d4ff525",
+      "implementation_source": "src/server.rs",
+      "implementation_symbol": "onto_plan_workflow",
+      "implementation_hash": "9959f55ed873c4d982dc014678e8d8c0dee832efbf1c3259ce34743d1e392668",
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "refusal_case": "test_onto_plan_workflow_unauthorized",
+      "receipt_obligation": "none",
+      "public_ontology_mapping": "schema:Action",
+      "AutoReceipt_ready": true
+    },
+    {
+      "tool_name": "onto_exemplar_seed",
+      "description": "Handler for onto_exemplar_seed",
+      "input_schema": {
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "side_effects": [],
+      "required_permissions": [
+        "tenant_read"
+      ],
+      "reads_files": false,
+      "writes_files": false,
+      "calls_network": false,
+      "calls_shell": false,
+      "mutates_repo": false,
+      "emits_receipts": false,
+      "receipt_type": "None",
+      "positive_case": "test_onto_exemplar_seed_ok",
+      "negative_case": "test_onto_exemplar_seed_err",
+      "descriptor_hash": "d3f06aad0c650034ed66c4e454247473264160bb27673457299a0ac362cb0c00",
+      "implementation_source": "src/server.rs",
+      "implementation_symbol": "onto_exemplar_seed",
+      "implementation_hash": "217c3cd065794e7f99bd0975628cddc9add496c4a4503d5535f05cc0dc951580",
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "refusal_case": "test_onto_exemplar_seed_unauthorized",
+      "receipt_obligation": "none",
+      "public_ontology_mapping": "schema:Action",
+      "AutoReceipt_ready": true
+    },
+    {
+      "tool_name": "onto_counterfactual",
+      "description": "Handler for onto_counterfactual",
+      "input_schema": {
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "side_effects": [],
+      "required_permissions": [
+        "tenant_read"
+      ],
+      "reads_files": false,
+      "writes_files": false,
+      "calls_network": false,
+      "calls_shell": false,
+      "mutates_repo": false,
+      "emits_receipts": false,
+      "receipt_type": "None",
+      "positive_case": "test_onto_counterfactual_ok",
+      "negative_case": "test_onto_counterfactual_err",
+      "descriptor_hash": "8bc51edac9f077d5d10905ddbcf7c5bd27f2f1373251aefc806e229ea5565f8f",
+      "implementation_source": "src/server.rs",
+      "implementation_symbol": "onto_counterfactual",
+      "implementation_hash": "5d7189aeeb1ac81660bcc5f75c0a3c607e3d9c26ccbf5da848d293348f3f1b7d",
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "refusal_case": "test_onto_counterfactual_unauthorized",
+      "receipt_obligation": "none",
+      "public_ontology_mapping": "schema:Action",
+      "AutoReceipt_ready": true
+    },
+    {
+      "tool_name": "onto_propose_requirement",
+      "description": "Handler for onto_propose_requirement",
+      "input_schema": {
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "side_effects": [],
+      "required_permissions": [
+        "tenant_read"
+      ],
+      "reads_files": false,
+      "writes_files": false,
+      "calls_network": false,
+      "calls_shell": false,
+      "mutates_repo": false,
+      "emits_receipts": false,
+      "receipt_type": "None",
+      "positive_case": "test_onto_propose_requirement_ok",
+      "negative_case": "test_onto_propose_requirement_err",
+      "descriptor_hash": "99a577b46ad0ebf18fdc366421b74a5e7c5c5bc9c4ef3c4c045450472a9816c9",
+      "implementation_source": "src/server.rs",
+      "implementation_symbol": "onto_propose_requirement",
+      "implementation_hash": "1873a194cf59cee1359f6bdd4ba4e169c0f48ac4ed823e01f3ac4b80c81223d3",
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "refusal_case": "test_onto_propose_requirement_unauthorized",
+      "receipt_obligation": "none",
+      "public_ontology_mapping": "schema:Action",
+      "AutoReceipt_ready": true
+    },
+    {
+      "tool_name": "onto_translate_candidate",
+      "description": "Handler for onto_translate_candidate",
+      "input_schema": {
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "side_effects": [],
+      "required_permissions": [
+        "tenant_read"
+      ],
+      "reads_files": false,
+      "writes_files": false,
+      "calls_network": false,
+      "calls_shell": false,
+      "mutates_repo": false,
+      "emits_receipts": false,
+      "receipt_type": "None",
+      "positive_case": "test_onto_translate_candidate_ok",
+      "negative_case": "test_onto_translate_candidate_err",
+      "descriptor_hash": "7f1643589ba437b6c089eeae5e8103159c058bcbbd86a88c5f7a7f20bad35e2a",
+      "implementation_source": "src/server.rs",
+      "implementation_symbol": "onto_translate_candidate",
+      "implementation_hash": "98e703156b81a0be2352d66f2deb6ba74dab9c1cd53c270f9118b614cd27e515",
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "refusal_case": "test_onto_translate_candidate_unauthorized",
+      "receipt_obligation": "none",
+      "public_ontology_mapping": "schema:Action",
+      "AutoReceipt_ready": true
+    },
+    {
+      "tool_name": "onto_admit_ctq",
+      "description": "Handler for onto_admit_ctq",
+      "input_schema": {
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "side_effects": [],
+      "required_permissions": [
+        "tenant_read"
+      ],
+      "reads_files": false,
+      "writes_files": false,
+      "calls_network": false,
+      "calls_shell": false,
+      "mutates_repo": false,
+      "emits_receipts": false,
+      "receipt_type": "None",
+      "positive_case": "test_onto_admit_ctq_ok",
+      "negative_case": "test_onto_admit_ctq_err",
+      "descriptor_hash": "245772cd03d5784b7964e2a86e186dc2df6c9e9fc7c47d3bea524e6760d14951",
+      "implementation_source": "src/server.rs",
+      "implementation_symbol": "onto_admit_ctq",
+      "implementation_hash": "e027a9a4c6a07e74f902a97faea2450a639b8b0126fb35a2c0a026b2976baf68",
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "refusal_case": "test_onto_admit_ctq_unauthorized",
+      "receipt_obligation": "none",
+      "public_ontology_mapping": "schema:Action",
+      "AutoReceipt_ready": true
+    },
+    {
+      "tool_name": "onto_propose_work_order",
+      "description": "Handler for onto_propose_work_order",
+      "input_schema": {
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "side_effects": [],
+      "required_permissions": [
+        "tenant_read"
+      ],
+      "reads_files": false,
+      "writes_files": false,
+      "calls_network": false,
+      "calls_shell": false,
+      "mutates_repo": false,
+      "emits_receipts": false,
+      "receipt_type": "None",
+      "positive_case": "test_onto_propose_work_order_ok",
+      "negative_case": "test_onto_propose_work_order_err",
+      "descriptor_hash": "a7a1db5ad325311bbd0e6c22267f1364c647a2347a20fb143737a64e886bd2b5",
+      "implementation_source": "src/server.rs",
+      "implementation_symbol": "onto_propose_work_order",
+      "implementation_hash": "29262ffe50c705526974154e2a247addbd6ca49ebd85c394f09428d505c538a8",
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "refusal_case": "test_onto_propose_work_order_unauthorized",
+      "receipt_obligation": "none",
+      "public_ontology_mapping": "schema:Action",
+      "AutoReceipt_ready": true
+    },
+    {
+      "tool_name": "onto_admit_work_order",
+      "description": "Handler for onto_admit_work_order",
+      "input_schema": {
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "side_effects": [],
+      "required_permissions": [
+        "tenant_read"
+      ],
+      "reads_files": false,
+      "writes_files": false,
+      "calls_network": false,
+      "calls_shell": false,
+      "mutates_repo": false,
+      "emits_receipts": false,
+      "receipt_type": "None",
+      "positive_case": "test_onto_admit_work_order_ok",
+      "negative_case": "test_onto_admit_work_order_err",
+      "descriptor_hash": "5fe979a5f1888009806f4b1b87ce3e7b88027527cabe2110a3f0686f8e4b0313",
+      "implementation_source": "src/server.rs",
+      "implementation_symbol": "onto_admit_work_order",
+      "implementation_hash": "f2eb5089f8a841e71eecc20eaea91d3500cca2a01540ab0a5b05d3d1a7f8d634",
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "refusal_case": "test_onto_admit_work_order_unauthorized",
+      "receipt_obligation": "none",
+      "public_ontology_mapping": "schema:Action",
+      "AutoReceipt_ready": true
+    },
+    {
+      "tool_name": "onto_manufacture_solution",
+      "description": "Handler for onto_manufacture_solution",
+      "input_schema": {
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "side_effects": [],
+      "required_permissions": [
+        "tenant_read"
+      ],
+      "reads_files": false,
+      "writes_files": false,
+      "calls_network": false,
+      "calls_shell": false,
+      "mutates_repo": false,
+      "emits_receipts": false,
+      "receipt_type": "None",
+      "positive_case": "test_onto_manufacture_solution_ok",
+      "negative_case": "test_onto_manufacture_solution_err",
+      "descriptor_hash": "5ad1e3e7ee5eb8f8021383b6ab4996196c494fc5e5c3afe8c6ca4ab30994775b",
+      "implementation_source": "src/server.rs",
+      "implementation_symbol": "onto_manufacture_solution",
+      "implementation_hash": "26146b8c7efe18a70cb98273581599ff1c51a88a839b3808529e58155fcda177",
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "refusal_case": "test_onto_manufacture_solution_unauthorized",
+      "receipt_obligation": "none",
+      "public_ontology_mapping": "schema:Action",
+      "AutoReceipt_ready": true
+    },
+    {
+      "tool_name": "onto_old_ai_station",
+      "description": "Handler for onto_old_ai_station",
+      "input_schema": {
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "side_effects": [],
+      "required_permissions": [
+        "tenant_read"
+      ],
+      "reads_files": false,
+      "writes_files": false,
+      "calls_network": false,
+      "calls_shell": false,
+      "mutates_repo": false,
+      "emits_receipts": false,
+      "receipt_type": "None",
+      "positive_case": "test_onto_old_ai_station_ok",
+      "negative_case": "test_onto_old_ai_station_err",
+      "descriptor_hash": "25bc61a04b14cd85dacad841ed54be822af487e27eed151c111146e7e461b41a",
+      "implementation_source": "src/server.rs",
+      "implementation_symbol": "onto_old_ai_station",
+      "implementation_hash": "d24a2e5953d805c10c5f98e307c41dc9963dedb7b129714f2558acd5b5212ac2",
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "refusal_case": "test_onto_old_ai_station_unauthorized",
+      "receipt_obligation": "none",
+      "public_ontology_mapping": "schema:Action",
+      "AutoReceipt_ready": true
+    },
+    {
+      "tool_name": "onto_executive_projection",
+      "description": "Handler for onto_executive_projection",
+      "input_schema": {
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "side_effects": [],
+      "required_permissions": [
+        "tenant_read"
+      ],
+      "reads_files": false,
+      "writes_files": false,
+      "calls_network": false,
+      "calls_shell": false,
+      "mutates_repo": false,
+      "emits_receipts": false,
+      "receipt_type": "None",
+      "positive_case": "test_onto_executive_projection_ok",
+      "negative_case": "test_onto_executive_projection_err",
+      "descriptor_hash": "a19dbee6500b1933c73560a55cea1aad7e21879784852198165be80452cf3670",
+      "implementation_source": "src/server.rs",
+      "implementation_symbol": "onto_executive_projection",
+      "implementation_hash": "505d0051f9713ee53cc581af31e2347e91408cfa1b4134a66dc42de846556c1b",
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "refusal_case": "test_onto_executive_projection_unauthorized",
+      "receipt_obligation": "none",
+      "public_ontology_mapping": "schema:Action",
+      "AutoReceipt_ready": true
+    },
+    {
+      "tool_name": "onto_groq_status",
+      "description": "Handler for onto_groq_status",
+      "input_schema": {
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "side_effects": [],
+      "required_permissions": [
+        "tenant_read"
+      ],
+      "reads_files": false,
+      "writes_files": false,
+      "calls_network": false,
+      "calls_shell": false,
+      "mutates_repo": false,
+      "emits_receipts": false,
+      "receipt_type": "None",
+      "positive_case": "test_onto_groq_status_ok",
+      "negative_case": "test_onto_groq_status_err",
+      "descriptor_hash": "7fefb03be3bde25b9c1cb8bd3d42bd20e4994e77d9c3c900f2f365556e5fa72a",
+      "implementation_source": "src/server.rs",
+      "implementation_symbol": "onto_groq_status",
+      "implementation_hash": "2c6bb3c0ff8e1696c915f8f761414b9ba8a81c4eab298ef06d1f5334f1368547",
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "refusal_case": "test_onto_groq_status_unauthorized",
+      "receipt_obligation": "none",
+      "public_ontology_mapping": "schema:Action",
+      "AutoReceipt_ready": true
+    },
+    {
+      "tool_name": "onto_gemini_status",
+      "description": "Handler for onto_gemini_status",
+      "input_schema": {
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "side_effects": [],
+      "required_permissions": [
+        "tenant_read"
+      ],
+      "reads_files": false,
+      "writes_files": false,
+      "calls_network": false,
+      "calls_shell": false,
+      "mutates_repo": false,
+      "emits_receipts": false,
+      "receipt_type": "None",
+      "positive_case": "test_onto_gemini_status_ok",
+      "negative_case": "test_onto_gemini_status_err",
+      "descriptor_hash": "743555ef084e0aff0044571e9f4c69533dcd7441433410640739887010bc081c",
+      "implementation_source": "src/server.rs",
+      "implementation_symbol": "onto_gemini_status",
+      "implementation_hash": "8230d79fb257d7d4099e88776a94cfc55013f84cf7df42d1a6d1e5d89c054dcb",
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "refusal_case": "test_onto_gemini_status_unauthorized",
+      "receipt_obligation": "none",
+      "public_ontology_mapping": "schema:Action",
+      "AutoReceipt_ready": true
+    },
+    {
+      "tool_name": "onto_attestation_rotate_keys",
+      "description": "Handler for onto_attestation_rotate_keys",
+      "input_schema": {
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "side_effects": [],
+      "required_permissions": [
+        "tenant_read"
+      ],
+      "reads_files": false,
+      "writes_files": false,
+      "calls_network": false,
+      "calls_shell": false,
+      "mutates_repo": false,
+      "emits_receipts": false,
+      "receipt_type": "None",
+      "positive_case": "test_onto_attestation_rotate_keys_ok",
+      "negative_case": "test_onto_attestation_rotate_keys_err",
+      "descriptor_hash": "82b143d24d6c0370bb54a976631857a3b4fdb3ae9d73f6db91fd3ad20014c5f5",
+      "implementation_source": "src/server.rs",
+      "implementation_symbol": "onto_attestation_rotate_keys",
+      "implementation_hash": "6b098d6c4eb4c58e2181c08bb6ded5b242b31c1a242be48eb8af188ee14e3f03",
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "refusal_case": "test_onto_attestation_rotate_keys_unauthorized",
+      "receipt_obligation": "none",
+      "public_ontology_mapping": "schema:Action",
+      "AutoReceipt_ready": true
+    },
+    {
+      "tool_name": "onto_bootstrap_unlock",
+      "description": "Handler for onto_bootstrap_unlock",
+      "input_schema": {
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "side_effects": [],
+      "required_permissions": [
+        "tenant_read"
+      ],
+      "reads_files": false,
+      "writes_files": false,
+      "calls_network": false,
+      "calls_shell": false,
+      "mutates_repo": false,
+      "emits_receipts": false,
+      "receipt_type": "None",
+      "positive_case": "test_onto_bootstrap_unlock_ok",
+      "negative_case": "test_onto_bootstrap_unlock_err",
+      "descriptor_hash": "e2d6f4a49968bff6b20ccabe0ae91b0293dcc09b6337d9df8a4369c3de8b03dc",
+      "implementation_source": "src/server.rs",
+      "implementation_symbol": "onto_bootstrap_unlock",
+      "implementation_hash": "ea36900142794a38c4ac83fe32b7861b55ea7f0f333ba360d96fbbf8a0d48b05",
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "refusal_case": "test_onto_bootstrap_unlock_unauthorized",
+      "receipt_obligation": "none",
+      "public_ontology_mapping": "schema:Action",
+      "AutoReceipt_ready": true
+    },
+    {
+      "tool_name": "onto_receipts_revoke_batch",
+      "description": "Handler for onto_receipts_revoke_batch",
+      "input_schema": {
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "side_effects": [],
+      "required_permissions": [
+        "tenant_read"
+      ],
+      "reads_files": false,
+      "writes_files": false,
+      "calls_network": false,
+      "calls_shell": false,
+      "mutates_repo": false,
+      "emits_receipts": false,
+      "receipt_type": "None",
+      "positive_case": "test_onto_receipts_revoke_batch_ok",
+      "negative_case": "test_onto_receipts_revoke_batch_err",
+      "descriptor_hash": "2777564ec83925c8239f8b3e5b1443f2dd0bd21182780f2e9de22aae0f395549",
+      "implementation_source": "src/server.rs",
+      "implementation_symbol": "onto_receipts_revoke_batch",
+      "implementation_hash": "7432f66c74989c6b5f7be03232a5132a0aa90fae5defee75d37f0903bcecb521",
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "refusal_case": "test_onto_receipts_revoke_batch_unauthorized",
+      "receipt_obligation": "none",
+      "public_ontology_mapping": "schema:Action",
+      "AutoReceipt_ready": true
+    },
+    {
+      "tool_name": "onto_session_revoke_by_principal",
+      "description": "Handler for onto_session_revoke_by_principal",
+      "input_schema": {
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "side_effects": [],
+      "required_permissions": [
+        "tenant_read"
+      ],
+      "reads_files": false,
+      "writes_files": false,
+      "calls_network": false,
+      "calls_shell": false,
+      "mutates_repo": false,
+      "emits_receipts": false,
+      "receipt_type": "None",
+      "positive_case": "test_onto_session_revoke_by_principal_ok",
+      "negative_case": "test_onto_session_revoke_by_principal_err",
+      "descriptor_hash": "cca08b831cc65a43447505e72c5103d1c817db1f119d47241fb785768db1d1c2",
+      "implementation_source": "src/server.rs",
+      "implementation_symbol": "onto_session_revoke_by_principal",
+      "implementation_hash": "5c1416e95df3fb2b6bb5847b17884f878ba27ddb0c0232e145cbd37900922166",
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "refusal_case": "test_onto_session_revoke_by_principal_unauthorized",
+      "receipt_obligation": "none",
+      "public_ontology_mapping": "schema:Action",
+      "AutoReceipt_ready": true
+    },
+    {
+      "tool_name": "onto_retention_pause",
+      "description": "Handler for onto_retention_pause",
+      "input_schema": {
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "side_effects": [],
+      "required_permissions": [
+        "tenant_read"
+      ],
+      "reads_files": false,
+      "writes_files": false,
+      "calls_network": false,
+      "calls_shell": false,
+      "mutates_repo": false,
+      "emits_receipts": false,
+      "receipt_type": "None",
+      "positive_case": "test_onto_retention_pause_ok",
+      "negative_case": "test_onto_retention_pause_err",
+      "descriptor_hash": "73f13ec4f349637e51f7664666b7e392d939ee8d684a47e3605d8c4d6e00d680",
+      "implementation_source": "src/server.rs",
+      "implementation_symbol": "onto_retention_pause",
+      "implementation_hash": "428d7570bce21d0b409c3aee9de2391a25cef5f23a8a96ef5b3fc8352fbbd826",
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "refusal_case": "test_onto_retention_pause_unauthorized",
+      "receipt_obligation": "none",
+      "public_ontology_mapping": "schema:Action",
+      "AutoReceipt_ready": true
+    },
+    {
+      "tool_name": "onto_retention_resume",
+      "description": "Handler for onto_retention_resume",
+      "input_schema": {
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "side_effects": [],
+      "required_permissions": [
+        "tenant_read"
+      ],
+      "reads_files": false,
+      "writes_files": false,
+      "calls_network": false,
+      "calls_shell": false,
+      "mutates_repo": false,
+      "emits_receipts": false,
+      "receipt_type": "None",
+      "positive_case": "test_onto_retention_resume_ok",
+      "negative_case": "test_onto_retention_resume_err",
+      "descriptor_hash": "0a7ebcc9c18a0e1d87dfc23c29ce5c713a39a0349fc84ef83be53cbdb3812aa8",
+      "implementation_source": "src/server.rs",
+      "implementation_symbol": "onto_retention_resume",
+      "implementation_hash": "fc2051ea68cd3308ca2d394aee1bec807947a6c1e82907ac558a0202969039a4",
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "refusal_case": "test_onto_retention_resume_unauthorized",
+      "receipt_obligation": "none",
+      "public_ontology_mapping": "schema:Action",
+      "AutoReceipt_ready": true
+    },
+    {
+      "tool_name": "onto_ontostar_attest",
+      "description": "Handler for onto_ontostar_attest",
+      "input_schema": {
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "side_effects": [],
+      "required_permissions": [
+        "tenant_read"
+      ],
+      "reads_files": false,
+      "writes_files": false,
+      "calls_network": false,
+      "calls_shell": false,
+      "mutates_repo": false,
+      "emits_receipts": false,
+      "receipt_type": "None",
+      "positive_case": "test_onto_ontostar_attest_ok",
+      "negative_case": "test_onto_ontostar_attest_err",
+      "descriptor_hash": "491d8df50569e7c0b5bd362672bde807b44e9d2f5e6658342380d4d7c170da81",
+      "implementation_source": "src/server.rs",
+      "implementation_symbol": "onto_ontostar_attest",
+      "implementation_hash": "382f6c944f4051017960da00c60c874ef887fde51128050c107ee4a1f50a22da",
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "refusal_case": "test_onto_ontostar_attest_unauthorized",
+      "receipt_obligation": "none",
+      "public_ontology_mapping": "schema:Action",
+      "AutoReceipt_ready": true
+    },
+    {
+      "tool_name": "onto_guide",
+      "description": "Handler for onto_guide",
+      "input_schema": {
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "side_effects": [],
+      "required_permissions": [
+        "tenant_read"
+      ],
+      "reads_files": false,
+      "writes_files": false,
+      "calls_network": false,
+      "calls_shell": false,
+      "mutates_repo": false,
+      "emits_receipts": false,
+      "receipt_type": "None",
+      "positive_case": "test_onto_guide_ok",
+      "negative_case": "test_onto_guide_err",
+      "descriptor_hash": "90962ce3673469a95869c392b1ac06f411de2177aed533241a1a121dbb4c4271",
+      "implementation_source": "src/server.rs",
+      "implementation_symbol": "onto_guide",
+      "implementation_hash": "e136c0fc119c6416aeb698fc3ac863d593741b33b4cd0efc79772e17558bb2c1",
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "refusal_case": "test_onto_guide_unauthorized",
+      "receipt_obligation": "none",
+      "public_ontology_mapping": "schema:Action",
+      "AutoReceipt_ready": true
+    },
+    {
+      "tool_name": "...",
+      "description": "Handler for ...",
+      "input_schema": {
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object"
+      },
+      "side_effects": [],
+      "required_permissions": [
+        "tenant_read"
+      ],
+      "reads_files": false,
+      "writes_files": false,
+      "calls_network": false,
+      "calls_shell": false,
+      "mutates_repo": false,
+      "emits_receipts": false,
+      "receipt_type": "None",
+      "positive_case": "test_..._ok",
+      "negative_case": "test_..._err",
+      "descriptor_hash": "ab5df625bc76dbd4e163bed2dd888df828f90159bb93556525c31821b6541d46",
+      "implementation_source": "src/toolfilter.rs",
+      "implementation_symbol": "...",
+      "implementation_hash": "72f3fe2375b7a02fb60d927706b8243b33b2994529f8a7e30ad4eb3d5ce7140d",
+      "allowed_roots": [
+        "/tmp/open-ontologies"
+      ],
+      "refusal_case": "test_..._unauthorized",
+      "receipt_obligation": "none",
+      "public_ontology_mapping": "schema:Action",
+      "AutoReceipt_ready": true
+    }
+  ]
+}

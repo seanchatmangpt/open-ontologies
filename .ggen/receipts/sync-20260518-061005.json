@@ -1,0 +1,12 @@
+{
+  "operation_id": "4c30211d-7d60-47d1-b3be-eae5193fbf77",
+  "timestamp": "2026-05-18T06:10:05.780705Z",
+  "input_hashes": [
+    "ggen.toml:32a9a3e1361bd3f1cb3d0e419680cb424bb2d8e4b1f8f8b3e33ead2f647080cb"
+  ],
+  "output_hashes": [
+    "./src/cmds/generated_revops.rs:b469360672c4f5b4ec53dad9080029423e86ff2c49c90e76a3977616667eb575"
+  ],
+  "signature": "c5a0a12a323293fe12b0326270069b0c15ea5a1e7e4b36ade6b0444a7b553e940282f6813fbbc63a11f417d7c0fbe9fd5c67a463afe0514b47a176fbaa8a7e0a",
+  "previous_receipt_hash": "7dfba28916fa3af9421a558a6aef43d8c71e1ef2348c4a16a0e3fa8cde92cb1e"
+}

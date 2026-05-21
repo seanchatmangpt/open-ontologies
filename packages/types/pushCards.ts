@@ -13,6 +13,78 @@ import { PushCard } from '../types/notifications';
 export const PUSH_CARDS: PushCard[] = [
 
   {
+    title: "Care Update Card",
+    subtitle: "ZOE LA Care Team",
+    body: "There is a new update on your active care support route. Tap to see the latest progress and next steps.",
+    action: "View Update",
+    deepLink: "zoela://care/update",
+    priority: 3,
+  },
+
+  {
+    title: "Connect Group Interest Received Card",
+    subtitle: "ZOE LA Connect Groups",
+    body: "We received your Connect Group interest form. Our team will match you with a group that fits your schedule and interests.",
+    action: "Check Status",
+    deepLink: "zoela://groups/interest-status",
+    priority: 3,
+  },
+
+  {
+    title: "Connect Group Invite Card",
+    subtitle: "ZOE LA Connect Groups",
+    body: "You have been invited to join a Connect Group. Tap to view the group details and accept or decline the invitation.",
+    action: "View Invitation",
+    deepLink: "zoela://groups/invite",
+    priority: 1,
+  },
+
+  {
+    title: "Connect Group Join Approved Card",
+    subtitle: "ZOE LA Connect Groups",
+    body: "Your request to join the Connect Group has been approved by the group leader. Tap to see your group details and upcoming schedule.",
+    action: "See My Group",
+    deepLink: "zoela://groups/my-groups",
+    priority: 2,
+  },
+
+  {
+    title: "Connect Group Meeting Reminder Card",
+    subtitle: "ZOE LA Connect Groups",
+    body: "Your Connect Group meets tonight. Tap to view the meeting details, location, and any materials shared by your group leader.",
+    action: "View Meeting",
+    deepLink: "zoela://groups/meeting",
+    priority: 1,
+  },
+
+  {
+    title: "Follow-Up Card",
+    subtitle: "Pastoral Care",
+    body: "A care follow-up task is outstanding for one of your assigned members. Please review and complete within 48 hours.",
+    action: "Open Task",
+    deepLink: "zoela://care/follow-up",
+    priority: 2,
+  },
+
+  {
+    title: "Food Service Card",
+    subtitle: "ZOE LA Care Services",
+    body: "Your food assistance request has been approved. Please visit the resource room to collect your items.",
+    action: "View Details",
+    deepLink: "zoela://routes/food-service",
+    priority: 1,
+  },
+
+  {
+    title: "Urgent Escalation Card",
+    subtitle: "Leadership Escalation",
+    body: "A critical situation requires your immediate pastoral attention. Please review the escalation and respond now.",
+    action: "Respond Immediately",
+    deepLink: "zoela://escalation/urgent",
+    priority: 0,
+  },
+
+  {
     title: "Volunteer Request Card",
     subtitle: "Ministry Services",
     body: "You have been requested to serve as a volunteer for an upcoming ministry route stage. Please accept or decline.",

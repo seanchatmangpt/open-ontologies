@@ -1,0 +1,152 @@
+# =============================================================================
+# extract-public-materialization-columns.rq — body columns for admitted tables
+# =============================================================================
+#
+# P0-B.4e: emits one row per (admitted class, body property) tuple so the
+# columns template can render `ALTER TABLE ... ADD COLUMN` statements that
+# append body columns to the bare tables emitted by
+# extract-public-materializations.rq.
+#
+# Split rationale: the previous inline OPTIONAL nested-SELECT pattern that
+# tried to pack column tuples into the admission extractor's GROUP_CONCAT
+# hits an Oxigraph join-correlation bug under v26.5.18 (silently drops the
+# whole admitted row). Splitting into two rules keeps both SPARQL queries
+# flat and small.
+#
+# Admissibility chain is replicated here (same gates as the admission
+# extractor) so the column rule never targets a non-admitted table.
+#
+# Output layout (ONE aggregated row, pipe-delimited per (table, column)):
+#     ?colTables       — Postgres table name (already normalized via the
+#                        admission extractor's SAMPLE; emit the raw notation
+#                        here and let the template re-normalize)
+#     ?colNames        — raw skos:notation of the property
+#     ?colSqlTypes     — SQL type ("UUID", "TEXT", "BOOLEAN", ...)
+#     ?colFkTables     — referenced table for object properties (empty otherwise)
+#     ?colDescriptions — rdfs:comment with commas/colons/pipes/at-signs stripped
+#     ?colClassIris    — local ZOE class IRI (for provenance comments)
+# =============================================================================
+
+PREFIX ggen:   <https://open-ontologies.org/ggen#>
+PREFIX zoe:    <https://zoela.org/ontology/>
+PREFIX owl:    <http://www.w3.org/2002/07/owl#>
+PREFIX rdf:    <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX rdfs:   <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX sh:     <http://www.w3.org/ns/shacl#>
+PREFIX skos:   <http://www.w3.org/2004/02/skos/core#>
+PREFIX xsd:    <http://www.w3.org/2001/XMLSchema#>
+PREFIX odrl:   <http://www.w3.org/ns/odrl/2/>
+
+SELECT
+  (GROUP_CONCAT(?colTable;       SEPARATOR="|") AS ?colTables)
+  (GROUP_CONCAT(?colName;        SEPARATOR="|") AS ?colNames)
+  (GROUP_CONCAT(?colSqlType;     SEPARATOR="|") AS ?colSqlTypes)
+  (GROUP_CONCAT(?colFkTable;     SEPARATOR="|") AS ?colFkTables)
+  (GROUP_CONCAT(?colDescription; SEPARATOR="|") AS ?colDescriptions)
+  (GROUP_CONCAT(?colClassIri;    SEPARATOR="|") AS ?colClassIris)
+WHERE {
+  {
+    SELECT ?class ?prop
+        (SAMPLE(?_tableName)   AS ?colTable)
+        (SAMPLE(?_colName)     AS ?colName)
+        (SAMPLE(?_sqlType)     AS ?colSqlType)
+        (SAMPLE(?_fkTable)     AS ?colFkTable)
+        (SAMPLE(?_description) AS ?colDescription)
+        (SAMPLE(?_classIri)    AS ?colClassIri)
+    WHERE {
+      # ── Class identity ──────────────────────────────────────────────
+      ?class a owl:Class ;
+             skos:notation ?_tableName .
+      FILTER(STRSTARTS(STR(?class), "https://zoela.org/ontology/"))
+      BIND(STR(?class) AS ?_classIri)
+
+      # ── Class-level admissibility (same gates as admission extractor) ──
+      FILTER NOT EXISTS {
+        ?_p2 rdfs:domain ?class ; skos:notation ?_c2 .
+        FILTER NOT EXISTS { ?_p2 rdfs:range ?_r2 }
+      }
+      FILTER NOT EXISTS {
+        ?_pA rdfs:domain ?class ; skos:notation ?_nA .
+        ?_pB rdfs:domain ?class ; skos:notation ?_nB .
+        FILTER(?_pA != ?_pB)
+        FILTER(
+          REPLACE(LCASE(STR(?_nA)), "-", "_")
+          = REPLACE(LCASE(STR(?_nB)), "-", "_")
+        )
+      }
+      FILTER NOT EXISTS {
+        ?_pSame rdfs:domain ?class ;
+                skos:notation ?_nX , ?_nY .
+        FILTER(STR(?_nX) != STR(?_nY))
+      }
+
+      # ── Public-anchor + admitted kind ────────────────────────────────
+      ?class rdfs:subClassOf+ ?_anchor .
+      FILTER(!STRSTARTS(STR(?_anchor), "https://zoela.org/ontology/"))
+      FILTER(?_anchor != owl:Thing)
+      FILTER(isIRI(?_anchor))
+      ?kind a ggen:MaterializationKind ;
+            ggen:materializesPublicAnchor ?_anchor ;
+            ggen:emitsSql true ;
+            ggen:requiresOwner  ?_requiresOwner ;
+            ggen:requiresShape  ?_shape ;
+            ggen:materializationPriority ?_priority .
+      FILTER(EXISTS { ?_shape a sh:NodeShape })
+      FILTER(
+        EXISTS { ?_p1 rdfs:domain ?class ; skos:notation ?_c1 }
+        || ?_requiresOwner
+      )
+      OPTIONAL { ?kind ggen:rlsRequired ?_rls }
+      FILTER(
+        !(BOUND(?_rls) && ?_rls) ||
+        EXISTS {
+          ?_act ggen:rlsTargetKind ?kind .
+          ?_pol a odrl:Policy ; odrl:permission [ odrl:action ?_act ] .
+        }
+      )
+      FILTER NOT EXISTS {
+        ?class rdfs:subClassOf+ ?_oAnchor .
+        FILTER(!STRSTARTS(STR(?_oAnchor), "https://zoela.org/ontology/"))
+        FILTER(?_oAnchor != owl:Thing)
+        FILTER(isIRI(?_oAnchor))
+        ?_oKind a ggen:MaterializationKind ;
+                ggen:materializesPublicAnchor ?_oAnchor ;
+                ggen:emitsSql true ;
+                ggen:materializationPriority ?_oPriority ;
+                ggen:requiresOwner ?_oRequiresOwner ;
+                ggen:requiresShape ?_oShape .
+        FILTER(?_oKind != ?kind)
+        FILTER(?_oPriority >= ?_priority)
+        FILTER(EXISTS { ?_oShape a sh:NodeShape })
+        FILTER(
+          EXISTS { ?_op rdfs:domain ?class ; skos:notation ?_oc }
+          || ?_oRequiresOwner
+        )
+      }
+
+      # ── Body property + SQL type derivation ───────────────────────────
+      ?prop rdfs:domain ?class ; skos:notation ?_colName .
+      OPTIONAL { ?prop rdfs:range ?_range }
+      OPTIONAL { ?prop rdfs:comment ?_descRaw }
+      OPTIONAL {
+        ?_range a owl:Class ; skos:notation ?_fkRaw .
+        FILTER(STRSTARTS(STR(?_range), "https://zoela.org/ontology/"))
+      }
+      BIND(COALESCE(?_fkRaw, "") AS ?_fkTable)
+      BIND(REPLACE(STR(COALESCE(?_descRaw, "")), "[,@:|]", " ") AS ?_description)
+      BIND(
+        IF(EXISTS { ?prop a owl:ObjectProperty },                   "UUID",
+        IF(BOUND(?_range) && ?_range = xsd:boolean,                 "BOOLEAN",
+        IF(BOUND(?_range) && ?_range = xsd:integer,                 "INTEGER",
+        IF(BOUND(?_range) && ?_range = xsd:int,                     "INTEGER",
+        IF(BOUND(?_range) && ?_range = xsd:long,                    "BIGINT",
+        IF(BOUND(?_range) && ?_range = xsd:decimal,                 "NUMERIC",
+        IF(BOUND(?_range) && ?_range = xsd:dateTime,                "TIMESTAMPTZ",
+        IF(BOUND(?_range) && ?_range = xsd:date,                    "DATE",
+        IF(BOUND(?_range) && ?_range = xsd:anyURI,                  "TEXT",
+        "TEXT"))))))))) AS ?_sqlType
+      )
+    }
+    GROUP BY ?class ?prop
+  }
+}

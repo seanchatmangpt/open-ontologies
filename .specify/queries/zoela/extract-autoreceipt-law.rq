@@ -1,0 +1,20 @@
+PREFIX ostar: <urn:ostar:ontology#>
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+
+SELECT ?lawId
+  (GROUP_CONCAT(?inputValue; SEPARATOR="|") AS ?inputValues)
+  (GROUP_CONCAT(?condition; SEPARATOR="|") AS ?conditions)
+WHERE {
+  {
+    SELECT ?lawId ?inputValue ?condition
+    WHERE {
+      ?law a ostar:Law ;
+           ostar:lawId ?lawId ;
+           ostar:hasTransition ?transition .
+      ?transition ostar:inputValue ?inputValue ;
+                  ostar:selectCondition ?condition .
+    }
+    ORDER BY ?lawId ?inputValue
+  }
+}
+GROUP BY ?lawId

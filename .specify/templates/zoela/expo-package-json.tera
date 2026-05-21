@@ -1,0 +1,61 @@
+{#-
+  expo-package-json.tera — apps/mobile/package.json
+
+  Renders once. Loops the pipe-delimited dep lists from the manifest
+  and emits a valid package.json with deps/devDeps sorted alphabetically
+  (the sort is implicit in the SPARQL ORDER BY / GROUP_CONCAT order).
+
+  Doctrine: no scripts injection here. The scripts block is fixed —
+  it represents Expo CLI conventions, not domain facts. If a script
+  becomes a domain fact (e.g., a manufactured test command), promote
+  it into the manifest TTL and surface it here.
+-#}
+{
+  "name": "{{ packageName }}",
+  "version": "{{ appVersion }}",
+  "private": true,
+  "description": "{{ packageDescription }}",
+  "main": "node_modules/expo/AppEntry.js",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web",
+    "typecheck": "tsc --noEmit",
+    "verify:supabase": "node scripts/verify-supabase.mjs"
+  },
+  "dependencies": {
+{%- set dep_list = deps | split(pat="|") %}
+{%- set first = true %}
+{%- for raw in dep_list %}
+{%-   set d = raw | trim %}
+{%-   if d != "" %}
+{%-     set parts = d | split(pat=":") %}
+{%-     set dname = parts[0] | trim %}
+{%-     set dver  = parts[1] | default(value="*") | trim %}
+{%-     if not first %},
+{% endif -%}
+    "{{ dname }}": "{{ dver }}"
+{%-     set_global first = false %}
+{%-   endif %}
+{%- endfor %}
+
+  },
+  "devDependencies": {
+{%- set devdep_list = devDeps | split(pat="|") %}
+{%- set first = true %}
+{%- for raw in devdep_list %}
+{%-   set d = raw | trim %}
+{%-   if d != "" %}
+{%-     set parts = d | split(pat=":") %}
+{%-     set dname = parts[0] | trim %}
+{%-     set dver  = parts[1] | default(value="*") | trim %}
+{%-     if not first %},
+{% endif -%}
+    "{{ dname }}": "{{ dver }}"
+{%-     set_global first = false %}
+{%-   endif %}
+{%- endfor %}
+
+  }
+}

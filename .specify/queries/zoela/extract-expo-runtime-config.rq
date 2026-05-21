@@ -1,0 +1,15 @@
+# =============================================================================
+# extract-expo-runtime-config.rq — fields used by App.tsx + supabaseClient.ts
+# =============================================================================
+
+PREFIX ggen: <https://open-ontologies.org/ggen#>
+
+SELECT ?appName ?supabaseUrl ?supabaseAnonKey ?entryScreenComponent ?entryScreenImportPath
+WHERE {
+  ?manifest a ggen:ExpoAppManifest ;
+            ggen:appName              ?appName ;
+            ggen:supabaseUrl          ?supabaseUrl ;
+            ggen:supabaseAnonKey      ?supabaseAnonKey ;
+            ggen:entryScreenComponent  ?entryScreenComponent ;
+            ggen:entryScreenImportPath ?entryScreenImportPath .
+}

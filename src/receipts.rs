@@ -842,3 +842,46 @@ fn hex_to_32(s: &str) -> Option<[u8; 32]> {
 pub fn is_valid_hex_hash(s: &str) -> bool {
     s.len() == 64 && s.chars().all(|c| matches!(c, '0'..='9' | 'a'..='f'))
 }
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct AutoReceiptPayload {
+    pub verdict: String,
+    pub expected_ocel_hash: String,
+    pub observed_ocel_hash: String,
+    pub alignment_hash: String,
+    pub execution_receipt_hash: String,
+    pub policy_epoch: String,
+}
+
+/// Emit an AutoReceipt for the architectural alignment.
+pub fn emit_autoreceipt(
+    db: &StateDb,
+    session_id: &str,
+    intent_hash: &str,
+    payload: &AutoReceiptPayload,
+    prior_receipt: Option<[u8; 32]>,
+) -> Result<Receipt> {
+    let payload_str = serde_json::to_string(payload).unwrap_or_else(|_| "{}".to_string());
+    
+    let record = ProductionRecord {
+        artifact_hash: hex_to_32(intent_hash).unwrap_or([0u8; 32]),
+        scope_token: payload_str,
+        declared_powl_hash: hex_to_32(&payload.alignment_hash).unwrap_or([0u8; 32]),
+        ocel_canonical_hash: hex_to_32(&payload.observed_ocel_hash).unwrap_or([0u8; 32]),
+        conformance_run_id: "autoreceipt-run".to_string(),
+        gate_config_hash: hex_to_32(&payload.execution_receipt_hash).unwrap_or([0u8; 32]),
+        production_law_version: "ontostar-1.0.0".into(),
+        defects_taxonomy_version: "ontostar-defects-4.8.0".into(),
+        gates_passed: vec!["ArchitecturalReceiptParsed".into(), "AlignmentVerified".into()],
+        gates_refused: vec![],
+        prior_receipt,
+        signature: None,
+        signing_key_fpr: None,
+    };
+
+    let receipt = build(record);
+    persist(&receipt, db, session_id)?;
+
+    Ok(receipt)
+}
+

@@ -5,6 +5,68 @@ use std::cell::RefCell;
 use std::collections::HashSet;
 use std::sync::Arc;
 
+pub mod autoreceipt {
+    use super::*;
+    use crate::autoreceipt_law::{AutoReceiptPipeline as Law, ArchitecturalReceiptParsed};
+
+    /// Theorem Stage 1: Admission of intent.
+    pub struct Admit;
+    /// Theorem Stage 2: Receipt generation and verification.
+    pub struct Receipt;
+    /// Theorem Stage 3: Exit and cleanup.
+    pub struct Exit;
+    /// Theorem Stage 4: Replay for audit.
+    pub struct Replay;
+
+    /// The AutoReceiptPipeline kernel enforcing the theorem: Admit -> Receipt -> Exit -> Replay.
+    pub struct AutoReceiptPipeline<P> {
+        #[allow(dead_code)]
+        pub(crate) law: Law<ArchitecturalReceiptParsed>,
+        #[allow(dead_code)]
+        phase: P,
+    }
+
+    impl AutoReceiptPipeline<Admit> {
+        pub fn new() -> Self {
+            Self {
+                law: Law::new(),
+                phase: Admit,
+            }
+        }
+
+        pub fn admit(self) -> AutoReceiptPipeline<Receipt> {
+            AutoReceiptPipeline {
+                law: self.law,
+                phase: Receipt,
+            }
+        }
+    }
+
+    impl AutoReceiptPipeline<Receipt> {
+        pub fn receipt(self) -> AutoReceiptPipeline<Exit> {
+            AutoReceiptPipeline {
+                law: self.law,
+                phase: Exit,
+            }
+        }
+    }
+
+    impl AutoReceiptPipeline<Exit> {
+        pub fn exit(self) -> AutoReceiptPipeline<Replay> {
+            AutoReceiptPipeline {
+                law: self.law,
+                phase: Replay,
+            }
+        }
+    }
+
+    impl<P> AutoReceiptPipeline<P> {
+        pub fn law(&self) -> &Law<ArchitecturalReceiptParsed> {
+            &self.law
+        }
+    }
+}
+
 /// Terraform-style plan/apply/migrate for ontology changes.
 pub struct Planner {
     db: StateDb,
@@ -23,6 +85,30 @@ struct PlanState {
 }
 
 impl Planner {
+    /// Parse architectural intent from C4_ARCHITECTURE.md (Level 1-3).
+    pub fn plan_architecture(&self, c4_markdown: &str) -> anyhow::Result<serde_json::Value> {
+        let mut containers = Vec::new();
+        let mut components = Vec::new();
+
+        for line in c4_markdown.lines() {
+            let line = line.trim();
+            if line.contains("Container(") {
+                if let Some(name) = line.split('"').nth(1) {
+                    containers.push(serde_json::json!({ "name": name }));
+                }
+            } else if line.contains("Component(") {
+                if let Some(name) = line.split('"').nth(1) {
+                    components.push(serde_json::json!({ "name": name }));
+                }
+            }
+        }
+
+        Ok(serde_json::json!({
+            "containers": containers,
+            "components": components,
+        }))
+    }
+
     /// Create a new `Planner` backed by the given state database and graph store.
     ///
     /// # Examples

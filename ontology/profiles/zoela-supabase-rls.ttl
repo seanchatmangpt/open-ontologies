@@ -100,7 +100,7 @@ zoe:joinServeOpportunity
 zoe:viewOwnAssignments
     ggen:rlsOperation     "SELECT" ;
     ggen:rlsTargetKind    ggen:ActionMaterialization ;
-    ggen:rlsConstraintSql "auth.uid() = assigned_to" .    # constrained read
+    ggen:rlsConstraintSql "auth.uid() = sent_to_person" .  # recipient-only read
 
 zoe:checkIn
     ggen:rlsOperation     "INSERT" ;
@@ -110,7 +110,8 @@ zoe:checkIn
 zoe:completeTask
     ggen:rlsOperation     "UPDATE" ;
     ggen:rlsTargetKind    ggen:ActionMaterialization ;
-    ggen:rlsConstraintSql "auth.uid() = assigned_to" .
+    ggen:rlsTargetKind    ggen:OcelEventMaterialization ;
+    ggen:rlsConstraintSql "auth.uid() = sent_to_person" . # recipient may complete
 
 zoe:viewOpenNeeds
     ggen:rlsOperation     "SELECT" ;
@@ -140,6 +141,38 @@ zoe:manageAllNeeds
 zoe:viewReports
     ggen:rlsOperation     "SELECT" ;
     ggen:rlsTargetKind    ggen:EvidenceEntityMaterialization ;
+    ggen:rlsConstraintSql "" .
+
+# AgentMaterialization (persons)
+zoe:viewOwnProfile
+    ggen:rlsOperation     "SELECT" ;
+    ggen:rlsTargetKind    ggen:AgentMaterialization ;
+    ggen:rlsConstraintSql "auth.uid()::text = id::text" .  # only own row
+
+zoe:manageAllProfiles
+    ggen:rlsOperation     "ALL" ;
+    ggen:rlsTargetKind    ggen:AgentMaterialization ;
+    ggen:rlsConstraintSql "" .
+
+# OrganizationMaterialization (households)
+zoe:viewOwnHousehold
+    ggen:rlsOperation     "SELECT" ;
+    ggen:rlsTargetKind    ggen:OrganizationMaterialization ;
+    ggen:rlsConstraintSql "" .  # role gate; further scope via app layer
+
+zoe:manageAllHouseholds
+    ggen:rlsOperation     "ALL" ;
+    ggen:rlsTargetKind    ggen:OrganizationMaterialization ;
+    ggen:rlsConstraintSql "" .
+
+zoe:viewConnectGroups
+    ggen:rlsOperation     "SELECT" ;
+    ggen:rlsTargetKind    ggen:OrganizationMaterialization ;
+    ggen:rlsConstraintSql "" .
+
+zoe:manageConnectGroups
+    ggen:rlsOperation     "ALL" ;
+    ggen:rlsTargetKind    ggen:OrganizationMaterialization ;
     ggen:rlsConstraintSql "" .
 
 # ============================================================================

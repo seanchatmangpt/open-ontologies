@@ -4,7 +4,7 @@
 //! backend — the same pattern as speckit-ralph's `copilot-shim.sh` /
 //! `gemini-invoke.sh`. Invokes:
 //!
-//!   gemini -p "<prompt>" --model gemini-3.1-flash-lite-preview --approval-mode yolo
+//!   npx -y @google/gemini-cli -p "<prompt>" --model gemini-3.1-flash-lite-preview --approval-mode yolo
 //!
 //! Skip conditions (not a test failure):
 //!   - `gemini` binary not found in PATH or GEMINI_BIN
@@ -125,7 +125,7 @@ async fn translate_candidate_gemini_engine_spawn_failure_returns_error_json() {
     unsafe { std::env::remove_var("GEMINI_BIN") };
 
     let v: serde_json::Value =
-        serde_json::from_str(&resp).expect("must return valid JSON even on failure");
+        serde_json::from_str(&resp).expect(&format!("must return valid JSON even on failure. got: {}", resp));
     assert_eq!(v["ok"], false, "ok must be false on spawn failure: {resp}");
     assert!(
         v["error"].as_str().is_some(),

@@ -1,6 +1,9 @@
 pub mod a2a;
+pub mod actuation;
 pub mod admission;
 pub mod attestation;
+pub mod autoreceipt_law;
+pub mod ocel_manufacturer;
 pub mod batch;
 pub mod bootstrap;
 pub mod cache;

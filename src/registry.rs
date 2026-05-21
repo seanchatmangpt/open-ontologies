@@ -83,6 +83,44 @@ struct ActiveEntry {
     evicted: Mutex<bool>,
 }
 
+use std::marker::PhantomData;
+
+pub struct Unbound;
+pub struct Bound;
+
+/// Registry of executable boundaries for the AutoReceipt pipeline.
+pub struct ExecutionRegistry<State = Unbound> {
+    _state: PhantomData<State>,
+    pub bindings: std::collections::HashMap<String, String>,
+}
+
+impl ExecutionRegistry<Unbound> {
+    pub fn new() -> Self {
+        Self {
+            _state: PhantomData,
+            bindings: std::collections::HashMap::new(),
+        }
+    }
+
+    pub fn bind(mut self, component: &str, target: &str) -> Self {
+        self.bindings.insert(component.to_string(), target.to_string());
+        self
+    }
+
+    pub fn transition(self) -> ExecutionRegistry<Bound> {
+        ExecutionRegistry {
+            _state: PhantomData,
+            bindings: self.bindings,
+        }
+    }
+}
+
+impl ExecutionRegistry<Bound> {
+    pub fn resolve(&self, component: &str) -> Option<&String> {
+        self.bindings.get(component)
+    }
+}
+
 /// Registry of the active ontology. Wrapped in `Arc` and shared with the server.
 pub struct OntologyRegistry {
     graph: Arc<GraphStore>,

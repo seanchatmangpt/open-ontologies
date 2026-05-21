@@ -1,54 +1,67 @@
 ========================================================================
 P0-A Extraction Diagnostics
-=====================================================================================
-P0-A Extraction Diagnostics
 ========================================================================
 
-Store stats: 6811 triples, 131 classes, 397 individuals, 462 object properties
+Store stats: 8162 triples, 153 classes, 477 individuals, 525 object properties
 
-Queries run:        23
-  with rows:        23
-  zero rows:        0
+Queries run:        38
+  with rows:        37
+  zero rows:        1
   errored:          0
-  with concerns:    3
-Total rows:         58
+  with concerns:    5
+Total rows:         43
 
 Per-query results:
 ------------------------------------------------------------------------
-  [ALIVE] extract-admin-screens                      rows=3    (all 9 variables populated across rows)
+  [ALIVE] extract-admin-screens                      rows=1    (all 9 aggregate variables populated)
   [ALIVE] extract-assignment-eligibility             rows=1    (all 5 aggregate variables populated)
-  [ALIVE] extract-bridge-tables                      rows=1    (all 7 aggregate variables populated)
+  [ALIVE] extract-autoreceipt-law                    rows=1    (all 3 aggregate variables populated)
+  [ALIVE] extract-bridge-tables                      rows=1   ⚠ AGGREGATE INCOMPLETE — 7/7 aggregate variables empty: tableNames, tableLabels, tableComments, propTables, colNames
   [ALIVE] extract-connect-group-admin                rows=1    (all 5 aggregate variables populated)
   [ALIVE] extract-connect-group-stages               rows=1    (all 9 aggregate variables populated)
   [ALIVE] extract-connect-group-work-orders          rows=1    (all 5 aggregate variables populated)
   [ALIVE] extract-consent-requirements               rows=7    (4/6 variables populated; empty (likely OPTIONAL no-match): blocks_stages, used_in_routes)
+  [ALIVE] extract-doc-page                           rows=1    (all 3 aggregate variables populated)
+  [zero] extract-edge-function                      rows=0   ⚠ ZERO ROWS — manufacturing path is severed
+  [ALIVE] extract-expo-app-json                      rows=1    (all 6 aggregate variables populated)
+  [ALIVE] extract-expo-manifest-id                   rows=1    (all 2 aggregate variables populated)
+  [ALIVE] extract-expo-package                       rows=1    (all 5 aggregate variables populated)
+  [ALIVE] extract-expo-runtime-config                rows=1    (all 5 aggregate variables populated)
+  [ALIVE] extract-expo-tsconfig                      rows=1    (all 1 variables populated across rows)
   [ALIVE] extract-followup-rules                     rows=1    (all 6 aggregate variables populated)
   [ALIVE] extract-form-fields                        rows=1    (all 8 aggregate variables populated)
-  [ALIVE] extract-navigation                         rows=7    (all 3 variables populated across rows)
+  [ALIVE] extract-governance-tables                  rows=1    (all 6 aggregate variables populated)
+  [ALIVE] extract-legacy-coverage                    rows=1    (all 3 aggregate variables populated)
+  [ALIVE] extract-navigation                         rows=1    (all 3 aggregate variables populated)
   [ALIVE] extract-ocel-events                        rows=1    (all 4 aggregate variables populated)
   [ALIVE] extract-ocel-schema                        rows=1    (all 5 aggregate variables populated)
-  [ALIVE] extract-push-card-fields                   rows=9    (7/8 variables populated; empty (likely OPTIONAL no-match): route_labels)
+  [ALIVE] extract-odrl-policies                      rows=1    (all 8 aggregate variables populated)
+  [ALIVE] extract-public-materialization-columns     rows=1    (all 6 aggregate variables populated)
+  [ALIVE] extract-public-materialization-refusals    rows=1    (all 7 aggregate variables populated)
+  [ALIVE] extract-public-materializations            rows=1    (all 12 aggregate variables populated)
+  [ALIVE] extract-push-card-fields                   rows=1    (all 6 aggregate variables populated)
   [ALIVE] extract-receipt-models                     rows=1    (all 5 aggregate variables populated)
   [ALIVE] extract-resource-matching-rules            rows=1    (all 6 aggregate variables populated)
   [ALIVE] extract-rls-policies                       rows=1   ⚠ AGGREGATE INCOMPLETE — 4/7 aggregate variables empty: permPolicies, permCodes, permOps, permRoles
   [ALIVE] extract-role-requirements                  rows=1    (all 8 aggregate variables populated)
-  [ALIVE] extract-screens                            rows=14   (all 10 variables populated across rows)
+  [ALIVE] extract-screens                            rows=1    (all 10 aggregate variables populated)
   [ALIVE] extract-sensitivity-rules                  rows=1   ⚠ AGGREGATE INCOMPLETE — 2/6 aggregate variables empty: sensitivityLevels, requiredRoles
   [ALIVE] extract-service-routes                     rows=1    (all 12 aggregate variables populated)
   [ALIVE] extract-skos-enums                         rows=1   ⚠ AGGREGATE INCOMPLETE — 11/11 aggregate variables empty: shapeNames, shapeTargets, shapeDescriptions, fieldShapes, fieldNames
   [ALIVE] extract-tables                             rows=1    (all 10 aggregate variables populated)
   [ALIVE] extract-types                              rows=1    (all 13 aggregate variables populated)
+  [ALIVE] extract-verify-supabase                    rows=1    (all 3 aggregate variables populated)
 
 ========================================================================
 μ_mobile Readiness Matrix
 ========================================================================
   Artifact                         Query                            Rows   Ready
 ------------------------------------------------------------------------
-  Expo screens                     extract-screens                  14     YES
-  Expo navigation stack            extract-navigation               7      YES
-  Admin screens                    extract-admin-screens            3      YES
+  Expo screens                     extract-screens                  1      YES
+  Expo navigation stack            extract-navigation               1      YES
+  Admin screens                    extract-admin-screens            1      YES
   Form fields                      extract-form-fields              1      YES
-  Push cards                       extract-push-card-fields         9      YES
+  Push cards                       extract-push-card-fields         1      YES
   Connect-group forms              extract-connect-group-stages     1      YES
 
 ========================================================================
@@ -66,7 +79,7 @@ Manufacturing-Restored Success Condition
   Chain                                                        SPARQL rows  Manufactures
 ------------------------------------------------------------------------
   Migration (extract-tables → supabase-migration.tera)         1            YES
-  Screen (extract-screens → expo-screen.tera)                  14           YES
+  Screen (extract-screens → expo-screen.tera)                  1            YES
   Route gate (extract-service-routes → route-stage-gate)       1            YES
   OCEL emitter (extract-ocel-events → ocel-event.tera)         1            YES
 

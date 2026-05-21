@@ -1,0 +1,81 @@
+{
+  "agent_cards": [
+    "ontology_discovery",
+    "clinical_mapper"
+  ],
+  "agent_ids": [
+    "agent-onto",
+    "agent-clin"
+  ],
+  "agent_capabilities": [
+    "discovery",
+    "mapping"
+  ],
+  "message_types": [
+    "WorkOrder",
+    "TaskResult"
+  ],
+  "task_state_machine": "basic_fsm",
+  "work_order_schema": {
+    "type": "object"
+  },
+  "routing_rules": "round_robin",
+  "transport": "local",
+  "session_model": "stateless",
+  "backpressure_rules": "drop",
+  "failure_states": [
+    "Failed"
+  ],
+  "receipt_verification_path": "receipt_chain",
+  "consensus_rules": "none",
+  "agents": [
+    {
+      "agent_id": "agent-onto",
+      "display_name": "Ontology Discovery Agent",
+      "agent_card_hash": "2e1eaf1cc0f9ff8db0a90a5c1a2da25b7e4fe949873a8e6861834c4af8fe8337",
+      "capabilities": [
+        "discovery"
+      ],
+      "input_message_types": [
+        "WorkOrder"
+      ],
+      "output_message_types": [
+        "TaskResult"
+      ],
+      "allowed_tools": [
+        "onto_save"
+      ],
+      "forbidden_tools": [
+        "admin_reset"
+      ],
+      "task_states_it_can_enter": [
+        "Running",
+        "Completed"
+      ],
+      "task_states_it_can_exit": [
+        "Completed",
+        "Failed"
+      ],
+      "task_state_transitions": [
+        {
+          "from_state": "Running",
+          "to_state": "Completed"
+        }
+      ],
+      "work_order_schema": {
+        "type": "object"
+      },
+      "receipt_obligations": [
+        "prove_discovery"
+      ],
+      "health_check": "ok",
+      "health_checks": [
+        "ok"
+      ],
+      "positive_case": "discovery_ok",
+      "negative_case": "discovery_err",
+      "public_mapping": "prov:Agent",
+      "AutoReceipt_ready": true
+    }
+  ]
+}

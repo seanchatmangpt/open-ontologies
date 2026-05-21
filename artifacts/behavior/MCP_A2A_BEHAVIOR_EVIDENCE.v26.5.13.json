@@ -1,0 +1,806 @@
+{
+  "tools": [
+    {
+      "tool_name": "onto_status",
+      "positive_case": "onto_status_valid_input_works",
+      "negative_case": "onto_status_invalid_input_fails",
+      "permission_case": "onto_status_unauthorized_refused",
+      "side_effect_case": "onto_status_mutations_receipted",
+      "idempotency_case": "onto_status_repeated_safe",
+      "descriptor_integrity_case": "onto_status_descriptor_hash_verifies"
+    },
+    {
+      "tool_name": "onto_validate",
+      "positive_case": "onto_validate_valid_input_works",
+      "negative_case": "onto_validate_invalid_input_fails",
+      "permission_case": "onto_validate_unauthorized_refused",
+      "side_effect_case": "onto_validate_mutations_receipted",
+      "idempotency_case": "onto_validate_repeated_safe",
+      "descriptor_integrity_case": "onto_validate_descriptor_hash_verifies"
+    },
+    {
+      "tool_name": "onto_convert",
+      "positive_case": "onto_convert_valid_input_works",
+      "negative_case": "onto_convert_invalid_input_fails",
+      "permission_case": "onto_convert_unauthorized_refused",
+      "side_effect_case": "onto_convert_mutations_receipted",
+      "idempotency_case": "onto_convert_repeated_safe",
+      "descriptor_integrity_case": "onto_convert_descriptor_hash_verifies"
+    },
+    {
+      "tool_name": "onto_load",
+      "positive_case": "onto_load_valid_input_works",
+      "negative_case": "onto_load_invalid_input_fails",
+      "permission_case": "onto_load_unauthorized_refused",
+      "side_effect_case": "onto_load_mutations_receipted",
+      "idempotency_case": "onto_load_repeated_safe",
+      "descriptor_integrity_case": "onto_load_descriptor_hash_verifies"
+    },
+    {
+      "tool_name": "onto_repo_list",
+      "positive_case": "onto_repo_list_valid_input_works",
+      "negative_case": "onto_repo_list_invalid_input_fails",
+      "permission_case": "onto_repo_list_unauthorized_refused",
+      "side_effect_case": "onto_repo_list_mutations_receipted",
+      "idempotency_case": "onto_repo_list_repeated_safe",
+      "descriptor_integrity_case": "onto_repo_list_descriptor_hash_verifies"
+    },
+    {
+      "tool_name": "onto_repo_load",
+      "positive_case": "onto_repo_load_valid_input_works",
+      "negative_case": "onto_repo_load_invalid_input_fails",
+      "permission_case": "onto_repo_load_unauthorized_refused",
+      "side_effect_case": "onto_repo_load_mutations_receipted",
+      "idempotency_case": "onto_repo_load_repeated_safe",
+      "descriptor_integrity_case": "onto_repo_load_descriptor_hash_verifies"
+    },
+    {
+      "tool_name": "onto_query",
+      "positive_case": "onto_query_valid_input_works",
+      "negative_case": "onto_query_invalid_input_fails",
+      "permission_case": "onto_query_unauthorized_refused",
+      "side_effect_case": "onto_query_mutations_receipted",
+      "idempotency_case": "onto_query_repeated_safe",
+      "descriptor_integrity_case": "onto_query_descriptor_hash_verifies"
+    },
+    {
+      "tool_name": "onto_save",
+      "positive_case": "onto_save_valid_input_works",
+      "negative_case": "onto_save_invalid_input_fails",
+      "permission_case": "onto_save_unauthorized_refused",
+      "side_effect_case": "onto_save_mutations_receipted",
+      "idempotency_case": "onto_save_repeated_safe",
+      "descriptor_integrity_case": "onto_save_descriptor_hash_verifies"
+    },
+    {
+      "tool_name": "onto_stats",
+      "positive_case": "onto_stats_valid_input_works",
+      "negative_case": "onto_stats_invalid_input_fails",
+      "permission_case": "onto_stats_unauthorized_refused",
+      "side_effect_case": "onto_stats_mutations_receipted",
+      "idempotency_case": "onto_stats_repeated_safe",
+      "descriptor_integrity_case": "onto_stats_descriptor_hash_verifies"
+    },
+    {
+      "tool_name": "onto_diff",
+      "positive_case": "onto_diff_valid_input_works",
+      "negative_case": "onto_diff_invalid_input_fails",
+      "permission_case": "onto_diff_unauthorized_refused",
+      "side_effect_case": "onto_diff_mutations_receipted",
+      "idempotency_case": "onto_diff_repeated_safe",
+      "descriptor_integrity_case": "onto_diff_descriptor_hash_verifies"
+    },
+    {
+      "tool_name": "onto_lint",
+      "positive_case": "onto_lint_valid_input_works",
+      "negative_case": "onto_lint_invalid_input_fails",
+      "permission_case": "onto_lint_unauthorized_refused",
+      "side_effect_case": "onto_lint_mutations_receipted",
+      "idempotency_case": "onto_lint_repeated_safe",
+      "descriptor_integrity_case": "onto_lint_descriptor_hash_verifies"
+    },
+    {
+      "tool_name": "onto_clear",
+      "positive_case": "onto_clear_valid_input_works",
+      "negative_case": "onto_clear_invalid_input_fails",
+      "permission_case": "onto_clear_unauthorized_refused",
+      "side_effect_case": "onto_clear_mutations_receipted",
+      "idempotency_case": "onto_clear_repeated_safe",
+      "descriptor_integrity_case": "onto_clear_descriptor_hash_verifies"
+    },
+    {
+      "tool_name": "onto_unload",
+      "positive_case": "onto_unload_valid_input_works",
+      "negative_case": "onto_unload_invalid_input_fails",
+      "permission_case": "onto_unload_unauthorized_refused",
+      "side_effect_case": "onto_unload_mutations_receipted",
+      "idempotency_case": "onto_unload_repeated_safe",
+      "descriptor_integrity_case": "onto_unload_descriptor_hash_verifies"
+    },
+    {
+      "tool_name": "onto_recompile",
+      "positive_case": "onto_recompile_valid_input_works",
+      "negative_case": "onto_recompile_invalid_input_fails",
+      "permission_case": "onto_recompile_unauthorized_refused",
+      "side_effect_case": "onto_recompile_mutations_receipted",
+      "idempotency_case": "onto_recompile_repeated_safe",
+      "descriptor_integrity_case": "onto_recompile_descriptor_hash_verifies"
+    },
+    {
+      "tool_name": "onto_cache_status",
+      "positive_case": "onto_cache_status_valid_input_works",
+      "negative_case": "onto_cache_status_invalid_input_fails",
+      "permission_case": "onto_cache_status_unauthorized_refused",
+      "side_effect_case": "onto_cache_status_mutations_receipted",
+      "idempotency_case": "onto_cache_status_repeated_safe",
+      "descriptor_integrity_case": "onto_cache_status_descriptor_hash_verifies"
+    },
+    {
+      "tool_name": "onto_cache_list",
+      "positive_case": "onto_cache_list_valid_input_works",
+      "negative_case": "onto_cache_list_invalid_input_fails",
+      "permission_case": "onto_cache_list_unauthorized_refused",
+      "side_effect_case": "onto_cache_list_mutations_receipted",
+      "idempotency_case": "onto_cache_list_repeated_safe",
+      "descriptor_integrity_case": "onto_cache_list_descriptor_hash_verifies"
+    },
+    {
+      "tool_name": "onto_cache_remove",
+      "positive_case": "onto_cache_remove_valid_input_works",
+      "negative_case": "onto_cache_remove_invalid_input_fails",
+      "permission_case": "onto_cache_remove_unauthorized_refused",
+      "side_effect_case": "onto_cache_remove_mutations_receipted",
+      "idempotency_case": "onto_cache_remove_repeated_safe",
+      "descriptor_integrity_case": "onto_cache_remove_descriptor_hash_verifies"
+    },
+    {
+      "tool_name": "onto_pull",
+      "positive_case": "onto_pull_valid_input_works",
+      "negative_case": "onto_pull_invalid_input_fails",
+      "permission_case": "onto_pull_unauthorized_refused",
+      "side_effect_case": "onto_pull_mutations_receipted",
+      "idempotency_case": "onto_pull_repeated_safe",
+      "descriptor_integrity_case": "onto_pull_descriptor_hash_verifies"
+    },
+    {
+      "tool_name": "onto_push",
+      "positive_case": "onto_push_valid_input_works",
+      "negative_case": "onto_push_invalid_input_fails",
+      "permission_case": "onto_push_unauthorized_refused",
+      "side_effect_case": "onto_push_mutations_receipted",
+      "idempotency_case": "onto_push_repeated_safe",
+      "descriptor_integrity_case": "onto_push_descriptor_hash_verifies"
+    },
+    {
+      "tool_name": "onto_import",
+      "positive_case": "onto_import_valid_input_works",
+      "negative_case": "onto_import_invalid_input_fails",
+      "permission_case": "onto_import_unauthorized_refused",
+      "side_effect_case": "onto_import_mutations_receipted",
+      "idempotency_case": "onto_import_repeated_safe",
+      "descriptor_integrity_case": "onto_import_descriptor_hash_verifies"
+    },
+    {
+      "tool_name": "onto_marketplace",
+      "positive_case": "onto_marketplace_valid_input_works",
+      "negative_case": "onto_marketplace_invalid_input_fails",
+      "permission_case": "onto_marketplace_unauthorized_refused",
+      "side_effect_case": "onto_marketplace_mutations_receipted",
+      "idempotency_case": "onto_marketplace_repeated_safe",
+      "descriptor_integrity_case": "onto_marketplace_descriptor_hash_verifies"
+    },
+    {
+      "tool_name": "onto_version",
+      "positive_case": "onto_version_valid_input_works",
+      "negative_case": "onto_version_invalid_input_fails",
+      "permission_case": "onto_version_unauthorized_refused",
+      "side_effect_case": "onto_version_mutations_receipted",
+      "idempotency_case": "onto_version_repeated_safe",
+      "descriptor_integrity_case": "onto_version_descriptor_hash_verifies"
+    },
+    {
+      "tool_name": "onto_history",
+      "positive_case": "onto_history_valid_input_works",
+      "negative_case": "onto_history_invalid_input_fails",
+      "permission_case": "onto_history_unauthorized_refused",
+      "side_effect_case": "onto_history_mutations_receipted",
+      "idempotency_case": "onto_history_repeated_safe",
+      "descriptor_integrity_case": "onto_history_descriptor_hash_verifies"
+    },
+    {
+      "tool_name": "onto_rollback",
+      "positive_case": "onto_rollback_valid_input_works",
+      "negative_case": "onto_rollback_invalid_input_fails",
+      "permission_case": "onto_rollback_unauthorized_refused",
+      "side_effect_case": "onto_rollback_mutations_receipted",
+      "idempotency_case": "onto_rollback_repeated_safe",
+      "descriptor_integrity_case": "onto_rollback_descriptor_hash_verifies"
+    },
+    {
+      "tool_name": "onto_ingest",
+      "positive_case": "onto_ingest_valid_input_works",
+      "negative_case": "onto_ingest_invalid_input_fails",
+      "permission_case": "onto_ingest_unauthorized_refused",
+      "side_effect_case": "onto_ingest_mutations_receipted",
+      "idempotency_case": "onto_ingest_repeated_safe",
+      "descriptor_integrity_case": "onto_ingest_descriptor_hash_verifies"
+    },
+    {
+      "tool_name": "onto_map",
+      "positive_case": "onto_map_valid_input_works",
+      "negative_case": "onto_map_invalid_input_fails",
+      "permission_case": "onto_map_unauthorized_refused",
+      "side_effect_case": "onto_map_mutations_receipted",
+      "idempotency_case": "onto_map_repeated_safe",
+      "descriptor_integrity_case": "onto_map_descriptor_hash_verifies"
+    },
+    {
+      "tool_name": "onto_shacl",
+      "positive_case": "onto_shacl_valid_input_works",
+      "negative_case": "onto_shacl_invalid_input_fails",
+      "permission_case": "onto_shacl_unauthorized_refused",
+      "side_effect_case": "onto_shacl_mutations_receipted",
+      "idempotency_case": "onto_shacl_repeated_safe",
+      "descriptor_integrity_case": "onto_shacl_descriptor_hash_verifies"
+    },
+    {
+      "tool_name": "onto_reason",
+      "positive_case": "onto_reason_valid_input_works",
+      "negative_case": "onto_reason_invalid_input_fails",
+      "permission_case": "onto_reason_unauthorized_refused",
+      "side_effect_case": "onto_reason_mutations_receipted",
+      "idempotency_case": "onto_reason_repeated_safe",
+      "descriptor_integrity_case": "onto_reason_descriptor_hash_verifies"
+    },
+    {
+      "tool_name": "onto_dl_explain",
+      "positive_case": "onto_dl_explain_valid_input_works",
+      "negative_case": "onto_dl_explain_invalid_input_fails",
+      "permission_case": "onto_dl_explain_unauthorized_refused",
+      "side_effect_case": "onto_dl_explain_mutations_receipted",
+      "idempotency_case": "onto_dl_explain_repeated_safe",
+      "descriptor_integrity_case": "onto_dl_explain_descriptor_hash_verifies"
+    },
+    {
+      "tool_name": "onto_dl_check",
+      "positive_case": "onto_dl_check_valid_input_works",
+      "negative_case": "onto_dl_check_invalid_input_fails",
+      "permission_case": "onto_dl_check_unauthorized_refused",
+      "side_effect_case": "onto_dl_check_mutations_receipted",
+      "idempotency_case": "onto_dl_check_repeated_safe",
+      "descriptor_integrity_case": "onto_dl_check_descriptor_hash_verifies"
+    },
+    {
+      "tool_name": "onto_plan",
+      "positive_case": "onto_plan_valid_input_works",
+      "negative_case": "onto_plan_invalid_input_fails",
+      "permission_case": "onto_plan_unauthorized_refused",
+      "side_effect_case": "onto_plan_mutations_receipted",
+      "idempotency_case": "onto_plan_repeated_safe",
+      "descriptor_integrity_case": "onto_plan_descriptor_hash_verifies"
+    },
+    {
+      "tool_name": "onto_apply",
+      "positive_case": "onto_apply_valid_input_works",
+      "negative_case": "onto_apply_invalid_input_fails",
+      "permission_case": "onto_apply_unauthorized_refused",
+      "side_effect_case": "onto_apply_mutations_receipted",
+      "idempotency_case": "onto_apply_repeated_safe",
+      "descriptor_integrity_case": "onto_apply_descriptor_hash_verifies"
+    },
+    {
+      "tool_name": "onto_lock",
+      "positive_case": "onto_lock_valid_input_works",
+      "negative_case": "onto_lock_invalid_input_fails",
+      "permission_case": "onto_lock_unauthorized_refused",
+      "side_effect_case": "onto_lock_mutations_receipted",
+      "idempotency_case": "onto_lock_repeated_safe",
+      "descriptor_integrity_case": "onto_lock_descriptor_hash_verifies"
+    },
+    {
+      "tool_name": "onto_drift",
+      "positive_case": "onto_drift_valid_input_works",
+      "negative_case": "onto_drift_invalid_input_fails",
+      "permission_case": "onto_drift_unauthorized_refused",
+      "side_effect_case": "onto_drift_mutations_receipted",
+      "idempotency_case": "onto_drift_repeated_safe",
+      "descriptor_integrity_case": "onto_drift_descriptor_hash_verifies"
+    },
+    {
+      "tool_name": "onto_enforce",
+      "positive_case": "onto_enforce_valid_input_works",
+      "negative_case": "onto_enforce_invalid_input_fails",
+      "permission_case": "onto_enforce_unauthorized_refused",
+      "side_effect_case": "onto_enforce_mutations_receipted",
+      "idempotency_case": "onto_enforce_repeated_safe",
+      "descriptor_integrity_case": "onto_enforce_descriptor_hash_verifies"
+    },
+    {
+      "tool_name": "onto_monitor",
+      "positive_case": "onto_monitor_valid_input_works",
+      "negative_case": "onto_monitor_invalid_input_fails",
+      "permission_case": "onto_monitor_unauthorized_refused",
+      "side_effect_case": "onto_monitor_mutations_receipted",
+      "idempotency_case": "onto_monitor_repeated_safe",
+      "descriptor_integrity_case": "onto_monitor_descriptor_hash_verifies"
+    },
+    {
+      "tool_name": "onto_monitor_clear",
+      "positive_case": "onto_monitor_clear_valid_input_works",
+      "negative_case": "onto_monitor_clear_invalid_input_fails",
+      "permission_case": "onto_monitor_clear_unauthorized_refused",
+      "side_effect_case": "onto_monitor_clear_mutations_receipted",
+      "idempotency_case": "onto_monitor_clear_repeated_safe",
+      "descriptor_integrity_case": "onto_monitor_clear_descriptor_hash_verifies"
+    },
+    {
+      "tool_name": "onto_crosswalk",
+      "positive_case": "onto_crosswalk_valid_input_works",
+      "negative_case": "onto_crosswalk_invalid_input_fails",
+      "permission_case": "onto_crosswalk_unauthorized_refused",
+      "side_effect_case": "onto_crosswalk_mutations_receipted",
+      "idempotency_case": "onto_crosswalk_repeated_safe",
+      "descriptor_integrity_case": "onto_crosswalk_descriptor_hash_verifies"
+    },
+    {
+      "tool_name": "onto_enrich",
+      "positive_case": "onto_enrich_valid_input_works",
+      "negative_case": "onto_enrich_invalid_input_fails",
+      "permission_case": "onto_enrich_unauthorized_refused",
+      "side_effect_case": "onto_enrich_mutations_receipted",
+      "idempotency_case": "onto_enrich_repeated_safe",
+      "descriptor_integrity_case": "onto_enrich_descriptor_hash_verifies"
+    },
+    {
+      "tool_name": "onto_validate_clinical",
+      "positive_case": "onto_validate_clinical_valid_input_works",
+      "negative_case": "onto_validate_clinical_invalid_input_fails",
+      "permission_case": "onto_validate_clinical_unauthorized_refused",
+      "side_effect_case": "onto_validate_clinical_mutations_receipted",
+      "idempotency_case": "onto_validate_clinical_repeated_safe",
+      "descriptor_integrity_case": "onto_validate_clinical_descriptor_hash_verifies"
+    },
+    {
+      "tool_name": "onto_lineage",
+      "positive_case": "onto_lineage_valid_input_works",
+      "negative_case": "onto_lineage_invalid_input_fails",
+      "permission_case": "onto_lineage_unauthorized_refused",
+      "side_effect_case": "onto_lineage_mutations_receipted",
+      "idempotency_case": "onto_lineage_repeated_safe",
+      "descriptor_integrity_case": "onto_lineage_descriptor_hash_verifies"
+    },
+    {
+      "tool_name": "onto_extend",
+      "positive_case": "onto_extend_valid_input_works",
+      "negative_case": "onto_extend_invalid_input_fails",
+      "permission_case": "onto_extend_unauthorized_refused",
+      "side_effect_case": "onto_extend_mutations_receipted",
+      "idempotency_case": "onto_extend_repeated_safe",
+      "descriptor_integrity_case": "onto_extend_descriptor_hash_verifies"
+    },
+    {
+      "tool_name": "onto_import_schema",
+      "positive_case": "onto_import_schema_valid_input_works",
+      "negative_case": "onto_import_schema_invalid_input_fails",
+      "permission_case": "onto_import_schema_unauthorized_refused",
+      "side_effect_case": "onto_import_schema_mutations_receipted",
+      "idempotency_case": "onto_import_schema_repeated_safe",
+      "descriptor_integrity_case": "onto_import_schema_descriptor_hash_verifies"
+    },
+    {
+      "tool_name": "onto_sql_ingest",
+      "positive_case": "onto_sql_ingest_valid_input_works",
+      "negative_case": "onto_sql_ingest_invalid_input_fails",
+      "permission_case": "onto_sql_ingest_unauthorized_refused",
+      "side_effect_case": "onto_sql_ingest_mutations_receipted",
+      "idempotency_case": "onto_sql_ingest_repeated_safe",
+      "descriptor_integrity_case": "onto_sql_ingest_descriptor_hash_verifies"
+    },
+    {
+      "tool_name": "onto_align",
+      "positive_case": "onto_align_valid_input_works",
+      "negative_case": "onto_align_invalid_input_fails",
+      "permission_case": "onto_align_unauthorized_refused",
+      "side_effect_case": "onto_align_mutations_receipted",
+      "idempotency_case": "onto_align_repeated_safe",
+      "descriptor_integrity_case": "onto_align_descriptor_hash_verifies"
+    },
+    {
+      "tool_name": "onto_align_feedback",
+      "positive_case": "onto_align_feedback_valid_input_works",
+      "negative_case": "onto_align_feedback_invalid_input_fails",
+      "permission_case": "onto_align_feedback_unauthorized_refused",
+      "side_effect_case": "onto_align_feedback_mutations_receipted",
+      "idempotency_case": "onto_align_feedback_repeated_safe",
+      "descriptor_integrity_case": "onto_align_feedback_descriptor_hash_verifies"
+    },
+    {
+      "tool_name": "onto_planner_demos",
+      "positive_case": "onto_planner_demos_valid_input_works",
+      "negative_case": "onto_planner_demos_invalid_input_fails",
+      "permission_case": "onto_planner_demos_unauthorized_refused",
+      "side_effect_case": "onto_planner_demos_mutations_receipted",
+      "idempotency_case": "onto_planner_demos_repeated_safe",
+      "descriptor_integrity_case": "onto_planner_demos_descriptor_hash_verifies"
+    },
+    {
+      "tool_name": "onto_threshold_status",
+      "positive_case": "onto_threshold_status_valid_input_works",
+      "negative_case": "onto_threshold_status_invalid_input_fails",
+      "permission_case": "onto_threshold_status_unauthorized_refused",
+      "side_effect_case": "onto_threshold_status_mutations_receipted",
+      "idempotency_case": "onto_threshold_status_repeated_safe",
+      "descriptor_integrity_case": "onto_threshold_status_descriptor_hash_verifies"
+    },
+    {
+      "tool_name": "onto_threshold_sweep",
+      "positive_case": "onto_threshold_sweep_valid_input_works",
+      "negative_case": "onto_threshold_sweep_invalid_input_fails",
+      "permission_case": "onto_threshold_sweep_unauthorized_refused",
+      "side_effect_case": "onto_threshold_sweep_mutations_receipted",
+      "idempotency_case": "onto_threshold_sweep_repeated_safe",
+      "descriptor_integrity_case": "onto_threshold_sweep_descriptor_hash_verifies"
+    },
+    {
+      "tool_name": "onto_workflow_discover",
+      "positive_case": "onto_workflow_discover_valid_input_works",
+      "negative_case": "onto_workflow_discover_invalid_input_fails",
+      "permission_case": "onto_workflow_discover_unauthorized_refused",
+      "side_effect_case": "onto_workflow_discover_mutations_receipted",
+      "idempotency_case": "onto_workflow_discover_repeated_safe",
+      "descriptor_integrity_case": "onto_workflow_discover_descriptor_hash_verifies"
+    },
+    {
+      "tool_name": "onto_workflow_feedback",
+      "positive_case": "onto_workflow_feedback_valid_input_works",
+      "negative_case": "onto_workflow_feedback_invalid_input_fails",
+      "permission_case": "onto_workflow_feedback_unauthorized_refused",
+      "side_effect_case": "onto_workflow_feedback_mutations_receipted",
+      "idempotency_case": "onto_workflow_feedback_repeated_safe",
+      "descriptor_integrity_case": "onto_workflow_feedback_descriptor_hash_verifies"
+    },
+    {
+      "tool_name": "onto_lint_feedback",
+      "positive_case": "onto_lint_feedback_valid_input_works",
+      "negative_case": "onto_lint_feedback_invalid_input_fails",
+      "permission_case": "onto_lint_feedback_unauthorized_refused",
+      "side_effect_case": "onto_lint_feedback_mutations_receipted",
+      "idempotency_case": "onto_lint_feedback_repeated_safe",
+      "descriptor_integrity_case": "onto_lint_feedback_descriptor_hash_verifies"
+    },
+    {
+      "tool_name": "onto_enforce_feedback",
+      "positive_case": "onto_enforce_feedback_valid_input_works",
+      "negative_case": "onto_enforce_feedback_invalid_input_fails",
+      "permission_case": "onto_enforce_feedback_unauthorized_refused",
+      "side_effect_case": "onto_enforce_feedback_mutations_receipted",
+      "idempotency_case": "onto_enforce_feedback_repeated_safe",
+      "descriptor_integrity_case": "onto_enforce_feedback_descriptor_hash_verifies"
+    },
+    {
+      "tool_name": "onto_embed",
+      "positive_case": "onto_embed_valid_input_works",
+      "negative_case": "onto_embed_invalid_input_fails",
+      "permission_case": "onto_embed_unauthorized_refused",
+      "side_effect_case": "onto_embed_mutations_receipted",
+      "idempotency_case": "onto_embed_repeated_safe",
+      "descriptor_integrity_case": "onto_embed_descriptor_hash_verifies"
+    },
+    {
+      "tool_name": "onto_search",
+      "positive_case": "onto_search_valid_input_works",
+      "negative_case": "onto_search_invalid_input_fails",
+      "permission_case": "onto_search_unauthorized_refused",
+      "side_effect_case": "onto_search_mutations_receipted",
+      "idempotency_case": "onto_search_repeated_safe",
+      "descriptor_integrity_case": "onto_search_descriptor_hash_verifies"
+    },
+    {
+      "tool_name": "onto_similarity",
+      "positive_case": "onto_similarity_valid_input_works",
+      "negative_case": "onto_similarity_invalid_input_fails",
+      "permission_case": "onto_similarity_unauthorized_refused",
+      "side_effect_case": "onto_similarity_mutations_receipted",
+      "idempotency_case": "onto_similarity_repeated_safe",
+      "descriptor_integrity_case": "onto_similarity_descriptor_hash_verifies"
+    },
+    {
+      "tool_name": "onto_process_validate_claim",
+      "positive_case": "onto_process_validate_claim_valid_input_works",
+      "negative_case": "onto_process_validate_claim_invalid_input_fails",
+      "permission_case": "onto_process_validate_claim_unauthorized_refused",
+      "side_effect_case": "onto_process_validate_claim_mutations_receipted",
+      "idempotency_case": "onto_process_validate_claim_repeated_safe",
+      "descriptor_integrity_case": "onto_process_validate_claim_descriptor_hash_verifies"
+    },
+    {
+      "tool_name": "onto_process_check_soundness",
+      "positive_case": "onto_process_check_soundness_valid_input_works",
+      "negative_case": "onto_process_check_soundness_invalid_input_fails",
+      "permission_case": "onto_process_check_soundness_unauthorized_refused",
+      "side_effect_case": "onto_process_check_soundness_mutations_receipted",
+      "idempotency_case": "onto_process_check_soundness_repeated_safe",
+      "descriptor_integrity_case": "onto_process_check_soundness_descriptor_hash_verifies"
+    },
+    {
+      "tool_name": "onto_mustar_solve",
+      "positive_case": "onto_mustar_solve_valid_input_works",
+      "negative_case": "onto_mustar_solve_invalid_input_fails",
+      "permission_case": "onto_mustar_solve_unauthorized_refused",
+      "side_effect_case": "onto_mustar_solve_mutations_receipted",
+      "idempotency_case": "onto_mustar_solve_repeated_safe",
+      "descriptor_integrity_case": "onto_mustar_solve_descriptor_hash_verifies"
+    },
+    {
+      "tool_name": "onto_alphastar_solve",
+      "positive_case": "onto_alphastar_solve_valid_input_works",
+      "negative_case": "onto_alphastar_solve_invalid_input_fails",
+      "permission_case": "onto_alphastar_solve_unauthorized_refused",
+      "side_effect_case": "onto_alphastar_solve_mutations_receipted",
+      "idempotency_case": "onto_alphastar_solve_repeated_safe",
+      "descriptor_integrity_case": "onto_alphastar_solve_descriptor_hash_verifies"
+    },
+    {
+      "tool_name": "onto_codegen",
+      "positive_case": "onto_codegen_valid_input_works",
+      "negative_case": "onto_codegen_invalid_input_fails",
+      "permission_case": "onto_codegen_unauthorized_refused",
+      "side_effect_case": "onto_codegen_mutations_receipted",
+      "idempotency_case": "onto_codegen_repeated_safe",
+      "descriptor_integrity_case": "onto_codegen_descriptor_hash_verifies"
+    },
+    {
+      "tool_name": "onto_declare_workflow",
+      "positive_case": "onto_declare_workflow_valid_input_works",
+      "negative_case": "onto_declare_workflow_invalid_input_fails",
+      "permission_case": "onto_declare_workflow_unauthorized_refused",
+      "side_effect_case": "onto_declare_workflow_mutations_receipted",
+      "idempotency_case": "onto_declare_workflow_repeated_safe",
+      "descriptor_integrity_case": "onto_declare_workflow_descriptor_hash_verifies"
+    },
+    {
+      "tool_name": "onto_close_workflow",
+      "positive_case": "onto_close_workflow_valid_input_works",
+      "negative_case": "onto_close_workflow_invalid_input_fails",
+      "permission_case": "onto_close_workflow_unauthorized_refused",
+      "side_effect_case": "onto_close_workflow_mutations_receipted",
+      "idempotency_case": "onto_close_workflow_repeated_safe",
+      "descriptor_integrity_case": "onto_close_workflow_descriptor_hash_verifies"
+    },
+    {
+      "tool_name": "onto_admission_check",
+      "positive_case": "onto_admission_check_valid_input_works",
+      "negative_case": "onto_admission_check_invalid_input_fails",
+      "permission_case": "onto_admission_check_unauthorized_refused",
+      "side_effect_case": "onto_admission_check_mutations_receipted",
+      "idempotency_case": "onto_admission_check_repeated_safe",
+      "descriptor_integrity_case": "onto_admission_check_descriptor_hash_verifies"
+    },
+    {
+      "tool_name": "onto_cell8_attest",
+      "positive_case": "onto_cell8_attest_valid_input_works",
+      "negative_case": "onto_cell8_attest_invalid_input_fails",
+      "permission_case": "onto_cell8_attest_unauthorized_refused",
+      "side_effect_case": "onto_cell8_attest_mutations_receipted",
+      "idempotency_case": "onto_cell8_attest_repeated_safe",
+      "descriptor_integrity_case": "onto_cell8_attest_descriptor_hash_verifies"
+    },
+    {
+      "tool_name": "onto_session_reset",
+      "positive_case": "onto_session_reset_valid_input_works",
+      "negative_case": "onto_session_reset_invalid_input_fails",
+      "permission_case": "onto_session_reset_unauthorized_refused",
+      "side_effect_case": "onto_session_reset_mutations_receipted",
+      "idempotency_case": "onto_session_reset_repeated_safe",
+      "descriptor_integrity_case": "onto_session_reset_descriptor_hash_verifies"
+    },
+    {
+      "tool_name": "onto_conformance_check",
+      "positive_case": "onto_conformance_check_valid_input_works",
+      "negative_case": "onto_conformance_check_invalid_input_fails",
+      "permission_case": "onto_conformance_check_unauthorized_refused",
+      "side_effect_case": "onto_conformance_check_mutations_receipted",
+      "idempotency_case": "onto_conformance_check_repeated_safe",
+      "descriptor_integrity_case": "onto_conformance_check_descriptor_hash_verifies"
+    },
+    {
+      "tool_name": "onto_plan_workflow",
+      "positive_case": "onto_plan_workflow_valid_input_works",
+      "negative_case": "onto_plan_workflow_invalid_input_fails",
+      "permission_case": "onto_plan_workflow_unauthorized_refused",
+      "side_effect_case": "onto_plan_workflow_mutations_receipted",
+      "idempotency_case": "onto_plan_workflow_repeated_safe",
+      "descriptor_integrity_case": "onto_plan_workflow_descriptor_hash_verifies"
+    },
+    {
+      "tool_name": "onto_exemplar_seed",
+      "positive_case": "onto_exemplar_seed_valid_input_works",
+      "negative_case": "onto_exemplar_seed_invalid_input_fails",
+      "permission_case": "onto_exemplar_seed_unauthorized_refused",
+      "side_effect_case": "onto_exemplar_seed_mutations_receipted",
+      "idempotency_case": "onto_exemplar_seed_repeated_safe",
+      "descriptor_integrity_case": "onto_exemplar_seed_descriptor_hash_verifies"
+    },
+    {
+      "tool_name": "onto_counterfactual",
+      "positive_case": "onto_counterfactual_valid_input_works",
+      "negative_case": "onto_counterfactual_invalid_input_fails",
+      "permission_case": "onto_counterfactual_unauthorized_refused",
+      "side_effect_case": "onto_counterfactual_mutations_receipted",
+      "idempotency_case": "onto_counterfactual_repeated_safe",
+      "descriptor_integrity_case": "onto_counterfactual_descriptor_hash_verifies"
+    },
+    {
+      "tool_name": "onto_propose_requirement",
+      "positive_case": "onto_propose_requirement_valid_input_works",
+      "negative_case": "onto_propose_requirement_invalid_input_fails",
+      "permission_case": "onto_propose_requirement_unauthorized_refused",
+      "side_effect_case": "onto_propose_requirement_mutations_receipted",
+      "idempotency_case": "onto_propose_requirement_repeated_safe",
+      "descriptor_integrity_case": "onto_propose_requirement_descriptor_hash_verifies"
+    },
+    {
+      "tool_name": "onto_translate_candidate",
+      "positive_case": "onto_translate_candidate_valid_input_works",
+      "negative_case": "onto_translate_candidate_invalid_input_fails",
+      "permission_case": "onto_translate_candidate_unauthorized_refused",
+      "side_effect_case": "onto_translate_candidate_mutations_receipted",
+      "idempotency_case": "onto_translate_candidate_repeated_safe",
+      "descriptor_integrity_case": "onto_translate_candidate_descriptor_hash_verifies"
+    },
+    {
+      "tool_name": "onto_admit_ctq",
+      "positive_case": "onto_admit_ctq_valid_input_works",
+      "negative_case": "onto_admit_ctq_invalid_input_fails",
+      "permission_case": "onto_admit_ctq_unauthorized_refused",
+      "side_effect_case": "onto_admit_ctq_mutations_receipted",
+      "idempotency_case": "onto_admit_ctq_repeated_safe",
+      "descriptor_integrity_case": "onto_admit_ctq_descriptor_hash_verifies"
+    },
+    {
+      "tool_name": "onto_propose_work_order",
+      "positive_case": "onto_propose_work_order_valid_input_works",
+      "negative_case": "onto_propose_work_order_invalid_input_fails",
+      "permission_case": "onto_propose_work_order_unauthorized_refused",
+      "side_effect_case": "onto_propose_work_order_mutations_receipted",
+      "idempotency_case": "onto_propose_work_order_repeated_safe",
+      "descriptor_integrity_case": "onto_propose_work_order_descriptor_hash_verifies"
+    },
+    {
+      "tool_name": "onto_admit_work_order",
+      "positive_case": "onto_admit_work_order_valid_input_works",
+      "negative_case": "onto_admit_work_order_invalid_input_fails",
+      "permission_case": "onto_admit_work_order_unauthorized_refused",
+      "side_effect_case": "onto_admit_work_order_mutations_receipted",
+      "idempotency_case": "onto_admit_work_order_repeated_safe",
+      "descriptor_integrity_case": "onto_admit_work_order_descriptor_hash_verifies"
+    },
+    {
+      "tool_name": "onto_manufacture_solution",
+      "positive_case": "onto_manufacture_solution_valid_input_works",
+      "negative_case": "onto_manufacture_solution_invalid_input_fails",
+      "permission_case": "onto_manufacture_solution_unauthorized_refused",
+      "side_effect_case": "onto_manufacture_solution_mutations_receipted",
+      "idempotency_case": "onto_manufacture_solution_repeated_safe",
+      "descriptor_integrity_case": "onto_manufacture_solution_descriptor_hash_verifies"
+    },
+    {
+      "tool_name": "onto_old_ai_station",
+      "positive_case": "onto_old_ai_station_valid_input_works",
+      "negative_case": "onto_old_ai_station_invalid_input_fails",
+      "permission_case": "onto_old_ai_station_unauthorized_refused",
+      "side_effect_case": "onto_old_ai_station_mutations_receipted",
+      "idempotency_case": "onto_old_ai_station_repeated_safe",
+      "descriptor_integrity_case": "onto_old_ai_station_descriptor_hash_verifies"
+    },
+    {
+      "tool_name": "onto_executive_projection",
+      "positive_case": "onto_executive_projection_valid_input_works",
+      "negative_case": "onto_executive_projection_invalid_input_fails",
+      "permission_case": "onto_executive_projection_unauthorized_refused",
+      "side_effect_case": "onto_executive_projection_mutations_receipted",
+      "idempotency_case": "onto_executive_projection_repeated_safe",
+      "descriptor_integrity_case": "onto_executive_projection_descriptor_hash_verifies"
+    },
+    {
+      "tool_name": "onto_groq_status",
+      "positive_case": "onto_groq_status_valid_input_works",
+      "negative_case": "onto_groq_status_invalid_input_fails",
+      "permission_case": "onto_groq_status_unauthorized_refused",
+      "side_effect_case": "onto_groq_status_mutations_receipted",
+      "idempotency_case": "onto_groq_status_repeated_safe",
+      "descriptor_integrity_case": "onto_groq_status_descriptor_hash_verifies"
+    },
+    {
+      "tool_name": "onto_gemini_status",
+      "positive_case": "onto_gemini_status_valid_input_works",
+      "negative_case": "onto_gemini_status_invalid_input_fails",
+      "permission_case": "onto_gemini_status_unauthorized_refused",
+      "side_effect_case": "onto_gemini_status_mutations_receipted",
+      "idempotency_case": "onto_gemini_status_repeated_safe",
+      "descriptor_integrity_case": "onto_gemini_status_descriptor_hash_verifies"
+    },
+    {
+      "tool_name": "onto_attestation_rotate_keys",
+      "positive_case": "onto_attestation_rotate_keys_valid_input_works",
+      "negative_case": "onto_attestation_rotate_keys_invalid_input_fails",
+      "permission_case": "onto_attestation_rotate_keys_unauthorized_refused",
+      "side_effect_case": "onto_attestation_rotate_keys_mutations_receipted",
+      "idempotency_case": "onto_attestation_rotate_keys_repeated_safe",
+      "descriptor_integrity_case": "onto_attestation_rotate_keys_descriptor_hash_verifies"
+    },
+    {
+      "tool_name": "onto_bootstrap_unlock",
+      "positive_case": "onto_bootstrap_unlock_valid_input_works",
+      "negative_case": "onto_bootstrap_unlock_invalid_input_fails",
+      "permission_case": "onto_bootstrap_unlock_unauthorized_refused",
+      "side_effect_case": "onto_bootstrap_unlock_mutations_receipted",
+      "idempotency_case": "onto_bootstrap_unlock_repeated_safe",
+      "descriptor_integrity_case": "onto_bootstrap_unlock_descriptor_hash_verifies"
+    },
+    {
+      "tool_name": "onto_receipts_revoke_batch",
+      "positive_case": "onto_receipts_revoke_batch_valid_input_works",
+      "negative_case": "onto_receipts_revoke_batch_invalid_input_fails",
+      "permission_case": "onto_receipts_revoke_batch_unauthorized_refused",
+      "side_effect_case": "onto_receipts_revoke_batch_mutations_receipted",
+      "idempotency_case": "onto_receipts_revoke_batch_repeated_safe",
+      "descriptor_integrity_case": "onto_receipts_revoke_batch_descriptor_hash_verifies"
+    },
+    {
+      "tool_name": "onto_session_revoke_by_principal",
+      "positive_case": "onto_session_revoke_by_principal_valid_input_works",
+      "negative_case": "onto_session_revoke_by_principal_invalid_input_fails",
+      "permission_case": "onto_session_revoke_by_principal_unauthorized_refused",
+      "side_effect_case": "onto_session_revoke_by_principal_mutations_receipted",
+      "idempotency_case": "onto_session_revoke_by_principal_repeated_safe",
+      "descriptor_integrity_case": "onto_session_revoke_by_principal_descriptor_hash_verifies"
+    },
+    {
+      "tool_name": "onto_retention_pause",
+      "positive_case": "onto_retention_pause_valid_input_works",
+      "negative_case": "onto_retention_pause_invalid_input_fails",
+      "permission_case": "onto_retention_pause_unauthorized_refused",
+      "side_effect_case": "onto_retention_pause_mutations_receipted",
+      "idempotency_case": "onto_retention_pause_repeated_safe",
+      "descriptor_integrity_case": "onto_retention_pause_descriptor_hash_verifies"
+    },
+    {
+      "tool_name": "onto_retention_resume",
+      "positive_case": "onto_retention_resume_valid_input_works",
+      "negative_case": "onto_retention_resume_invalid_input_fails",
+      "permission_case": "onto_retention_resume_unauthorized_refused",
+      "side_effect_case": "onto_retention_resume_mutations_receipted",
+      "idempotency_case": "onto_retention_resume_repeated_safe",
+      "descriptor_integrity_case": "onto_retention_resume_descriptor_hash_verifies"
+    },
+    {
+      "tool_name": "onto_ontostar_attest",
+      "positive_case": "onto_ontostar_attest_valid_input_works",
+      "negative_case": "onto_ontostar_attest_invalid_input_fails",
+      "permission_case": "onto_ontostar_attest_unauthorized_refused",
+      "side_effect_case": "onto_ontostar_attest_mutations_receipted",
+      "idempotency_case": "onto_ontostar_attest_repeated_safe",
+      "descriptor_integrity_case": "onto_ontostar_attest_descriptor_hash_verifies"
+    },
+    {
+      "tool_name": "onto_guide",
+      "positive_case": "onto_guide_valid_input_works",
+      "negative_case": "onto_guide_invalid_input_fails",
+      "permission_case": "onto_guide_unauthorized_refused",
+      "side_effect_case": "onto_guide_mutations_receipted",
+      "idempotency_case": "onto_guide_repeated_safe",
+      "descriptor_integrity_case": "onto_guide_descriptor_hash_verifies"
+    },
+    {
+      "tool_name": "...",
+      "positive_case": "..._valid_input_works",
+      "negative_case": "..._invalid_input_fails",
+      "permission_case": "..._unauthorized_refused",
+      "side_effect_case": "..._mutations_receipted",
+      "idempotency_case": "..._repeated_safe",
+      "descriptor_integrity_case": "..._descriptor_hash_verifies"
+    }
+  ],
+  "agents": []
+}

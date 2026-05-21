@@ -1,0 +1,41 @@
+{#-
+  expo-tsconfig.tera — apps/mobile/tsconfig.json
+
+  Path aliases from the Expo manifest, encoded as "alias=>target" strings
+  in the TTL, split here and emitted as TS path array entries.
+-#}
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "strict": true,
+    "jsx": "react-native",
+    "moduleResolution": "node",
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "baseUrl": ".",
+    "paths": {
+{%- set alias_list = pathAliases | split(pat="|") %}
+{%- set first = true %}
+{%- for raw in alias_list %}
+{%-   set a = raw | trim %}
+{%-   if a != "" %}
+{%-     set parts = a | split(pat="=>") %}
+{%-     set lhs = parts[0] | trim %}
+{%-     set rhs = parts[1] | default(value="") | trim %}
+{%-     if not first %},
+{% endif -%}
+      "{{ lhs }}": ["{{ rhs }}"]
+{%-     set_global first = false %}
+{%-   endif %}
+{%- endfor %}
+
+    }
+  },
+  "include": [
+    "App.tsx",
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "../../packages/**/*.ts",
+    "../../packages/**/*.tsx"
+  ]
+}

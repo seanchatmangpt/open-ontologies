@@ -1,0 +1,40 @@
+{
+  "operation_id": "574b93bd-2a59-47b3-86fa-1a7dd1609042",
+  "timestamp": "2026-05-19T04:54:37.118997Z",
+  "input_hashes": [
+    "ggen.toml:311b484d66c7378d2386ebb0c9546a1f9998668cd05a52c4411d371acfee7116"
+  ],
+  "output_hashes": [
+    "./src/cmds/generated.rs:a34fada050482f95af178fb2a4cb5e3c3415f11222a36a2466c1f2f1f0532a6e",
+    "./src/cmds/generated_revops.rs:a81eb755e2aeb3426a74aa4cd6d54a2eccd12ab55662e8e00c269bae933210c5",
+    "./packages/types/zoela.ts:b2b12fd1ed18fa91afc2e125ea8f3173451f42f5880fda6f30a7230bfeec4d91",
+    "./supabase/migrations/20260519000002_zoela_admitted_tables.sql:58758f1d45f431d7d4d67455a10c1bbeaf1ae3f8e2e15866e6fb277bc02dbaa1",
+    "./.ggen/audit/p0-a/zoela-refusals.sql:205dda27e45aee9bfac22c6f6bd7f55a1bbf32762846e449013357662e864807",
+    "./supabase/migrations/20260519000003_zoela_admitted_columns.sql:6239f95d21b4c55d9a8f3916ea01a403d041665c48bce92cabf40164e08b5337",
+    "./supabase/migrations/20260519000001_zoela_governance.sql:74fbe477c102a51752114caa6fc0e5b33069ea30779db5fda7d36157d6744105",
+    "./supabase/migrations/20260519000004_zoela_admitted_rls.sql:4a6a5c488c1e05956a9c7e916e1943c36933feebfce121d10b8e097ed71bcda9",
+    "./packages/schemas/zoela.ts:052c86615c016f1e615302e2034b3fa206a7f6ec1c72d22bc96b4bbdc299beb0",
+    "./packages/forms/zoela.tsx:e467bb2b25e0cbbbc75eca5b6b5376c13b996ec90c1f5a6ddc70ef88ecf168f0",
+    "./packages/evidence/OcelEvents.ts:59ed3b7dbf39c8dcf7cb40daa754b803b8b3287e457d55ac937a956ff83ddb29",
+    "./packages/routes/routeGates.ts:24d0a22d8ea3b430d344f14ca0fd2887e35fa41649996f987ca6563483d1a4cf",
+    "./packages/evidence/receipts.ts:81f42d96a716539d045c1747effa44f237474d612fcb0e51506e1cce7d051fa1",
+    "./packages/screens/zoela.tsx:5a060a6fc2e45b9e438d79d966ab18e4e80d6d2bfb955bd9d012bae8a678b9f5",
+    "./packages/screens/adminScreens.tsx:0fa8a55a557a05f7d42895a5e924ecb3f3c3d4e344e0cdba5cd90c869a27daac",
+    "./packages/navigation/zoela.tsx:c616c7bdf841f7b02667cb131db3c63b4b15897c5fb1b208654a429716f1eb81",
+    "./packages/types/roles.ts:94c33e720533fe32bed778a03b84e9b6bbdff19e1ac78e3c3e8953f2a4128529",
+    "./packages/routes/assignmentEligibility.ts:179534f5d07d3e6a4ae2644b61ffdb78044282f63c08cdc42d8982448f73ec0f",
+    "./packages/types/pushCards.ts:978b5f7405b0e3c514f8c26b49c1d00a7ffa8d42353adf0f2b4f9211d381d4d3",
+    "./packages/routes/resourceMatch.ts:10d9c92563ec3483738b9071f54518547aec66591effdda218e03a495ed19221",
+    "./packages/routes/followupRules.ts:6de138dc3d48033973d79f5dd700da9119438642faec019ccc9db4ee9141ecc0",
+    "./packages/evidence/ocelSchema.ts:d989353889df9471ddd01779bf66dcd513435bd9213162f88c1be60466e78f81",
+    "./packages/screens/adminDetailScreen.tsx:88875585fa05dfd6e03f8a3aa1c173bfdf8fff1e93543d3c49471a473baaea82",
+    "./packages/navigation/navigationStack.tsx:c616c7bdf841f7b02667cb131db3c63b4b15897c5fb1b208654a429716f1eb81",
+    "./packages/routes/connectGroupStages.ts:203ddf00388c78b757620c1898e780072b6245058a2eac919213710cc0333ac9",
+    "./packages/routes/connectGroupWorkOrders.ts:9bfa1ec03a7f4fdfe6a7007afbc06568a926964ba5e7cf56b0385f54dc099b53",
+    "./packages/routes/connectGroupAdmin.ts:979848e93960789ebce262f0e7554c1b13ff412dd7e8f894bc32916ece9315db",
+    "./packages/forms/connectGroupInterestForm.tsx:d25d096de94ef768b5668c59ed7be4f47c3f308706e3fb280ddea87f530e7d58",
+    "./supabase/functions/route-gate/index.ts:ec55f993aa451aa20184c0edc086cdf11678faf45d647cad9f1cd3675af58fa9"
+  ],
+  "signature": "ed21c712e79f82f905fcad8e1b7235de54711737004a091b4852c12dc7a041ba6adc850bfb707656b3821b610fe77e1b388c722c54fc6327f8851cf24cedd50e",
+  "previous_receipt_hash": "3b563a86aa7ac72fe9ceafdb34082581d781fa3cd4284d38b359e8edcefd1f1e"
+}

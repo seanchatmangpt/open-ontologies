@@ -1,0 +1,348 @@
+State:
+DirtyTreeUnclassified
+
+Commit:
+d470863600715acc1d1da35a610ef3d35fcba09f
+
+Tree:
+ M .ggen/audit/p0-a/extraction-diagnostics.json
+ M .ggen/audit/p0-a/extraction-diagnostics.txt
+ M .ggen/receipts/latest.json
+ M .specify/queries/zoela/extract-admin-screens.rq
+ M .specify/queries/zoela/extract-navigation.rq
+ M .specify/queries/zoela/extract-odrl-policies.rq
+ M .specify/queries/zoela/extract-public-materializations.rq
+ M .specify/queries/zoela/extract-push-card-fields.rq
+ M .specify/queries/zoela/extract-screens.rq
+ M .specify/templates/zoela/admin-detail-screen.tera
+ M .specify/templates/zoela/admin-list-screen.tera
+ M .specify/templates/zoela/expo-navigation-stack.tera
+ M .specify/templates/zoela/expo-screen.tera
+ M .specify/templates/zoela/supabase-migration.tera
+ M .specify/templates/zoela/supabase-rls.tera
+ M Cargo.lock
+ M audit.json
+ M ggen.toml
+ M ontology/profiles/zoela-supabase-materialization.ttl
+ M ontology/profiles/zoela-supabase-rls.ttl
+ M ontology/zoela/care.ttl
+ M ontology/zoela/connect-groups.ttl
+ M ontology/zoela/kids.ttl
+ M ontology/zoela/need.ttl
+ M ontology/zoela/outcomes.ttl
+ M ontology/zoela/partners.ttl
+ M ontology/zoela/person.ttl
+ M ontology/zoela/policy.ttl
+ M ontology/zoela/referrals.ttl
+ M package.json
+ M packages/evidence/ocelSchema.ts
+ M packages/evidence/receipts.ts
+ M packages/forms/zoela.tsx
+ M packages/navigation/navigationStack.tsx
+ M packages/navigation/zoela.tsx
+ M packages/screens/adminDetailScreen.tsx
+ M packages/screens/adminScreens.tsx
+ M packages/screens/zoela.tsx
+ M packages/types/pushCards.ts
+ M packages/types/zoela.ts
+ M src/align.rs
+ M src/config.rs
+ M src/inputs.rs
+ M src/lib.rs
+ M src/plan.rs
+ M src/receipts.rs
+ M src/registry.rs
+ M src/server.rs
+ M supabase/functions/autonomic-executor/index.ts
+ M supabase/functions/ocel-export/index.ts
+ M supabase/functions/receipt-verify/index.ts
+ M tests/real_gemini_executive_projection.rs
+ M tests/real_gemini_translate.rs
+ M tests/reason_test.rs
+ M tools/p0a-extraction-diagnostics.py
+?? .antigravitycli/
+?? .ggen/audit/p0-a/B4d-fix-acceptance.md
+?? .ggen/audit/p0-a/admission-context.json
+?? .ggen/audit/p0-a/dry-run-migration.sql
+?? .ggen/audit/p0-a/dry-run-refusals.sql
+?? .ggen/audit/p0-a/refusal-context.json
+?? .ggen/audit/p0-a/zoela-columns.sql
+?? .ggen/audit/p0-a/zoela-governance.sql
+?? .ggen/audit/p0-a/zoela-refusals.sql
+?? .ggen/audit/p0-a/zoela-rls.sql
+?? .ggen/audit/p0-a/zoela-tables.sql
+?? .ggen/receipts/sync-20260513-070754.json
+?? .ggen/receipts/sync-20260513-212526.json
+?? .ggen/receipts/sync-20260513-212739.json
+?? .ggen/receipts/sync-20260518-052707.json
+?? .ggen/receipts/sync-20260518-052711.json
+?? .ggen/receipts/sync-20260518-054026.json
+?? .ggen/receipts/sync-20260518-054027.json
+?? .ggen/receipts/sync-20260518-054028.json
+?? .ggen/receipts/sync-20260518-054326.json
+?? .ggen/receipts/sync-20260518-054614.json
+?? .ggen/receipts/sync-20260518-054615.json
+?? .ggen/receipts/sync-20260518-054736.json
+?? .ggen/receipts/sync-20260518-054737.json
+?? .ggen/receipts/sync-20260518-054924.json
+?? .ggen/receipts/sync-20260518-054930.json
+?? .ggen/receipts/sync-20260518-054935.json
+?? .ggen/receipts/sync-20260518-055159.json
+?? .ggen/receipts/sync-20260518-060224.json
+?? .ggen/receipts/sync-20260518-060227.json
+?? .ggen/receipts/sync-20260518-060243.json
+?? .ggen/receipts/sync-20260518-060310.json
+?? .ggen/receipts/sync-20260518-060315.json
+?? .ggen/receipts/sync-20260518-060317.json
+?? .ggen/receipts/sync-20260518-060332.json
+?? .ggen/receipts/sync-20260518-060345.json
+?? .ggen/receipts/sync-20260518-060352.json
+?? .ggen/receipts/sync-20260518-060404.json
+?? .ggen/receipts/sync-20260518-060415.json
+?? .ggen/receipts/sync-20260518-060416.json
+?? .ggen/receipts/sync-20260518-060417.json
+?? .ggen/receipts/sync-20260518-060418.json
+?? .ggen/receipts/sync-20260518-060419.json
+?? .ggen/receipts/sync-20260518-060602.json
+?? .ggen/receipts/sync-20260518-060621.json
+?? .ggen/receipts/sync-20260518-060830.json
+?? .ggen/receipts/sync-20260518-061005.json
+?? .ggen/receipts/sync-20260518-061557.json
+?? .ggen/receipts/sync-20260518-061804.json
+?? .ggen/receipts/sync-20260518-061925.json
+?? .ggen/receipts/sync-20260518-061929.json
+?? .ggen/receipts/sync-20260518-061934.json
+?? .ggen/receipts/sync-20260518-062216.json
+?? .ggen/receipts/sync-20260518-062223.json
+?? .ggen/receipts/sync-20260518-062229.json
+?? .ggen/receipts/sync-20260518-062239.json
+?? .ggen/receipts/sync-20260518-062258.json
+?? .ggen/receipts/sync-20260518-062408.json
+?? .ggen/receipts/sync-20260518-062441.json
+?? .ggen/receipts/sync-20260518-062444.json
+?? .ggen/receipts/sync-20260518-062504.json
+?? .ggen/receipts/sync-20260518-062510.json
+?? .ggen/receipts/sync-20260518-062522.json
+?? .ggen/receipts/sync-20260518-062555.json
+?? .ggen/receipts/sync-20260518-062558.json
+?? .ggen/receipts/sync-20260518-062655.json
+?? .ggen/receipts/sync-20260518-062700.json
+?? .ggen/receipts/sync-20260518-062826.json
+?? .ggen/receipts/sync-20260518-062906.json
+?? .ggen/receipts/sync-20260518-062934.json
+?? .ggen/receipts/sync-20260518-062939.json
+?? .ggen/receipts/sync-20260518-063714.json
+?? .ggen/receipts/sync-20260518-091601.json
+?? .ggen/receipts/sync-20260518-091636.json
+?? .ggen/receipts/sync-20260518-091858.json
+?? .ggen/receipts/sync-20260518-093033.json
+?? .ggen/receipts/sync-20260518-093233.json
+?? .ggen/receipts/sync-20260518-093234.json
+?? .ggen/receipts/sync-20260518-095901.json
+?? .ggen/receipts/sync-20260518-100028.json
+?? .ggen/receipts/sync-20260518-100044.json
+?? .ggen/receipts/sync-20260518-100054.json
+?? .ggen/receipts/sync-20260518-100412.json
+?? .ggen/receipts/sync-20260518-100616.json
+?? .ggen/receipts/sync-20260518-100649.json
+?? .ggen/receipts/sync-20260518-101054.json
+?? .ggen/receipts/sync-20260518-102231.json
+?? .ggen/receipts/sync-20260518-102347.json
+?? .ggen/receipts/sync-20260518-112436.json
+?? .ggen/receipts/sync-20260518-141644.json
+?? .ggen/receipts/sync-20260518-141725.json
+?? .ggen/receipts/sync-20260518-143742.json
+?? .ggen/receipts/sync-20260518-231806.json
+?? .ggen/receipts/sync-20260519-001334.json
+?? .ggen/receipts/sync-20260519-001417.json
+?? .ggen/receipts/sync-20260519-001837.json
+?? .ggen/receipts/sync-20260519-021901.json
+?? .ggen/receipts/sync-20260519-023627.json
+?? .ggen/receipts/sync-20260519-024158.json
+?? .ggen/receipts/sync-20260519-024443.json
+?? .ggen/receipts/sync-20260519-024523.json
+?? .ggen/receipts/sync-20260519-024702.json
+?? .ggen/receipts/sync-20260519-024910.json
+?? .ggen/receipts/sync-20260519-033655.json
+?? .ggen/receipts/sync-20260519-043349.json
+?? .ggen/receipts/sync-20260519-043507.json
+?? .ggen/receipts/sync-20260519-043558.json
+?? .ggen/receipts/sync-20260519-043707.json
+?? .ggen/receipts/sync-20260519-044147.json
+?? .ggen/receipts/sync-20260519-045143.json
+?? .ggen/receipts/sync-20260519-045204.json
+?? .ggen/receipts/sync-20260519-045437.json
+?? .ggen/receipts/sync-20260519-045448.json
+?? .ggen/receipts/sync-20260519-045813.json
+?? .ggen/receipts/sync-20260519-050419.json
+?? .ggen/receipts/sync-20260519-050839.json
+?? .ggen/receipts/sync-20260519-050956.json
+?? .ggen/receipts/sync-20260519-051208.json
+?? .ggen/receipts/sync-20260519-051905.json
+?? .ggen/receipts/sync-20260519-052016.json
+?? .ggen/receipts/sync-20260519-062021.json
+?? .ggen/receipts/sync-20260519-062102.json
+?? .ggen/receipts/sync-20260519-062148.json
+?? .ggen/receipts/sync-20260519-062217.json
+?? .ggen/receipts/sync-20260519-062239.json
+?? .ggen/receipts/sync-20260521-000231.json
+?? .ggen/receipts/sync-20260521-004431.json
+?? .ggen/receipts/sync-20260521-004531.json
+?? .ggen/receipts/sync-20260521-004543.json
+?? .ggen/receipts/sync-20260521-004623.json
+?? .ggen/receipts/sync-20260521-004641.json
+?? .ggen/receipts/sync-20260521-045859.json
+?? .ggen/receipts/sync-20260521-050046.json
+?? .ggen/receipts/sync-20260521-050308.json
+?? .ggen/receipts/sync-20260521-050417.json
+?? .ggen/receipts/sync-20260521-051404.json
+?? .ggen/receipts/sync-20260521-052234.json
+?? .specify/queries/zoela/extract-autoreceipt-law.rq
+?? .specify/queries/zoela/extract-doc-page.rq
+?? .specify/queries/zoela/extract-edge-function.rq
+?? .specify/queries/zoela/extract-expo-app-json.rq
+?? .specify/queries/zoela/extract-expo-manifest-id.rq
+?? .specify/queries/zoela/extract-expo-package.rq
+?? .specify/queries/zoela/extract-expo-runtime-config.rq
+?? .specify/queries/zoela/extract-expo-tsconfig.rq
+?? .specify/queries/zoela/extract-governance-tables.rq
+?? .specify/queries/zoela/extract-legacy-coverage.rq
+?? .specify/queries/zoela/extract-public-materialization-columns.rq
+?? .specify/queries/zoela/extract-public-materialization-refusals.rq
+?? .specify/queries/zoela/extract-verify-supabase.rq
+?? .specify/templates/zoela/autoreceipt-law.rs.tera
+?? .specify/templates/zoela/expo-app-entry.tera
+?? .specify/templates/zoela/expo-app-json.tera
+?? .specify/templates/zoela/expo-babel-config.tera
+?? .specify/templates/zoela/expo-metro-config.tera
+?? .specify/templates/zoela/expo-package-json.tera
+?? .specify/templates/zoela/expo-readme.tera
+?? .specify/templates/zoela/expo-supabase-client.tera
+?? .specify/templates/zoela/expo-tsconfig.tera
+?? .specify/templates/zoela/expo-verify-supabase.tera
+?? .specify/templates/zoela/supabase-columns.tera
+?? .specify/templates/zoela/supabase-governance.tera
+?? .specify/templates/zoela/supabase-legacy-coverage.tera
+?? .specify/templates/zoela/supabase-materialization-refusals.tera
+?? GEMINI.md
+?? apps/
+?? artifacts/
+?? docs/10-operational-personas.md
+?? docs/AUTOGEN/ontology-ref/INDEX.md
+?? docs/AUTOGEN/ontology-ref/aat-live-rules.md
+?? docs/AUTOGEN/ontology-ref/attestation-shapes.md
+?? docs/AUTOGEN/ontology-ref/autonomic-policies.md
+?? docs/AUTOGEN/ontology-ref/autonomics.md
+?? docs/AUTOGEN/ontology-ref/campus.md
+?? docs/AUTOGEN/ontology-ref/care.md
+?? docs/AUTOGEN/ontology-ref/categories.md
+?? docs/AUTOGEN/ontology-ref/cell8-conformance-shapes.md
+?? docs/AUTOGEN/ontology-ref/cell8-core.md
+?? docs/AUTOGEN/ontology-ref/cell8-manufacturing.md
+?? docs/AUTOGEN/ontology-ref/cell8-profile.md
+?? docs/AUTOGEN/ontology-ref/cell8-shapes.md
+?? docs/AUTOGEN/ontology-ref/cli-open-ontologies.md
+?? docs/AUTOGEN/ontology-ref/connect-group-capacity.md
+?? docs/AUTOGEN/ontology-ref/connect-group-routes.md
+?? docs/AUTOGEN/ontology-ref/connect-group-schedules.md
+?? docs/AUTOGEN/ontology-ref/connect-groups.md
+?? docs/AUTOGEN/ontology-ref/consent.md
+?? docs/AUTOGEN/ontology-ref/core.md
+?? docs/AUTOGEN/ontology-ref/evidence.md
+?? docs/AUTOGEN/ontology-ref/generations.md
+?? docs/AUTOGEN/ontology-ref/household.md
+?? docs/AUTOGEN/ontology-ref/kids.md
+?? docs/AUTOGEN/ontology-ref/leadership-college.md
+?? docs/AUTOGEN/ontology-ref/mcpp-proof-chain.md
+?? docs/AUTOGEN/ontology-ref/ministry.md
+?? docs/AUTOGEN/ontology-ref/navigation-bundle.md
+?? docs/AUTOGEN/ontology-ref/navigation.md
+?? docs/AUTOGEN/ontology-ref/need.md
+?? docs/AUTOGEN/ontology-ref/notifications.md
+?? docs/AUTOGEN/ontology-ref/ocel.md
+?? docs/AUTOGEN/ontology-ref/ontostar-wasm4pm-integration.md
+?? docs/AUTOGEN/ontology-ref/outcomes.md
+?? docs/AUTOGEN/ontology-ref/partners.md
+?? docs/AUTOGEN/ontology-ref/permissions.md
+?? docs/AUTOGEN/ontology-ref/policy.md
+?? docs/AUTOGEN/ontology-ref/portfolio-os.md
+?? docs/AUTOGEN/ontology-ref/powl-process-mining.md
+?? docs/AUTOGEN/ontology-ref/receipt.md
+?? docs/AUTOGEN/ontology-ref/referrals.md
+?? docs/AUTOGEN/ontology-ref/requirements-shapes.md
+?? docs/AUTOGEN/ontology-ref/requirements.md
+?? docs/AUTOGEN/ontology-ref/resource.md
+?? docs/AUTOGEN/ontology-ref/revops-manufacturing.md
+?? docs/AUTOGEN/ontology-ref/roles.md
+?? docs/AUTOGEN/ontology-ref/routes.md
+?? docs/AUTOGEN/ontology-ref/sensitivity.md
+?? docs/AUTOGEN/ontology-ref/shared-receipt-shapes.md
+?? docs/AUTOGEN/ontology-ref/thesis-manufacturing.md
+?? docs/AUTOGEN/ontology-ref/thesis-shapes.md
+?? docs/AUTOGEN/ontology-ref/volunteer.md
+?? docs/AUTOGEN/ontology-ref/yth.md
+?? docs/AUTOGEN/runbooks/
+?? docs/C4_ARCHITECTURE.md
+?? final_proof.txt
+?? node_modules/
+?? ontology/profiles/zoela-edge-functions.ttl
+?? ontology/profiles/zoela-expo-app.ttl
+?? ontology/profiles/zoela-governance.ttl
+?? ontology/profiles/zoela-legacy-coverage.ttl
+?? ontology/public-alignment.ttl
+?? ontology/public-shapes.ttl
+?? ontology/zoela/autoreceipt.ttl
+?? scripts/actuation/
+?? scripts/build_autoreceipt_artifacts.py
+?? scripts/build_autoreceipt_pipeline.py
+?? scripts/oo/
+?? src/actuation.rs
+?? src/autoreceipt_law.rs
+?? src/ocel_manufacturer.rs
+?? supabase/migrations/20260519000001_zoela_governance.sql
+?? supabase/migrations/20260519000002_zoela_admitted_tables.sql
+?? supabase/migrations/20260519000003_zoela_admitted_columns.sql
+?? supabase/migrations/20260519000004_zoela_admitted_rls.sql
+?? supabase/migrations/20260519000005_zoela_legacy_coverage.sql
+?? test_const_match
+?? tests/autoreceipt_rejects_synthetic_closure_test.rs
+?? tests/autoreceipt_smoke_synthetic_test.rs
+
+Commands:
+- cargo test: pass
+- ggen sync --manifest ggen-revops.toml: pass
+
+Counts:
+- expected OCEL files: 64
+- real observed OCEL files: 1
+- synthetic observed OCEL files: 0
+- alignment receipts: 64
+- alignment passed: 0
+- alignment failed: 64
+- receipts emitted: 0
+- receipts verified: 0
+- synthetic closure rejected: 0
+- unresolved command failures: 0
+
+Artifacts:
+- expected OCEL manifest: ec79c9ee0ed02175f5a6bc76a38807ef65c5a7c5ac180ac68bba5ccdf8e3ada8
+- observed OCEL manifest: ec79c9ee0ed02175f5a6bc76a38807ef65c5a7c5ac180ac68bba5ccdf8e3ada8
+- alignment manifest: 31385fd18fd506fbf4bfb8e87a716eafca1a4d94d0c3a66790f4548c16a69972
+- receipt bundle: 6b47cc7bfd2e48780ba74c77868bbdb23b6fa83cc6040c25709890a3783fe3e9
+- final proof report: 36d1f5d70289e39e3efe383f5bf1c8d9febaf4c275831a7d7cad2dbf2e0bc282
+
+Verifier Output:
+- real boundary execution: fail
+- synthetic observed OCEL rejection: pass
+- alignment verification: fail
+- receipt hash verification: fail
+- dirty tree classification: pass
+- version consistency: pass
+- command chain integrity: pass
+
+Remaining Blockers:
+- 64 JTBDs require execution traces (Observed OCEL) to align with Expected OCEL
+- Dirty git tree prevents total closure
+
+Next Command:
+pnpm run validate:receipts

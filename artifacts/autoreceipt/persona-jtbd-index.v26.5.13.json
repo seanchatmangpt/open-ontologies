@@ -1,0 +1,550 @@
+{
+  "personas": [
+    {
+      "name": "The Ontology Architect (OA-1 to OA-8)",
+      "goal": "A public-grounded model that can manufacture artifacts, receipts, validation shapes, and proof surfaces."
+    },
+    {
+      "name": "The Compliance / Assurance Lead (CL-1 to CL-8)",
+      "goal": "Control execution becomes visible, reproducible, and receipt-backed."
+    },
+    {
+      "name": "The AI Coding Agent Supervisor (AS-1 to AS-8)",
+      "goal": "Agents act only through admitted plans and verified receipts."
+    },
+    {
+      "name": "The Release / Platform Engineer (RE-1 to RE-8)",
+      "goal": "Clean admission path from source to published artifact."
+    },
+    {
+      "name": "The Process Intelligence Analyst (PI-1 to PI-8)",
+      "goal": "Turn work into object-centric route evidence (OCEL)."
+    },
+    {
+      "name": "The Product / UX Operator (UX-1 to UX-8)",
+      "goal": "Translate proof depth into honest user states."
+    },
+    {
+      "name": "The Domain Steward (DS-1 to DS-8)",
+      "goal": "Every need has an owner, route, status, and evidence of closure."
+    },
+    {
+      "name": "The Scientific / Infrastructure Strategist (IS-1 to IS-8)",
+      "goal": "Large-scale R&D represeantable as micro-interventions with verifiable closure."
+    }
+  ],
+  "jtbds": [
+    {
+      "persona": "The Ontology Architect (OA-1 to OA-8)",
+      "id": "OA-1",
+      "goal": "Import public-aligned model",
+      "claimed_capability": "`wasm4pm` parses POWL/XES input, validating namespace prefixes (`shacl:NodeShape`, `prov:Entity`). Emits `import_receipt`.",
+      "expected_outcome": "Receipt emitted and verified.",
+      "receipt_obligation": "prove_oa_1"
+    },
+    {
+      "persona": "The Ontology Architect (OA-1 to OA-8)",
+      "id": "OA-2",
+      "goal": "Detect private vocabulary drift",
+      "claimed_capability": "`wasm4pm` Rejects private extensions not mapped to public PROV-O/DCAT/SKOS. Emits refusal receipt.",
+      "expected_outcome": "Receipt emitted and verified.",
+      "receipt_obligation": "prove_oa_2"
+    },
+    {
+      "persona": "The Ontology Architect (OA-1 to OA-8)",
+      "id": "OA-3",
+      "goal": "Validate SHACL closure",
+      "claimed_capability": "Evaluates `wasm4pm` generated traces against `.specify/templates` SHACL. Blocks if missing fields.",
+      "expected_outcome": "Receipt emitted and verified.",
+      "receipt_obligation": "prove_oa_3"
+    },
+    {
+      "persona": "The Ontology Architect (OA-1 to OA-8)",
+      "id": "OA-4",
+      "goal": "Map model to public terms",
+      "claimed_capability": "OntoStar uses `onto_search` to map `wasm4pm` constructs to public ontologies.",
+      "expected_outcome": "Receipt emitted and verified.",
+      "receipt_obligation": "prove_oa_4"
+    },
+    {
+      "persona": "The Ontology Architect (OA-1 to OA-8)",
+      "id": "OA-5",
+      "goal": "Manufacture extraction plan",
+      "claimed_capability": "`ggen` (\u03bc) projects extraction queries for process mining. Emits `extraction-plan` receipt.",
+      "expected_outcome": "Receipt emitted and verified.",
+      "receipt_obligation": "prove_oa_5"
+    },
+    {
+      "persona": "The Ontology Architect (OA-1 to OA-8)",
+      "id": "OA-6",
+      "goal": "Prove model-to-artifact trace",
+      "claimed_capability": "Reconstructs O* using \u03c1(A, \u03bc, R), binding WASM algorithms back to source triple.",
+      "expected_outcome": "Receipt emitted and verified.",
+      "receipt_obligation": "prove_oa_6"
+    },
+    {
+      "persona": "The Ontology Architect (OA-1 to OA-8)",
+      "id": "OA-7",
+      "goal": "Refuse incomplete model",
+      "claimed_capability": "`wasm4pm` discovery algorithms refuse closure without `start_time` / `end_time` limits.",
+      "expected_outcome": "Receipt emitted and verified.",
+      "receipt_obligation": "prove_oa_7"
+    },
+    {
+      "persona": "The Ontology Architect (OA-1 to OA-8)",
+      "id": "OA-8",
+      "goal": "Publish model status",
+      "claimed_capability": "Returns deterministic BLAKE3-hashed receipt states.",
+      "expected_outcome": "Receipt emitted and verified.",
+      "receipt_obligation": "prove_oa_8"
+    },
+    {
+      "persona": "The Compliance / Assurance Lead (CL-1 to CL-8)",
+      "id": "CL-1",
+      "goal": "Verify a policy ran",
+      "claimed_capability": "Checks `.ggen/receipts/` for policy execution trace in `wasm4pm` (e.g., algorithm limits).",
+      "expected_outcome": "Receipt emitted and verified.",
+      "receipt_obligation": "prove_cl_1"
+    },
+    {
+      "persona": "The Compliance / Assurance Lead (CL-1 to CL-8)",
+      "id": "CL-2",
+      "goal": "Prove consent gating",
+      "claimed_capability": "Poka-Yoke hooks refuse `wasm4pm` execution on unauthorized datasets. Emits `consent-refusal`.",
+      "expected_outcome": "Receipt emitted and verified.",
+      "receipt_obligation": "prove_cl_2"
+    },
+    {
+      "persona": "The Compliance / Assurance Lead (CL-1 to CL-8)",
+      "id": "CL-3",
+      "goal": "Audit a sensitive route",
+      "claimed_capability": "Human-in-the-loop requirement flag stops automatic `wasm4pm` ML training closure.",
+      "expected_outcome": "Receipt emitted and verified.",
+      "receipt_obligation": "prove_cl_3"
+    },
+    {
+      "persona": "The Compliance / Assurance Lead (CL-1 to CL-8)",
+      "id": "CL-4",
+      "goal": "Inspect refusal reason",
+      "claimed_capability": "Negative test failure explicitly maps to SKOS-controlled refusal code.",
+      "expected_outcome": "Receipt emitted and verified.",
+      "receipt_obligation": "prove_cl_4"
+    },
+    {
+      "persona": "The Compliance / Assurance Lead (CL-1 to CL-8)",
+      "id": "CL-5",
+      "goal": "Detect receipt tampering",
+      "claimed_capability": "Re-hashing the `wasm4pm` `artifact_hash` detects checksum drift and emits `tamper_receipt`.",
+      "expected_outcome": "Receipt emitted and verified.",
+      "receipt_obligation": "prove_cl_5"
+    },
+    {
+      "persona": "The Compliance / Assurance Lead (CL-1 to CL-8)",
+      "id": "CL-6",
+      "goal": "Export audit bundle",
+      "claimed_capability": "Extracts all `wasm4pm` algorithms and test runs into an EARL/DCAT bundle.",
+      "expected_outcome": "Receipt emitted and verified.",
+      "receipt_obligation": "prove_cl_6"
+    },
+    {
+      "persona": "The Compliance / Assurance Lead (CL-1 to CL-8)",
+      "id": "CL-7",
+      "goal": "Confirm least privilege",
+      "claimed_capability": "Tenant-layer read/write validation (A2A permissions) strictly bounds WASM execution.",
+      "expected_outcome": "Receipt emitted and verified.",
+      "receipt_obligation": "prove_cl_7"
+    },
+    {
+      "persona": "The Compliance / Assurance Lead (CL-1 to CL-8)",
+      "id": "CL-8",
+      "goal": "Prove no hidden closure",
+      "claimed_capability": "`wasm4pm` process discovery algorithms that complete without generating a trace receipt trigger `FalsePass` defects.",
+      "expected_outcome": "Receipt emitted and verified.",
+      "receipt_obligation": "prove_cl_8"
+    },
+    {
+      "persona": "The AI Coding Agent Supervisor (AS-1 to AS-8)",
+      "id": "AS-1",
+      "goal": "Admit safe Gemini action",
+      "claimed_capability": "Gemini CLI executes `wasm4pm` via admitted ActuationPlan (wrapper execution).",
+      "expected_outcome": "Receipt emitted and verified.",
+      "receipt_obligation": "prove_as_1"
+    },
+    {
+      "persona": "The AI Coding Agent Supervisor (AS-1 to AS-8)",
+      "id": "AS-2",
+      "goal": "Refuse direct yolo actuation",
+      "claimed_capability": "Attempts to bypass wrapper trigger boundary denial (yolo interception).",
+      "expected_outcome": "Receipt emitted and verified.",
+      "receipt_obligation": "prove_as_2"
+    },
+    {
+      "persona": "The AI Coding Agent Supervisor (AS-1 to AS-8)",
+      "id": "AS-3",
+      "goal": "Detect fake completion",
+      "claimed_capability": "System classifies `ReceiptMissing` if agent claims `wasm4pm` tests passed without new BLAKE3 hashes.",
+      "expected_outcome": "Receipt emitted and verified.",
+      "receipt_obligation": "prove_as_3"
+    },
+    {
+      "persona": "The AI Coding Agent Supervisor (AS-1 to AS-8)",
+      "id": "AS-4",
+      "goal": "Verify changed files",
+      "claimed_capability": "Git tree before/after validation binds source changes to `wasm4pm` artifact compilation.",
+      "expected_outcome": "Receipt emitted and verified.",
+      "receipt_obligation": "prove_as_4"
+    },
+    {
+      "persona": "The AI Coding Agent Supervisor (AS-1 to AS-8)",
+      "id": "AS-5",
+      "goal": "Refuse forbidden root write",
+      "claimed_capability": "Agent write attempt outside `/tmp/open-ontologies` or target scope yields refusal receipt.",
+      "expected_outcome": "Receipt emitted and verified.",
+      "receipt_obligation": "prove_as_5"
+    },
+    {
+      "persona": "The AI Coding Agent Supervisor (AS-1 to AS-8)",
+      "id": "AS-6",
+      "goal": "Handle nonzero exit",
+      "claimed_capability": "Cargo/npm failure in `wasm4pm` emits execution-failed receipt.",
+      "expected_outcome": "Receipt emitted and verified.",
+      "receipt_obligation": "prove_as_6"
+    },
+    {
+      "persona": "The AI Coding Agent Supervisor (AS-1 to AS-8)",
+      "id": "AS-7",
+      "goal": "Enforce clean release tree",
+      "claimed_capability": "A dirty git tree blocks `wasm4pm` tarball/publish route.",
+      "expected_outcome": "Receipt emitted and verified.",
+      "receipt_obligation": "prove_as_7"
+    },
+    {
+      "persona": "The AI Coding Agent Supervisor (AS-1 to AS-8)",
+      "id": "AS-8",
+      "goal": "Compare summary to evidence",
+      "claimed_capability": "Agent summaries are verified against `wasm4pm` execution receipts.",
+      "expected_outcome": "Receipt emitted and verified.",
+      "receipt_obligation": "prove_as_8"
+    },
+    {
+      "persona": "The Release / Platform Engineer (RE-1 to RE-8)",
+      "id": "RE-1",
+      "goal": "Verify package identity",
+      "claimed_capability": "Validates package name/version parity across `wasm4pm` Cargo.toml, package.json, and certificates.",
+      "expected_outcome": "Receipt emitted and verified.",
+      "receipt_obligation": "prove_re_1"
+    },
+    {
+      "persona": "The Release / Platform Engineer (RE-1 to RE-8)",
+      "id": "RE-2",
+      "goal": "Refuse dirty release",
+      "claimed_capability": "Git tree checks block release admission.",
+      "expected_outcome": "Receipt emitted and verified.",
+      "receipt_obligation": "prove_re_2"
+    },
+    {
+      "persona": "The Release / Platform Engineer (RE-1 to RE-8)",
+      "id": "RE-3",
+      "goal": "Inspect package contents",
+      "claimed_capability": "Verifies file manifest for `wasm4pm` `pkg/` output, enforcing size/checksum boundaries.",
+      "expected_outcome": "Receipt emitted and verified.",
+      "receipt_obligation": "prove_re_3"
+    },
+    {
+      "persona": "The Release / Platform Engineer (RE-1 to RE-8)",
+      "id": "RE-4",
+      "goal": "Bind certificate to tarball",
+      "claimed_capability": "`wasm4pm.js` tarball hash embedded into release certificate.",
+      "expected_outcome": "Receipt emitted and verified.",
+      "receipt_obligation": "prove_re_4"
+    },
+    {
+      "persona": "The Release / Platform Engineer (RE-1 to RE-8)",
+      "id": "RE-5",
+      "goal": "Run release gauntlet",
+      "claimed_capability": "Lint/Type/Test/Bench executed, recording explicit receipts for each phase.",
+      "expected_outcome": "Receipt emitted and verified.",
+      "receipt_obligation": "prove_re_5"
+    },
+    {
+      "persona": "The Release / Platform Engineer (RE-1 to RE-8)",
+      "id": "RE-6",
+      "goal": "Detect recursive publish risk",
+      "claimed_capability": "Requires certificates for all crates (`wasm4pm-cognition`, `wasm4pm-algos`).",
+      "expected_outcome": "Receipt emitted and verified.",
+      "receipt_obligation": "prove_re_6"
+    },
+    {
+      "persona": "The Release / Platform Engineer (RE-1 to RE-8)",
+      "id": "RE-7",
+      "goal": "Verify registry publish",
+      "claimed_capability": "Emits post-publish receipt via registry metadata read.",
+      "expected_outcome": "Receipt emitted and verified.",
+      "receipt_obligation": "prove_re_7"
+    },
+    {
+      "persona": "The Release / Platform Engineer (RE-1 to RE-8)",
+      "id": "RE-8",
+      "goal": "Clean install smoke",
+      "claimed_capability": "Installs published `wasm4pm` in isolated testbed to confirm operational parity.",
+      "expected_outcome": "Receipt emitted and verified.",
+      "receipt_obligation": "prove_re_8"
+    },
+    {
+      "persona": "The Process Intelligence Analyst (PI-1 to PI-8)",
+      "id": "PI-1",
+      "goal": "Import OCEL",
+      "claimed_capability": "`wasm4pm` validates OCEL schemas strictly, emitting import receipt.",
+      "expected_outcome": "Receipt emitted and verified.",
+      "receipt_obligation": "prove_pi_1"
+    },
+    {
+      "persona": "The Process Intelligence Analyst (PI-1 to PI-8)",
+      "id": "PI-2",
+      "goal": "Detect missing object owner",
+      "claimed_capability": "Gap detection on unowned traces.",
+      "expected_outcome": "Receipt emitted and verified.",
+      "receipt_obligation": "prove_pi_2"
+    },
+    {
+      "persona": "The Process Intelligence Analyst (PI-1 to PI-8)",
+      "id": "PI-3",
+      "goal": "Trace handoff path",
+      "claimed_capability": "Replays actor/object/event/receipt chain using `wasm4pm` conformance tools.",
+      "expected_outcome": "Receipt emitted and verified.",
+      "receipt_obligation": "prove_pi_3"
+    },
+    {
+      "persona": "The Process Intelligence Analyst (PI-1 to PI-8)",
+      "id": "PI-4",
+      "goal": "Detect false completion",
+      "claimed_capability": "Analyzes `wasm4pm` log graphs for hanging edges (missing final receipts).",
+      "expected_outcome": "Receipt emitted and verified.",
+      "receipt_obligation": "prove_pi_4"
+    },
+    {
+      "persona": "The Process Intelligence Analyst (PI-1 to PI-8)",
+      "id": "PI-5",
+      "goal": "Export OCEL-style evidence",
+      "claimed_capability": "Outputs complete `wasm4pm` internal traces in OCEL 2.0 format.",
+      "expected_outcome": "Receipt emitted and verified.",
+      "receipt_obligation": "prove_pi_5"
+    },
+    {
+      "persona": "The Process Intelligence Analyst (PI-1 to PI-8)",
+      "id": "PI-6",
+      "goal": "Run conformance check",
+      "claimed_capability": "`wasm4pm` computes fitness/precision alignment against the expected route.",
+      "expected_outcome": "Receipt emitted and verified.",
+      "receipt_obligation": "prove_pi_6"
+    },
+    {
+      "persona": "The Process Intelligence Analyst (PI-1 to PI-8)",
+      "id": "PI-7",
+      "goal": "Find bottleneck",
+      "claimed_capability": "Analyzes performance spectrum and time-deltas across process states.",
+      "expected_outcome": "Receipt emitted and verified.",
+      "receipt_obligation": "prove_pi_7"
+    },
+    {
+      "persona": "The Process Intelligence Analyst (PI-1 to PI-8)",
+      "id": "PI-8",
+      "goal": "Compare routes",
+      "claimed_capability": "Unifies disparate domains into a single object-centric evidence grammar.",
+      "expected_outcome": "Receipt emitted and verified.",
+      "receipt_obligation": "prove_pi_8"
+    },
+    {
+      "persona": "The Product / UX Operator (UX-1 to UX-8)",
+      "id": "UX-1",
+      "goal": "Project receipt to user text",
+      "claimed_capability": "Maps BLAKE3 receipt existence to \"Verified\" projection.",
+      "expected_outcome": "Receipt emitted and verified.",
+      "receipt_obligation": "prove_ux_1"
+    },
+    {
+      "persona": "The Product / UX Operator (UX-1 to UX-8)",
+      "id": "UX-2",
+      "goal": "Show pending honestly",
+      "claimed_capability": "If `wasm4pm` model sync is incomplete, UX remains \"Sync Pending\".",
+      "expected_outcome": "Receipt emitted and verified.",
+      "receipt_obligation": "prove_ux_2"
+    },
+    {
+      "persona": "The Product / UX Operator (UX-1 to UX-8)",
+      "id": "UX-3",
+      "goal": "Show human-required state",
+      "claimed_capability": "Maps `Review` state from `AccessAdmissionLaw` to \"Pending Review\".",
+      "expected_outcome": "Receipt emitted and verified.",
+      "receipt_obligation": "prove_ux_3"
+    },
+    {
+      "persona": "The Product / UX Operator (UX-1 to UX-8)",
+      "id": "UX-4",
+      "goal": "Hide restricted proof",
+      "claimed_capability": "Protects sensitive cryptographic metadata based on role constraints.",
+      "expected_outcome": "Receipt emitted and verified.",
+      "receipt_obligation": "prove_ux_4"
+    },
+    {
+      "persona": "The Product / UX Operator (UX-1 to UX-8)",
+      "id": "UX-5",
+      "goal": "Admin sees proof depth",
+      "claimed_capability": "Unfurls receipt hashes, proof bounds, and block states.",
+      "expected_outcome": "Receipt emitted and verified.",
+      "receipt_obligation": "prove_ux_5"
+    },
+    {
+      "persona": "The Product / UX Operator (UX-1 to UX-8)",
+      "id": "UX-6",
+      "goal": "Detect misleading copy",
+      "claimed_capability": "Validates UX state enums against underlying state machine typestates.",
+      "expected_outcome": "Receipt emitted and verified.",
+      "receipt_obligation": "prove_ux_6"
+    },
+    {
+      "persona": "The Product / UX Operator (UX-1 to UX-8)",
+      "id": "UX-7",
+      "goal": "Generate next-step CTA",
+      "claimed_capability": "Next state deterministically triggers the correct CTA via `wasm4pm` transition matrix.",
+      "expected_outcome": "Receipt emitted and verified.",
+      "receipt_obligation": "prove_ux_7"
+    },
+    {
+      "persona": "The Product / UX Operator (UX-1 to UX-8)",
+      "id": "UX-8",
+      "goal": "Validate device-visible proof",
+      "claimed_capability": "UI assertions bound directly to underlying receipt hashes.",
+      "expected_outcome": "Receipt emitted and verified.",
+      "receipt_obligation": "prove_ux_8"
+    },
+    {
+      "persona": "The Domain Steward (DS-1 to DS-8)",
+      "id": "DS-1",
+      "goal": "Open a service route",
+      "claimed_capability": "Initializing `wasm4pm` model creates a new bounded route object.",
+      "expected_outcome": "Receipt emitted and verified.",
+      "receipt_obligation": "prove_ds_1"
+    },
+    {
+      "persona": "The Domain Steward (DS-1 to DS-8)",
+      "id": "DS-2",
+      "goal": "Assign correct owner",
+      "claimed_capability": "Route requirements check matches domain logic.",
+      "expected_outcome": "Receipt emitted and verified.",
+      "receipt_obligation": "prove_ds_2"
+    },
+    {
+      "persona": "The Domain Steward (DS-1 to DS-8)",
+      "id": "DS-3",
+      "goal": "Detect overdue follow-up",
+      "claimed_capability": "Time limits tracked by `wasm4pm` temporal checks trigger Andon receipts.",
+      "expected_outcome": "Receipt emitted and verified.",
+      "receipt_obligation": "prove_ds_3"
+    },
+    {
+      "persona": "The Domain Steward (DS-1 to DS-8)",
+      "id": "DS-4",
+      "goal": "Prevent premature closure",
+      "claimed_capability": "Without a verified receipt, `wasm4pm` refuses the `Exit` state transition.",
+      "expected_outcome": "Receipt emitted and verified.",
+      "receipt_obligation": "prove_ds_4"
+    },
+    {
+      "persona": "The Domain Steward (DS-1 to DS-8)",
+      "id": "DS-5",
+      "goal": "Escalate sensitive route",
+      "claimed_capability": "Triggers human-in-the-loop review queue.",
+      "expected_outcome": "Receipt emitted and verified.",
+      "receipt_obligation": "prove_ds_5"
+    },
+    {
+      "persona": "The Domain Steward (DS-1 to DS-8)",
+      "id": "DS-6",
+      "goal": "Transfer ownership",
+      "claimed_capability": "Ownership handoffs emit distinct intermediate receipts.",
+      "expected_outcome": "Receipt emitted and verified.",
+      "receipt_obligation": "prove_ds_6"
+    },
+    {
+      "persona": "The Domain Steward (DS-1 to DS-8)",
+      "id": "DS-7",
+      "goal": "Show route status",
+      "claimed_capability": "Dashboard reads only verified, pending, or refused states derived from chain.",
+      "expected_outcome": "Receipt emitted and verified.",
+      "receipt_obligation": "prove_ds_7"
+    },
+    {
+      "persona": "The Domain Steward (DS-1 to DS-8)",
+      "id": "DS-8",
+      "goal": "Close route with proof",
+      "claimed_capability": "`Exit` successfully transitions based on valid artifact linkage.",
+      "expected_outcome": "Receipt emitted and verified.",
+      "receipt_obligation": "prove_ds_8"
+    },
+    {
+      "persona": "The Scientific / Infrastructure Strategist (IS-1 to IS-8)",
+      "id": "IS-1",
+      "goal": "Model intervention class",
+      "claimed_capability": "Define intervention using public terms (PROV-O).",
+      "expected_outcome": "Receipt emitted and verified.",
+      "receipt_obligation": "prove_is_1"
+    },
+    {
+      "persona": "The Scientific / Infrastructure Strategist (IS-1 to IS-8)",
+      "id": "IS-2",
+      "goal": "Admit local repair route",
+      "claimed_capability": "Open route with object sets.",
+      "expected_outcome": "Receipt emitted and verified.",
+      "receipt_obligation": "prove_is_2"
+    },
+    {
+      "persona": "The Scientific / Infrastructure Strategist (IS-1 to IS-8)",
+      "id": "IS-3",
+      "goal": "Require measurement evidence",
+      "claimed_capability": "Pre- and post-condition checks required before closure.",
+      "expected_outcome": "Receipt emitted and verified.",
+      "receipt_obligation": "prove_is_3"
+    },
+    {
+      "persona": "The Scientific / Infrastructure Strategist (IS-1 to IS-8)",
+      "id": "IS-4",
+      "goal": "Bind sensor data",
+      "claimed_capability": "IoT/Edge logs flow through `wasm4pm` into OCEL formats.",
+      "expected_outcome": "Receipt emitted and verified.",
+      "receipt_obligation": "prove_is_4"
+    },
+    {
+      "persona": "The Scientific / Infrastructure Strategist (IS-1 to IS-8)",
+      "id": "IS-5",
+      "goal": "Detect tampered measurement",
+      "claimed_capability": "Cryptographic hash checks detect evidence spoofing.",
+      "expected_outcome": "Receipt emitted and verified.",
+      "receipt_obligation": "prove_is_5"
+    },
+    {
+      "persona": "The Scientific / Infrastructure Strategist (IS-1 to IS-8)",
+      "id": "IS-6",
+      "goal": "Replay intervention history",
+      "claimed_capability": "Reconstruct state via KGC 4D temporal replay using `wasm4pm` tools.",
+      "expected_outcome": "Receipt emitted and verified.",
+      "receipt_obligation": "prove_is_6"
+    },
+    {
+      "persona": "The Scientific / Infrastructure Strategist (IS-1 to IS-8)",
+      "id": "IS-7",
+      "goal": "Compare outcomes",
+      "claimed_capability": "Analyze `wasm4pm` conformance and fitness dimensions across multiple routes.",
+      "expected_outcome": "Receipt emitted and verified.",
+      "receipt_obligation": "prove_is_7"
+    },
+    {
+      "persona": "The Scientific / Infrastructure Strategist (IS-1 to IS-8)",
+      "id": "IS-8",
+      "goal": "Scale verified pattern",
+      "claimed_capability": "Re-admit patterns only when backed by prior success receipts.",
+      "expected_outcome": "Receipt emitted and verified.",
+      "receipt_obligation": "prove_is_8"
+    }
+  ]
+}

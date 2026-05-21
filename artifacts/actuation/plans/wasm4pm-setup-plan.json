@@ -1,0 +1,9 @@
+{
+  "action_id": "wasm4pm_setup",
+  "emitted_by": "open-ontologies",
+  "policy_id": "auto_receipt_proof",
+  "actor_basis8": "persona_oa_1",
+  "allowed": true,
+  "working_directory": "/Users/sac/wasm4pm",
+  "command": "echo 'Real boundary execution: setting up wasm4pm'"
+}

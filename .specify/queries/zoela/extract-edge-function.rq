@@ -1,0 +1,27 @@
+# =============================================================================
+# extract-edge-function.rq — per-edge-function row
+# =============================================================================
+#
+# Returns ONE row per ggen:EdgeFunction instance. ggen v5 renders the template
+# once per row, but each edge function needs its OWN output file. We register
+# THREE ggen rules with the same query but different rule names + outputs;
+# each rule's template filters to the slug it wants via a header check, OR
+# we wire one rule per slug here via a slug filter parameter.
+#
+# Approach used: ONE rule, output_file uses a Tera filter, but ggen doesn't
+# template output_file paths. So we register one rule per slug, each with
+# a separate dedicated query that pins the slug.
+# =============================================================================
+
+PREFIX ggen: <https://open-ontologies.org/ggen#>
+PREFIX zoe:  <https://zoela.org/ontology/>
+
+SELECT ?slug ?purpose ?body
+WHERE {
+  ?fn a ggen:EdgeFunction ;
+      ggen:edgeFunctionSlug    ?slug ;
+      ggen:edgeFunctionPurpose ?purpose ;
+      ggen:edgeFunctionBody    ?body .
+  FILTER(?slug = ?_targetSlug)
+  VALUES (?_targetSlug) { ("__SLUG__") }
+}

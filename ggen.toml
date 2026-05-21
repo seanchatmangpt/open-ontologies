@@ -31,6 +31,42 @@ imports = [
     "ontology/zoela/routes.ttl",
     "ontology/zoela/connect-groups.ttl",
     "ontology/zoela/connect-group-routes.ttl",
+    # P0-B.9 — domain TTLs needed for manufactured domain migrations.
+    "ontology/zoela/person.ttl",
+    "ontology/zoela/consent.ttl",
+    "ontology/zoela/ocel.ttl",
+    # P0-B.7b — ODRL policies (zoe:MemberPolicy/VolunteerPolicy/MinistryLead/Admin
+    # with permission/prohibition rules) drive the zoela-rls extractor.
+    "ontology/zoela/policy.ttl",
+    # P0-B.4d-fix: profile layer (materialization kinds + priorities + SHACL
+    # shapes + ODRL→RLS mapping) drives admissibility for the
+    # zoela-public-materialization / zoela-materialization-refusals rules.
+    "ontology/profiles/zoela-supabase-materialization.ttl",
+    "ontology/profiles/public-role-shapes.ttl",
+    "ontology/profiles/zoela-supabase-rls.ttl",
+    # P0-B.7c — governance reference tables (roles, person_role_assignments)
+    # that zoela-rls.sql subqueries depend on. Must be loaded so the
+    # extract-governance-tables.rq query has data.
+    "ontology/profiles/zoela-governance.ttl",
+    # P0-B.8 — Expo app manifest (apps/mobile/* project scaffold source-law).
+    "ontology/profiles/zoela-expo-app.ttl",
+    # P0-B.10 — Transitional legacy-table coverage profile. Holds tables and
+    # RLS not yet reachable from the public-vocab admission chain so we can
+    # delete the four hand-written 20260518* migrations.
+    "ontology/profiles/zoela-legacy-coverage.ttl",
+    # P0-B.11 — AutoReceipt pipeline law.
+    "ontology/zoela/autoreceipt.ttl",
+    # NOTE on scope: tested under both ggen v26.5.5 AND v26.5.18 — expanding
+
+    # `imports` beyond the above blows up pre-flight (39 imports → >10 min,
+    # confirmed across multiple sync runs). Even unrelated rules like
+    # `cli-cmds` hang at 39 imports, so the bottleneck is in ggen's
+    # pre-flight phase, not in any of our SPARQL queries. Until ggen
+    # pre-flight scales to >36 imports, the materialization extractor's
+    # visible class scope is limited to whatever's already loaded for the
+    # existing screen/route/connect-group rules. See B4d-fix-acceptance.md
+    # for the bisection results and the full-graph census (via Python
+    # diagnostic, non-acceptance) that this scope is leaving on the table.
 ]
 
 [rdf]
@@ -106,16 +142,54 @@ rules = [
     { name = "revops-stages", query = { file = ".specify/queries/revops/stages_aggregated.rq" }, template = { file = ".specify/templates/revops/cmds.rs.tera" }, output_file = "src/cmds/generated_revops.rs", mode = "Overwrite" },
     # ZOE LA Mobile pipeline — canonical runtime paths (never generated/)
     { name = "zoela-mobile-types",     query = { file = ".specify/queries/zoela/extract-types.rq" },       template = { file = ".specify/templates/zoela/typescript-types.tera" }, output_file = "packages/types/zoela.ts",                                   mode = "Overwrite" },
-    # zoela-mobile-migration: extract-tables.rq + supabase-migration.tera not yet wired here.
-    # P0-A (2026-05-18) resolved the namespace bifurcation (all ontology/zoela/*.ttl now use
-    # the canonical namespace), unblocking downstream regeneration. P0-B will wire the migration
-    # emission rule and remove the protected_paths entries below.
+    # P0-B.4d-fix: public-vocab admissibility-gated migration emission.
+    # Output goes to .ggen/audit/p0-a/ during the transition; the hand-authored
+    # supabase/migrations/20260518000001_zoela_tables.sql remains protected until
+    # the dry-run output proves equivalence (see protected_paths below).
+    { name = "zoela-public-materialization",   query = { file = ".specify/queries/zoela/extract-public-materializations.rq" },           template = { file = ".specify/templates/zoela/supabase-migration.tera" },                output_file = "supabase/migrations/20260519000002_zoela_admitted_tables.sql",  mode = "Overwrite" },
+    { name = "zoela-materialization-refusals", query = { file = ".specify/queries/zoela/extract-public-materialization-refusals.rq" },  template = { file = ".specify/templates/zoela/supabase-materialization-refusals.tera" }, output_file = ".ggen/audit/p0-a/zoela-refusals.sql",   mode = "Overwrite" },
+    # P0-B.4e: body columns split into a separate rule (one ALTER TABLE per
+    # admitted property) so the SPARQL queries stay flat. Inlining columns into
+    # the admission extractor's GROUP_CONCAT triggered an Oxigraph OPTIONAL
+    # join-correlation bug under 10+ imports. Apply this AFTER zoela-tables.sql.
+    { name = "zoela-materialization-columns",  query = { file = ".specify/queries/zoela/extract-public-materialization-columns.rq" },   template = { file = ".specify/templates/zoela/supabase-columns.tera" },                  output_file = "supabase/migrations/20260519000003_zoela_admitted_columns.sql", mode = "Overwrite" },
+
+    # P0-B.7c — governance reference tables (roles, person_role_assignments).
+    # Foundational substrate that the ggen-emitted RLS subqueries depend on.
+    # Sorts to apply right after the hand-written zoela_* migrations and
+    # immediately before the ggen-emitted admitted_tables/columns/rls trio.
+    { name = "zoela-governance",               query = { file = ".specify/queries/zoela/extract-governance-tables.rq" },                template = { file = ".specify/templates/zoela/supabase-governance.tera" },               output_file = "supabase/migrations/20260519000001_zoela_governance.sql",       mode = "Overwrite" },
+
+    # P0-B.10 — Legacy table/alter/policy coverage. Sorts after admitted tables
+    # and columns (so its ALTERs land on existing tables) but before RLS.
+    { name = "zoela-legacy-coverage",          query = { file = ".specify/queries/zoela/extract-legacy-coverage.rq" },                  template = { file = ".specify/templates/zoela/supabase-legacy-coverage.tera" },          output_file = "supabase/migrations/20260519000005_zoela_legacy_coverage.sql", mode = "Overwrite" },
+    # P0-B.7b: ODRL → Postgres RLS. Each row = one CREATE POLICY statement on
+    # an admitted table. Default-deny applies elsewhere. ODRL prohibitions are
+    # NOT rendered — their effect is the absence of a positive grant.
+    { name = "zoela-rls",                      query = { file = ".specify/queries/zoela/extract-odrl-policies.rq" },                    template = { file = ".specify/templates/zoela/supabase-rls.tera" },                      output_file = "supabase/migrations/20260519000004_zoela_admitted_rls.sql",     mode = "Overwrite" },
+
+    # P0-B.8 — apps/mobile/ Expo project scaffold (7 manufactured files).
+    # Source-law: ontology/profiles/zoela-expo-app.ttl
+    { name = "zoela-expo-package-json",        query = { file = ".specify/queries/zoela/extract-expo-package.rq" },                    template = { file = ".specify/templates/zoela/expo-package-json.tera" },                output_file = "apps/mobile/package.json",                                      mode = "Overwrite" },
+    { name = "zoela-expo-app-json",            query = { file = ".specify/queries/zoela/extract-expo-app-json.rq" },                   template = { file = ".specify/templates/zoela/expo-app-json.tera" },                    output_file = "apps/mobile/app.json",                                          mode = "Overwrite" },
+    { name = "zoela-expo-tsconfig",            query = { file = ".specify/queries/zoela/extract-expo-tsconfig.rq" },                   template = { file = ".specify/templates/zoela/expo-tsconfig.tera" },                    output_file = "apps/mobile/tsconfig.json",                                     mode = "Overwrite" },
+    { name = "zoela-expo-babel-config",        query = { file = ".specify/queries/zoela/extract-expo-manifest-id.rq" },                template = { file = ".specify/templates/zoela/expo-babel-config.tera" },                output_file = "apps/mobile/babel.config.js",                                   mode = "Overwrite" },
+    { name = "zoela-expo-metro-config",        query = { file = ".specify/queries/zoela/extract-expo-manifest-id.rq" },                template = { file = ".specify/templates/zoela/expo-metro-config.tera" },                output_file = "apps/mobile/metro.config.js",                                   mode = "Overwrite" },
+    { name = "zoela-expo-app-entry",           query = { file = ".specify/queries/zoela/extract-expo-runtime-config.rq" },             template = { file = ".specify/templates/zoela/expo-app-entry.tera" },                   output_file = "apps/mobile/App.tsx",                                           mode = "Overwrite" },
+    { name = "zoela-expo-supabase-client",     query = { file = ".specify/queries/zoela/extract-expo-runtime-config.rq" },             template = { file = ".specify/templates/zoela/expo-supabase-client.tera" },             output_file = "apps/mobile/src/lib/supabaseClient.ts",                         mode = "Overwrite" },
+    { name = "zoela-expo-verify-supabase",     query = { file = ".specify/queries/zoela/extract-verify-supabase.rq" },                 template = { file = ".specify/templates/zoela/expo-verify-supabase.tera" },             output_file = "apps/mobile/scripts/verify-supabase.mjs",                       mode = "Overwrite" },
+    { name = "zoela-expo-readme",              query = { file = ".specify/queries/zoela/extract-doc-page.rq" },                        template = { file = ".specify/templates/zoela/expo-readme.tera" },                      output_file = "apps/mobile/README.md",                                         mode = "Overwrite" },
+    # zoela-mobile-migration (extract-tables.rq + supabase-migration.tera against
+    # the protected path) intentionally not wired — the public-anchor-gated rule
+    # above is the authoritative manufacturing path. Old extract-tables.rq is
+    # retained only as a transitional reference.
     { name = "zoela-mobile-zod",       query = { file = ".specify/queries/zoela/extract-skos-enums.rq" },  template = { file = ".specify/templates/zoela/zod-schema.tera" },          output_file = "packages/schemas/zoela.ts",                                 mode = "Overwrite" },
     # ZOE LA Mobile pipeline — data + policy rules
     # zoela-bridge-tables intentionally removed: extract-bridge-tables.rq produces no rows.
     # DDL is hand-authored in supabase/migrations/20260518000002_zoela_bridge_tables.sql (protected_path).
-    # zoela-rls intentionally removed: extract-rls-policies.rq produces no rows.
-    # DDL is hand-authored in supabase/migrations/20260518000003_zoela_rls.sql (protected_path).
+    # (zoela-rls is now wired above via the P0-B.7b ODRL chain — old extract-rls-policies.rq
+    #  comment removed as stale. supabase/migrations/20260518000003_zoela_rls.sql remains
+    #  protected until the ggen-emitted zoela-rls.sql is reviewed for equivalence.)
     { name = "zoela-forms",         query = { file = ".specify/queries/zoela/extract-form-fields.rq" },   template = { file = ".specify/templates/zoela/react-hook-form.tera" },         output_file = "packages/forms/zoela.tsx",                                    mode = "Overwrite" },
     { name = "zoela-ocel",          query = { file = ".specify/queries/zoela/extract-ocel-events.rq" },   template = { file = ".specify/templates/zoela/ocel-event.tera" },              output_file = "packages/evidence/OcelEvents.ts",                            mode = "Overwrite" },
     { name = "zoela-service-routes", query = { file = ".specify/queries/zoela/extract-service-routes.rq" }, template = { file = ".specify/templates/zoela/route-stage-gate.tera" }, output_file = "packages/routes/routeGates.ts",                               mode = "Overwrite" },
@@ -135,11 +209,15 @@ rules = [
     # ZOE LA Mobile pipeline — admin detail + expo navigation stack
     { name = "zoela-admin-detail",      query = { file = ".specify/queries/zoela/extract-admin-screens.rq" },            template = { file = ".specify/templates/zoela/admin-detail-screen.tera" },          output_file = "packages/screens/adminDetailScreen.tsx",      mode = "Overwrite" },
     { name = "zoela-nav-stack",         query = { file = ".specify/queries/zoela/extract-navigation.rq" },            template = { file = ".specify/templates/zoela/expo-navigation-stack.tera" },         output_file = "packages/navigation/navigationStack.tsx",     mode = "Overwrite" },
+    # AutoReceipt pipeline law — Rust typestates
+    { name = "autoreceipt-law",         query = { file = ".specify/queries/zoela/extract-autoreceipt-law.rq" },   template = { file = ".specify/templates/zoela/autoreceipt-law.rs.tera" },    output_file = "src/autoreceipt_law.rs",                        mode = "Overwrite" },
     # ZOE LA Mobile pipeline — connect group rules (cg-stages, cg-work-orders, cg-admin)
     { name = "zoela-cg-stages",         query = { file = ".specify/queries/zoela/extract-connect-group-stages.rq" },  template = { file = ".specify/templates/zoela/connect-group-route-stages.tera" },   output_file = "packages/routes/connectGroupStages.ts",       mode = "Overwrite" },
     { name = "zoela-cg-work-orders",    query = { file = ".specify/queries/zoela/extract-connect-group-work-orders.rq" }, template = { file = ".specify/templates/zoela/connect-group-work-orders.tera" }, output_file = "packages/routes/connectGroupWorkOrders.ts",  mode = "Overwrite" },
     { name = "zoela-cg-admin",          query = { file = ".specify/queries/zoela/extract-connect-group-admin.rq" },   template = { file = ".specify/templates/zoela/connect-group-admin-surface.tera" },  output_file = "packages/routes/connectGroupAdmin.ts",        mode = "Overwrite" },
     { name = "zoela-cg-interest-form",  query = { file = ".specify/queries/zoela/extract-connect-group-stages.rq" },  template = { file = ".specify/templates/zoela/connect-group-interest-form.tera" },   output_file = "packages/forms/connectGroupInterestForm.tsx", mode = "Overwrite" },
+    # P0-B.11 — AutoReceipt pipeline law.
+    { name = "zoela-autoreceipt-law",   query = { file = ".specify/queries/zoela/extract-autoreceipt-law.rq" },      template = { file = ".specify/templates/zoela/autoreceipt-law.rs.tera" },           output_file = "src/autoreceipt_law.rs",                      mode = "Overwrite" },
     # ZOE LA Mobile pipeline — Supabase Edge Functions
     { name = "zoela-edge-fn",           query = { file = ".specify/queries/zoela/extract-service-routes.rq" },        template = { file = ".specify/templates/zoela/supabase-edge-fn.tera" },             output_file = "supabase/functions/route-gate/index.ts",      mode = "Overwrite" },
 ]
@@ -172,6 +250,7 @@ protected_paths = [
 regenerate_paths = [
     "src/cmds/generated.rs",
     "src/cmds/generated_revops.rs",
+    "src/autoreceipt_law.rs",
     # packages/types
     "packages/types/zoela.ts",
     "packages/types/roles.ts",

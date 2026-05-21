@@ -1,31 +1,32 @@
 {
   "stats": {
-    "classes": 131,
+    "classes": 153,
     "data_properties": 0,
-    "individuals": 397,
-    "object_properties": 462,
-    "properties": 462,
-    "triples": 6811
+    "individuals": 477,
+    "object_properties": 525,
+    "properties": 525,
+    "triples": 8162
   },
   "queries": [
     {
       "query": "extract-admin-screens",
       "status": "OK",
-      "rows": 3,
+      "rows": 1,
       "variables": [
-        "screen_id",
-        "screen_label",
-        "nav_route",
-        "parent_tab_code",
-        "screen_stack",
-        "required_role",
-        "primary_object_type",
-        "primary_route_category",
-        "screen_order"
+        "screenIds",
+        "screenLabels",
+        "navRoutes",
+        "parentTabCodes",
+        "screenStacks",
+        "requiredRoles",
+        "primaryObjectTypes",
+        "primaryRouteCategories",
+        "screenOrders"
       ],
-      "empty_vars_across_rows": [],
-      "populated_vars_across_rows": 9,
-      "health": "all 9 variables populated across rows"
+      "empty_aggregate_vars": [],
+      "populated_aggregate_vars": 9,
+      "aggregate_var_count": 9,
+      "health": "all 9 aggregate variables populated"
     },
     {
       "query": "extract-assignment-eligibility",
@@ -44,6 +45,20 @@
       "health": "all 5 aggregate variables populated"
     },
     {
+      "query": "extract-autoreceipt-law",
+      "status": "OK",
+      "rows": 1,
+      "variables": [
+        "lawId",
+        "inputValues",
+        "conditions"
+      ],
+      "empty_aggregate_vars": [],
+      "populated_aggregate_vars": 3,
+      "aggregate_var_count": 3,
+      "health": "all 3 aggregate variables populated"
+    },
+    {
       "query": "extract-bridge-tables",
       "status": "OK",
       "rows": 1,
@@ -56,10 +71,18 @@
         "colTypes",
         "colNullable"
       ],
-      "empty_aggregate_vars": [],
-      "populated_aggregate_vars": 7,
+      "empty_aggregate_vars": [
+        "tableNames",
+        "tableLabels",
+        "tableComments",
+        "propTables",
+        "colNames",
+        "colTypes",
+        "colNullable"
+      ],
+      "populated_aggregate_vars": 0,
       "aggregate_var_count": 7,
-      "health": "all 7 aggregate variables populated"
+      "concern": "AGGREGATE INCOMPLETE \u2014 7/7 aggregate variables empty: tableNames, tableLabels, tableComments, propTables, colNames"
     },
     {
       "query": "extract-connect-group-admin",
@@ -133,6 +156,104 @@
       "health": "4/6 variables populated; empty (likely OPTIONAL no-match): blocks_stages, used_in_routes"
     },
     {
+      "query": "extract-doc-page",
+      "status": "OK",
+      "rows": 1,
+      "variables": [
+        "docTitle",
+        "docSummary",
+        "secBundle"
+      ],
+      "empty_aggregate_vars": [],
+      "populated_aggregate_vars": 3,
+      "aggregate_var_count": 3,
+      "health": "all 3 aggregate variables populated"
+    },
+    {
+      "query": "extract-edge-function",
+      "status": "OK",
+      "rows": 0,
+      "variables": [
+        "slug",
+        "purpose",
+        "body"
+      ],
+      "concern": "ZERO ROWS \u2014 manufacturing path is severed"
+    },
+    {
+      "query": "extract-expo-app-json",
+      "status": "OK",
+      "rows": 1,
+      "variables": [
+        "appName",
+        "appSlug",
+        "appVersion",
+        "appBundleId",
+        "supabaseUrl",
+        "supabaseAnonKey"
+      ],
+      "empty_aggregate_vars": [],
+      "populated_aggregate_vars": 6,
+      "aggregate_var_count": 6,
+      "health": "all 6 aggregate variables populated"
+    },
+    {
+      "query": "extract-expo-manifest-id",
+      "status": "OK",
+      "rows": 1,
+      "variables": [
+        "manifestIri",
+        "appSlug"
+      ],
+      "empty_aggregate_vars": [],
+      "populated_aggregate_vars": 2,
+      "aggregate_var_count": 2,
+      "health": "all 2 aggregate variables populated"
+    },
+    {
+      "query": "extract-expo-package",
+      "status": "OK",
+      "rows": 1,
+      "variables": [
+        "packageName",
+        "packageDescription",
+        "appVersion",
+        "deps",
+        "devDeps"
+      ],
+      "empty_aggregate_vars": [],
+      "populated_aggregate_vars": 5,
+      "aggregate_var_count": 5,
+      "health": "all 5 aggregate variables populated"
+    },
+    {
+      "query": "extract-expo-runtime-config",
+      "status": "OK",
+      "rows": 1,
+      "variables": [
+        "appName",
+        "supabaseUrl",
+        "supabaseAnonKey",
+        "entryScreenComponent",
+        "entryScreenImportPath"
+      ],
+      "empty_aggregate_vars": [],
+      "populated_aggregate_vars": 5,
+      "aggregate_var_count": 5,
+      "health": "all 5 aggregate variables populated"
+    },
+    {
+      "query": "extract-expo-tsconfig",
+      "status": "OK",
+      "rows": 1,
+      "variables": [
+        "pathAliases"
+      ],
+      "empty_vars_across_rows": [],
+      "populated_vars_across_rows": 1,
+      "health": "all 1 variables populated across rows"
+    },
+    {
       "query": "extract-followup-rules",
       "status": "OK",
       "rows": 1,
@@ -169,17 +290,49 @@
       "health": "all 8 aggregate variables populated"
     },
     {
+      "query": "extract-governance-tables",
+      "status": "OK",
+      "rows": 1,
+      "variables": [
+        "tableNames",
+        "classLabels",
+        "classDescs",
+        "classIris",
+        "colSpecs",
+        "seedSpecs"
+      ],
+      "empty_aggregate_vars": [],
+      "populated_aggregate_vars": 6,
+      "aggregate_var_count": 6,
+      "health": "all 6 aggregate variables populated"
+    },
+    {
+      "query": "extract-legacy-coverage",
+      "status": "OK",
+      "rows": 1,
+      "variables": [
+        "tableBundle",
+        "alterBundle",
+        "policyBundle"
+      ],
+      "empty_aggregate_vars": [],
+      "populated_aggregate_vars": 3,
+      "aggregate_var_count": 3,
+      "health": "all 3 aggregate variables populated"
+    },
+    {
       "query": "extract-navigation",
       "status": "OK",
-      "rows": 7,
+      "rows": 1,
       "variables": [
-        "tab_code",
-        "tab_label",
-        "screens"
+        "tabCodes",
+        "tabLabels",
+        "tabScreensBundle"
       ],
-      "empty_vars_across_rows": [],
-      "populated_vars_across_rows": 3,
-      "health": "all 3 variables populated across rows"
+      "empty_aggregate_vars": [],
+      "populated_aggregate_vars": 3,
+      "aggregate_var_count": 3,
+      "health": "all 3 aggregate variables populated"
     },
     {
       "query": "extract-ocel-events",
@@ -213,24 +366,98 @@
       "health": "all 5 aggregate variables populated"
     },
     {
+      "query": "extract-odrl-policies",
+      "status": "OK",
+      "rows": 1,
+      "variables": [
+        "rlsPolicyCodes",
+        "rlsActionCodes",
+        "rlsRoles",
+        "rlsOperations",
+        "rlsConstraints",
+        "rlsTargetKindCodes",
+        "rlsTargetTables",
+        "rlsTargetClasses"
+      ],
+      "empty_aggregate_vars": [],
+      "populated_aggregate_vars": 8,
+      "aggregate_var_count": 8,
+      "health": "all 8 aggregate variables populated"
+    },
+    {
+      "query": "extract-public-materialization-columns",
+      "status": "OK",
+      "rows": 1,
+      "variables": [
+        "colTables",
+        "colNames",
+        "colSqlTypes",
+        "colFkTables",
+        "colDescriptions",
+        "colClassIris"
+      ],
+      "empty_aggregate_vars": [],
+      "populated_aggregate_vars": 6,
+      "aggregate_var_count": 6,
+      "health": "all 6 aggregate variables populated"
+    },
+    {
+      "query": "extract-public-materialization-refusals",
+      "status": "OK",
+      "rows": 1,
+      "variables": [
+        "refClassIris",
+        "refClassNames",
+        "refTableNames",
+        "refKindIris",
+        "refKindCodes",
+        "refAnchors",
+        "refReasons"
+      ],
+      "empty_aggregate_vars": [],
+      "populated_aggregate_vars": 7,
+      "aggregate_var_count": 7,
+      "health": "all 7 aggregate variables populated"
+    },
+    {
+      "query": "extract-public-materializations",
+      "status": "OK",
+      "rows": 1,
+      "variables": [
+        "classIris",
+        "classNames",
+        "tableNames",
+        "classDescriptions",
+        "publicAnchorIris",
+        "materializationKinds",
+        "materializationCodes",
+        "requiresOwner",
+        "requiresAuditTrail",
+        "targetRuntimes",
+        "shapeIris",
+        "classColumnTuples"
+      ],
+      "empty_aggregate_vars": [],
+      "populated_aggregate_vars": 12,
+      "aggregate_var_count": 12,
+      "health": "all 12 aggregate variables populated"
+    },
+    {
       "query": "extract-push-card-fields",
       "status": "OK",
-      "rows": 9,
+      "rows": 1,
       "variables": [
-        "card_iri",
         "card_title",
         "card_subtitle",
         "card_body",
         "card_action",
         "card_deep_link",
-        "card_priority",
-        "route_labels"
+        "card_priority"
       ],
-      "empty_vars_across_rows": [
-        "route_labels"
-      ],
-      "populated_vars_across_rows": 7,
-      "health": "7/8 variables populated; empty (likely OPTIONAL no-match): route_labels"
+      "empty_aggregate_vars": [],
+      "populated_aggregate_vars": 6,
+      "aggregate_var_count": 6,
+      "health": "all 6 aggregate variables populated"
     },
     {
       "query": "extract-receipt-models",
@@ -310,22 +537,23 @@
     {
       "query": "extract-screens",
       "status": "OK",
-      "rows": 14,
+      "rows": 1,
       "variables": [
-        "screen_id",
-        "screen_label",
-        "nav_route",
-        "parent_tab_code",
-        "screen_stack",
-        "required_role",
-        "primary_object_type",
-        "primary_route_category",
-        "is_admin_only",
-        "screen_order"
+        "screenIds",
+        "screenLabels",
+        "navRoutes",
+        "parentTabCodes",
+        "screenStacks",
+        "requiredRoles",
+        "primaryObjectTypes",
+        "primaryRouteCategories",
+        "isAdminOnlys",
+        "screenOrders"
       ],
-      "empty_vars_across_rows": [],
-      "populated_vars_across_rows": 10,
-      "health": "all 10 variables populated across rows"
+      "empty_aggregate_vars": [],
+      "populated_aggregate_vars": 10,
+      "aggregate_var_count": 10,
+      "health": "all 10 aggregate variables populated"
     },
     {
       "query": "extract-sensitivity-rules",
@@ -448,11 +676,25 @@
       "populated_aggregate_vars": 13,
       "aggregate_var_count": 13,
       "health": "all 13 aggregate variables populated"
+    },
+    {
+      "query": "extract-verify-supabase",
+      "status": "OK",
+      "rows": 1,
+      "variables": [
+        "supabaseUrl",
+        "supabaseAnonKey",
+        "probeBundle"
+      ],
+      "empty_aggregate_vars": [],
+      "populated_aggregate_vars": 3,
+      "aggregate_var_count": 3,
+      "health": "all 3 aggregate variables populated"
     }
   ],
-  "rows_total": 58,
-  "queries_with_rows": 23,
-  "queries_zero_rows": 0,
+  "rows_total": 43,
+  "queries_with_rows": 37,
+  "queries_zero_rows": 1,
   "queries_errored": 0,
-  "queries_with_concerns": 3
+  "queries_with_concerns": 5
 }

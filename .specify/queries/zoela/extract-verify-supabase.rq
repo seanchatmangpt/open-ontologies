@@ -1,0 +1,47 @@
+# =============================================================================
+# extract-verify-supabase.rq — Supabase URL/key + ordered probe targets
+# =============================================================================
+
+PREFIX ggen: <https://open-ontologies.org/ggen#>
+
+SELECT
+  (SAMPLE(?_url)         AS ?supabaseUrl)
+  (SAMPLE(?_anon)        AS ?supabaseAnonKey)
+  (SAMPLE(?_bundle)      AS ?probeBundle)
+WHERE {
+  ?manifest a ggen:ExpoAppManifest ;
+            ggen:supabaseUrl     ?_url ;
+            ggen:supabaseAnonKey ?_anon .
+
+  # Aggregate probes into one bundle string, "@@@" between probes.
+  {
+    SELECT (GROUP_CONCAT(?_probeLine; SEPARATOR="@@@") AS ?_bundle)
+    WHERE {
+      {
+        SELECT ?probe ?_order
+            (SAMPLE(?_nameS)  AS ?_pNameS)
+            (SAMPLE(?_kindS)  AS ?_pKindS)
+            (SAMPLE(?_tableS) AS ?_pTableS)
+            (SAMPLE(?_colS)   AS ?_pColS)
+            (SAMPLE(?_minS)   AS ?_pMinS)
+        WHERE {
+          ?script a ggen:OpsScript ;
+                  ggen:scriptName "verify-supabase" ;
+                  ggen:hasProbeTarget ?probe .
+          ?probe ggen:probeOrder ?_order ;
+                 ggen:probeName  ?_nameS ;
+                 ggen:probeKind  ?_kindS .
+          OPTIONAL { ?probe ggen:probeTable   ?_tR BIND(STR(?_tR) AS ?_tB) }
+          OPTIONAL { ?probe ggen:probeColumn  ?_cR BIND(STR(?_cR) AS ?_cB) }
+          OPTIONAL { ?probe ggen:probeMinRows ?_mR BIND(STR(?_mR) AS ?_mB) }
+          BIND(COALESCE(?_tB, "") AS ?_tableS)
+          BIND(COALESCE(?_cB, "") AS ?_colS)
+          BIND(COALESCE(?_mB, "0") AS ?_minS)
+        }
+        GROUP BY ?probe ?_order
+        ORDER BY ?_order
+      }
+      BIND(CONCAT(?_pKindS, "|", ?_pNameS, "|", ?_pTableS, "|", ?_pColS, "|", ?_pMinS) AS ?_probeLine)
+    }
+  }
+}

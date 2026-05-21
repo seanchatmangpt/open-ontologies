@@ -1,3 +1,4 @@
+/// <reference path="../globals.d.ts" />
 // Supabase Edge Function: ocel-export
 // Exports OCEL 2.0 event log for wasm4pm process mining consumption
 // Compatible with packages/evidence/OcelEvents.ts event type definitions

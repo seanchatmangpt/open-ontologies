@@ -1,54 +1,72 @@
-PREFIX zoe: <https://zoela.org/ontology/>
+# =============================================================================
+# extract-admin-screens.rq — single-row aggregated admin-screen bundle
+# =============================================================================
+#
+# Filters to admin-only AppScreen instances and aggregates into ONE row so
+# admin-list-screen.tera and admin-detail-screen.tera can each emit every
+# admin screen in one file.
+# =============================================================================
+
+PREFIX zoe:  <https://zoela.org/ontology/>
 PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
-PREFIX owl: <http://www.w3.org/2002/07/owl#>
-PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
-
-# =============================================================================
-# extract-admin-screens.rq — Extract admin-only AppScreen individuals
-# =============================================================================
-#
-# Returns one row per admin-gated AppScreen (is_admin_only = true).
-# Used by:
-#   admin-list-screen.tera   → packages/screens/adminScreens.tsx
-#   admin-detail-screen.tera → packages/screens/adminDetailScreen.tsx
-#
-# ggen v5 per-row rendering model: renders once per SELECT row.
-# SPARQL WHERE clause filters to admin-only screens so every row is admin.
-#
-# Template variables:
-#   ?screen_id             — skos:notation
-#   ?screen_label          — rdfs:label
-#   ?nav_route             — zoe:navRoute
-#   ?parent_tab_code       — zoe:parentTab skos:notation (default: "ADMIN")
-#   ?screen_stack          — zoe:screenStack (default: "AdminStack")
-#   ?required_role         — zoe:requiredRole (default: "CARE")
-#   ?primary_object_type   — zoe:primaryObjectType (default: "")
-#   ?primary_route_category — zoe:primaryRouteCategory (default: "")
-#   ?screen_order          — zoe:screenOrder (default: "0")
-# =============================================================================
+PREFIX owl:  <http://www.w3.org/2002/07/owl#>
+PREFIX xsd:  <http://www.w3.org/2001/XMLSchema#>
 
 SELECT
-  ?screen_id
-  ?screen_label
-  ?nav_route
-  (COALESCE(?tab_code, "ADMIN") AS ?parent_tab_code)
-  (COALESCE(?stack, "AdminStack") AS ?screen_stack)
-  (COALESCE(?role, "CARE") AS ?required_role)
-  (COALESCE(?object_type, "") AS ?primary_object_type)
-  (COALESCE(?route_category, "") AS ?primary_route_category)
-  (COALESCE(STR(?order), "0") AS ?screen_order)
+  (GROUP_CONCAT(?_screenId;            SEPARATOR="|") AS ?screenIds)
+  (GROUP_CONCAT(?_screenLabel;         SEPARATOR="|") AS ?screenLabels)
+  (GROUP_CONCAT(?_navRoute;            SEPARATOR="|") AS ?navRoutes)
+  (GROUP_CONCAT(?_parentTabCode;       SEPARATOR="|") AS ?parentTabCodes)
+  (GROUP_CONCAT(?_screenStack;         SEPARATOR="|") AS ?screenStacks)
+  (GROUP_CONCAT(?_requiredRole;        SEPARATOR="|") AS ?requiredRoles)
+  (GROUP_CONCAT(?_primaryObjectType;   SEPARATOR="|") AS ?primaryObjectTypes)
+  (GROUP_CONCAT(?_primaryRouteCategory;SEPARATOR="|") AS ?primaryRouteCategories)
+  (GROUP_CONCAT(?_screenOrder;         SEPARATOR="|") AS ?screenOrders)
 WHERE {
-  ?screen a zoe:AppScreen ;
-    rdfs:label ?screen_label ;
-    skos:notation ?screen_id ;
-    zoe:isAdminOnly true .
-  OPTIONAL { ?screen zoe:navRoute ?nav_route }
-  OPTIONAL { ?screen zoe:parentTab ?tab . ?tab skos:notation ?tab_code }
-  OPTIONAL { ?screen zoe:screenStack ?stack }
-  OPTIONAL { ?screen zoe:requiredRole ?role }
-  OPTIONAL { ?screen zoe:primaryObjectType ?object_type }
-  OPTIONAL { ?screen zoe:primaryRouteCategory ?route_category }
-  OPTIONAL { ?screen zoe:screenOrder ?order }
+  {
+    SELECT
+        (SAMPLE(?_screenId_c)             AS ?_screenId)
+        (SAMPLE(?_screenLabel_c)          AS ?_screenLabel)
+        (SAMPLE(?_navRoute_c)             AS ?_navRoute)
+        (SAMPLE(?_parentTabCode_c)        AS ?_parentTabCode)
+        (SAMPLE(?_screenStack_c)          AS ?_screenStack)
+        (SAMPLE(?_requiredRole_c)         AS ?_requiredRole)
+        (SAMPLE(?_primaryObjectType_c)    AS ?_primaryObjectType)
+        (SAMPLE(?_primaryRouteCategory_c) AS ?_primaryRouteCategory)
+        (SAMPLE(?_screenOrder_c)          AS ?_screenOrder)
+        ?screen ?orderKey
+    WHERE {
+      ?screen a zoe:AppScreen ;
+              rdfs:label    ?_screenLabelLit ;
+              skos:notation ?_screenIdRaw ;
+              zoe:isAdminOnly true .
+      BIND(STR(?_screenLabelLit) AS ?_screenLabelRaw)
+
+      OPTIONAL { ?screen zoe:navRoute             ?_navRouteRawX             BIND(STR(?_navRouteRawX)             AS ?_navRouteRaw) }
+      OPTIONAL {
+        ?screen zoe:parentTab ?_tab .
+        ?_tab   skos:notation ?_parentTabCodeRawX
+        BIND(STR(?_parentTabCodeRawX) AS ?_parentTabCodeRaw)
+      }
+      OPTIONAL { ?screen zoe:screenStack          ?_screenStackRawX          BIND(STR(?_screenStackRawX)          AS ?_screenStackRaw) }
+      OPTIONAL { ?screen zoe:requiredRole         ?_requiredRoleRawX         BIND(STR(?_requiredRoleRawX)         AS ?_requiredRoleRaw) }
+      OPTIONAL { ?screen zoe:primaryObjectType    ?_primaryObjectTypeRawX    BIND(STR(?_primaryObjectTypeRawX)    AS ?_primaryObjectTypeRaw) }
+      OPTIONAL { ?screen zoe:primaryRouteCategory ?_primaryRouteCategoryRawX BIND(STR(?_primaryRouteCategoryRawX) AS ?_primaryRouteCategoryRaw) }
+      OPTIONAL { ?screen zoe:screenOrder          ?_screenOrderRawX          BIND(STR(?_screenOrderRawX)          AS ?_screenOrderRaw) }
+
+      BIND(COALESCE(?_screenIdRaw,             "")           AS ?_screenId_c)
+      BIND(COALESCE(?_screenLabelRaw,          "")           AS ?_screenLabel_c)
+      BIND(COALESCE(?_navRouteRaw,             "")           AS ?_navRoute_c)
+      BIND(COALESCE(?_parentTabCodeRaw,        "ADMIN")      AS ?_parentTabCode_c)
+      BIND(COALESCE(?_screenStackRaw,          "AdminStack") AS ?_screenStack_c)
+      BIND(COALESCE(?_requiredRoleRaw,         "CARE")       AS ?_requiredRole_c)
+      BIND(COALESCE(?_primaryObjectTypeRaw,    "")           AS ?_primaryObjectType_c)
+      BIND(COALESCE(?_primaryRouteCategoryRaw, "")           AS ?_primaryRouteCategory_c)
+      BIND(COALESCE(?_screenOrderRaw,          "999")        AS ?_screenOrder_c)
+      BIND(xsd:integer(?_screenOrder_c)                      AS ?orderKey)
+    }
+    GROUP BY ?screen ?orderKey
+    ORDER BY ?orderKey ?screen
+  }
 }
-ORDER BY ?order

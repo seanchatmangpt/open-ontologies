@@ -1,0 +1,100 @@
+# =============================================================================
+# extract-legacy-coverage.rq — one-row bundle for legacy coverage
+# =============================================================================
+#
+# Each section (tables, alters, policies) is independently aggregated to a
+# single string via a sub-SELECT that GROUP_CONCATs everything. The outer
+# SELECT SAMPLEs each — collapsing to ONE outer row.
+#
+# This avoids the Cartesian product that would otherwise multiply rows
+# whenever three or more independent OPTIONAL subqueries each produce N rows.
+# =============================================================================
+
+PREFIX ggen: <https://open-ontologies.org/ggen#>
+PREFIX zoe:  <https://zoela.org/ontology/>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX xsd:  <http://www.w3.org/2001/XMLSchema#>
+
+SELECT
+  (SAMPLE(?_tableBundle)   AS ?tableBundle)
+  (SAMPLE(?_alterBundle)   AS ?alterBundle)
+  (SAMPLE(?_policyBundle)  AS ?policyBundle)
+WHERE {
+  # ── Tables → ONE bundle string ─────────────────────────────────────────────
+  # Inner row layout (per table, separated by "###" outer / "|||" cols / "@@@" idxs):
+  #   table_name###col_ddl|col_ddl|...###idx_ddl|idx_ddl|...
+  {
+    SELECT (GROUP_CONCAT(?_perTable; SEPARATOR="@@@") AS ?_tableBundle)
+    WHERE {
+      {
+        SELECT ?spec ?_tOrder
+            (SAMPLE(?_tName) AS ?_tNameS)
+            (COALESCE(GROUP_CONCAT(DISTINCT ?_tCol; SEPARATOR="|||"), "") AS ?_tColsAgg)
+            (COALESCE(GROUP_CONCAT(DISTINCT ?_tIdx_c; SEPARATOR="|||"), "") AS ?_tIdxsAgg)
+        WHERE {
+          ?spec a ggen:LegacyTableSpec ;
+                ggen:legacyTableName  ?_tName ;
+                ggen:legacyTableOrder ?_tOrder .
+          OPTIONAL { ?spec ggen:hasLegacyColumn ?_tCol }
+          OPTIONAL { ?spec ggen:hasLegacyIndex  ?_tIdxRaw }
+          BIND(COALESCE(?_tIdxRaw, "") AS ?_tIdx_c)
+        }
+        GROUP BY ?spec ?_tOrder
+        ORDER BY ?_tOrder
+      }
+      BIND(CONCAT(?_tNameS, "###", ?_tColsAgg, "###", ?_tIdxsAgg) AS ?_perTable)
+    }
+  }
+
+  # ── Alters → ONE bundle string ─────────────────────────────────────────────
+  # Per-alter layout: table_name###col_ddl|col_ddl|...
+  {
+    SELECT (GROUP_CONCAT(?_perAlter; SEPARATOR="@@@") AS ?_alterBundle)
+    WHERE {
+      {
+        SELECT ?aspec ?_aOrder
+            (SAMPLE(?_aTable) AS ?_aTableS)
+            (COALESCE(GROUP_CONCAT(DISTINCT ?_aCol; SEPARATOR="|||"), "") AS ?_aColsAgg)
+        WHERE {
+          ?aspec a ggen:LegacyAlterSpec ;
+                 ggen:legacyAlterTable ?_aTable ;
+                 ggen:legacyAlterOrder ?_aOrder .
+          OPTIONAL { ?aspec ggen:hasAddColumn ?_aCol }
+        }
+        GROUP BY ?aspec ?_aOrder
+        ORDER BY ?_aOrder
+      }
+      BIND(CONCAT(?_aTableS, "###", ?_aColsAgg) AS ?_perAlter)
+    }
+  }
+
+  # ── Policies → ONE bundle string ───────────────────────────────────────────
+  # Per-policy layout: name|table|op|using|check
+  {
+    SELECT (GROUP_CONCAT(?_perPolicy; SEPARATOR="@@@") AS ?_policyBundle)
+    WHERE {
+      {
+        SELECT ?pspec ?_pOrder
+            (SAMPLE(?_pName_c)  AS ?_pNameS)
+            (SAMPLE(?_pTable_c) AS ?_pTableS)
+            (SAMPLE(?_pOp_c)    AS ?_pOpS)
+            (SAMPLE(?_pUsing_c) AS ?_pUsingS)
+            (SAMPLE(?_pCheck_c) AS ?_pCheckS)
+        WHERE {
+          ?pspec a ggen:LegacyPolicySpec ;
+                 ggen:legacyPolicyName  ?_pName_c ;
+                 ggen:legacyPolicyTable ?_pTable_c ;
+                 ggen:legacyPolicyOp    ?_pOp_c ;
+                 ggen:legacyPolicyOrder ?_pOrder .
+          OPTIONAL { ?pspec ggen:legacyPolicyUsing ?_pUsing_raw BIND(STR(?_pUsing_raw) AS ?_pUsing_b) }
+          OPTIONAL { ?pspec ggen:legacyPolicyCheck ?_pCheck_raw BIND(STR(?_pCheck_raw) AS ?_pCheck_b) }
+          BIND(COALESCE(?_pUsing_b, "") AS ?_pUsing_c)
+          BIND(COALESCE(?_pCheck_b, "") AS ?_pCheck_c)
+        }
+        GROUP BY ?pspec ?_pOrder
+        ORDER BY ?_pOrder
+      }
+      BIND(CONCAT(?_pNameS, "|", ?_pTableS, "|", ?_pOpS, "|", ?_pUsingS, "|", ?_pCheckS) AS ?_perPolicy)
+    }
+  }
+}

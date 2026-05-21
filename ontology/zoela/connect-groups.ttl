@@ -38,7 +38,8 @@ zoe:ConnectGroup a owl:Class ;
     rdfs:label      "Connect Group"@en ;
     rdfs:comment    "A small-group community formation unit within ZOE LA. Functions as both a recurring gathering event and a formal organisational unit with defined membership and leadership."@en ;
     rdfs:subClassOf schema:Event ;
-    rdfs:subClassOf org:OrganizationalUnit .
+    rdfs:subClassOf org:OrganizationalUnit ;
+    skos:notation   "connect_groups" .
 
 zoe:GroupMembership a owl:Class ;
     rdfs:label      "Group Membership"@en ;

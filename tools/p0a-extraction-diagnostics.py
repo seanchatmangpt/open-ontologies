@@ -26,15 +26,23 @@ from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 ONTO_DIR = REPO_ROOT / "ontology" / "zoela"
+PROFILES_DIR = REPO_ROOT / "ontology" / "profiles"
 QUERY_DIR = REPO_ROOT / ".specify" / "queries" / "zoela"
 AUDIT_DIR = REPO_ROOT / ".ggen" / "audit" / "p0-a"
 AUDIT_DIR.mkdir(parents=True, exist_ok=True)
 
 
+def all_ttl_sources() -> list[Path]:
+    """Domain (zoela) + profile (profiles) TTLs in load order."""
+    zoela_ttls = sorted(ONTO_DIR.glob("*.ttl"))
+    profile_ttls = sorted(PROFILES_DIR.glob("*.ttl")) if PROFILES_DIR.exists() else []
+    return zoela_ttls + profile_ttls
+
+
 def build_batch() -> list[dict[str, Any]]:
-    """Build a JSON batch: clear → load all TTL → stats → all queries."""
+    """Build a JSON batch: clear → load all TTL (domain + profiles) → stats → all queries."""
     batch: list[dict[str, Any]] = [{"command": "clear"}]
-    for ttl in sorted(ONTO_DIR.glob("*.ttl")):
+    for ttl in all_ttl_sources():
         batch.append({"command": "load", "args": [str(ttl)]})
     batch.append({"command": "stats"})
     for rq in sorted(QUERY_DIR.glob("*.rq")):
@@ -169,7 +177,8 @@ def main() -> int:
     print(f"P0-A Extraction Diagnostics — {REPO_ROOT}", file=sys.stderr)
     batch = build_batch()
     query_items = [i for i in batch if i["command"] == "query"]
-    print(f"  Loading {len(list(ONTO_DIR.glob('*.ttl')))} TTL files", file=sys.stderr)
+    sources = all_ttl_sources()
+    print(f"  Loading {len(sources)} TTL files ({len(list(ONTO_DIR.glob('*.ttl')))} domain + {len(sources) - len(list(ONTO_DIR.glob('*.ttl')))} profile)", file=sys.stderr)
     print(f"  Running {len(query_items)} extraction queries", file=sys.stderr)
 
     results = run_batch(batch)
@@ -178,7 +187,7 @@ def main() -> int:
     by_seq = {r.get("seq"): r for r in results}
 
     # The stats result comes after all loads
-    stats_seq = 1 + len(list(ONTO_DIR.glob("*.ttl")))
+    stats_seq = 1 + len(sources)
     stats = by_seq.get(stats_seq, {}).get("result", {})
 
     # Build per-query diagnostics

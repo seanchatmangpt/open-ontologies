@@ -475,7 +475,7 @@ pub fn resolve_llm_model(cfg: &LlmConfig) -> String {
 ///
 /// `"inproc"`        → in-process `GroqTranslator` (HTTP via reqwest).
 /// `"groq_pm4py"`    → shell out to `scripts/*.py` (dspy / pm4py path).
-/// `"gemini"`        → headless Gemini CLI via OAuth (`gemini -p … --approval-mode yolo`);
+/// `"gemini"`        → headless Gemini CLI via OAuth (`npx -y @google/gemini-cli -p … --approval-mode yolo`);
 ///                     no API key required. Binary resolved via `GEMINI_BIN` env var or
 ///                     `"gemini"` default. Mirrors the speckit-ralph `gemini-invoke.sh` pattern.
 ///
@@ -594,7 +594,7 @@ pub fn resolve_llm_engine(cfg: &LlmConfig) -> String {
 /// // (Safe to run even if Gemini CLI is not installed.)
 /// # unsafe { std::env::remove_var("GEMINI_BIN"); }
 /// let bin = open_ontologies::config::resolve_gemini_bin();
-/// assert_eq!(bin, "gemini");
+/// assert_eq!(bin, "npx");
 /// ```
 ///
 /// ```
@@ -609,7 +609,7 @@ pub fn resolve_gemini_bin() -> String {
     std::env::var("GEMINI_BIN")
         .ok()
         .filter(|v| !v.trim().is_empty())
-        .unwrap_or_else(|| "gemini".to_string())
+        .unwrap_or_else(|| "npx".to_string())
 }
 
 /// Resolve the python interpreter for the `groq_pm4py` engine.

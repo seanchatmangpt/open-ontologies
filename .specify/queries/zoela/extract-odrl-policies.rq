@@ -1,69 +1,143 @@
 # =============================================================================
-# extract-odrl-policies.rq — ODRL policy → RLS fact extractor
+# extract-odrl-policies.rq — ODRL permission → RLS policy fact extractor
 # =============================================================================
 #
-# Surfaces ODRL permissions/prohibitions declared in ontology/zoela/policy.ttl
-# joined with the RLS translation profile in
-# ontology/profiles/zoela-supabase-rls.ttl, producing one row per
-# (policy, action, materialization-kind) tuple ready for RLS rendering.
+# P0-B.7b: surfaces every (ODRL policy, action, materialization-kind, admitted
+# table) tuple ready for CREATE POLICY rendering. The join to admitted tables
+# is done here (NOT in the template) so the template never sees an RLS row
+# whose table doesn't exist in zoela-tables.sql.
 #
-# Output bindings (per row):
-#   ?policyIri          — IRI of the odrl:Policy
-#   ?policyCode         — skos:notation of the policy (e.g. "member_policy")
-#   ?policyRole         — ggen:rlsAppliesToRole value ("member" / "admin" / …)
-#   ?ruleType           — "permission" or "prohibition"
-#   ?actionIri          — IRI of the ODRL action
-#   ?actionCode         — skos:notation of the action ("view_public_events", …)
-#   ?rlsOperation       — "SELECT" / "INSERT" / "UPDATE" / "DELETE" / "ALL"
-#   ?materializationKindIri  — ggen:MaterializationKind IRI affected
-#   ?materializationKindCode — skos:notation ("EventMaterialization", …)
-#   ?constraintSql      — SQL fragment for USING/WITH CHECK (or empty)
+# A row appears only when ALL of the following hold:
+#   1. ODRL Policy with skos:notation + ggen:rlsAppliesToRole
+#   2. odrl:permission rule with odrl:action
+#   3. Action has ggen:rlsOperation + ggen:rlsTargetKind + ggen:rlsConstraintSql
+#   4. Target kind is admissible for some local class (full admissibility chain
+#      replicated from extract-public-materializations.rq, so admission
+#      decisions stay in lockstep with that extractor)
 #
-# Doctrine: every materialization kind with ggen:rlsRequired=true MUST have
-# at least one row here, or the migration template refuses to emit RLS for
-# its tables.
+# Prohibitions are NOT surfaced as CREATE POLICY rows — Postgres RLS uses
+# default-deny semantics, so an ODRL prohibition is documented by the absence
+# of a positive grant. (Prohibitions can be inspected in the source ontology.)
+#
+# Output layout (ONE aggregated row, pipe-delimited per RLS rule):
+#     ?rlsPolicyCodes        ?rlsActionCodes      ?rlsRuleTypes
+#     ?rlsOperations         ?rlsRoles            ?rlsConstraints
+#     ?rlsTargetKindCodes    ?rlsTargetTables     ?rlsTargetClasses
 # =============================================================================
 
 PREFIX ggen:   <https://open-ontologies.org/ggen#>
 PREFIX zoe:    <https://zoela.org/ontology/>
-PREFIX odrl:   <http://www.w3.org/ns/odrl/2/>
-PREFIX skos:   <http://www.w3.org/2004/02/skos/core#>
+PREFIX owl:    <http://www.w3.org/2002/07/owl#>
+PREFIX rdf:    <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX rdfs:   <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX sh:     <http://www.w3.org/ns/shacl#>
+PREFIX skos:   <http://www.w3.org/2004/02/skos/core#>
+PREFIX xsd:    <http://www.w3.org/2001/XMLSchema#>
+PREFIX odrl:   <http://www.w3.org/ns/odrl/2/>
 
 SELECT
-  (STR(?policy)              AS ?policyIri)
-  (STR(?policyCodeLit)       AS ?policyCode)
-  (STR(?policyRoleLit)       AS ?policyRole)
-  ?ruleType
-  (STR(?action)              AS ?actionIri)
-  (STR(?actionCodeLit)       AS ?actionCode)
-  (STR(?opLit)               AS ?rlsOperation)
-  (STR(?materializationKind) AS ?materializationKindIri)
-  (STR(?mkCodeLit)           AS ?materializationKindCode)
-  (STR(?constraintSqlLit)    AS ?constraintSql)
+  (GROUP_CONCAT(?rlsPolicyCode;      SEPARATOR="|") AS ?rlsPolicyCodes)
+  (GROUP_CONCAT(?rlsActionCode;      SEPARATOR="|") AS ?rlsActionCodes)
+  (GROUP_CONCAT(?rlsRole;            SEPARATOR="|") AS ?rlsRoles)
+  (GROUP_CONCAT(?rlsOperation;       SEPARATOR="|") AS ?rlsOperations)
+  (GROUP_CONCAT(?rlsConstraint;      SEPARATOR="|") AS ?rlsConstraints)
+  (GROUP_CONCAT(?rlsTargetKindCode;  SEPARATOR="|") AS ?rlsTargetKindCodes)
+  (GROUP_CONCAT(?rlsTargetTable;     SEPARATOR="|") AS ?rlsTargetTables)
+  (GROUP_CONCAT(?rlsTargetClassIri;  SEPARATOR="|") AS ?rlsTargetClasses)
 WHERE {
-  ?policy a odrl:Policy ;
-          skos:notation ?policyCodeLit ;
-          ggen:rlsAppliesToRole ?policyRoleLit .
-
-  # Permissions OR prohibitions
   {
-    ?policy odrl:permission ?rule .
-    BIND("permission" AS ?ruleType)
-  } UNION {
-    ?policy odrl:prohibition ?rule .
-    BIND("prohibition" AS ?ruleType)
+    SELECT
+        ?policy ?action ?class
+        (SAMPLE(?_policyCode)    AS ?rlsPolicyCode)
+        (SAMPLE(?_actionCode)    AS ?rlsActionCode)
+        (SAMPLE(?_role)          AS ?rlsRole)
+        (SAMPLE(?_op)            AS ?rlsOperation)
+        (SAMPLE(?_constraint)    AS ?rlsConstraint)
+        (SAMPLE(?_kindCode)      AS ?rlsTargetKindCode)
+        (SAMPLE(?_tableName)     AS ?rlsTargetTable)
+        (SAMPLE(?_classIri)      AS ?rlsTargetClassIri)
+    WHERE {
+      # ── ODRL policy + permission + action ────────────────────────────
+      ?policy a odrl:Policy ;
+              skos:notation         ?_policyCode ;
+              ggen:rlsAppliesToRole ?_role ;
+              odrl:permission       ?_rule .
+      ?_rule odrl:action ?action .
+      ?action ggen:rlsOperation     ?_op ;
+              ggen:rlsTargetKind    ?targetKind ;
+              ggen:rlsConstraintSql ?_constraint .
+      OPTIONAL { ?action skos:notation ?_actionCodeRaw }
+      BIND(COALESCE(?_actionCodeRaw, "") AS ?_actionCode)
+
+      ?targetKind skos:notation ?_kindCode .
+
+      # ── Local class admissibility for THIS kind ──────────────────────
+      ?class a owl:Class ;
+             skos:notation ?_tableName .
+      FILTER(STRSTARTS(STR(?class), "https://zoela.org/ontology/"))
+      BIND(STR(?class) AS ?_classIri)
+
+      # Class-level admissibility (mirrors extract-public-materializations.rq)
+      FILTER NOT EXISTS {
+        ?_p2 rdfs:domain ?class ; skos:notation ?_c2 .
+        FILTER NOT EXISTS { ?_p2 rdfs:range ?_r2 }
+      }
+      FILTER NOT EXISTS {
+        ?_pA rdfs:domain ?class ; skos:notation ?_nA .
+        ?_pB rdfs:domain ?class ; skos:notation ?_nB .
+        FILTER(?_pA != ?_pB)
+        FILTER(
+          REPLACE(LCASE(STR(?_nA)), "-", "_")
+          = REPLACE(LCASE(STR(?_nB)), "-", "_")
+        )
+      }
+      FILTER NOT EXISTS {
+        ?_pSame rdfs:domain ?class ;
+                skos:notation ?_nX , ?_nY .
+        FILTER(STR(?_nX) != STR(?_nY))
+      }
+
+      # Class specializes the public anchor that this kind materializes
+      ?class rdfs:subClassOf+ ?_anchor .
+      FILTER(!STRSTARTS(STR(?_anchor), "https://zoela.org/ontology/"))
+      FILTER(?_anchor != owl:Thing)
+      FILTER(isIRI(?_anchor))
+      ?targetKind ggen:materializesPublicAnchor ?_anchor ;
+                  ggen:emitsSql       true ;
+                  ggen:requiresOwner  ?_requiresOwner ;
+                  ggen:requiresShape  ?_shape ;
+                  ggen:materializationPriority ?_priority .
+
+      # Kind-level admissibility for THIS class
+      FILTER(EXISTS { ?_shape a sh:NodeShape })
+      FILTER(
+        EXISTS { ?_p1 rdfs:domain ?class ; skos:notation ?_c1 }
+        || ?_requiresOwner
+      )
+
+      # Priority winner: this kind must be the unique top-priority admissible
+      # kind for this class (same gate as the materialization extractor, so the
+      # RLS rule never targets a table that won't be admitted).
+      FILTER NOT EXISTS {
+        ?class rdfs:subClassOf+ ?_oAnchor .
+        FILTER(!STRSTARTS(STR(?_oAnchor), "https://zoela.org/ontology/"))
+        FILTER(?_oAnchor != owl:Thing)
+        FILTER(isIRI(?_oAnchor))
+        ?_oKind a ggen:MaterializationKind ;
+                ggen:materializesPublicAnchor ?_oAnchor ;
+                ggen:emitsSql true ;
+                ggen:materializationPriority ?_oPriority ;
+                ggen:requiresOwner ?_oRequiresOwner ;
+                ggen:requiresShape ?_oShape .
+        FILTER(?_oKind != ?targetKind)
+        FILTER(?_oPriority >= ?_priority)
+        FILTER(EXISTS { ?_oShape a sh:NodeShape })
+        FILTER(
+          EXISTS { ?_op rdfs:domain ?class ; skos:notation ?_oc }
+          || ?_oRequiresOwner
+        )
+      }
+    }
+    GROUP BY ?policy ?action ?class
   }
-
-  # Extract action; require RLS translation annotations
-  ?rule odrl:action ?action .
-  ?action ggen:rlsOperation     ?opLit ;
-          ggen:rlsTargetKind    ?materializationKind ;
-          ggen:rlsConstraintSql ?constraintSqlLit .
-
-  OPTIONAL { ?action  skos:notation ?actionCodeLit }
-
-  # Resolve materialization-kind code
-  ?materializationKind skos:notation ?mkCodeLit .
 }
-ORDER BY ?policyCode ?ruleType ?actionCode

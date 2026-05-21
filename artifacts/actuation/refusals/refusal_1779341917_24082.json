@@ -1,0 +1,10 @@
+{
+  "receipt_type": "GeminiCliRefusalReceipt",
+  "action_id": "actuate_CL-7",
+  "requested_by": "open-ontologies",
+  "actuator": "gemini-cli",
+  "allowed": false,
+  "refusal_code": "FORBIDDEN_SHELL_COMMAND",
+  "reason": "No prompt or command specified",
+  "receipt_hash": "6f6d72f49938e8e3e74a2c00f3b28979fdd0a50909b78803a16b3b5c1a883e35"
+}

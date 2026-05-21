@@ -53,7 +53,7 @@ zoe:sessionCode
     rdfs:range xsd:string ;
     rdfs:label "session code"@en ;
     rdfs:comment "Unique alphanumeric code identifying this kids ministry session (e.g. KIDS-2026-05-17-ELEM)."@en ;
-    skos:notation "sessionCode" .
+    skos:notation "session_code" .
 
 zoe:sessionDate
     a owl:DatatypeProperty ;
@@ -61,7 +61,7 @@ zoe:sessionDate
     rdfs:range xsd:date ;
     rdfs:label "session date"@en ;
     rdfs:comment "The calendar date on which this kids session is scheduled to occur."@en ;
-    skos:notation "sessionDate" .
+    skos:notation "session_date" .
 
 zoe:ageGroup
     a owl:ObjectProperty ;
@@ -69,7 +69,7 @@ zoe:ageGroup
     rdfs:range skos:Concept ;
     rdfs:label "age group"@en ;
     rdfs:comment "The generation segment concept (ElementarySegment, PreschoolSegment, or InfantSegment) this session targets."@en ;
-    skos:notation "ageGroup" .
+    skos:notation "age_group" .
 
 zoe:campusId
     a owl:DatatypeProperty ;
@@ -77,7 +77,7 @@ zoe:campusId
     rdfs:range xsd:string ;
     rdfs:label "campus ID"@en ;
     rdfs:comment "Identifier of the ZOE LA campus at which this resource is associated."@en ;
-    skos:notation "campusId" .
+    skos:notation "campus_id" .
 
 zoe:roomLocation
     a owl:DatatypeProperty ;
@@ -85,7 +85,7 @@ zoe:roomLocation
     rdfs:range xsd:string ;
     rdfs:label "room location"@en ;
     rdfs:comment "Physical room or space identifier where this kids session takes place."@en ;
-    skos:notation "roomLocation" .
+    skos:notation "room_location" .
 
 zoe:maxCapacity
     a owl:DatatypeProperty ;
@@ -93,7 +93,7 @@ zoe:maxCapacity
     rdfs:range xsd:integer ;
     rdfs:label "max capacity"@en ;
     rdfs:comment "Maximum number of children permitted to attend this session."@en ;
-    skos:notation "maxCapacity" .
+    skos:notation "max_capacity" .
 
 zoe:leadTeacherId
     a owl:DatatypeProperty ;
@@ -101,7 +101,7 @@ zoe:leadTeacherId
     rdfs:range xsd:string ;
     rdfs:label "lead teacher ID"@en ;
     rdfs:comment "Profile identifier of the lead teacher or minister responsible for this kids session."@en ;
-    skos:notation "leadTeacherId" .
+    skos:notation "lead_teacher_id" .
 
 zoe:requiresGuardianCheckIn
     a owl:DatatypeProperty ;
@@ -109,7 +109,7 @@ zoe:requiresGuardianCheckIn
     rdfs:range xsd:boolean ;
     rdfs:label "requires guardian check-in"@en ;
     rdfs:comment "Always true for ZOE Kids sessions; a guardian must physically check the child in and out."@en ;
-    skos:notation "requiresGuardianCheckIn" .
+    skos:notation "requires_guardian_check_in" .
 
 # =============================================================================
 # Properties — KidsCheckIn
@@ -121,7 +121,7 @@ zoe:checkInId
     rdfs:range xsd:string ;
     rdfs:label "check-in ID"@en ;
     rdfs:comment "Unique identifier for this specific check-in event."@en ;
-    skos:notation "checkInId" .
+    skos:notation "check_in_id" .
 
 zoe:childId
     a owl:DatatypeProperty ;
@@ -129,7 +129,7 @@ zoe:childId
     rdfs:range xsd:string ;
     rdfs:label "child ID"@en ;
     rdfs:comment "Foreign key referencing the child's person profile in the ZOE LA person registry."@en ;
-    skos:notation "childId" .
+    skos:notation "child_id" .
 
 zoe:guardianId
     a owl:DatatypeProperty ;
@@ -137,7 +137,7 @@ zoe:guardianId
     rdfs:range xsd:string ;
     rdfs:label "guardian ID"@en ;
     rdfs:comment "Foreign key referencing the guardian's person profile in the ZOE LA person registry."@en ;
-    skos:notation "guardianId" .
+    skos:notation "guardian_id" .
 
 zoe:sessionId
     a owl:DatatypeProperty ;
@@ -145,7 +145,7 @@ zoe:sessionId
     rdfs:range xsd:string ;
     rdfs:label "session ID"@en ;
     rdfs:comment "Foreign key referencing the ZoeKidsSession this check-in is associated with."@en ;
-    skos:notation "sessionId" .
+    skos:notation "session_id" .
 
 zoe:checkedInAt
     a owl:DatatypeProperty ;
@@ -153,7 +153,7 @@ zoe:checkedInAt
     rdfs:range xsd:dateTime ;
     rdfs:label "checked in at"@en ;
     rdfs:comment "ISO 8601 timestamp recording when the child was checked in to the session."@en ;
-    skos:notation "checkedInAt" .
+    skos:notation "checked_in_at" .
 
 zoe:checkedOutAt
     a owl:DatatypeProperty ;
@@ -161,7 +161,7 @@ zoe:checkedOutAt
     rdfs:range xsd:dateTime ;
     rdfs:label "checked out at"@en ;
     rdfs:comment "ISO 8601 timestamp recording when the child was checked out of the session."@en ;
-    skos:notation "checkedOutAt" .
+    skos:notation "checked_out_at" .
 
 zoe:checkInMethod
     a owl:DatatypeProperty ;
@@ -169,7 +169,7 @@ zoe:checkInMethod
     rdfs:range xsd:string ;
     rdfs:label "check-in method"@en ;
     rdfs:comment "Method used for check-in: 'qr' for QR code scan or 'manual' for staff-assisted entry."@en ;
-    skos:notation "checkInMethod" .
+    skos:notation "check_in_method" .
 
 zoe:guardianConsentVerified
     a owl:DatatypeProperty ;
@@ -177,7 +177,7 @@ zoe:guardianConsentVerified
     rdfs:range xsd:boolean ;
     rdfs:label "guardian consent verified"@en ;
     rdfs:comment "True when the guardian's consent was verified at the time of check-in."@en ;
-    skos:notation "guardianConsentVerified" .
+    skos:notation "guardian_consent_verified" .
 
 zoe:securityTag
     a owl:DatatypeProperty ;
@@ -185,7 +185,7 @@ zoe:securityTag
     rdfs:range xsd:string ;
     rdfs:label "security tag"@en ;
     rdfs:comment "A 4-digit alphanumeric security code printed on the child's and guardian's matching tags for secure pickup."@en ;
-    skos:notation "securityTag" .
+    skos:notation "security_tag" .
 
 # =============================================================================
 # Properties — KidsCampRegistration
@@ -197,7 +197,7 @@ zoe:campRegistrationId
     rdfs:range xsd:string ;
     rdfs:label "camp registration ID"@en ;
     rdfs:comment "Unique identifier for this kids camp registration record."@en ;
-    skos:notation "campRegistrationId" .
+    skos:notation "camp_registration_id" .
 
 zoe:campEventId
     a owl:DatatypeProperty ;
@@ -205,7 +205,7 @@ zoe:campEventId
     rdfs:range xsd:string ;
     rdfs:label "camp event ID"@en ;
     rdfs:comment "Foreign key referencing the camp event this registration is for."@en ;
-    skos:notation "campEventId" .
+    skos:notation "camp_event_id" .
 
 zoe:medicalConsentId
     a owl:DatatypeProperty ;
@@ -213,7 +213,7 @@ zoe:medicalConsentId
     rdfs:range xsd:string ;
     rdfs:label "medical consent ID"@en ;
     rdfs:comment "Foreign key referencing the signed medical consent record required for camp participation."@en ;
-    skos:notation "medicalConsentId" .
+    skos:notation "medical_consent_id" .
 
 zoe:guardianConsentId
     a owl:DatatypeProperty ;
@@ -221,7 +221,7 @@ zoe:guardianConsentId
     rdfs:range xsd:string ;
     rdfs:label "guardian consent ID"@en ;
     rdfs:comment "Foreign key referencing the guardian consent record authorizing participation."@en ;
-    skos:notation "guardianConsentId" .
+    skos:notation "guardian_consent_id" .
 
 zoe:registrationStatus
     a owl:ObjectProperty ;
@@ -229,7 +229,7 @@ zoe:registrationStatus
     rdfs:range skos:Concept ;
     rdfs:label "registration status"@en ;
     rdfs:comment "Current status of the registration as a SKOS concept from the relevant status scheme."@en ;
-    skos:notation "registrationStatus" .
+    skos:notation "registration_status" .
 
 zoe:registeredAt
     a owl:DatatypeProperty ;
@@ -237,7 +237,7 @@ zoe:registeredAt
     rdfs:range xsd:dateTime ;
     rdfs:label "registered at"@en ;
     rdfs:comment "ISO 8601 timestamp recording when this registration was submitted."@en ;
-    skos:notation "registeredAt" .
+    skos:notation "registered_at" .
 
 # =============================================================================
 # SKOS ConceptScheme — KidsCampStatusScheme

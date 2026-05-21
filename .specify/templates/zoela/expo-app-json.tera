@@ -1,0 +1,44 @@
+{#-
+  expo-app-json.tera — apps/mobile/app.json
+
+  Renders once with scalar fields from the Expo manifest. Embeds the
+  default local Supabase URL + anon key in `extra` so the in-app client
+  has sane defaults; production builds override via EXPO_PUBLIC_*.
+-#}
+{
+  "expo": {
+    "name": "{{ appName }}",
+    "slug": "{{ appSlug }}",
+    "version": "{{ appVersion }}",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "{{ appBundleId }}"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "package": "{{ appBundleId }}"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    },
+    "plugins": ["expo-constants"],
+    "extra": {
+      "supabaseUrl": "{{ supabaseUrl }}",
+      "supabaseAnonKey": "{{ supabaseAnonKey }}"
+    }
+  }
+}

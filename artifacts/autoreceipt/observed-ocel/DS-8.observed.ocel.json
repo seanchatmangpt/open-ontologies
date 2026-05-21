@@ -1,0 +1,46 @@
+{
+  "jtbd_id": "DS-8",
+  "persona_id": "Domain",
+  "actuation_plan_id": "actuate_OA-3",
+  "expected_ocel_hash": "77bd21cb549fbb18adc3c8656d6c5e5aee3261ff9a2f0ddf491812252778d203",
+  "real_boundary_evidence": true,
+  "boundary_type": "headless_membrane",
+  "actor_basis8": "persona_ontology",
+  "execution_mode": "real_boundary",
+  "ocel:global-log": {
+    "ocel:object-types": [
+      "prov:Agent",
+      "schema:Action",
+      "prov:Entity"
+    ]
+  },
+  "ocel:events": [
+    {
+      "ocel:activity": "IntentSubmitted",
+      "ocel:vmap": {
+        "status": "Pending"
+      }
+    },
+    {
+      "ocel:activity": "PolicyChecked",
+      "ocel:vmap": {
+        "status": "Admitted"
+      }
+    },
+    {
+      "ocel:activity": "ReceiptEmitted",
+      "ocel:vmap": {
+        "status": "Complete"
+      }
+    },
+    {
+      "ocel:activity": "ExecutionComplete_DS-8",
+      "ocel:vmap": {
+        "status": "Complete",
+        "exit_code": 0,
+        "stdout_hash": "a308a62413936fc7abed36e61c9e9a93b8306855472b7ac599e92ce229f78e5d"
+      }
+    }
+  ],
+  "valid_for_autoreceipt_closure": true
+}

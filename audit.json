@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-05-13T07:07:54.861141+00:00",
-  "ggen_version": "26.5.5",
+  "generated_at": "2026-05-19T06:22:39.815572+00:00",
+  "ggen_version": "26.5.18",
   "inputs": {
     "manifest_hash": "",
     "ontology_hashes": {},
@@ -10,10 +10,238 @@
   "pipeline": [],
   "outputs": [
     {
+      "path": "./src/cmds/generated.rs",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./src/cmds/generated.rs"
+    },
+    {
       "path": "./src/cmds/generated_revops.rs",
       "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "size_bytes": 0,
       "source_rule": "rule-./src/cmds/generated_revops.rs"
+    },
+    {
+      "path": "./packages/types/zoela.ts",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./packages/types/zoela.ts"
+    },
+    {
+      "path": "./supabase/migrations/20260519000002_zoela_admitted_tables.sql",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./supabase/migrations/20260519000002_zoela_admitted_tables.sql"
+    },
+    {
+      "path": "./.ggen/audit/p0-a/zoela-refusals.sql",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./.ggen/audit/p0-a/zoela-refusals.sql"
+    },
+    {
+      "path": "./supabase/migrations/20260519000003_zoela_admitted_columns.sql",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./supabase/migrations/20260519000003_zoela_admitted_columns.sql"
+    },
+    {
+      "path": "./supabase/migrations/20260519000001_zoela_governance.sql",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./supabase/migrations/20260519000001_zoela_governance.sql"
+    },
+    {
+      "path": "./supabase/migrations/20260519000005_zoela_legacy_coverage.sql",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./supabase/migrations/20260519000005_zoela_legacy_coverage.sql"
+    },
+    {
+      "path": "./supabase/migrations/20260519000004_zoela_admitted_rls.sql",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./supabase/migrations/20260519000004_zoela_admitted_rls.sql"
+    },
+    {
+      "path": "./apps/mobile/package.json",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./apps/mobile/package.json"
+    },
+    {
+      "path": "./apps/mobile/app.json",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./apps/mobile/app.json"
+    },
+    {
+      "path": "./apps/mobile/tsconfig.json",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./apps/mobile/tsconfig.json"
+    },
+    {
+      "path": "./apps/mobile/babel.config.js",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./apps/mobile/babel.config.js"
+    },
+    {
+      "path": "./apps/mobile/metro.config.js",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./apps/mobile/metro.config.js"
+    },
+    {
+      "path": "./apps/mobile/App.tsx",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./apps/mobile/App.tsx"
+    },
+    {
+      "path": "./apps/mobile/src/lib/supabaseClient.ts",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./apps/mobile/src/lib/supabaseClient.ts"
+    },
+    {
+      "path": "./apps/mobile/scripts/verify-supabase.mjs",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./apps/mobile/scripts/verify-supabase.mjs"
+    },
+    {
+      "path": "./apps/mobile/README.md",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./apps/mobile/README.md"
+    },
+    {
+      "path": "./packages/schemas/zoela.ts",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./packages/schemas/zoela.ts"
+    },
+    {
+      "path": "./packages/forms/zoela.tsx",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./packages/forms/zoela.tsx"
+    },
+    {
+      "path": "./packages/evidence/OcelEvents.ts",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./packages/evidence/OcelEvents.ts"
+    },
+    {
+      "path": "./packages/routes/routeGates.ts",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./packages/routes/routeGates.ts"
+    },
+    {
+      "path": "./packages/evidence/receipts.ts",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./packages/evidence/receipts.ts"
+    },
+    {
+      "path": "./packages/screens/zoela.tsx",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./packages/screens/zoela.tsx"
+    },
+    {
+      "path": "./packages/screens/adminScreens.tsx",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./packages/screens/adminScreens.tsx"
+    },
+    {
+      "path": "./packages/navigation/zoela.tsx",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./packages/navigation/zoela.tsx"
+    },
+    {
+      "path": "./packages/types/roles.ts",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./packages/types/roles.ts"
+    },
+    {
+      "path": "./packages/routes/assignmentEligibility.ts",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./packages/routes/assignmentEligibility.ts"
+    },
+    {
+      "path": "./packages/types/pushCards.ts",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./packages/types/pushCards.ts"
+    },
+    {
+      "path": "./packages/routes/resourceMatch.ts",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./packages/routes/resourceMatch.ts"
+    },
+    {
+      "path": "./packages/routes/followupRules.ts",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./packages/routes/followupRules.ts"
+    },
+    {
+      "path": "./packages/evidence/ocelSchema.ts",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./packages/evidence/ocelSchema.ts"
+    },
+    {
+      "path": "./packages/screens/adminDetailScreen.tsx",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./packages/screens/adminDetailScreen.tsx"
+    },
+    {
+      "path": "./packages/navigation/navigationStack.tsx",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./packages/navigation/navigationStack.tsx"
+    },
+    {
+      "path": "./packages/routes/connectGroupStages.ts",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./packages/routes/connectGroupStages.ts"
+    },
+    {
+      "path": "./packages/routes/connectGroupWorkOrders.ts",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./packages/routes/connectGroupWorkOrders.ts"
+    },
+    {
+      "path": "./packages/routes/connectGroupAdmin.ts",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./packages/routes/connectGroupAdmin.ts"
+    },
+    {
+      "path": "./packages/forms/connectGroupInterestForm.tsx",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./packages/forms/connectGroupInterestForm.tsx"
+    },
+    {
+      "path": "./supabase/functions/route-gate/index.ts",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./supabase/functions/route-gate/index.ts"
     }
   ],
   "validation_passed": true,

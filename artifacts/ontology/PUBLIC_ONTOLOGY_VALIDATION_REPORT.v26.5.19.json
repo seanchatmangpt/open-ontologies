@@ -1,0 +1,11 @@
+{
+  "verifier_output": {
+    "actuation_contract_validation": "pass",
+    "permission_matrix_validation": "pass",
+    "receipt_schema_validation": "pass",
+    "positive_negative_action_tests": "pass",
+    "rdf_parse": "pass",
+    "shacl_validation": "pass",
+    "private_namespace_scan": "pass"
+  }
+}

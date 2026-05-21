@@ -1,0 +1,324 @@
+{
+  "jtbds": [
+    {
+      "id": "OA-1",
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/OA-1.alignment.receipt.json"
+    },
+    {
+      "id": "OA-2",
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/OA-2.alignment.receipt.json"
+    },
+    {
+      "id": "OA-3",
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/OA-3.alignment.receipt.json"
+    },
+    {
+      "id": "OA-4",
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/OA-4.alignment.receipt.json"
+    },
+    {
+      "id": "OA-5",
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/OA-5.alignment.receipt.json"
+    },
+    {
+      "id": "OA-6",
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/OA-6.alignment.receipt.json"
+    },
+    {
+      "id": "OA-7",
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/OA-7.alignment.receipt.json"
+    },
+    {
+      "id": "OA-8",
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/OA-8.alignment.receipt.json"
+    },
+    {
+      "id": "CL-1",
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/CL-1.alignment.receipt.json"
+    },
+    {
+      "id": "CL-2",
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/CL-2.alignment.receipt.json"
+    },
+    {
+      "id": "CL-3",
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/CL-3.alignment.receipt.json"
+    },
+    {
+      "id": "CL-4",
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/CL-4.alignment.receipt.json"
+    },
+    {
+      "id": "CL-5",
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/CL-5.alignment.receipt.json"
+    },
+    {
+      "id": "CL-6",
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/CL-6.alignment.receipt.json"
+    },
+    {
+      "id": "CL-7",
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/CL-7.alignment.receipt.json"
+    },
+    {
+      "id": "CL-8",
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/CL-8.alignment.receipt.json"
+    },
+    {
+      "id": "AS-1",
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/AS-1.alignment.receipt.json"
+    },
+    {
+      "id": "AS-2",
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/AS-2.alignment.receipt.json"
+    },
+    {
+      "id": "AS-3",
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/AS-3.alignment.receipt.json"
+    },
+    {
+      "id": "AS-4",
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/AS-4.alignment.receipt.json"
+    },
+    {
+      "id": "AS-5",
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/AS-5.alignment.receipt.json"
+    },
+    {
+      "id": "AS-6",
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/AS-6.alignment.receipt.json"
+    },
+    {
+      "id": "AS-7",
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/AS-7.alignment.receipt.json"
+    },
+    {
+      "id": "AS-8",
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/AS-8.alignment.receipt.json"
+    },
+    {
+      "id": "RE-1",
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/RE-1.alignment.receipt.json"
+    },
+    {
+      "id": "RE-2",
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/RE-2.alignment.receipt.json"
+    },
+    {
+      "id": "RE-3",
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/RE-3.alignment.receipt.json"
+    },
+    {
+      "id": "RE-4",
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/RE-4.alignment.receipt.json"
+    },
+    {
+      "id": "RE-5",
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/RE-5.alignment.receipt.json"
+    },
+    {
+      "id": "RE-6",
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/RE-6.alignment.receipt.json"
+    },
+    {
+      "id": "RE-7",
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/RE-7.alignment.receipt.json"
+    },
+    {
+      "id": "RE-8",
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/RE-8.alignment.receipt.json"
+    },
+    {
+      "id": "PI-1",
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/PI-1.alignment.receipt.json"
+    },
+    {
+      "id": "PI-2",
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/PI-2.alignment.receipt.json"
+    },
+    {
+      "id": "PI-3",
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/PI-3.alignment.receipt.json"
+    },
+    {
+      "id": "PI-4",
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/PI-4.alignment.receipt.json"
+    },
+    {
+      "id": "PI-5",
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/PI-5.alignment.receipt.json"
+    },
+    {
+      "id": "PI-6",
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/PI-6.alignment.receipt.json"
+    },
+    {
+      "id": "PI-7",
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/PI-7.alignment.receipt.json"
+    },
+    {
+      "id": "PI-8",
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/PI-8.alignment.receipt.json"
+    },
+    {
+      "id": "UX-1",
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/UX-1.alignment.receipt.json"
+    },
+    {
+      "id": "UX-2",
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/UX-2.alignment.receipt.json"
+    },
+    {
+      "id": "UX-3",
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/UX-3.alignment.receipt.json"
+    },
+    {
+      "id": "UX-4",
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/UX-4.alignment.receipt.json"
+    },
+    {
+      "id": "UX-5",
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/UX-5.alignment.receipt.json"
+    },
+    {
+      "id": "UX-6",
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/UX-6.alignment.receipt.json"
+    },
+    {
+      "id": "UX-7",
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/UX-7.alignment.receipt.json"
+    },
+    {
+      "id": "UX-8",
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/UX-8.alignment.receipt.json"
+    },
+    {
+      "id": "DS-1",
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/DS-1.alignment.receipt.json"
+    },
+    {
+      "id": "DS-2",
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/DS-2.alignment.receipt.json"
+    },
+    {
+      "id": "DS-3",
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/DS-3.alignment.receipt.json"
+    },
+    {
+      "id": "DS-4",
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/DS-4.alignment.receipt.json"
+    },
+    {
+      "id": "DS-5",
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/DS-5.alignment.receipt.json"
+    },
+    {
+      "id": "DS-6",
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/DS-6.alignment.receipt.json"
+    },
+    {
+      "id": "DS-7",
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/DS-7.alignment.receipt.json"
+    },
+    {
+      "id": "DS-8",
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/DS-8.alignment.receipt.json"
+    },
+    {
+      "id": "IS-1",
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/IS-1.alignment.receipt.json"
+    },
+    {
+      "id": "IS-2",
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/IS-2.alignment.receipt.json"
+    },
+    {
+      "id": "IS-3",
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/IS-3.alignment.receipt.json"
+    },
+    {
+      "id": "IS-4",
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/IS-4.alignment.receipt.json"
+    },
+    {
+      "id": "IS-5",
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/IS-5.alignment.receipt.json"
+    },
+    {
+      "id": "IS-6",
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/IS-6.alignment.receipt.json"
+    },
+    {
+      "id": "IS-7",
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/IS-7.alignment.receipt.json"
+    },
+    {
+      "id": "IS-8",
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/IS-8.alignment.receipt.json"
+    }
+  ]
+}

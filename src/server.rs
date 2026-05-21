@@ -5745,9 +5745,11 @@ impl OpenOntologiesServer {
                 input.source_voice
             );
 
-            let gemini_bin = std::env::var("GEMINI_BIN").unwrap_or_else(|_| "gemini".to_string());
+            let gemini_bin = std::env::var("GEMINI_BIN").unwrap_or_else(|_| "npx".to_string());
             let mut cmd = std::process::Command::new(&gemini_bin);
-            cmd.arg("-p")
+            cmd.arg("-y")
+                .arg("@google/gemini-cli")
+                .arg("-p")
                 .arg(&prompt)
                 .arg("--model")
                 .arg(crate::config::GEMINI_DEFAULT_MODEL)
@@ -5773,7 +5775,7 @@ impl OpenOntologiesServer {
                     break 'gemini None;
                 }
                 Err(crate::subprocess::SubprocessError::SpawnFailed(e)) => {
-                    let reason = format!("failed to spawn gemini: {}", e.to_string().replace('"', "'"));
+                    let reason = format!("failed to spawn gemini: {}", e.to_string().replace('"', "'").replace('\n', " "));
                     let now_fb = chrono::Utc::now().to_rfc3339();
                     let ts_fb = chrono::Utc::now().timestamp_millis();
                     let _ = self.ocel_store().emit_event(
@@ -5989,7 +5991,7 @@ impl OpenOntologiesServer {
             Ok(p) => p,
             Err(e) => {
                 self.emit_tool_ocel(TOOL_TRANSLATE_CANDIDATE, started, false, &[]);
-                return format!(r#"{{"ok":false,"error":"shaped translation failed: {}","hint":"Check the error details and retry. Consult the tool description for required parameters and formats."}}"#, e.to_string().replace('"', "'"));
+                return format!(r#"{{"ok":false,"error":"shaped translation failed: {}","hint":"Check the error details and retry. Consult the tool description for required parameters and formats."}}"#, e.to_string().replace('"', "'").replace('\n', " "));
             }
         };
         // §7 LLMAuthority: the gauge surfaced an LLM authority claim
@@ -6690,7 +6692,9 @@ impl OpenOntologiesServer {
             );
             let gemini_bin = crate::config::resolve_gemini_bin();
             let mut cmd = std::process::Command::new(&gemini_bin);
-            cmd.arg("-p")
+            cmd.arg("-y")
+                .arg("@google/gemini-cli")
+                .arg("-p")
                 .arg(&prompt)
                 .arg("--model")
                 .arg(crate::config::GEMINI_DEFAULT_MODEL)
@@ -7002,6 +7006,8 @@ impl OpenOntologiesServer {
 
         // Step 1: binary found?
         let binary_found = std::process::Command::new(&gemini_bin)
+            .arg("-y")
+            .arg("@google/gemini-cli")
             .arg("--version")
             .output()
             .map(|o| o.status.success())
@@ -7020,6 +7026,8 @@ impl OpenOntologiesServer {
 
         // Step 2: OAuth active? Run a minimal prompt with a short timeout.
         let oauth_active = match std::process::Command::new(&gemini_bin)
+            .arg("-y")
+            .arg("@google/gemini-cli")
             .arg("-p")
             .arg("ping")
             .arg("--model")

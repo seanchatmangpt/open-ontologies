@@ -1,0 +1,9 @@
+{
+  "action_id": "actuate_IS-5",
+  "emitted_by": "open-ontologies",
+  "policy_id": "auto_receipt_batch",
+  "actor_basis8": "persona_scientific",
+  "allowed": true,
+  "working_directory": "/Users/sac/wasm4pm",
+  "command": null
+}

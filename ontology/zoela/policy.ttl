@@ -138,6 +138,36 @@ zoe:viewReports a odrl:Action ;
   rdfs:comment "Permission to view aggregate service delivery reports and metrics."@en ;
   skos:notation "view_reports" .
 
+zoe:viewOwnProfile a odrl:Action ;
+  rdfs:label   "View Own Profile"@en ;
+  rdfs:comment "Permission for a member to read their own PersonProfile row."@en ;
+  skos:notation "view_own_profile" .
+
+zoe:manageAllProfiles a odrl:Action ;
+  rdfs:label   "Manage All Profiles"@en ;
+  rdfs:comment "Permission for admins to manage all PersonProfile rows."@en ;
+  skos:notation "manage_all_profiles" .
+
+zoe:viewOwnHousehold a odrl:Action ;
+  rdfs:label   "View Own Household"@en ;
+  rdfs:comment "Permission for a member to read their own household record."@en ;
+  skos:notation "view_own_household" .
+
+zoe:manageAllHouseholds a odrl:Action ;
+  rdfs:label   "Manage All Households"@en ;
+  rdfs:comment "Permission for admins to manage all Household rows."@en ;
+  skos:notation "manage_all_households" .
+
+zoe:viewConnectGroups a odrl:Action ;
+  rdfs:label   "View Connect Groups"@en ;
+  rdfs:comment "Permission to read Connect Group records (the small-group catalog)."@en ;
+  skos:notation "view_connect_groups" .
+
+zoe:manageConnectGroups a odrl:Action ;
+  rdfs:label   "Manage Connect Groups"@en ;
+  rdfs:comment "Permission for ministry leads and admins to manage Connect Group records."@en ;
+  skos:notation "manage_connect_groups" .
+
 # ── Member Policy ─────────────────────────────────────────────────────────────
 
 zoe:MemberPolicy a odrl:Policy ;
@@ -191,6 +221,24 @@ zoe:MemberPolicy a odrl:Policy ;
     a odrl:Prohibition ;
     odrl:action zoe:viewReports ;
     rdfs:comment "Members may not access aggregate reports."@en
+  ] ;
+
+  odrl:permission [
+    a odrl:Permission ;
+    odrl:action zoe:viewOwnProfile ;
+    rdfs:comment "Members may read their own PersonProfile row."@en
+  ] ;
+
+  odrl:permission [
+    a odrl:Permission ;
+    odrl:action zoe:viewOwnHousehold ;
+    rdfs:comment "Members may read their own Household record."@en
+  ] ;
+
+  odrl:permission [
+    a odrl:Permission ;
+    odrl:action zoe:viewConnectGroups ;
+    rdfs:comment "Members may browse the Connect Group catalog."@en
   ] .
 
 # ── Volunteer Policy ──────────────────────────────────────────────────────────
@@ -332,4 +380,22 @@ zoe:AdminPolicy a odrl:Policy ;
       odrl:operator odrl:lteq ;
       odrl:rightOperand zoe:YouthProtected ;
     ]
+  ] ;
+
+  odrl:permission [
+    a odrl:Permission ;
+    odrl:action zoe:manageAllProfiles ;
+    rdfs:comment "Admins may manage all PersonProfile rows."@en
+  ] ;
+
+  odrl:permission [
+    a odrl:Permission ;
+    odrl:action zoe:manageAllHouseholds ;
+    rdfs:comment "Admins may manage all Household rows."@en
+  ] ;
+
+  odrl:permission [
+    a odrl:Permission ;
+    odrl:action zoe:manageConnectGroups ;
+    rdfs:comment "Admins may manage all Connect Group records."@en
   ] .

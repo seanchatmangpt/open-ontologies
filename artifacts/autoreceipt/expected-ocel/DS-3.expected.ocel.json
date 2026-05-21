@@ -1,0 +1,29 @@
+{
+  "ocel:global-log": {
+    "ocel:object-types": [
+      "prov:Agent",
+      "schema:Action",
+      "prov:Entity"
+    ]
+  },
+  "ocel:events": [
+    {
+      "ocel:activity": "IntentSubmitted",
+      "ocel:vmap": {
+        "status": "Pending"
+      }
+    },
+    {
+      "ocel:activity": "PolicyChecked",
+      "ocel:vmap": {
+        "status": "Admitted"
+      }
+    },
+    {
+      "ocel:activity": "ReceiptEmitted",
+      "ocel:vmap": {
+        "status": "Complete"
+      }
+    }
+  ]
+}

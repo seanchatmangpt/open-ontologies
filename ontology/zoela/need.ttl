@@ -72,7 +72,7 @@ zoe:assignedTo a owl:DatatypeProperty ;
   rdfs:range   xsd:string ;
   rdfs:label   "Assigned To"@en ;
   rdfs:comment "Identifier of the volunteer or ministry lead currently assigned to fulfill this need."@en ;
-  skos:notation "assigned_to" .
+  skos:notation "task_assigned_to" .
 
 zoe:status a owl:ObjectProperty ;
   rdfs:domain  zoe:Need ;
@@ -238,44 +238,4 @@ zoe:Closed a zoe:NeedStatusTerm ;
   rdfs:comment    "Need has been closed without fulfillment (withdrawn, duplicate, or out of scope)."@en ;
   skos:notation   "closed" .
 
-# ── FollowUpTask class ────────────────────────────────────────────────────────
 
-zoe:FollowUpTask a owl:Class ;
-  rdfs:subClassOf schema:Action ;
-  rdfs:label   "Follow-Up Task"@en ;
-  rdfs:comment "A discrete action item created in response to a fulfilled or escalated need. Tracks post-delivery care continuity."@en .
-
-zoe:taskDescription a owl:DatatypeProperty ;
-  rdfs:domain  zoe:FollowUpTask ;
-  rdfs:range   xsd:string ;
-  rdfs:label   "Task Description"@en ;
-  rdfs:comment "Narrative description of the follow-up action to be taken."@en ;
-  skos:notation "task_description" .
-
-zoe:followUpAssignedTo a owl:DatatypeProperty ;
-  rdfs:domain  zoe:FollowUpTask ;
-  rdfs:range   xsd:string ;
-  rdfs:label   "Assigned To"@en ;
-  rdfs:comment "Identifier of the volunteer or staff member responsible for completing this follow-up task."@en ;
-  skos:notation "follow_up_assigned_to" .
-
-zoe:taskDueAt a owl:DatatypeProperty ;
-  rdfs:domain  zoe:FollowUpTask ;
-  rdfs:range   xsd:dateTime ;
-  rdfs:label   "Task Due At"@en ;
-  rdfs:comment "Optional deadline by which the follow-up task should be completed."@en ;
-  skos:notation "task_due_at" .
-
-zoe:completedAt a owl:DatatypeProperty ;
-  rdfs:domain  zoe:FollowUpTask ;
-  rdfs:range   xsd:dateTime ;
-  rdfs:label   "Completed At"@en ;
-  rdfs:comment "ISO-8601 timestamp when the follow-up task was marked complete."@en ;
-  skos:notation "completed_at" .
-
-zoe:relatedNeedId a owl:DatatypeProperty ;
-  rdfs:domain  zoe:FollowUpTask ;
-  rdfs:range   xsd:string ;
-  rdfs:label   "Related Need ID"@en ;
-  rdfs:comment "Identifier of the parent Need that generated this follow-up task."@en ;
-  skos:notation "related_need_id" .
