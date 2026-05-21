@@ -126,3 +126,4 @@ pub mod telemetry;
 // Emits idempotent OCEL events and tracing::warn on findings; heartbeat
 // on clean ticks so monitors can detect a silent guardian.
 pub mod health_guardian;
+pub mod autoreceipt;
