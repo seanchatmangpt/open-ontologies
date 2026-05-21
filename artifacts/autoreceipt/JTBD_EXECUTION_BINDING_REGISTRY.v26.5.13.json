@@ -958,5 +958,20 @@
     "blocking_reason": "Not implemented",
     "next_exact_command": null,
     "valid_for_autoreceipt_closure": false
+  },
+  {
+    "jtbd_id": "JTBD-001",
+    "persona": "GitHub Factory (JTBD-001)",
+    "expected_ocel_path": "artifacts/autoreceipt/expected-ocel/JTBD-001.expected.ocel.json",
+    "actuation_plan_path": "artifacts/actuation/plans/ghf-issue.json",
+    "execution_class": "command_execution",
+    "binding_status": "ExecutableNow",
+    "command_or_harness": "bash scripts/gh-create-issue.sh JTBD-001 architect \"Autonomic GHF Verification\"",
+    "required_inputs": [],
+    "expected_outputs": [],
+    "receipt_obligation": "ghf_verify",
+    "blocking_reason": null,
+    "next_exact_command": "bash scripts/gh-create-issue.sh JTBD-001 architect \"Autonomic GHF Verification\"",
+    "valid_for_autoreceipt_closure": true
   }
 ]

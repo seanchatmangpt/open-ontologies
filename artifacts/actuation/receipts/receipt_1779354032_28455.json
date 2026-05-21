@@ -1,0 +1,28 @@
+{
+  "receipt_type": "GeminiCliActuationReceipt",
+  "action_id": "JTBD-001",
+  "requested_by": "open-ontologies",
+  "actuator": "gemini-cli",
+  "working_directory": "/Users/sac/open-ontologies",
+  "command": "STRICT EXECUTION DIRECTIVE: Execute the following shell command exactly as written. Do not attempt to debug, alter, or retry if it fails. Output only the command results. Command: bash scripts/gh-create-issue.sh JTBD-001 architect 'Autonomic GHF Verification'",
+  "inputs_hash": "76e15efe381847e67126a6d6bc1063f5a38e687e9d861ed615c359d77475b014",
+  "stdout_hash": "2dbd3c438983f863522db4c75061301d299e039d4ab99a8ceeb36ddba2890f51",
+  "stderr_hash": "2ec7813ce3c2033c2129167785d024847f03167f422f86ac594f2d34c0f929e5",
+  "exit_code": 0,
+  "files_changed": [
+    ".ggen/receipts/latest.json",
+    "artifacts/actuation/plans/ghf-issue.json",
+    "artifacts/autoreceipt/AUTORECEIPT_CLOSURE_CERTIFICATE.v26.5.13.json",
+    "artifacts/autoreceipt/JTBD_EXECUTION_BINDING_REGISTRY.v26.5.13.json",
+    "docs/weekly-ledger-template.md"
+  ],
+  "git_before": "ef19128261c1580c6e0504160eb9cd59a3b1059f",
+  "git_after": "ef19128261c1580c6e0504160eb9cd59a3b1059f",
+  "policy_id": "auto_receipt_batch",
+  "actor_basis8": "persona_architect",
+  "boundary_type": "headless_membrane",
+  "allowed": true,
+  "refusal_code": null,
+  "created_at": "2026-05-21T09:00:05Z",
+  "receipt_hash": "e135cb95f4c6eaf7f509b04aa988fb3b8c213aac143c8a747ab8fc72e1c17c88"
+}

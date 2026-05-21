@@ -1,0 +1,13 @@
+{
+  "actuation_plan_id": "JTBD-001",
+  "expected_ocel_hash": "3a6e0b3c3fbb0140fb825e30e7df5e7b7843957d772de277402d4d77d31a7fdf",
+  "real_boundary_evidence": "e135cb95f4c6eaf7f509b04aa988fb3b8c213aac143c8a747ab8fc72e1c17c88",
+  "actor_basis8": "persona_architect",
+  "execution_mode": "real_boundary_execution",
+  "valid_for_autoreceipt_closure": true,
+  "ocel:global-log": {
+    "ocel:object-types": [
+      "ghf:ContributionUnit"
+    ]
+  }
+}
