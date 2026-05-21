@@ -59,6 +59,7 @@ imports = [
     # GitHub Factory domain modules
     "ontology/ghf-core.ttl",
     "ontology/ghf-shacl.ttl",
+    "ontology/ghf-security-policy.ttl",
     # NOTE on scope: tested under both ggen v26.5.5 AND v26.5.18 — expanding
 
     # `imports` beyond the above blows up pre-flight (39 imports → >10 min,
@@ -246,6 +247,7 @@ rules = [
     # GitHub Factory — Documentation
     { name = "ghf-proof-matrix",        query = { file = ".specify/queries/ghf/contribution_units_aggregated.rq" }, template = { file = ".specify/templates/ghf/docs/proof-matrix.md.tera" },        output_file = "docs/ghf-proof-matrix.md",        mode = "Overwrite" },
     { name = "ghf-weekly-ledger",       query = { file = ".specify/queries/ghf/contribution_units_aggregated.rq" }, template = { file = ".specify/templates/ghf/docs/weekly-ledger-template.md.tera" }, output_file = "docs/weekly-ledger-template.md", mode = "Overwrite" },
+    { name = "ghf-security-md",         query = { file = ".specify/queries/ghf/security_policy_aggregated.rq" },    template = { file = ".specify/templates/ghf/docs/security.md.tera" },             output_file = "SECURITY.md",                      mode = "Overwrite" },
 ]
 
 # Protected paths — the hand-written implementations; never overwrite

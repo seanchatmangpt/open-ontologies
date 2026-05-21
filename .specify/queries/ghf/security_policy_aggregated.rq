@@ -1,0 +1,21 @@
+PREFIX ghf:  <https://open-ontologies.org/profile/github-factory#>
+PREFIX rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+
+SELECT
+  (GROUP_CONCAT(?versions; SEPARATOR="|") AS ?supportedVersions)
+  (GROUP_CONCAT(?reporting; SEPARATOR="|") AS ?reportingMechanism)
+  (GROUP_CONCAT(?disclosure; SEPARATOR="|") AS ?responsibleDisclosure)
+  (GROUP_CONCAT(STR(?receiptGated); SEPARATOR="|") AS ?receiptGatedChanges)
+  (GROUP_CONCAT(?oomPolicy; SEPARATOR="|") AS ?outOfMembraneMutationPolicy)
+  (GROUP_CONCAT(?commands; SEPARATOR="|") AS ?verificationCommands)
+  (GROUP_CONCAT(?contact; SEPARATOR="|") AS ?contactBoundary)
+WHERE {
+  ?policy a ghf:Policy ;
+        ghf:supportedVersions ?versions ;
+        ghf:reportingMechanism ?reporting ;
+        ghf:responsibleDisclosure ?disclosure ;
+        ghf:receiptGatedChanges ?receiptGated ;
+        ghf:outOfMembraneMutationPolicy ?oomPolicy ;
+        ghf:verificationCommands ?commands ;
+        ghf:contactBoundary ?contact .
+}
