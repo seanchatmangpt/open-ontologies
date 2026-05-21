@@ -86,6 +86,33 @@ pub struct VersionMismatch;
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct CommandFailureUnresolved;
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ReceiptSchemaInvalid;
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct HashBindingFailed;
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct BoundaryEvidenceMissing;
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct PolicyConformanceFailed;
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct OCELAlignmentFailed;
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ReplayFailed;
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct FleetDriftDetected;
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct TemporalConformanceFailed;
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ExternalVerificationFailed;
+
 /// Runtime representation of RefusalState8.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum RefusalState8 {
@@ -95,6 +122,34 @@ pub enum RefusalState8 {
     DirtyTreeUnclassified,
     VersionMismatch,
     CommandFailureUnresolved,
+    // V0-V8 Refusal States
+    ReceiptSchemaInvalid,
+    HashBindingFailed,
+    BoundaryEvidenceMissing,
+    PolicyConformanceFailed,
+    OCELAlignmentFailed,
+    ReplayFailed,
+    FleetDriftDetected,
+    TemporalConformanceFailed,
+    ExternalVerificationFailed,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub enum VerificationState {
+    Admitted,
+    Refused,
+    Incomplete,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ValidationResult {
+    pub state: VerificationState,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub refusal: Option<RefusalState8>,
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    pub missing: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub receipt_hash: Option<String>,
 }
 
 /// A unit of contribution within the GitHub Factory.
@@ -126,7 +181,7 @@ pub fn verify_receipt(
     receipt: &ContributionReceipt,
     evidence: &[u8],
     expected_ocel: &[u8],
-) -> anyhow::Result<()> {
+) -> ValidationResult {
     // 1. Recompute BLAKE3 hash of the provided evidence
     let mut hasher = blake3::Hasher::new();
     hasher.update(evidence);
@@ -134,18 +189,22 @@ pub fn verify_receipt(
 
     // 2. Match it against the observed_evidence_hash
     if evidence_hash != receipt.observed_evidence_hash {
-        return Err(anyhow::anyhow!(
-            "Observed evidence hash mismatch: expected {}, got {}",
-            receipt.observed_evidence_hash,
-            evidence_hash
-        ));
+        return ValidationResult {
+            state: VerificationState::Refused,
+            refusal: Some(RefusalState8::HashBindingFailed),
+            missing: vec!["observed_evidence_hash_mismatch".to_string()],
+            receipt_hash: None,
+        };
     }
 
     // 3. Verify that the refusal_state is not SyntheticClosureLie
     if let Some(RefusalState8::SyntheticClosureLie) = receipt.refusal_state {
-        return Err(anyhow::anyhow!(
-            "Verification failed: Receipt is marked with SyntheticClosureLie"
-        ));
+        return ValidationResult {
+            state: VerificationState::Refused,
+            refusal: Some(RefusalState8::SyntheticClosureLie),
+            missing: vec![],
+            receipt_hash: None,
+        };
     }
 
     // 4. Check the expected_closure_hash against the expected OCEL manifest
@@ -154,14 +213,20 @@ pub fn verify_receipt(
     let expected_hash = expected_hasher.finalize().to_hex().to_string();
 
     if expected_hash != receipt.expected_closure_hash {
-        return Err(anyhow::anyhow!(
-            "Expected closure hash mismatch: receipt expects {}, but manifest is {}",
-            receipt.expected_closure_hash,
-            expected_hash
-        ));
+        return ValidationResult {
+            state: VerificationState::Refused,
+            refusal: Some(RefusalState8::HashBindingFailed),
+            missing: vec!["expected_closure_hash_mismatch".to_string()],
+            receipt_hash: None,
+        };
     }
 
-    Ok(())
+    ValidationResult {
+        state: VerificationState::Admitted,
+        refusal: None,
+        missing: vec![],
+        receipt_hash: None,
+    }
 }
 
 #[cfg(test)]
@@ -221,7 +286,8 @@ mod tests {
             refusal_state: None,
         };
 
-        assert!(verify_receipt(&receipt, evidence, expected_ocel).is_ok());
+        let result = verify_receipt(&receipt, evidence, expected_ocel);
+        assert_eq!(result.state, VerificationState::Admitted);
     }
 
     #[test]
@@ -240,8 +306,8 @@ mod tests {
         };
 
         let result = verify_receipt(&receipt, evidence, expected_ocel);
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Observed evidence hash mismatch"));
+        assert_eq!(result.state, VerificationState::Refused);
+        assert_eq!(result.refusal, Some(RefusalState8::HashBindingFailed));
     }
 
     #[test]
@@ -260,8 +326,8 @@ mod tests {
         };
 
         let result = verify_receipt(&receipt, evidence, expected_ocel);
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Receipt is marked with SyntheticClosureLie"));
+        assert_eq!(result.state, VerificationState::Refused);
+        assert_eq!(result.refusal, Some(RefusalState8::SyntheticClosureLie));
     }
 
     #[test]
@@ -280,8 +346,8 @@ mod tests {
         };
 
         let result = verify_receipt(&receipt, evidence, expected_ocel);
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Expected closure hash mismatch"));
+        assert_eq!(result.state, VerificationState::Refused);
+        assert_eq!(result.refusal, Some(RefusalState8::HashBindingFailed));
     }
 }
 // Verified GHF closure
