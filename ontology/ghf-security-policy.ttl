@@ -5,7 +5,7 @@
 
 ghf:SecurityPolicy a ghf:Policy ;
     ghf:policyId "SECURITY-001" ;
-    ghf:supportedVersions "v26.5.x" ;
+    ghf:supportedVersions "v26.5.21" ;
     ghf:reportingMechanism "Contact maintainers directly. Do NOT open public issues." ;
     ghf:responsibleDisclosure "90 days" ;
     ghf:receiptGatedChanges true ;

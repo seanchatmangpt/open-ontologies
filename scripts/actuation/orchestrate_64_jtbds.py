@@ -13,10 +13,10 @@ os.makedirs(PLANS_DIR, exist_ok=True)
 os.makedirs(f'{BASE_DIR}/observed-ocel', exist_ok=True)
 os.makedirs(f'{BASE_DIR}/alignment', exist_ok=True)
 
-with open(f'{BASE_DIR}/JTBD_EXECUTION_BINDING_REGISTRY.v26.5.13.json', 'r') as f:
+with open(f'{BASE_DIR}/JTBD_EXECUTION_BINDING_REGISTRY.v26.5.21.json', 'r') as f:
     registry = json.load(f)
 
-with open(f'{BASE_DIR}/EXPECTED_OCEL_MANIFEST.v26.5.13.json', 'r') as f:
+with open(f'{BASE_DIR}/EXPECTED_OCEL_MANIFEST.v26.5.21.json', 'r') as f:
     manifest = json.load(f)
 
 def sha256_file(path):

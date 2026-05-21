@@ -21,7 +21,7 @@ if not os.path.exists(".github/workflows/receipt-verify.yml"):
     drift_detected = True
     missing.append("Receipt verification workflow is missing")
 
-if not os.path.exists("artifacts/autoreceipt/AUTORECEIPT_CLOSURE_CERTIFICATE.v26.5.13.json"):
+if not os.path.exists("artifacts/autoreceipt/AUTORECEIPT_CLOSURE_CERTIFICATE.v26.5.21.json"):
     drift_detected = True
     missing.append("Receipt coverage missing")
 

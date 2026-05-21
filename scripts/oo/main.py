@@ -7,7 +7,7 @@ import glob
 import re
 from datetime import datetime
 
-VERSION = "26.5.13"
+VERSION = "26.5.21"
 BASE_DIR = "artifacts/autoreceipt"
 ACT_DIR = "artifacts/actuation"
 ONT_DIR = "artifacts/ontology"

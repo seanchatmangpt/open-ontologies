@@ -8,7 +8,7 @@ from datetime import datetime
 commit = subprocess.check_output(['git', 'rev-parse', 'HEAD']).decode().strip()
 tree = subprocess.check_output(['git', 'status', '--short']).decode().strip()
 
-VERSION = "26.5.13"
+VERSION = "26.5.21"
 BASE_DIR = "artifacts/autoreceipt"
 
 with open(f"{BASE_DIR}/JTBD_EXECUTION_BINDING_REGISTRY.v{VERSION}.json", "r") as f:

@@ -14,7 +14,7 @@
 
 [project]
 name = "open-ontologies"
-version = "0.1.11"
+version = "26.5.21"
 description = "AI-native ontology engine CLI — generated from ontology"
 authors = ["Sean Chatman <sean@chatmangpt.com>"]
 license = "MIT"

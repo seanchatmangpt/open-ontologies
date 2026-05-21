@@ -5,7 +5,7 @@ import hashlib
 import subprocess
 from datetime import datetime
 
-VERSION = "26.5.13"
+VERSION = "26.5.21"
 AR_FILE = "artifacts/autoreceipt/AR_WASM4PM_VALIDATION.md"
 BASE_DIR = "artifacts/autoreceipt"
 ACT_DIR = "artifacts/actuation"

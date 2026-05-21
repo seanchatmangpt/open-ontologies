@@ -33,12 +33,12 @@ with open('$RECEIPT_PATH', 'r') as f:
     receipt = json.load(f)
 
 BASE_DIR = 'artifacts/autoreceipt'
-with open(f'{BASE_DIR}/JTBD_EXECUTION_BINDING_REGISTRY.v26.5.13.json', 'r') as f:
+with open(f'{BASE_DIR}/JTBD_EXECUTION_BINDING_REGISTRY.v26.5.21.json', 'r') as f:
     registry = json.load(f)
 
 jtbd_id = '$JTBD_ID'
 # Get expected hash from expected manifest
-with open(f'{BASE_DIR}/EXPECTED_OCEL_MANIFEST.v26.5.13.json', 'r') as f:
+with open(f'{BASE_DIR}/EXPECTED_OCEL_MANIFEST.v26.5.21.json', 'r') as f:
     manifest = json.load(f)
 
 # Find expected hash for this JTBD (simplification: assume we just take the first or we construct a real hash)
