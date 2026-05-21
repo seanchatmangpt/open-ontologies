@@ -1,0 +1,22 @@
+{
+  "receipt_type": "GeminiCliActuationReceipt",
+  "action_id": "ghf_contribution_4",
+  "requested_by": "open-ontologies",
+  "actuator": "gemini-cli",
+  "working_directory": "/Users/sac/open-ontologies",
+  "command": "STRICT EXECUTION DIRECTIVE: Execute the following shell command exactly as written. Do not attempt to debug, alter, or retry if it fails. Output only the command results. Command: bash scripts/gh-create-pr.sh 'JTBD-001' 'developer' 'feat(ghf): implement autonomic verification loop'",
+  "inputs_hash": "358cbd2b8d2fe6f5192e5624720c732826f89bb7cec93f7e18c0e6b8f7774bc9",
+  "stdout_hash": "d4da2c45dccb18c2d6bbcc82ec30d49441335dfbec8af15d67106a5334b30eb3",
+  "stderr_hash": "2ec7813ce3c2033c2129167785d024847f03167f422f86ac594f2d34c0f929e5",
+  "exit_code": 0,
+  "files_changed": [],
+  "git_before": "45db07e57f9b73eee011c0a0109040ad98bf3109",
+  "git_after": "4dbd9ee33e86b3891868198f1f1568ce8d8e40fd",
+  "policy_id": "auto_receipt_batch",
+  "actor_basis8": "persona_developer",
+  "boundary_type": "headless_membrane",
+  "allowed": true,
+  "refusal_code": null,
+  "created_at": "2026-05-21T07:52:01Z",
+  "receipt_hash": "e81d7d3a33a391b8babbb71f67e6fdafb31a61f498fbd4a46eea7fd0c4ebc71d"
+}
