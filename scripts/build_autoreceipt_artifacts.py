@@ -4,6 +4,10 @@ import hashlib
 import subprocess
 from datetime import datetime
 
+# Capture git state BEFORE writing new artifacts
+commit = subprocess.check_output(['git', 'rev-parse', 'HEAD']).decode().strip()
+tree = subprocess.check_output(['git', 'status', '--short']).decode().strip()
+
 VERSION = "26.5.13"
 BASE_DIR = "artifacts/autoreceipt"
 
@@ -80,10 +84,6 @@ cert = {
 }
 with open(f"{BASE_DIR}/AUTORECEIPT_CLOSURE_CERTIFICATE.v{VERSION}.json", "w") as f:
     json.dump(cert, f, indent=2)
-
-# Verify outputs
-commit = subprocess.check_output(['git', 'rev-parse', 'HEAD']).decode().strip()
-tree = subprocess.check_output(['git', 'status', '--short']).decode().strip()
 
 def sha256(path):
     if not os.path.exists(path): return "none"
