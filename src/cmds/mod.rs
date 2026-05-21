@@ -13,6 +13,7 @@ pub mod generated;
 /// Regenerate with: `ggen sync --manifest ggen-revops.toml`
 pub mod generated_revops;
 pub mod governance;
+pub mod ghf;
 pub mod marketplace;
 pub mod ontology;
 pub mod server;

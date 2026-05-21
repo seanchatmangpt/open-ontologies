@@ -5875,13 +5875,11 @@ name = "wasm4pm-cognition"
 version = "26.5.19"
 dependencies = [
  "blake3",
- "ed25519-dalek",
  "hex",
  "indexmap",
  "lazy_static",
  "once_cell",
  "prolog8",
- "rand_core 0.6.4",
  "regex",
  "serde",
  "serde_json",

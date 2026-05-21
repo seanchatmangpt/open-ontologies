@@ -56,6 +56,9 @@ imports = [
     "ontology/profiles/zoela-legacy-coverage.ttl",
     # P0-B.11 — AutoReceipt pipeline law.
     "ontology/zoela/autoreceipt.ttl",
+    # GitHub Factory domain modules
+    "ontology/ghf-core.ttl",
+    "ontology/ghf-shacl.ttl",
     # NOTE on scope: tested under both ggen v26.5.5 AND v26.5.18 — expanding
 
     # `imports` beyond the above blows up pre-flight (39 imports → >10 min,
@@ -220,6 +223,29 @@ rules = [
     { name = "zoela-autoreceipt-law",   query = { file = ".specify/queries/zoela/extract-autoreceipt-law.rq" },      template = { file = ".specify/templates/zoela/autoreceipt-law.rs.tera" },           output_file = "src/autoreceipt_law.rs",                      mode = "Overwrite" },
     # ZOE LA Mobile pipeline — Supabase Edge Functions
     { name = "zoela-edge-fn",           query = { file = ".specify/queries/zoela/extract-service-routes.rq" },        template = { file = ".specify/templates/zoela/supabase-edge-fn.tera" },             output_file = "supabase/functions/route-gate/index.ts",      mode = "Overwrite" },
+
+    # GitHub Factory — Terraform Infrastructure
+    { name = "ghf-terraform-repositories",        query = { file = ".specify/queries/ghf/repositories_aggregated.rq" },        template = { file = ".specify/templates/ghf/terraform/repositories.tf.tera" },        output_file = "artifacts/ghf/terraform/repositories.tf",        mode = "Overwrite" },
+    { name = "ghf-terraform-labels",              query = { file = ".specify/queries/ghf/labels_aggregated.rq" },              template = { file = ".specify/templates/ghf/terraform/labels.tf.tera" },              output_file = "artifacts/ghf/terraform/labels.tf",              mode = "Overwrite" },
+    { name = "ghf-terraform-branch-protection",    query = { file = ".specify/queries/ghf/branch_protection_aggregated.rq" },    template = { file = ".specify/templates/ghf/terraform/branch-protection.tf.tera" },    output_file = "artifacts/ghf/terraform/branch-protection.tf",    mode = "Overwrite" },
+    { name = "ghf-terraform-environments",         query = { file = ".specify/queries/ghf/environments_aggregated.rq" },         template = { file = ".specify/templates/ghf/terraform/environments.tf.tera" },         output_file = "artifacts/ghf/terraform/environments.tf",         mode = "Overwrite" },
+
+    # GitHub Factory — GitHub Workflows
+    { name = "ghf-github-receipt-verify",        query = { file = ".specify/queries/ghf/repositories_aggregated.rq" },        template = { file = ".specify/templates/ghf/github/receipt-verify.yml.tera" },        output_file = ".github/workflows/receipt-verify.yml",           mode = "Overwrite" },
+    { name = "ghf-github-contribution-ledger",   query = { file = ".specify/queries/ghf/repositories_aggregated.rq" },        template = { file = ".specify/templates/ghf/github/contribution-ledger.yml.tera" },   output_file = ".github/workflows/contribution-ledger.yml",      mode = "Overwrite" },
+    { name = "ghf-github-issue-template",        query = { file = ".specify/queries/ghf/contribution_units_aggregated.rq" },  template = { file = ".specify/templates/ghf/github/issue-template.yml.tera" },        output_file = ".github/ISSUE_TEMPLATE/work-order.yml",          mode = "Overwrite" },
+
+    # GitHub Factory — CLI Scripts
+    { name = "ghf-script-create-issue",          query = { file = ".specify/queries/ghf/repositories_aggregated.rq" },        template = { file = ".specify/templates/ghf/scripts/gh-create-issue.sh.tera" },       output_file = "scripts/gh-create-issue.sh",                     mode = "Overwrite" },
+    { name = "ghf-script-create-pr",             query = { file = ".specify/queries/ghf/repositories_aggregated.rq" },        template = { file = ".specify/templates/ghf/scripts/gh-create-pr.sh.tera" },          output_file = "scripts/gh-create-pr.sh",                        mode = "Overwrite" },
+    { name = "ghf-script-collect-evidence",      query = { file = ".specify/queries/ghf/repositories_aggregated.rq" },        template = { file = ".specify/templates/ghf/scripts/collect-github-evidence.sh.tera" }, output_file = "scripts/collect-github-evidence.sh",           mode = "Overwrite" },
+
+    # GitHub Factory — OCEL Expected
+    { name = "ghf-ocel-expected", query = { file = ".specify/queries/ghf/contribution_units_aggregated.rq" }, template = { file = ".specify/templates/ghf/ocel/expected.ocel.jsonl.tera" }, output_file = "artifacts/ghf/ocel/expected.ocel.jsonl", mode = "Overwrite" },
+
+    # GitHub Factory — Documentation
+    { name = "ghf-proof-matrix",        query = { file = ".specify/queries/ghf/contribution_units_aggregated.rq" }, template = { file = ".specify/templates/ghf/docs/proof-matrix.md.tera" },        output_file = "docs/ghf-proof-matrix.md",        mode = "Overwrite" },
+    { name = "ghf-weekly-ledger",       query = { file = ".specify/queries/ghf/contribution_units_aggregated.rq" }, template = { file = ".specify/templates/ghf/docs/weekly-ledger-template.md.tera" }, output_file = "docs/weekly-ledger-template.md", mode = "Overwrite" },
 ]
 
 # Protected paths — the hand-written implementations; never overwrite
@@ -280,6 +306,13 @@ regenerate_paths = [
     "packages/evidence/ocelSchema.ts",
     # supabase/functions
     "supabase/functions/route-gate/index.ts",
+    # GitHub Factory
+    ".github/workflows/receipt-verify.yml",
+    ".github/workflows/contribution-ledger.yml",
+    ".github/ISSUE_TEMPLATE/work-order.yml",
+    "scripts/gh-create-issue.sh",
+    "scripts/gh-create-pr.sh",
+    "scripts/collect-github-evidence.sh",
 ]
 
 generated_header = """
@@ -312,6 +345,7 @@ allowed_namespaces = [
     "https://ggen.io/onto/cli/spec/",
     "https://ggen.io/onto/cli/open-ontologies/",
     "https://ggen.io/onto/cli/revops/",
+    "https://open-ontologies.org/profile/github-factory#",
     "http://purl.org/dc/terms/",
 ]
 
@@ -321,6 +355,7 @@ allowed_domains = [
     "ggen.dev",
     "ggen.io",
     "chatmangpt.com",
+    "open-ontologies.org",
     "purl.org",
 ]
 max_file_size = 104857600

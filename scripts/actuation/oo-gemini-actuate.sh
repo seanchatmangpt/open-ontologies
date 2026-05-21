@@ -99,7 +99,7 @@ STDERR_FILE=$(mktemp)
 
 gemini_call() {
   local model="$1"
-  timeout "$TIMEOUT_SECONDS" npx -y @google/gemini-cli -p "$PROMPT" --model "$model" --approval-mode yolo > "$STDOUT_FILE" 2> "$STDERR_FILE"
+  timeout "$TIMEOUT_SECONDS" npx -y @google/gemini-cli -p "$PROMPT" --model "$model" --approval-mode yolo < /dev/null > "$STDOUT_FILE" 2> "$STDERR_FILE"
   return $?
 }
 

@@ -1,0 +1,31 @@
+{%- set repo_list = names | split(pat="|") -%}
+{%- set main_repo = repo_list[0] | trim -%}
+name: {{ main_repo }} Contribution Ledger
+
+on:
+  schedule:
+    - cron: '0 0 * * 0'
+  workflow_dispatch:
+
+jobs:
+  ledger:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile Weekly Ledger
+        run: |
+          mkdir -p artifacts/ledger
+          # Generate ledger of admitted contributions
+          if [ -f "Cargo.toml" ]; then
+            cargo run -- audit ledger --repo {{ main_repo }} --output artifacts/ledger/$(date +%Y-%W).json
+          else
+            echo "Audit tool not found."
+            exit 1
+          fi
+      - name: Commit Ledger
+        run: |
+          git config user.name "GitHub Factory"
+          git config user.email "factory@open-ontologies.org"
+          git add artifacts/ledger/
+          git commit -m "chore: update contribution ledger [skip ci]" || echo "No changes to commit"
+          git push

@@ -1,0 +1,20 @@
+# GitHub Branch Protection
+{% set repo_names_list = repoNames | split(pat="|") %}
+{% set branches_list = branches | split(pat="|") %}
+{% set signed_commits_list = signedCommits | split(pat="|") %}
+{% set review_counts_list = reviewCounts | split(pat="|") %}
+{% set enforce_admins_list = enforceAdmins | split(pat="|") %}
+
+{% for repo_name in repo_names_list %}
+resource "github_branch_protection" "{{ repo_name | replace(from="-", to="_") }}_{{ branches_list[loop.index0] }}" {
+  repository_id = github_repository.{{ repo_name | replace(from="-", to="_") }}.node_id
+  pattern       = "{{ branches_list[loop.index0] }}"
+
+  require_signed_commits = {{ signed_commits_list[loop.index0] }}
+  enforce_admins         = {{ enforce_admins_list[loop.index0] }}
+
+  required_pull_request_reviews {
+    required_approving_review_count = {{ review_counts_list[loop.index0] }}
+  }
+}
+{% endfor %}

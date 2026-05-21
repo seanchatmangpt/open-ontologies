@@ -1,0 +1,32 @@
+name: Work Order
+description: Standardized work order for GitHub Factory
+body:
+  - type: input
+    id: jtbd_id
+    attributes:
+      label: JTBD ID
+      placeholder: e.g. JTBD-001
+    validations:
+      required: true
+  - type: dropdown
+    id: persona
+    attributes:
+      label: Persona
+      options:
+        - architect
+    validations:
+      required: true
+  - type: textarea
+    id: summary
+    attributes:
+      label: Task Summary
+      description: What needs to be implemented?
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Observed Evidence
+      description: Expected OCEL or boundary requirements.
+    validations:
+      required: false

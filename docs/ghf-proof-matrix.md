@@ -1,0 +1,16 @@
+# GitHub Factory Proof Matrix
+
+This document tracks the execution and verification of all Jobs-To-Be-Done (JTBD) defined in the GitHub Factory ontology.
+
+| JTBD ID | Persona | Repository | Observed OCEL Hash | Receipt Status | Closure State |
+|---------|---------|------------|--------------------|----------------|---------------|
+| JTBD-001 | architect | open-ontologies | [PLACEHOLDER] | [PENDING] | [OPEN] |
+
+
+## Verification Instructions
+
+1. **Observe**: Run the command associated with the JTBD.
+2. **Capture**: Ensure OCEL is captured in `artifacts/ghf/ocel/observed/`.
+3. **Align**: Run `gemini alignment verify` to check alignment between expected and observed OCEL.
+4. **Receipt**: Emit the BLAKE3 receipt via `gemini auditor emit`.
+5. **Close**: Update this matrix with the resulting hashes.

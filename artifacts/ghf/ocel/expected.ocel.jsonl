@@ -1,0 +1,9 @@
+{"ocel:global-event": {"ocel:vmap": {}}, "ocel:global-object": {"ocel:ovmap": {}}, "ocel:global-log": {"ocel:version": "2.0", "ocel:ordering": "timestamp", "ocel:attribute-names": [], "ocel:object-types": ["ghf:ContributionUnit", "ghf:GitHubRepository", "persona"], "ocel:event-types": ["ghf.contribution.started", "ghf.commit.pushed", "ghf.pull_request.created", "ghf.pull_request.merged", "ghf.contribution.completed"]}}
+{"ocel:id": "JTBD-001", "ocel:type": "ghf:ContributionUnit", "ocel:ovmap": {"jtbd_id": "JTBD-001"}}
+{"ocel:id": "open-ontologies", "ocel:type": "ghf:GitHubRepository", "ocel:ovmap": {"name": "open-ontologies"}}
+{"ocel:id": "architect", "ocel:type": "persona", "ocel:ovmap": {"name": "architect"}}
+{"ocel:id": "ev-JTBD-001-1", "ocel:type": "ghf.contribution.started", "ocel:timestamp": "2024-01-01T09:00:00Z", "ocel:omap": ["JTBD-001", "open-ontologies", "architect"], "ocel:vmap": {}}
+{"ocel:id": "ev-JTBD-001-2", "ocel:type": "ghf.commit.pushed", "ocel:timestamp": "2024-01-01T10:00:00Z", "ocel:omap": ["JTBD-001", "open-ontologies", "architect"], "ocel:vmap": {}}
+{"ocel:id": "ev-JTBD-001-3", "ocel:type": "ghf.pull_request.created", "ocel:timestamp": "2024-01-01T11:00:00Z", "ocel:omap": ["JTBD-001", "open-ontologies", "architect"], "ocel:vmap": {}}
+{"ocel:id": "ev-JTBD-001-4", "ocel:type": "ghf.pull_request.merged", "ocel:timestamp": "2024-01-01T12:00:00Z", "ocel:omap": ["JTBD-001", "open-ontologies", "architect"], "ocel:vmap": {}}
+{"ocel:id": "ev-JTBD-001-5", "ocel:type": "ghf.contribution.completed", "ocel:timestamp": "2024-01-01T13:00:00Z", "ocel:omap": ["JTBD-001", "open-ontologies", "architect"], "ocel:vmap": {}}

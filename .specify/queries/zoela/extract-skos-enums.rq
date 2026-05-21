@@ -57,12 +57,18 @@ WHERE {
   BIND(COALESCE(?sdRaw, "") AS ?sdCoalesced)
   BIND(COALESCE(?fcomment, "") AS ?fdesc)
   BIND(
-    IF(?dtype = xsd:boolean,  "boolean",
-    IF(?dtype = xsd:integer,  "number",
-    IF(?dtype = xsd:decimal,  "number",
-    IF(?dtype = xsd:dateTime, "datetime",
-    IF(?dtype = xsd:anyURI,   "url",
-    "string"))))) AS ?ftype
+    COALESCE(
+      IF(BOUND(?dtype),
+        IF(?dtype = xsd:boolean,  "boolean",
+        IF(?dtype = xsd:integer,  "number",
+        IF(?dtype = xsd:decimal,  "number",
+        IF(?dtype = xsd:dateTime, "datetime",
+        IF(?dtype = xsd:anyURI,   "url",
+        "string"))))),
+        "string"
+      ),
+      "string"
+    ) AS ?ftype
   )
   BIND(IF(BOUND(?mc) && ?mc >= 1, "true", "false") AS ?freq)
   BIND(COALESCE(STR(?fminRaw), "") AS ?fmin)

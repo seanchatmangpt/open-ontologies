@@ -42,5 +42,19 @@ ontology/cell8-*.ttl
 # Backup files left by tools.
 *.backup
 
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# TypeScript
+*.tsbuildinfo
+
 # DuckDB database files.
 *.duckdb
+
+# Actuation temporary artifacts
+artifacts/actuation/plans/*.json
+!artifacts/actuation/plans/test_*.json
