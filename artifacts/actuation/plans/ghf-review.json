@@ -1,0 +1,9 @@
+{
+  "action_id": "ghf_contribution_5",
+  "emitted_by": "open-ontologies",
+  "policy_id": "auto_receipt_batch",
+  "actor_basis8": "persona_architect",
+  "allowed": true,
+  "working_directory": "/Users/sac/open-ontologies",
+  "command": "echo 'APPROVE: Receipt hashes match' > artifacts/ghf/review.txt"
+}
