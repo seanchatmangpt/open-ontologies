@@ -16,7 +16,7 @@
     "validate:storage": "bash tools/validate-storage.sh",
     "validate:realtime": "bash tools/validate-realtime.sh",
     "validate:functions": "bash tools/validate-functions.sh",
-    "validate:receipts": "python3 scripts/autoreceipt/validate_receipts_gate.py",
+    "validate:receipts": "python3 scripts/build_autoreceipt_artifacts.py",
     "validate:ocel": "bash tools/validate-ocel.sh",
     "validate:autonomics": "bash tools/validate-autonomics.sh",
     "validate:connect-groups": "bash tools/validate-connect-groups.sh",
