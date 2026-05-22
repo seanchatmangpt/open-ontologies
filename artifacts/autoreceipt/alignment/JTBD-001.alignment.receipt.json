@@ -1,5 +1,5 @@
 {
   "jtbd_id": "JTBD-001",
   "alignment_status": "OcelAlignmentPassed",
-  "reason": "Real execution trace generated via Gemini Actuation Membrane. Hashes match."
+  "reason": "Real execution trace generated via autonomic loop."
 }

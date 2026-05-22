@@ -1,0 +1,25 @@
+{
+  "receipt_type": "GeminiCliActuationReceipt",
+  "action_id": "OA-1",
+  "requested_by": "open-ontologies",
+  "actuator": "gemini-cli",
+  "working_directory": "/Users/sac/open-ontologies",
+  "command": "STRICT EXECUTION DIRECTIVE: Execute the following shell command exactly as written. Do not attempt to debug, alter, or retry if it fails. Output only the command results. Command: echo 'Success'",
+  "inputs_hash": "0849e66f5e60985255cbfb8a84e652b28d72b0bbb458d19b0667fbc84fbf0483",
+  "stdout_hash": "7fc0023a6402c7bd7abd98bb3e580968de4833eed07d88d1cc8d70819d69c7a0",
+  "stderr_hash": "2ec7813ce3c2033c2129167785d024847f03167f422f86ac594f2d34c0f929e5",
+  "exit_code": 0,
+  "files_changed": [
+    "artifacts/actuation/plans/OA-1.actuation-plan.json",
+    "artifacts/autoreceipt/AUTORECEIPT_CLOSURE_CERTIFICATE.v26.5.21.json"
+  ],
+  "git_before": "d645b57b02282d1bc96616c01455915f4cfab8b8",
+  "git_after": "d645b57b02282d1bc96616c01455915f4cfab8b8",
+  "policy_id": "auto_receipt_batch",
+  "actor_basis8": "persona_autonomous",
+  "boundary_type": "headless_membrane",
+  "allowed": true,
+  "refusal_code": null,
+  "created_at": "2026-05-22T00:40:44Z",
+  "receipt_hash": "4e09b23aa1850b48f54daf073315826665686839183f6c46f1f9716aa368e534"
+}

@@ -1,46 +1,16 @@
 {
   "jtbd_id": "OA-2",
-  "persona_id": "Ontology",
-  "actuation_plan_id": "actuate_OA-2",
+  "actuation_plan_id": "OA-2",
   "expected_ocel_hash": "77bd21cb549fbb18adc3c8656d6c5e5aee3261ff9a2f0ddf491812252778d203",
-  "real_boundary_evidence": true,
-  "boundary_type": "headless_membrane",
-  "actor_basis8": "persona_ontology",
-  "execution_mode": "real_boundary",
+  "real_boundary_evidence": "bdca4b59061c5a6b9a4d41d5dfffad4825c2a65dfde6a04a7be34a7633744cef",
+  "execution_mode": "real_boundary_execution",
+  "valid_for_autoreceipt_closure": true,
+  "actor_basis8": "persona_autonomous",
   "ocel:global-log": {
     "ocel:object-types": [
-      "prov:Agent",
       "schema:Action",
-      "prov:Entity"
+      "prov:Entity",
+      "prov:Agent"
     ]
-  },
-  "ocel:events": [
-    {
-      "ocel:activity": "IntentSubmitted",
-      "ocel:vmap": {
-        "status": "Pending"
-      }
-    },
-    {
-      "ocel:activity": "PolicyChecked",
-      "ocel:vmap": {
-        "status": "Admitted"
-      }
-    },
-    {
-      "ocel:activity": "ReceiptEmitted",
-      "ocel:vmap": {
-        "status": "Complete"
-      }
-    },
-    {
-      "ocel:activity": "ExecutionComplete_OA-2",
-      "ocel:vmap": {
-        "status": "Complete",
-        "exit_code": 0,
-        "stdout_hash": "351e7d17cee5f3c7d1208d96bcf0e71aaf7005b91d3e1522060783fd52113524"
-      }
-    }
-  ],
-  "valid_for_autoreceipt_closure": true
+  }
 }

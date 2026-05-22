@@ -1,9 +1,9 @@
 {
-  "action_id": "actuate_OA-3",
+  "action_id": "OA-3",
   "emitted_by": "open-ontologies",
   "policy_id": "auto_receipt_batch",
-  "actor_basis8": "persona_ontology",
+  "actor_basis8": "persona_autonomous",
   "allowed": true,
-  "working_directory": "/Users/sac/wasm4pm",
+  "working_directory": "/Users/sac/open-ontologies",
   "command": "echo 'Success'"
 }
