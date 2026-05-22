@@ -71,22 +71,23 @@ for i, r in enumerate(registry):
         exp_hash = "none"
         
     obs = {
-        'jtbd_id': jtbd_id,
-        'persona_id': persona,
-        'actuation_plan_id': receipt['action_id'],
-        'expected_ocel_hash': exp_hash,
-        'real_boundary_evidence': True,
-        'boundary_type': receipt.get('boundary_type', 'headless_membrane'),
-        'actor_basis8': receipt.get('actor_basis8', plan['actor_basis8']),
-        'execution_mode': 'real_boundary',
-        'ocel:global-log': {'ocel:object-types': ['prov:Agent', 'schema:Action', 'prov:Entity']},
-        'ocel:events': [
-            {'ocel:activity': 'IntentSubmitted', 'ocel:vmap': {'status': 'Pending'}},
-            {'ocel:activity': 'PolicyChecked', 'ocel:vmap': {'status': 'Admitted'}},
-            {'ocel:activity': 'ReceiptEmitted', 'ocel:vmap': {'status': 'Complete'}},
-            {'ocel:activity': f'ExecutionComplete_{jtbd_id}', 'ocel:vmap': {'status': 'Complete', 'exit_code': receipt['exit_code'], 'stdout_hash': receipt['stdout_hash']}}
-        ],
-        'valid_for_autoreceipt_closure': True
+    'jtbd_id': jtbd_id,
+    'persona_id': persona,
+    'actuation_plan_id': receipt['action_id'],
+    'expected_ocel_hash': exp_hash,
+    'real_boundary_evidence': receipt['receipt_hash'],
+    'raw_evidence_hash': receipt.get('raw_evidence_hash', 'missing'),
+    'boundary_type': receipt.get('boundary_type', 'headless_membrane'),
+    'actor_basis8': receipt.get('actor_basis8', plan['actor_basis8']),
+    'execution_mode': 'real_boundary_execution',
+    'ocel:global-log': {'ocel:object-types': ['prov:Agent', 'schema:Action', 'prov:Entity']},
+    'ocel:events': [
+        {'ocel:activity': 'IntentSubmitted', 'ocel:vmap': {'status': 'Pending'}},
+        {'ocel:activity': 'PolicyChecked', 'ocel:vmap': {'status': 'Admitted'}},
+        {'ocel:activity': 'ReceiptEmitted', 'ocel:vmap': {'status': 'Complete'}},
+        {'ocel:activity': f'ExecutionComplete_{jtbd_id}', 'ocel:vmap': {'status': 'Complete', 'exit_code': receipt['exit_code'], 'stdout_hash': receipt['stdout_hash']}}
+    ],
+    'valid_for_autoreceipt_closure': True
     }
     with open(f'{BASE_DIR}/observed-ocel/{jtbd_id}.observed.ocel.json', 'w') as f:
         json.dump(obs, f, indent=2)
