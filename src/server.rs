@@ -4202,7 +4202,30 @@ impl OpenOntologiesServer {
             Ok(timed) => {
                 let out = timed.output;
                 if out.status.success() {
-                    String::from_utf8_lossy(&out.stdout).into_owned()
+                    let stdout_str = String::from_utf8_lossy(&out.stdout).into_owned();
+                    let stdout_hash = blake3::hash(out.stdout.as_slice()).to_hex().to_string();
+                    let stderr_hash = blake3::hash(out.stderr.as_slice()).to_hex().to_string();
+                    let core_receipt = crate::autoreceipt::Receipt::new_from_boundary(
+                        "wvda_agent_claim".to_string(),
+                        "wasm4pm".to_string(),
+                        "onto_process_validate_claim".to_string(),
+                        None,
+                        None,
+                        None,
+                        Some(stdout_hash),
+                        Some(stderr_hash),
+                        Some(0),
+                    );
+
+                    match serde_json::from_str::<serde_json::Value>(&stdout_str) {
+                        Ok(mut json_obj) => {
+                            if let Some(obj) = json_obj.as_object_mut() {
+                                obj.insert("open_ontology_receipt".to_string(), serde_json::to_value(core_receipt).unwrap());
+                            }
+                            serde_json::to_string(&json_obj).unwrap_or(stdout_str)
+                        }
+                        Err(_) => stdout_str,
+                    }
                 } else {
                     let err = String::from_utf8_lossy(&out.stderr);
                     serde_json::json!({
@@ -4494,6 +4517,21 @@ impl OpenOntologiesServer {
                     );
 
                     self.lineage().record(&self.session_id, "G", "codegen", &input.generator);
+                    
+                    let stdout_hash = blake3::hash(output.stdout.as_slice()).to_hex().to_string();
+                    let stderr_hash = blake3::hash(output.stderr.as_slice()).to_hex().to_string();
+                    let core_receipt = crate::autoreceipt::Receipt::new_from_boundary(
+                        format!("codegen_{}", unique_id),
+                        "ggen".to_string(),
+                        "onto_codegen".to_string(),
+                        None,
+                        None,
+                        None, // Raw evidence hash ideally mapped from file
+                        Some(stdout_hash),
+                        Some(stderr_hash),
+                        Some(0),
+                    );
+
                     serde_json::json!({
                         "ok": true,
                         "generator": input.generator,
@@ -4504,6 +4542,7 @@ impl OpenOntologiesServer {
                         "production_law_version": receipt.record.production_law_version,
                         "defects_taxonomy_version": receipt.record.defects_taxonomy_version,
                         "receipt_files_stamped": stamped,
+                        "open_ontology_receipt": core_receipt,
                     }).to_string()
                 } else {
                     format!(r#"{{"ok":false,"error":"ggen sync failed: {}","hint":"Check the error details and retry. Consult the tool description for required parameters and formats."}}"#, stderr)
