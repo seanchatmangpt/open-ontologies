@@ -38,18 +38,48 @@ for r in registry:
     if os.path.exists(obs_path):
         with open(obs_path, "r") as f:
             obs_data = json.load(f)
-            has_exp_hash = bool(obs_data.get("expected_ocel_hash"))
+            
+            # 1. Recompute Expected OCEL Hash
+            exp_hash_claimed = obs_data.get("expected_ocel_hash")
+            expected_ocel_path = f"{BASE_DIR}/expected-ocel/{jid}.expected.ocel.json"
+            exp_hash_computed = "none"
+            if os.path.exists(expected_ocel_path):
+                with open(expected_ocel_path, "rb") as ef:
+                    exp_hash_computed = hashlib.sha256(ef.read()).hexdigest()
+            
+            has_exp_hash = bool(exp_hash_claimed) and exp_hash_claimed == exp_hash_computed and exp_hash_computed != "none"
+            
+            # 2. Check if Expected == Observed (Clone detection)
+            obs_hash_computed = "none"
+            with open(obs_path, "rb") as of:
+                obs_hash_computed = hashlib.sha256(of.read()).hexdigest()
+                
+            cloned_trace = (exp_hash_computed == obs_hash_computed)
+            
+            # 3. Recompute Raw Boundary Evidence Hash
+            raw_hash_claimed = obs_data.get("raw_evidence_hash")
+            raw_evidence_computed = False
+            if raw_hash_claimed and raw_hash_claimed != "missing":
+                raw_dir = "artifacts/actuation/raw_evidence"
+                if os.path.exists(raw_dir):
+                    for rf_name in os.listdir(raw_dir):
+                        p = os.path.join(raw_dir, rf_name)
+                        if os.path.isfile(p):
+                            with open(p, "rb") as rf:
+                                if hashlib.sha256(rf.read()).hexdigest() == raw_hash_claimed:
+                                    raw_evidence_computed = True
+                                    break
+
             has_real_boundary = bool(obs_data.get("real_boundary_evidence"))
-            has_raw_evidence = bool(obs_data.get("raw_evidence_hash")) and obs_data.get("raw_evidence_hash") != "missing"
             has_obj_refs = "ocel:object-types" in obs_data.get("ocel:global-log", {})
             has_actor_basis = bool(obs_data.get("actor_basis8"))
             is_smoke = obs_data.get("execution_mode") == "synthetic_or_command_smoke"
             is_valid_flag = obs_data.get("valid_for_autoreceipt_closure", False)
 
-            if has_plan and has_exp_hash and has_real_boundary and has_actor_basis and has_obj_refs and is_valid_flag and not is_smoke:
+            if has_plan and has_exp_hash and has_real_boundary and has_actor_basis and has_obj_refs and is_valid_flag and not is_smoke and not cloned_trace:
                 obs_valid = True
 
-            if has_raw_evidence:
+            if raw_evidence_computed:
                 raw_evidence_valid = True
 
     # Verifier derives alignment

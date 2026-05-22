@@ -1,7 +1,7 @@
 {
-  "status": "AutoReceiptReady",
-  "timestamp": "2026-05-22T01:21:58.731714Z",
+  "status": "EvidenceIncomplete",
+  "timestamp": "2026-05-22T03:22:28.285898Z",
   "total_jtbds": 65,
-  "ready_jtbds": 65,
-  "blocked_jtbds": 0
+  "ready_jtbds": 0,
+  "blocked_jtbds": 65
 }

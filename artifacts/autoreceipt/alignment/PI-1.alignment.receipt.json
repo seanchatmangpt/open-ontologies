@@ -1,6 +1,6 @@
 {
   "jtbd_id": "PI-1",
-  "alignment_status": "OcelAlignmentPassed",
-  "reason": "Verifier derived alignment from raw boundary evidence.",
+  "alignment_status": "Refused",
+  "reason": "RawBoundaryEvidenceMissing",
   "verifier_derived": true
 }
