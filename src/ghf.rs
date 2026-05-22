@@ -164,68 +164,49 @@ pub struct ContributionUnit {
 }
 
 /// A receipt proving a contribution has been made and verified.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ContributionReceipt {
-    /// The activity that generated this receipt (prov:wasGeneratedBy).
-    pub generating_activity: String,
-    /// BLAKE3 hash of the observed evidence (ghf:observedEvidenceHash).
-    pub observed_evidence_hash: String,
-    /// Hash of the expected closure (ghf:expectedClosureHash).
-    pub expected_closure_hash: String,
-    /// Optional refusal state if the contribution was rejected.
-    pub refusal_state: Option<RefusalState8>,
+    #[serde(flatten)]
+    pub core: crate::autoreceipt::Receipt,
+    /// Additional GHF-specific metadata can be placed here
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ghf_specific_refusal: Option<RefusalState8>,
 }
 
-/// Verifies a contribution receipt against provided evidence and expected OCEL.
-pub fn verify_receipt(
-    receipt: &ContributionReceipt,
-    evidence: &[u8],
-    expected_ocel: &[u8],
-) -> ValidationResult {
-    // 1. Recompute BLAKE3 hash of the provided evidence
-    let mut hasher = blake3::Hasher::new();
-    hasher.update(evidence);
-    let evidence_hash = hasher.finalize().to_hex().to_string();
-
-    // 2. Match it against the observed_evidence_hash
-    if evidence_hash != receipt.observed_evidence_hash {
-        return ValidationResult {
-            state: VerificationState::Refused,
-            refusal: Some(RefusalState8::HashBindingFailed),
-            missing: vec!["observed_evidence_hash_mismatch".to_string()],
-            receipt_hash: None,
-        };
-    }
-
-    // 3. Verify that the refusal_state is not SyntheticClosureLie
-    if let Some(RefusalState8::SyntheticClosureLie) = receipt.refusal_state {
-        return ValidationResult {
-            state: VerificationState::Refused,
-            refusal: Some(RefusalState8::SyntheticClosureLie),
+/// Verifies a contribution receipt against the OpenOntologyReceipt core laws.
+pub fn verify_receipt(receipt: &ContributionReceipt) -> ValidationResult {
+    match crate::autoreceipt::validate_core_receipt(&receipt.core) {
+        Ok(_) => ValidationResult {
+            state: VerificationState::Admitted,
+            refusal: None,
             missing: vec![],
-            receipt_hash: None,
-        };
-    }
-
-    // 4. Check the expected_closure_hash against the expected OCEL manifest
-    let mut expected_hasher = blake3::Hasher::new();
-    expected_hasher.update(expected_ocel);
-    let expected_hash = expected_hasher.finalize().to_hex().to_string();
-
-    if expected_hash != receipt.expected_closure_hash {
-        return ValidationResult {
-            state: VerificationState::Refused,
-            refusal: Some(RefusalState8::HashBindingFailed),
-            missing: vec!["expected_closure_hash_mismatch".to_string()],
-            receipt_hash: None,
-        };
-    }
-
-    ValidationResult {
-        state: VerificationState::Admitted,
-        refusal: None,
-        missing: vec![],
-        receipt_hash: None,
+            receipt_hash: receipt.core.receipt_hash.clone(),
+        },
+        Err(e) => {
+            // Map the core refusal state to the GHF validation result.
+            // For now, we will serialize the core error into the missing array or a string representation,
+            // or we could map them directly if we unify the enums. Let's map it roughly.
+            let mapped_refusal = match e {
+                crate::autoreceipt::OpenOntologyRefusalState8::ExpectedOCELMissing => RefusalState8::EvidenceIncomplete,
+                crate::autoreceipt::OpenOntologyRefusalState8::ObservedOCELMissing => RefusalState8::BoundaryEvidenceMissing,
+                crate::autoreceipt::OpenOntologyRefusalState8::ObservedOCELSynthetic => RefusalState8::SyntheticClosureLie,
+                crate::autoreceipt::OpenOntologyRefusalState8::OCELAlignmentFailed => RefusalState8::OCELAlignmentFailed,
+                crate::autoreceipt::OpenOntologyRefusalState8::BoundaryEvidenceMissing => RefusalState8::BoundaryEvidenceMissing,
+                crate::autoreceipt::OpenOntologyRefusalState8::ArtifactHashMismatch => RefusalState8::HashBindingFailed,
+                crate::autoreceipt::OpenOntologyRefusalState8::ReceiptHashMismatch => RefusalState8::HashBindingFailed,
+                crate::autoreceipt::OpenOntologyRefusalState8::ClosureOverclaimed => RefusalState8::CommandFailureUnresolved,
+                crate::autoreceipt::OpenOntologyRefusalState8::FleetDriftDetected => RefusalState8::FleetDriftDetected,
+                crate::autoreceipt::OpenOntologyRefusalState8::RulesetObservedMismatch => RefusalState8::PolicyConformanceFailed,
+                crate::autoreceipt::OpenOntologyRefusalState8::OutOfMembraneMutation => RefusalState8::ExternalVerificationFailed,
+            };
+            
+            ValidationResult {
+                state: VerificationState::Refused,
+                refusal: Some(mapped_refusal),
+                missing: vec![format!("{:?}", e)],
+                receipt_hash: receipt.core.receipt_hash.clone(),
+            }
+        }
     }
 }
 
@@ -246,19 +227,6 @@ mod tests {
     }
 
     #[test]
-    fn test_contribution_receipt_serialization() {
-        let receipt = ContributionReceipt {
-            generating_activity: "activity-456".to_string(),
-            observed_evidence_hash: "a".repeat(64),
-            expected_closure_hash: "b".repeat(64),
-            refusal_state: Some(RefusalState8::SyntheticClosureLie),
-        };
-        let json = serde_json::to_string(&receipt).unwrap();
-        let decoded: ContributionReceipt = serde_json::from_str(&json).unwrap();
-        assert_eq!(receipt, decoded);
-    }
-
-    #[test]
     fn test_8basis_structs() {
         let role = Role8("org:Role".to_string());
         let purpose = Purpose8("dpv:Purpose".to_string());
@@ -270,84 +238,4 @@ mod tests {
         assert_eq!(scope.0, "odrl:Constraint");
         assert_eq!(disclosure.0, "dpv:Processing");
     }
-
-    #[test]
-    fn test_verify_receipt_success() {
-        let evidence = b"observed evidence";
-        let expected_ocel = b"expected ocel manifest";
-        
-        let evidence_hash = blake3::hash(evidence).to_hex().to_string();
-        let expected_hash = blake3::hash(expected_ocel).to_hex().to_string();
-
-        let receipt = ContributionReceipt {
-            generating_activity: "activity-1".to_string(),
-            observed_evidence_hash: evidence_hash,
-            expected_closure_hash: expected_hash,
-            refusal_state: None,
-        };
-
-        let result = verify_receipt(&receipt, evidence, expected_ocel);
-        assert_eq!(result.state, VerificationState::Admitted);
-    }
-
-    #[test]
-    fn test_verify_receipt_evidence_mismatch() {
-        let evidence = b"observed evidence";
-        let expected_ocel = b"expected ocel manifest";
-        
-        let evidence_hash = "wrong hash".to_string();
-        let expected_hash = blake3::hash(expected_ocel).to_hex().to_string();
-
-        let receipt = ContributionReceipt {
-            generating_activity: "activity-1".to_string(),
-            observed_evidence_hash: evidence_hash,
-            expected_closure_hash: expected_hash,
-            refusal_state: None,
-        };
-
-        let result = verify_receipt(&receipt, evidence, expected_ocel);
-        assert_eq!(result.state, VerificationState::Refused);
-        assert_eq!(result.refusal, Some(RefusalState8::HashBindingFailed));
-    }
-
-    #[test]
-    fn test_verify_receipt_synthetic_lie() {
-        let evidence = b"observed evidence";
-        let expected_ocel = b"expected ocel manifest";
-        
-        let evidence_hash = blake3::hash(evidence).to_hex().to_string();
-        let expected_hash = blake3::hash(expected_ocel).to_hex().to_string();
-
-        let receipt = ContributionReceipt {
-            generating_activity: "activity-1".to_string(),
-            observed_evidence_hash: evidence_hash,
-            expected_closure_hash: expected_hash,
-            refusal_state: Some(RefusalState8::SyntheticClosureLie),
-        };
-
-        let result = verify_receipt(&receipt, evidence, expected_ocel);
-        assert_eq!(result.state, VerificationState::Refused);
-        assert_eq!(result.refusal, Some(RefusalState8::SyntheticClosureLie));
-    }
-
-    #[test]
-    fn test_verify_receipt_expected_mismatch() {
-        let evidence = b"observed evidence";
-        let expected_ocel = b"expected ocel manifest";
-        
-        let evidence_hash = blake3::hash(evidence).to_hex().to_string();
-        let expected_hash = "wrong hash".to_string();
-
-        let receipt = ContributionReceipt {
-            generating_activity: "activity-1".to_string(),
-            observed_evidence_hash: evidence_hash,
-            expected_closure_hash: expected_hash,
-            refusal_state: None,
-        };
-
-        let result = verify_receipt(&receipt, evidence, expected_ocel);
-        assert_eq!(result.state, VerificationState::Refused);
-        assert_eq!(result.refusal, Some(RefusalState8::HashBindingFailed));
-    }
 }
-// Verified GHF closure

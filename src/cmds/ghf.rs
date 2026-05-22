@@ -31,14 +31,7 @@ fn verify(target_type: String, target: Option<String>) -> NounVerbResult<()> {
         let receipt: ContributionReceipt = serde_json::from_str(&receipt_json)
             .map_err(|e| to_verb_err(format!("Failed to parse receipt JSON: {}", e)))?;
 
-        // Default locations for evidence and expected OCEL
-        let observed_path = PathBuf::from("artifacts/ghf/ocel/observed.ocel.jsonl");
-        let expected_path = PathBuf::from("artifacts/ghf/ocel/expected.ocel.jsonl");
-
-        let evidence = fs::read(&observed_path).unwrap_or_default();
-        let expected_ocel = fs::read(&expected_path).unwrap_or_default();
-
-        let result = verify_receipt(&receipt, &evidence, &expected_ocel);
+        let result = verify_receipt(&receipt);
         println!("{}", serde_json::to_string_pretty(&result).unwrap());
         
         if result.state == open_ontologies::ghf::VerificationState::Admitted {
