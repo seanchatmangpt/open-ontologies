@@ -125,7 +125,7 @@ GIT_DIRTY_AFTER=$(git status --short 2>/dev/null || true)
 # Simple files_changed array by checking git status diff
 FILES_CHANGED=$(git diff --name-only | jq -R -s -c 'split("\n")[:-1]')
 
-RAW_EVIDENCE_DIR="$(pwd)/artifacts/actuation/raw_evidence"
+RAW_EVIDENCE_DIR="/Users/sac/open-ontologies/artifacts/actuation/raw_evidence"
 mkdir -p "$RAW_EVIDENCE_DIR"
 RAW_EVIDENCE_PATH="$RAW_EVIDENCE_DIR/raw_evidence_${ACTION_ID}_$(date +%s).json"
 
