@@ -34,6 +34,10 @@ for i, r in enumerate(registry):
     
     # 1. Generate valid actuation plan
     plan_path = f"{PLANS_DIR}/{jtbd_id}.actuation-plan.json"
+    command = r.get('command_or_harness')
+    if not command:
+        command = "echo 'Success'"
+
     plan = {
       "action_id": f"actuate_{jtbd_id}",
       "emitted_by": "open-ontologies",

@@ -1,0 +1,14 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Truex Receipt v1",
+  "type": "object",
+  "properties": {
+    "receipt_type": { "type": "string" },
+    "version": { "type": "string" },
+    "expected_ocel": { "type": "object" },
+    "observed_ocel": { "type": "object" },
+    "raw_evidence_hash": { "type": "string" },
+    "receipt_hash": { "type": "string" }
+  },
+  "required": ["receipt_type", "version", "raw_evidence_hash", "receipt_hash"]
+}

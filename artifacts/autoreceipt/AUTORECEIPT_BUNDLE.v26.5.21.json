@@ -2,328 +2,393 @@
   "jtbds": [
     {
       "id": "OA-1",
-      "state": "EvidenceIncomplete",
-      "alignment_receipt": "artifacts/autoreceipt/alignment/OA-1.alignment.receipt.json"
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/OA-1.alignment.receipt.json",
+      "core_receipt": "artifacts/autoreceipt/core/OA-1.autoreceipt.json"
     },
     {
       "id": "OA-2",
-      "state": "EvidenceIncomplete",
-      "alignment_receipt": "artifacts/autoreceipt/alignment/OA-2.alignment.receipt.json"
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/OA-2.alignment.receipt.json",
+      "core_receipt": "artifacts/autoreceipt/core/OA-2.autoreceipt.json"
     },
     {
       "id": "OA-3",
-      "state": "EvidenceIncomplete",
-      "alignment_receipt": "artifacts/autoreceipt/alignment/OA-3.alignment.receipt.json"
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/OA-3.alignment.receipt.json",
+      "core_receipt": "artifacts/autoreceipt/core/OA-3.autoreceipt.json"
     },
     {
       "id": "OA-4",
-      "state": "EvidenceIncomplete",
-      "alignment_receipt": "artifacts/autoreceipt/alignment/OA-4.alignment.receipt.json"
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/OA-4.alignment.receipt.json",
+      "core_receipt": "artifacts/autoreceipt/core/OA-4.autoreceipt.json"
     },
     {
       "id": "OA-5",
-      "state": "EvidenceIncomplete",
-      "alignment_receipt": "artifacts/autoreceipt/alignment/OA-5.alignment.receipt.json"
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/OA-5.alignment.receipt.json",
+      "core_receipt": "artifacts/autoreceipt/core/OA-5.autoreceipt.json"
     },
     {
       "id": "OA-6",
-      "state": "EvidenceIncomplete",
-      "alignment_receipt": "artifacts/autoreceipt/alignment/OA-6.alignment.receipt.json"
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/OA-6.alignment.receipt.json",
+      "core_receipt": "artifacts/autoreceipt/core/OA-6.autoreceipt.json"
     },
     {
       "id": "OA-7",
-      "state": "EvidenceIncomplete",
-      "alignment_receipt": "artifacts/autoreceipt/alignment/OA-7.alignment.receipt.json"
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/OA-7.alignment.receipt.json",
+      "core_receipt": "artifacts/autoreceipt/core/OA-7.autoreceipt.json"
     },
     {
       "id": "OA-8",
-      "state": "EvidenceIncomplete",
-      "alignment_receipt": "artifacts/autoreceipt/alignment/OA-8.alignment.receipt.json"
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/OA-8.alignment.receipt.json",
+      "core_receipt": "artifacts/autoreceipt/core/OA-8.autoreceipt.json"
     },
     {
       "id": "CL-1",
-      "state": "EvidenceIncomplete",
-      "alignment_receipt": "artifacts/autoreceipt/alignment/CL-1.alignment.receipt.json"
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/CL-1.alignment.receipt.json",
+      "core_receipt": "artifacts/autoreceipt/core/CL-1.autoreceipt.json"
     },
     {
       "id": "CL-2",
-      "state": "EvidenceIncomplete",
-      "alignment_receipt": "artifacts/autoreceipt/alignment/CL-2.alignment.receipt.json"
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/CL-2.alignment.receipt.json",
+      "core_receipt": "artifacts/autoreceipt/core/CL-2.autoreceipt.json"
     },
     {
       "id": "CL-3",
-      "state": "EvidenceIncomplete",
-      "alignment_receipt": "artifacts/autoreceipt/alignment/CL-3.alignment.receipt.json"
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/CL-3.alignment.receipt.json",
+      "core_receipt": "artifacts/autoreceipt/core/CL-3.autoreceipt.json"
     },
     {
       "id": "CL-4",
-      "state": "EvidenceIncomplete",
-      "alignment_receipt": "artifacts/autoreceipt/alignment/CL-4.alignment.receipt.json"
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/CL-4.alignment.receipt.json",
+      "core_receipt": "artifacts/autoreceipt/core/CL-4.autoreceipt.json"
     },
     {
       "id": "CL-5",
-      "state": "EvidenceIncomplete",
-      "alignment_receipt": "artifacts/autoreceipt/alignment/CL-5.alignment.receipt.json"
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/CL-5.alignment.receipt.json",
+      "core_receipt": "artifacts/autoreceipt/core/CL-5.autoreceipt.json"
     },
     {
       "id": "CL-6",
-      "state": "EvidenceIncomplete",
-      "alignment_receipt": "artifacts/autoreceipt/alignment/CL-6.alignment.receipt.json"
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/CL-6.alignment.receipt.json",
+      "core_receipt": "artifacts/autoreceipt/core/CL-6.autoreceipt.json"
     },
     {
       "id": "CL-7",
-      "state": "EvidenceIncomplete",
-      "alignment_receipt": "artifacts/autoreceipt/alignment/CL-7.alignment.receipt.json"
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/CL-7.alignment.receipt.json",
+      "core_receipt": "artifacts/autoreceipt/core/CL-7.autoreceipt.json"
     },
     {
       "id": "CL-8",
-      "state": "EvidenceIncomplete",
-      "alignment_receipt": "artifacts/autoreceipt/alignment/CL-8.alignment.receipt.json"
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/CL-8.alignment.receipt.json",
+      "core_receipt": "artifacts/autoreceipt/core/CL-8.autoreceipt.json"
     },
     {
       "id": "AS-1",
-      "state": "EvidenceIncomplete",
-      "alignment_receipt": "artifacts/autoreceipt/alignment/AS-1.alignment.receipt.json"
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/AS-1.alignment.receipt.json",
+      "core_receipt": "artifacts/autoreceipt/core/AS-1.autoreceipt.json"
     },
     {
       "id": "AS-2",
-      "state": "EvidenceIncomplete",
-      "alignment_receipt": "artifacts/autoreceipt/alignment/AS-2.alignment.receipt.json"
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/AS-2.alignment.receipt.json",
+      "core_receipt": "artifacts/autoreceipt/core/AS-2.autoreceipt.json"
     },
     {
       "id": "AS-3",
-      "state": "EvidenceIncomplete",
-      "alignment_receipt": "artifacts/autoreceipt/alignment/AS-3.alignment.receipt.json"
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/AS-3.alignment.receipt.json",
+      "core_receipt": "artifacts/autoreceipt/core/AS-3.autoreceipt.json"
     },
     {
       "id": "AS-4",
-      "state": "EvidenceIncomplete",
-      "alignment_receipt": "artifacts/autoreceipt/alignment/AS-4.alignment.receipt.json"
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/AS-4.alignment.receipt.json",
+      "core_receipt": "artifacts/autoreceipt/core/AS-4.autoreceipt.json"
     },
     {
       "id": "AS-5",
-      "state": "EvidenceIncomplete",
-      "alignment_receipt": "artifacts/autoreceipt/alignment/AS-5.alignment.receipt.json"
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/AS-5.alignment.receipt.json",
+      "core_receipt": "artifacts/autoreceipt/core/AS-5.autoreceipt.json"
     },
     {
       "id": "AS-6",
-      "state": "EvidenceIncomplete",
-      "alignment_receipt": "artifacts/autoreceipt/alignment/AS-6.alignment.receipt.json"
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/AS-6.alignment.receipt.json",
+      "core_receipt": "artifacts/autoreceipt/core/AS-6.autoreceipt.json"
     },
     {
       "id": "AS-7",
-      "state": "EvidenceIncomplete",
-      "alignment_receipt": "artifacts/autoreceipt/alignment/AS-7.alignment.receipt.json"
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/AS-7.alignment.receipt.json",
+      "core_receipt": "artifacts/autoreceipt/core/AS-7.autoreceipt.json"
     },
     {
       "id": "AS-8",
-      "state": "EvidenceIncomplete",
-      "alignment_receipt": "artifacts/autoreceipt/alignment/AS-8.alignment.receipt.json"
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/AS-8.alignment.receipt.json",
+      "core_receipt": "artifacts/autoreceipt/core/AS-8.autoreceipt.json"
     },
     {
       "id": "RE-1",
-      "state": "EvidenceIncomplete",
-      "alignment_receipt": "artifacts/autoreceipt/alignment/RE-1.alignment.receipt.json"
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/RE-1.alignment.receipt.json",
+      "core_receipt": "artifacts/autoreceipt/core/RE-1.autoreceipt.json"
     },
     {
       "id": "RE-2",
-      "state": "EvidenceIncomplete",
-      "alignment_receipt": "artifacts/autoreceipt/alignment/RE-2.alignment.receipt.json"
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/RE-2.alignment.receipt.json",
+      "core_receipt": "artifacts/autoreceipt/core/RE-2.autoreceipt.json"
     },
     {
       "id": "RE-3",
-      "state": "EvidenceIncomplete",
-      "alignment_receipt": "artifacts/autoreceipt/alignment/RE-3.alignment.receipt.json"
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/RE-3.alignment.receipt.json",
+      "core_receipt": "artifacts/autoreceipt/core/RE-3.autoreceipt.json"
     },
     {
       "id": "RE-4",
-      "state": "EvidenceIncomplete",
-      "alignment_receipt": "artifacts/autoreceipt/alignment/RE-4.alignment.receipt.json"
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/RE-4.alignment.receipt.json",
+      "core_receipt": "artifacts/autoreceipt/core/RE-4.autoreceipt.json"
     },
     {
       "id": "RE-5",
-      "state": "EvidenceIncomplete",
-      "alignment_receipt": "artifacts/autoreceipt/alignment/RE-5.alignment.receipt.json"
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/RE-5.alignment.receipt.json",
+      "core_receipt": "artifacts/autoreceipt/core/RE-5.autoreceipt.json"
     },
     {
       "id": "RE-6",
-      "state": "EvidenceIncomplete",
-      "alignment_receipt": "artifacts/autoreceipt/alignment/RE-6.alignment.receipt.json"
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/RE-6.alignment.receipt.json",
+      "core_receipt": "artifacts/autoreceipt/core/RE-6.autoreceipt.json"
     },
     {
       "id": "RE-7",
-      "state": "EvidenceIncomplete",
-      "alignment_receipt": "artifacts/autoreceipt/alignment/RE-7.alignment.receipt.json"
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/RE-7.alignment.receipt.json",
+      "core_receipt": "artifacts/autoreceipt/core/RE-7.autoreceipt.json"
     },
     {
       "id": "RE-8",
-      "state": "EvidenceIncomplete",
-      "alignment_receipt": "artifacts/autoreceipt/alignment/RE-8.alignment.receipt.json"
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/RE-8.alignment.receipt.json",
+      "core_receipt": "artifacts/autoreceipt/core/RE-8.autoreceipt.json"
     },
     {
       "id": "PI-1",
-      "state": "EvidenceIncomplete",
-      "alignment_receipt": "artifacts/autoreceipt/alignment/PI-1.alignment.receipt.json"
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/PI-1.alignment.receipt.json",
+      "core_receipt": "artifacts/autoreceipt/core/PI-1.autoreceipt.json"
     },
     {
       "id": "PI-2",
-      "state": "EvidenceIncomplete",
-      "alignment_receipt": "artifacts/autoreceipt/alignment/PI-2.alignment.receipt.json"
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/PI-2.alignment.receipt.json",
+      "core_receipt": "artifacts/autoreceipt/core/PI-2.autoreceipt.json"
     },
     {
       "id": "PI-3",
-      "state": "EvidenceIncomplete",
-      "alignment_receipt": "artifacts/autoreceipt/alignment/PI-3.alignment.receipt.json"
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/PI-3.alignment.receipt.json",
+      "core_receipt": "artifacts/autoreceipt/core/PI-3.autoreceipt.json"
     },
     {
       "id": "PI-4",
-      "state": "EvidenceIncomplete",
-      "alignment_receipt": "artifacts/autoreceipt/alignment/PI-4.alignment.receipt.json"
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/PI-4.alignment.receipt.json",
+      "core_receipt": "artifacts/autoreceipt/core/PI-4.autoreceipt.json"
     },
     {
       "id": "PI-5",
-      "state": "EvidenceIncomplete",
-      "alignment_receipt": "artifacts/autoreceipt/alignment/PI-5.alignment.receipt.json"
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/PI-5.alignment.receipt.json",
+      "core_receipt": "artifacts/autoreceipt/core/PI-5.autoreceipt.json"
     },
     {
       "id": "PI-6",
-      "state": "EvidenceIncomplete",
-      "alignment_receipt": "artifacts/autoreceipt/alignment/PI-6.alignment.receipt.json"
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/PI-6.alignment.receipt.json",
+      "core_receipt": "artifacts/autoreceipt/core/PI-6.autoreceipt.json"
     },
     {
       "id": "PI-7",
-      "state": "EvidenceIncomplete",
-      "alignment_receipt": "artifacts/autoreceipt/alignment/PI-7.alignment.receipt.json"
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/PI-7.alignment.receipt.json",
+      "core_receipt": "artifacts/autoreceipt/core/PI-7.autoreceipt.json"
     },
     {
       "id": "PI-8",
-      "state": "EvidenceIncomplete",
-      "alignment_receipt": "artifacts/autoreceipt/alignment/PI-8.alignment.receipt.json"
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/PI-8.alignment.receipt.json",
+      "core_receipt": "artifacts/autoreceipt/core/PI-8.autoreceipt.json"
     },
     {
       "id": "UX-1",
-      "state": "EvidenceIncomplete",
-      "alignment_receipt": "artifacts/autoreceipt/alignment/UX-1.alignment.receipt.json"
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/UX-1.alignment.receipt.json",
+      "core_receipt": "artifacts/autoreceipt/core/UX-1.autoreceipt.json"
     },
     {
       "id": "UX-2",
-      "state": "EvidenceIncomplete",
-      "alignment_receipt": "artifacts/autoreceipt/alignment/UX-2.alignment.receipt.json"
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/UX-2.alignment.receipt.json",
+      "core_receipt": "artifacts/autoreceipt/core/UX-2.autoreceipt.json"
     },
     {
       "id": "UX-3",
-      "state": "EvidenceIncomplete",
-      "alignment_receipt": "artifacts/autoreceipt/alignment/UX-3.alignment.receipt.json"
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/UX-3.alignment.receipt.json",
+      "core_receipt": "artifacts/autoreceipt/core/UX-3.autoreceipt.json"
     },
     {
       "id": "UX-4",
-      "state": "EvidenceIncomplete",
-      "alignment_receipt": "artifacts/autoreceipt/alignment/UX-4.alignment.receipt.json"
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/UX-4.alignment.receipt.json",
+      "core_receipt": "artifacts/autoreceipt/core/UX-4.autoreceipt.json"
     },
     {
       "id": "UX-5",
-      "state": "EvidenceIncomplete",
-      "alignment_receipt": "artifacts/autoreceipt/alignment/UX-5.alignment.receipt.json"
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/UX-5.alignment.receipt.json",
+      "core_receipt": "artifacts/autoreceipt/core/UX-5.autoreceipt.json"
     },
     {
       "id": "UX-6",
-      "state": "EvidenceIncomplete",
-      "alignment_receipt": "artifacts/autoreceipt/alignment/UX-6.alignment.receipt.json"
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/UX-6.alignment.receipt.json",
+      "core_receipt": "artifacts/autoreceipt/core/UX-6.autoreceipt.json"
     },
     {
       "id": "UX-7",
-      "state": "EvidenceIncomplete",
-      "alignment_receipt": "artifacts/autoreceipt/alignment/UX-7.alignment.receipt.json"
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/UX-7.alignment.receipt.json",
+      "core_receipt": "artifacts/autoreceipt/core/UX-7.autoreceipt.json"
     },
     {
       "id": "UX-8",
-      "state": "EvidenceIncomplete",
-      "alignment_receipt": "artifacts/autoreceipt/alignment/UX-8.alignment.receipt.json"
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/UX-8.alignment.receipt.json",
+      "core_receipt": "artifacts/autoreceipt/core/UX-8.autoreceipt.json"
     },
     {
       "id": "DS-1",
-      "state": "EvidenceIncomplete",
-      "alignment_receipt": "artifacts/autoreceipt/alignment/DS-1.alignment.receipt.json"
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/DS-1.alignment.receipt.json",
+      "core_receipt": "artifacts/autoreceipt/core/DS-1.autoreceipt.json"
     },
     {
       "id": "DS-2",
-      "state": "EvidenceIncomplete",
-      "alignment_receipt": "artifacts/autoreceipt/alignment/DS-2.alignment.receipt.json"
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/DS-2.alignment.receipt.json",
+      "core_receipt": "artifacts/autoreceipt/core/DS-2.autoreceipt.json"
     },
     {
       "id": "DS-3",
-      "state": "EvidenceIncomplete",
-      "alignment_receipt": "artifacts/autoreceipt/alignment/DS-3.alignment.receipt.json"
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/DS-3.alignment.receipt.json",
+      "core_receipt": "artifacts/autoreceipt/core/DS-3.autoreceipt.json"
     },
     {
       "id": "DS-4",
-      "state": "EvidenceIncomplete",
-      "alignment_receipt": "artifacts/autoreceipt/alignment/DS-4.alignment.receipt.json"
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/DS-4.alignment.receipt.json",
+      "core_receipt": "artifacts/autoreceipt/core/DS-4.autoreceipt.json"
     },
     {
       "id": "DS-5",
-      "state": "EvidenceIncomplete",
-      "alignment_receipt": "artifacts/autoreceipt/alignment/DS-5.alignment.receipt.json"
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/DS-5.alignment.receipt.json",
+      "core_receipt": "artifacts/autoreceipt/core/DS-5.autoreceipt.json"
     },
     {
       "id": "DS-6",
-      "state": "EvidenceIncomplete",
-      "alignment_receipt": "artifacts/autoreceipt/alignment/DS-6.alignment.receipt.json"
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/DS-6.alignment.receipt.json",
+      "core_receipt": "artifacts/autoreceipt/core/DS-6.autoreceipt.json"
     },
     {
       "id": "DS-7",
-      "state": "EvidenceIncomplete",
-      "alignment_receipt": "artifacts/autoreceipt/alignment/DS-7.alignment.receipt.json"
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/DS-7.alignment.receipt.json",
+      "core_receipt": "artifacts/autoreceipt/core/DS-7.autoreceipt.json"
     },
     {
       "id": "DS-8",
-      "state": "EvidenceIncomplete",
-      "alignment_receipt": "artifacts/autoreceipt/alignment/DS-8.alignment.receipt.json"
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/DS-8.alignment.receipt.json",
+      "core_receipt": "artifacts/autoreceipt/core/DS-8.autoreceipt.json"
     },
     {
       "id": "IS-1",
-      "state": "EvidenceIncomplete",
-      "alignment_receipt": "artifacts/autoreceipt/alignment/IS-1.alignment.receipt.json"
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/IS-1.alignment.receipt.json",
+      "core_receipt": "artifacts/autoreceipt/core/IS-1.autoreceipt.json"
     },
     {
       "id": "IS-2",
-      "state": "EvidenceIncomplete",
-      "alignment_receipt": "artifacts/autoreceipt/alignment/IS-2.alignment.receipt.json"
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/IS-2.alignment.receipt.json",
+      "core_receipt": "artifacts/autoreceipt/core/IS-2.autoreceipt.json"
     },
     {
       "id": "IS-3",
-      "state": "EvidenceIncomplete",
-      "alignment_receipt": "artifacts/autoreceipt/alignment/IS-3.alignment.receipt.json"
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/IS-3.alignment.receipt.json",
+      "core_receipt": "artifacts/autoreceipt/core/IS-3.autoreceipt.json"
     },
     {
       "id": "IS-4",
-      "state": "EvidenceIncomplete",
-      "alignment_receipt": "artifacts/autoreceipt/alignment/IS-4.alignment.receipt.json"
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/IS-4.alignment.receipt.json",
+      "core_receipt": "artifacts/autoreceipt/core/IS-4.autoreceipt.json"
     },
     {
       "id": "IS-5",
-      "state": "EvidenceIncomplete",
-      "alignment_receipt": "artifacts/autoreceipt/alignment/IS-5.alignment.receipt.json"
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/IS-5.alignment.receipt.json",
+      "core_receipt": "artifacts/autoreceipt/core/IS-5.autoreceipt.json"
     },
     {
       "id": "IS-6",
-      "state": "EvidenceIncomplete",
-      "alignment_receipt": "artifacts/autoreceipt/alignment/IS-6.alignment.receipt.json"
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/IS-6.alignment.receipt.json",
+      "core_receipt": "artifacts/autoreceipt/core/IS-6.autoreceipt.json"
     },
     {
       "id": "IS-7",
-      "state": "EvidenceIncomplete",
-      "alignment_receipt": "artifacts/autoreceipt/alignment/IS-7.alignment.receipt.json"
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/IS-7.alignment.receipt.json",
+      "core_receipt": "artifacts/autoreceipt/core/IS-7.autoreceipt.json"
     },
     {
       "id": "IS-8",
-      "state": "EvidenceIncomplete",
-      "alignment_receipt": "artifacts/autoreceipt/alignment/IS-8.alignment.receipt.json"
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/IS-8.alignment.receipt.json",
+      "core_receipt": "artifacts/autoreceipt/core/IS-8.autoreceipt.json"
     },
     {
       "id": "JTBD-001",
-      "state": "EvidenceIncomplete",
-      "alignment_receipt": "artifacts/autoreceipt/alignment/JTBD-001.alignment.receipt.json"
+      "state": "AutoReceiptReady",
+      "alignment_receipt": "artifacts/autoreceipt/alignment/JTBD-001.alignment.receipt.json",
+      "core_receipt": "artifacts/autoreceipt/core/JTBD-001.autoreceipt.json"
     }
   ]
 }

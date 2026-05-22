@@ -1,0 +1,13 @@
+PREFIX truex: <https://open-ontologies.org/profile/truex#>
+PREFIX rdf:   <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX rdfs:  <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX skos:  <http://www.w3.org/2004/02/skos/core#>
+
+SELECT ?obligations ?packages ?rules ?failures ?derivations
+WHERE {
+  { SELECT (GROUP_CONCAT(DISTINCT ?l; SEPARATOR="|") AS ?obligations) WHERE { ?o a truex:Obligation . ?o rdfs:label ?l } }
+  { SELECT (GROUP_CONCAT(DISTINCT ?d; SEPARATOR="|") AS ?packages) WHERE { ?p a truex:Package . ?p truex:packageName ?n ; truex:purpose ?pp . BIND(CONCAT(?n, "::", ?pp) AS ?d) } }
+  { SELECT (GROUP_CONCAT(DISTINCT ?d; SEPARATOR="|") AS ?rules) WHERE { ?r a truex:Rule . ?r rdfs:label ?l ; rdfs:comment ?c . BIND(CONCAT(?l, "::", ?c) AS ?d) } }
+  { SELECT (GROUP_CONCAT(DISTINCT ?d; SEPARATOR="|") AS ?failures) WHERE { ?f a truex:Failure . ?f rdfs:label ?l ; skos:definition ?def . BIND(CONCAT(?l, "::", ?def) AS ?d) } }
+  { SELECT (GROUP_CONCAT(DISTINCT ?d; SEPARATOR="|") AS ?derivations) WHERE { ?drv a truex:DerivationRule . ?drv rdfs:label ?l ; rdfs:comment ?c . BIND(CONCAT(?l, "::", ?c) AS ?d) } }
+}

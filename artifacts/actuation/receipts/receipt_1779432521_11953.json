@@ -1,0 +1,26 @@
+{
+  "receipt_type": "GeminiCliActuationReceipt",
+  "action_id": "actuate_JTBD-001",
+  "requested_by": "open-ontologies",
+  "actuator": "gemini-cli",
+  "working_directory": "/Users/sac/wasm4pm",
+  "command": "STRICT EXECUTION DIRECTIVE: Execute the following shell command exactly as written. Do not attempt to debug, alter, or retry if it fails. Output only the command results. Command: bash scripts/gh-create-issue.sh JTBD-001 architect \"Autonomic GHF Verification\"",
+  "inputs_hash": "8231494594b83871161e92d38731d9ebff65a0c87c3c1adb42ab782dd381d8a6",
+  "stdout_hash": "c6e3d03951ab07c6f1a1c74b9c7f20d8ddd2185a9cb065c8de148e7d4cf436ef",
+  "stderr_hash": "c3f60562f38319bd084266fbf54a4aa13dad4cde24d3bccabc856c171131dd2b",
+  "raw_evidence_hash": "eb809c26c4b4642513cd0306a73f31991d3e40a3ce011bc2212c4927b09d76c6",
+  "exit_code": 0,
+  "files_changed": [
+    "artifacts/actuation/raw_evidence/raw_evidence_actuate_CL-1_1779431230.json",
+    "artifacts/actuation/raw_evidence/raw_evidence_actuate_CL-4_1779431230.json"
+  ],
+  "git_before": "5dea5339c3d77bf02496f6797e771c19e6789ad8",
+  "git_after": "e138f95a23f4af0bf601a8ea6e8cc6285130282c",
+  "policy_id": "auto_receipt_batch",
+  "actor_basis8": "persona_factory",
+  "boundary_type": "headless_membrane",
+  "allowed": true,
+  "refusal_code": null,
+  "created_at": "2026-05-22T06:48:12Z",
+  "receipt_hash": "692addf575c8ab822817303a36ad8fbb28c1b487562147960ced9b790b4a7668"
+}

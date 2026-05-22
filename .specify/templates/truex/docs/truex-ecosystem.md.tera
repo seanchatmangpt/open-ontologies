@@ -1,0 +1,58 @@
+# Truex Ecosystem Documentation
+
+## Closure Theorem: TruexEcosystemClosed
+
+The manufacture of this ecosystem is only complete when the following obligations are discharged:
+
+{% if obligations %}
+{%- set ob_list = obligations | split(pat="|") -%}
+{% for ob in ob_list %}
+- **{{ ob }}**
+{% endfor %}
+{% else %}
+*No obligations found.*
+{% endif %}
+
+## Package Manifest
+
+| Name | Purpose |
+|---|---|
+{% if packages %}
+{%- set pkg_list = packages | split(pat="|") -%}
+{% for pkg in pkg_list -%}
+{%- set data = pkg | split(pat="::") -%}
+| {{ data[0] }} | {{ data[1] }} |
+{% endfor %}
+{% endif %}
+
+## Rules of Engagement
+
+{% if rules %}
+{%- set rule_list = rules | split(pat="|") -%}
+{% for rule in rule_list %}
+{%- set data = rule | split(pat="::") -%}
+### {{ data[0] }}
+{{ data[1] }}
+{% endfor %}
+{% endif %}
+
+## Failure Taxonomy
+
+{% if failures %}
+{%- set fail_list = failures | split(pat="|") -%}
+{% for fail in fail_list %}
+{%- set data = fail | split(pat="::") -%}
+- **{{ data[0] }}**: {{ data[1] }}
+{% endfor %}
+{% endif %}
+
+## Derivation Calculus Rules
+
+{% if derivations %}
+{%- set drv_list = derivations | split(pat="|") -%}
+{% for drv in drv_list %}
+{%- set data = drv | split(pat="::") -%}
+### {{ data[0] }}
+{{ data[1] }}
+{% endfor %}
+{% endif %}

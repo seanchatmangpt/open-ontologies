@@ -3,8 +3,8 @@
   "persona_id": "Factory",
   "actuation_plan_id": "actuate_JTBD-001",
   "expected_ocel_hash": "43bedfb490c5ff4fc837664be771233b2297d66d165561bdf2fb98a058cbacb3",
-  "real_boundary_evidence": "568e131b5321c2dc65ba60d9979b5a9036748d0f4ef89e4ed40ed57f443dc01a",
-  "raw_evidence_hash": "538d612d1e05ef65b176ce888ae0778c168c0d5022d12771117ff82dfe7022ff",
+  "real_boundary_evidence": "692addf575c8ab822817303a36ad8fbb28c1b487562147960ced9b790b4a7668",
+  "raw_evidence_hash": "eb809c26c4b4642513cd0306a73f31991d3e40a3ce011bc2212c4927b09d76c6",
   "boundary_type": "headless_membrane",
   "actor_basis8": "persona_factory",
   "execution_mode": "real_boundary_execution",
@@ -39,7 +39,7 @@
       "ocel:vmap": {
         "status": "Complete",
         "exit_code": 0,
-        "stdout_hash": "b3700bbca404c5f5027f69b13b7df148c8b6cd5afa9b2c1f8a4428cfdcff4402"
+        "stdout_hash": "c6e3d03951ab07c6f1a1c74b9c7f20d8ddd2185a9cb065c8de148e7d4cf436ef"
       }
     }
   ],

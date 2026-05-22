@@ -60,6 +60,8 @@ imports = [
     "ontology/ghf-core.ttl",
     "ontology/ghf-shacl.ttl",
     "ontology/ghf-security-policy.ttl",
+    # Truex Ecosystem domain
+    "ontology/truex-ecosystem.ttl",
     # NOTE on scope: tested under both ggen v26.5.5 AND v26.5.18 — expanding
 
     # `imports` beyond the above blows up pre-flight (39 imports → >10 min,
@@ -248,7 +250,28 @@ rules = [
     { name = "ghf-proof-matrix",        query = { file = ".specify/queries/ghf/contribution_units_aggregated.rq" }, template = { file = ".specify/templates/ghf/docs/proof-matrix.md.tera" },        output_file = "docs/ghf-proof-matrix.md",        mode = "Overwrite" },
     { name = "ghf-weekly-ledger",       query = { file = ".specify/queries/ghf/contribution_units_aggregated.rq" }, template = { file = ".specify/templates/ghf/docs/weekly-ledger-template.md.tera" }, output_file = "docs/weekly-ledger-template.md", mode = "Overwrite" },
     { name = "ghf-security-md",         query = { file = ".specify/queries/ghf/security_policy_aggregated.rq" },    template = { file = ".specify/templates/ghf/docs/security.md.tera" },             output_file = "SECURITY.md",                      mode = "Overwrite" },
-]
+
+    # Truex Ecosystem — Packages & Metadata
+    # We use multiple rules because ggen v5 expects one file per output_file. 
+    # For the 10 packages, we will generate the core package.json.
+    { name = "truex-packages", query = { file = ".specify/queries/truex/packages.rq" }, template = { file = ".specify/templates/truex/package.json.tera" }, output_file = "packages/truex/{{ name | replace(from='@truex/', to='') }}/package.json", mode = "Overwrite" },
+    { name = "truex-verifier-src", query = { file = ".specify/queries/truex/failure-taxonomy-aggregated.rq" }, template = { file = ".specify/templates/truex/verifier/index.ts.tera" }, output_file = "packages/truex/verifier/index.ts", mode = "Overwrite" },
+    { name = "truex-receipt-src",  query = { file = ".specify/queries/truex/packages.rq" },                 template = { file = ".specify/templates/truex/receipt/index.ts.tera" },  output_file = "packages/truex/receipt/index.ts",  mode = "Overwrite" },
+    { name = "truex-replay-src",   query = { file = ".specify/queries/truex/packages.rq" },                 template = { file = ".specify/templates/truex/replay/index.ts.tera" },   output_file = "packages/truex/replay/index.ts",   mode = "Overwrite" },
+    { name = "truex-cli-src",      query = { file = ".specify/queries/truex/packages.rq" },                 template = { file = ".specify/templates/truex/cli/main.ts.tera" },     output_file = "packages/truex/cli/main.ts",     mode = "Overwrite" },
+
+    # Truex Ecosystem — Schemas
+    { name = "truex-schema-receipt",  query = { file = ".specify/queries/truex/artifacts.rq" }, template = { file = ".specify/templates/truex/schemas/receipt.v1.schema.json.tera" },  output_file = "schemas/truex-receipt.v1.schema.json",  mode = "Overwrite" },
+    { name = "truex-schema-boundary", query = { file = ".specify/queries/truex/artifacts.rq" }, template = { file = ".specify/templates/truex/schemas/receipt.v1.schema.json.tera" },  output_file = "schemas/truex-boundary.v1.schema.json", mode = "Overwrite" },
+
+    # Truex Ecosystem — Refusal Tests
+    { name = "truex-test-refusal", query = { file = ".specify/queries/truex/failure-taxonomy-aggregated.rq" }, template = { file = ".specify/templates/truex/tests/receipt-refusal.test.ts.tera" }, output_file = "tests/truex-summary-only-refusal.test.ts", mode = "Overwrite" },
+
+    # Truex Ecosystem — Documentation
+    { name = "truex-docs", query = { file = ".specify/queries/truex/ecosystem-master-aggregated.rq" }, template = { file = ".specify/templates/truex/docs/truex-ecosystem.md.tera" }, output_file = "docs/truex-ecosystem.md", mode = "Overwrite" },
+
+    { name = "truex-manufacture-receipt", query = { file = ".specify/queries/truex/test-obligations.rq" }, template = { file = ".specify/templates/truex/receipts/manufacture-receipt.json.tera" }, output_file = "receipts/manufacture-receipt.json", mode = "Overwrite" },
+    ]
 
 # Protected paths — the hand-written implementations; never overwrite
 protected_paths = [
@@ -349,6 +372,7 @@ allowed_namespaces = [
     "https://ggen.io/onto/cli/revops/",
     "https://open-ontologies.org/profile/github-factory#",
     "http://purl.org/dc/terms/",
+    "https://open-ontologies.org/profile/truex#",
 ]
 
 [security]

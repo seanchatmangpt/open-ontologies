@@ -85,6 +85,57 @@ pub struct Receipt {
     pub receipt_hash: Option<String>,
 }
 
+impl Receipt {
+    /// Helper to construct an OpenOntologyReceipt from raw boundary evidence.
+    pub fn new_from_boundary(
+        artifact_id: String,
+        operator_id: String,
+        route_id: String,
+        expected_ocel_hash: Option<String>,
+        observed_ocel_hash: Option<String>,
+        raw_evidence_hash: Option<String>,
+        stdout_hash: Option<String>,
+        stderr_hash: Option<String>,
+        exit_code: Option<i32>,
+    ) -> Self {
+        let mut r = Receipt {
+            receipt_type: "OpenOntologyReceipt".to_string(),
+            receipt_schema: "oo.receipt.v1".to_string(),
+            version: "26.5.21".to_string(),
+            hash_algorithm: "BLAKE3".to_string(),
+            claim: Claim {
+                artifact_id,
+                operator_id,
+                closure_id: format!("closure_{}", uuid::Uuid::new_v4()),
+                route_id,
+            },
+            expected_ocel: expected_ocel_hash.map(|h| OcelReference { schema: "oo.expected_ocel.v1".to_string(), canonical_hash: h }),
+            observed_ocel: observed_ocel_hash.map(|h| OcelReference { schema: "oo.observed_ocel.v1".to_string(), canonical_hash: h }),
+            alignment: AlignmentProof {
+                state: AlignmentState::Incomplete,
+                missing_events: vec![],
+                unexpected_events: vec![],
+                refusal_state: None,
+                verifier_derived: false,
+            },
+            boundary_evidence: Some(BoundaryEvidence {
+                git_before: None,
+                git_after: None,
+                stdout_hash,
+                stderr_hash,
+                exit_code,
+                files_changed_hash: None,
+                raw_evidence_hash,
+            }),
+            previous_receipt_hash: None,
+            receipt_hash: None,
+        };
+        let bytes = serde_json::to_vec(&r).unwrap();
+        r.receipt_hash = Some(blake3::hash(&bytes).to_hex().to_string());
+        r
+    }
+}
+
 /// Core Validation Law: No embedded OCEL path -> no receipt closure.
 pub fn validate_core_receipt(receipt: &Receipt) -> Result<(), OpenOntologyRefusalState8> {
     // 1. Missing Expected OCEL

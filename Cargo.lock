@@ -5856,6 +5856,7 @@ dependencies = [
  "uuid",
  "wasm-bindgen",
  "wasm-bindgen-futures",
+ "wasm4pm-algos",
  "wasm4pm-cognition",
  "wasm4pm-types",
 ]
@@ -5864,6 +5865,7 @@ dependencies = [
 name = "wasm4pm-algos"
 version = "26.5.21"
 dependencies = [
+ "blake3",
  "hashbrown 0.17.0",
  "itertools 0.14.0",
  "serde",

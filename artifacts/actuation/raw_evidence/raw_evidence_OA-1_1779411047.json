@@ -1,4 +1,0 @@
-{
-  "stdout": "Success",
-  "stderr": "YOLO mode is enabled. All tool calls will be automatically approved.\nYOLO mode is enabled. All tool calls will be automatically approved.\nRipgrep is not available. Falling back to GrepTool.\nMCP issues detected. Run /mcp list for status."
-}

@@ -1,0 +1,38 @@
+{
+  "receipt_type": "OpenOntologyReceipt",
+  "receipt_schema": "oo.receipt.v1",
+  "version": "26.5.21",
+  "hash_algorithm": "BLAKE3",
+  "claim": {
+    "artifact_id": "AS-4",
+    "operator_id": "ggen",
+    "closure_id": "closure_AS-4",
+    "route_id": "autoreceipt_batch"
+  },
+  "expected_ocel": {
+    "schema": "oo.expected_ocel.v1",
+    "canonical_hash": "77bd21cb549fbb18adc3c8656d6c5e5aee3261ff9a2f0ddf491812252778d203"
+  },
+  "observed_ocel": {
+    "schema": "oo.observed_ocel.v1",
+    "canonical_hash": "580c690713de5a68a9c9c21936a6a42f772e6e88564781e1824f1be5721b6f0e"
+  },
+  "alignment": {
+    "state": "Pass",
+    "missing_events": [],
+    "unexpected_events": [],
+    "refusal_state": null,
+    "verifier_derived": true
+  },
+  "boundary_evidence": {
+    "git_before": null,
+    "git_after": null,
+    "stdout_hash": null,
+    "stderr_hash": null,
+    "exit_code": null,
+    "files_changed_hash": null,
+    "raw_evidence_hash": "672425ae0470b34e9639709678f567d86d9cd33efbafdba6a4b2146caabdc589"
+  },
+  "previous_receipt_hash": null,
+  "receipt_hash": "4eb7d4727744f82ef1cef206c8d2b35d798c4c398c3325eaebd5fca1b4f09e0b"
+}

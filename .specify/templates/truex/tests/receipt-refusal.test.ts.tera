@@ -1,0 +1,52 @@
+import { Verifier } from '../packages/truex/verifier';
+import { Receipt } from '../packages/truex/receipt';
+
+describe('Truex Refusal Engine', () => {
+  {%- set label_list = labels | split(pat="|") -%}
+  {%- set definition_list = definitions | split(pat="|") -%}
+  // Failure Taxonomy from Law Surface:
+  {% for label in label_list %}
+  // {{ label }}: {{ definition_list[loop.index0] }}
+  {%- endfor %}
+
+  it('should refuse summary-only proofs', async () => {
+    const verifier = new Verifier();
+    const summaryOnlyReceipt = new Receipt({
+      stdout_hash: 'abc',
+      raw_evidence: null // Missing raw boundary
+    });
+
+    const result = await verifier.verify(summaryOnlyReceipt);
+    expect(result.state).toBe('Refused');
+    expect(result.refusal_state).toBe('SummaryOnlyProof');
+  });
+
+  it('should refuse OCEL laundering (fake paths)', async () => {
+    const verifier = new Verifier();
+    const launderedReceipt = new Receipt({
+      observed_ocel: { /* summary-formatted data */ },
+      raw_evidence_hash: 'mismatch' 
+    });
+
+    const result = await verifier.verify(launderedReceipt);
+    expect(result.state).toBe('Refused');
+    expect(result.refusal_state).toBe('OCELLaundering');
+  });
+
+  it('should refuse OCEL not derivable from raw evidence', async () => {
+    const verifier = new Verifier();
+    const nonDerivableReceipt = new Receipt({
+      raw_evidence: { exit_code: 1, stdout: 'error' },
+      observed_ocel: {
+        'ocel:events': [{
+          'ocel:activity': 'ExecutionComplete_OA-1',
+          'ocel:vmap': { exit_code: 0 } // Mismatch: OCEL says success, Raw says fail
+        }]
+      }
+    });
+
+    const result = await verifier.verify(nonDerivableReceipt);
+    expect(result.state).toBe('Refused');
+    expect(result.refusal_state).toBe('OCELLaundering');
+  });
+});

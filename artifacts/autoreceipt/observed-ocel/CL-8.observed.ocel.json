@@ -1,12 +1,12 @@
 {
   "jtbd_id": "CL-8",
   "persona_id": "Compliance",
-  "actuation_plan_id": "actuate_OA-3",
+  "actuation_plan_id": "actuate_CL-8",
   "expected_ocel_hash": "77bd21cb549fbb18adc3c8656d6c5e5aee3261ff9a2f0ddf491812252778d203",
-  "real_boundary_evidence": "196a79f68e72088dcef16608f261070721b9c4fe36b3918c0b3a519492e2fc3e",
-  "raw_evidence_hash": "39a22bf372d8ec7733de8108f4167ecfee412ceaf82864a5d0bcce74bd6f8c38",
+  "real_boundary_evidence": "0303c9706ee1093c1a91a1be5de2e4cc5b4c2f71b3d64ba78b9e935a9a4d69fe",
+  "raw_evidence_hash": "672425ae0470b34e9639709678f567d86d9cd33efbafdba6a4b2146caabdc589",
   "boundary_type": "headless_membrane",
-  "actor_basis8": "persona_ontology",
+  "actor_basis8": "persona_compliance",
   "execution_mode": "real_boundary_execution",
   "ocel:global-log": {
     "ocel:object-types": [

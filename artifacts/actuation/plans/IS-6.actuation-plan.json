@@ -5,5 +5,5 @@
   "actor_basis8": "persona_scientific",
   "allowed": true,
   "working_directory": "/Users/sac/wasm4pm",
-  "command": null
+  "command": "echo 'Success'"
 }

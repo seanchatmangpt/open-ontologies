@@ -1,0 +1,14 @@
+{
+  "name": "@truex/ocel2",
+  "version": "1.0.0",
+  "description": "OCEL 2.0 logical model + validators.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "jest"
+  },
+  "dependencies": {
+    "blake3": "^2.1.7"
+  }
+}

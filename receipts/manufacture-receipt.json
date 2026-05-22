@@ -1,0 +1,29 @@
+{
+  "receipt_type": "ManufacturingPassReceipt",
+  "ecosystem": "Truex",
+  "version": "1.0.0",
+  "timestamp": "2026-05-21T23:18:37Z",
+  "obligations_discharged": [
+    "ReplayAdjudicationRule",
+    
+    "ReleaseReceiptEmitted",
+    
+    "FraudulentPathRefused",
+    
+    "ValidPathAdmitted",
+    
+    "OCELLaunderingRefused",
+    
+    "SummaryOnlyProofRefused",
+    
+    "RawBoundaryMandatory",
+    
+    "VerifierIndependent",
+    
+    "AllSchemasMaterialized",
+    
+    "AllRequiredPackagesEmitted"
+    
+  ],
+  "receipt_hash": "..."
+}

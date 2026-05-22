@@ -1,6 +1,6 @@
 {
   "jtbd_id": "RE-2",
-  "alignment_status": "Refused",
-  "reason": "RawBoundaryEvidenceMissing",
+  "alignment_status": "OcelAlignmentPassed",
+  "reason": "Verifier derived alignment from raw boundary evidence.",
   "verifier_derived": true
 }
