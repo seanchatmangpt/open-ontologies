@@ -71,6 +71,7 @@ obs = {
     'actuation_plan_id': receipt['action_id'],
     'expected_ocel_hash': exp_hash,
     'real_boundary_evidence': receipt['receipt_hash'],
+    'raw_evidence_hash': receipt.get('raw_evidence_hash', 'missing'),
     'actor_basis8': receipt.get('actor_basis8', 'persona_autonomous'),
     'execution_mode': 'real_boundary_execution',
     'ocel:global-log': {'ocel:object-types': ['schema:Action', 'prov:Entity', 'prov:Agent']},
@@ -79,16 +80,10 @@ obs = {
 with open(f'artifacts/autoreceipt/observed-ocel/{jtbd_id}.observed.ocel.json', 'w') as f:
     json.dump(obs, f, indent=2)
 
-align = {
-    'jtbd_id': jtbd_id,
-    'alignment_status': 'OcelAlignmentPassed',
-    'reason': 'Real execution trace generated via autonomic loop.'
-}
-with open(f'artifacts/autoreceipt/alignment/{jtbd_id}.alignment.receipt.json', 'w') as f:
-    json.dump(align, f, indent=2)
+print(f'Observed OCEL generated for {jtbd_id}. Alignment must be derived by the verifier.')
 "
   
-  echo "JTBD $JTBD_ID successfully actuated and aligned."
+  echo "JTBD $JTBD_ID successfully actuated."
   sleep 2
 done
 

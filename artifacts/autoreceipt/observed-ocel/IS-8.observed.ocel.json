@@ -3,10 +3,11 @@
   "persona_id": "Scientific",
   "actuation_plan_id": "actuate_OA-3",
   "expected_ocel_hash": "77bd21cb549fbb18adc3c8656d6c5e5aee3261ff9a2f0ddf491812252778d203",
-  "real_boundary_evidence": true,
+  "real_boundary_evidence": "196a79f68e72088dcef16608f261070721b9c4fe36b3918c0b3a519492e2fc3e",
+  "raw_evidence_hash": "39a22bf372d8ec7733de8108f4167ecfee412ceaf82864a5d0bcce74bd6f8c38",
   "boundary_type": "headless_membrane",
   "actor_basis8": "persona_ontology",
-  "execution_mode": "real_boundary",
+  "execution_mode": "real_boundary_execution",
   "ocel:global-log": {
     "ocel:object-types": [
       "prov:Agent",
@@ -38,7 +39,7 @@
       "ocel:vmap": {
         "status": "Complete",
         "exit_code": 0,
-        "stdout_hash": "a308a62413936fc7abed36e61c9e9a93b8306855472b7ac599e92ce229f78e5d"
+        "stdout_hash": "7fc0023a6402c7bd7abd98bb3e580968de4833eed07d88d1cc8d70819d69c7a0"
       }
     }
   ],

@@ -1,16 +1,47 @@
 {
   "jtbd_id": "JTBD-001",
-  "actuation_plan_id": "JTBD-001",
+  "persona_id": "Factory",
+  "actuation_plan_id": "actuate_JTBD-001",
   "expected_ocel_hash": "43bedfb490c5ff4fc837664be771233b2297d66d165561bdf2fb98a058cbacb3",
-  "real_boundary_evidence": "67ad4088e821ab9bf2203f102d4ae1af0f7972e4a6bf156c59e736d1a1c66866",
+  "real_boundary_evidence": "568e131b5321c2dc65ba60d9979b5a9036748d0f4ef89e4ed40ed57f443dc01a",
+  "raw_evidence_hash": "538d612d1e05ef65b176ce888ae0778c168c0d5022d12771117ff82dfe7022ff",
+  "boundary_type": "headless_membrane",
+  "actor_basis8": "persona_factory",
   "execution_mode": "real_boundary_execution",
-  "valid_for_autoreceipt_closure": true,
-  "actor_basis8": "persona_autonomous",
   "ocel:global-log": {
     "ocel:object-types": [
+      "prov:Agent",
       "schema:Action",
-      "prov:Entity",
-      "prov:Agent"
+      "prov:Entity"
     ]
-  }
+  },
+  "ocel:events": [
+    {
+      "ocel:activity": "IntentSubmitted",
+      "ocel:vmap": {
+        "status": "Pending"
+      }
+    },
+    {
+      "ocel:activity": "PolicyChecked",
+      "ocel:vmap": {
+        "status": "Admitted"
+      }
+    },
+    {
+      "ocel:activity": "ReceiptEmitted",
+      "ocel:vmap": {
+        "status": "Complete"
+      }
+    },
+    {
+      "ocel:activity": "ExecutionComplete_JTBD-001",
+      "ocel:vmap": {
+        "status": "Complete",
+        "exit_code": 0,
+        "stdout_hash": "b3700bbca404c5f5027f69b13b7df148c8b6cd5afa9b2c1f8a4428cfdcff4402"
+      }
+    }
+  ],
+  "valid_for_autoreceipt_closure": true
 }

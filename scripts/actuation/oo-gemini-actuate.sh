@@ -125,6 +125,16 @@ GIT_DIRTY_AFTER=$(git status --short 2>/dev/null || true)
 # Simple files_changed array by checking git status diff
 FILES_CHANGED=$(git diff --name-only | jq -R -s -c 'split("\n")[:-1]')
 
+RAW_EVIDENCE_DIR="$(pwd)/artifacts/actuation/raw_evidence"
+mkdir -p "$RAW_EVIDENCE_DIR"
+RAW_EVIDENCE_PATH="$RAW_EVIDENCE_DIR/raw_evidence_${ACTION_ID}_$(date +%s).json"
+
+jq -n \
+  --arg out "$(cat "$STDOUT_FILE")" \
+  --arg err "$(cat "$STDERR_FILE")" \
+  '{stdout: $out, stderr: $err}' > "$RAW_EVIDENCE_PATH"
+
+RAW_EVIDENCE_HASH=$(shasum -a 256 "$RAW_EVIDENCE_PATH" | awk '{print $1}')
 STDOUT_HASH=$(shasum -a 256 "$STDOUT_FILE" | awk '{print $1}')
 STDERR_HASH=$(shasum -a 256 "$STDERR_FILE" | awk '{print $1}')
 
@@ -143,6 +153,7 @@ jq -n \
   --arg ih "$INPUTS_HASH" \
   --arg soh "$STDOUT_HASH" \
   --arg seh "$STDERR_HASH" \
+  --arg reh "$RAW_EVIDENCE_HASH" \
   --argjson ec "$EXIT_CODE" \
   --argjson fc "$FILES_CHANGED" \
   --arg gb "$GIT_BEFORE" \
@@ -162,6 +173,7 @@ jq -n \
     inputs_hash: $ih,
     stdout_hash: $soh,
     stderr_hash: $seh,
+    raw_evidence_hash: $reh,
     exit_code: $ec,
     files_changed: $fc,
     git_before: $gb,

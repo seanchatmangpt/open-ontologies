@@ -28,6 +28,7 @@ fn dummy_receipt() -> Receipt {
             missing_events: vec![],
             unexpected_events: vec![],
             refusal_state: None,
+            verifier_derived: true,
         },
         boundary_evidence: Some(BoundaryEvidence {
             git_before: Some("a".into()),
@@ -36,6 +37,7 @@ fn dummy_receipt() -> Receipt {
             stderr_hash: None,
             exit_code: Some(0),
             files_changed_hash: None,
+            raw_evidence_hash: Some("raw_hash".into()),
         }),
         previous_receipt_hash: None,
         receipt_hash: None,
@@ -53,14 +55,57 @@ fn test_refuses_receipt_without_observed_ocel() {
 }
 
 #[test]
-fn test_refuses_receipt_with_cloned_expected_as_observed() {
+fn test_auto_actuate_refuses_summary_only_boundary_evidence() {
+    let mut r = dummy_receipt();
+    r.boundary_evidence.as_mut().unwrap().raw_evidence_hash = None;
+    // It has stdout_hash but no raw_evidence_hash
+    assert_eq!(
+        validate_core_receipt(&r),
+        Err(OpenOntologyRefusalState8::BoundaryEvidenceHashOnly)
+    );
+}
+
+#[test]
+fn test_auto_actuate_refuses_missing_raw_boundary_evidence() {
+    let mut r = dummy_receipt();
+    r.boundary_evidence.as_mut().unwrap().raw_evidence_hash = None;
+    r.boundary_evidence.as_mut().unwrap().stdout_hash = None;
+    // It has exit code but no raw_evidence_hash
+    assert_eq!(
+        validate_core_receipt(&r),
+        Err(OpenOntologyRefusalState8::RawBoundaryEvidenceMissing)
+    );
+}
+
+#[test]
+fn test_auto_actuate_refuses_cloned_expected_observed_ocel() {
     let mut r = dummy_receipt();
     let exp_hash = r.expected_ocel.as_ref().unwrap().canonical_hash.clone();
     r.observed_ocel.as_mut().unwrap().canonical_hash = exp_hash;
-    r.boundary_evidence = None; // Missing bounds + matching hashes = cloned synthetic
     assert_eq!(
         validate_core_receipt(&r),
-        Err(OpenOntologyRefusalState8::ObservedOCELSynthetic)
+        Err(OpenOntologyRefusalState8::ExpectedObservedCloneDetected)
+    );
+}
+
+#[test]
+fn test_auto_actuate_refuses_self_authored_alignment_receipt() {
+    let mut r = dummy_receipt();
+    r.alignment.verifier_derived = false;
+    assert_eq!(
+        validate_core_receipt(&r),
+        Err(OpenOntologyRefusalState8::AlignmentReceiptSelfAuthored)
+    );
+}
+
+#[test]
+fn test_auto_actuate_refuses_clean_tree_as_substitute_for_path_proof() {
+    let mut r = dummy_receipt();
+    // Simulate clean tree by having no changed files but missing boundary evidence entirely
+    r.boundary_evidence = None;
+    assert_eq!(
+        validate_core_receipt(&r),
+        Err(OpenOntologyRefusalState8::BoundaryEvidenceMissing)
     );
 }
 
@@ -74,11 +119,12 @@ fn test_refuses_receipt_with_exit_code_only_proof() {
         stderr_hash: None,
         exit_code: Some(0),
         files_changed_hash: None,
+        raw_evidence_hash: None,
     };
     r.boundary_evidence = Some(bounds);
     assert_eq!(
         validate_core_receipt(&r),
-        Err(OpenOntologyRefusalState8::BoundaryEvidenceMissing)
+        Err(OpenOntologyRefusalState8::RawBoundaryEvidenceMissing)
     );
 }
 

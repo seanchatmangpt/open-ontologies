@@ -198,6 +198,12 @@ pub fn verify_receipt(receipt: &ContributionReceipt) -> ValidationResult {
                 crate::autoreceipt::OpenOntologyRefusalState8::FleetDriftDetected => RefusalState8::FleetDriftDetected,
                 crate::autoreceipt::OpenOntologyRefusalState8::RulesetObservedMismatch => RefusalState8::PolicyConformanceFailed,
                 crate::autoreceipt::OpenOntologyRefusalState8::OutOfMembraneMutation => RefusalState8::ExternalVerificationFailed,
+                crate::autoreceipt::OpenOntologyRefusalState8::RawBoundaryEvidenceMissing => RefusalState8::BoundaryEvidenceMissing,
+                crate::autoreceipt::OpenOntologyRefusalState8::ObservedOCELNotBoundaryDerived => RefusalState8::SyntheticClosureLie,
+                crate::autoreceipt::OpenOntologyRefusalState8::ObservedOCELFormattedFromSummary => RefusalState8::SyntheticClosureLie,
+                crate::autoreceipt::OpenOntologyRefusalState8::BoundaryEvidenceHashOnly => RefusalState8::BoundaryEvidenceMissing,
+                crate::autoreceipt::OpenOntologyRefusalState8::AlignmentReceiptSelfAuthored => RefusalState8::SyntheticClosureLie,
+                crate::autoreceipt::OpenOntologyRefusalState8::ExpectedObservedCloneDetected => RefusalState8::SyntheticClosureLie,
             };
             
             ValidationResult {

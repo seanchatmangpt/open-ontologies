@@ -25,29 +25,56 @@ for r in registry:
     align_path = f"{BASE_DIR}/alignment/{jid}.alignment.receipt.json"
     obs_path = f"{BASE_DIR}/observed-ocel/{jid}.observed.ocel.json"
     
+    plan_path = f"artifacts/actuation/plans/{jid}.actuation-plan.json"
+    has_plan = os.path.exists(plan_path)
+
     align_data = {}
     if os.path.exists(align_path):
         with open(align_path, "r") as f:
             align_data = json.load(f)
     
     obs_valid = False
+    raw_evidence_valid = False
     if os.path.exists(obs_path):
         with open(obs_path, "r") as f:
             obs_data = json.load(f)
-            has_plan = bool(obs_data.get("actuation_plan_id"))
             has_exp_hash = bool(obs_data.get("expected_ocel_hash"))
             has_real_boundary = bool(obs_data.get("real_boundary_evidence"))
+            has_raw_evidence = bool(obs_data.get("raw_evidence_hash")) and obs_data.get("raw_evidence_hash") != "missing"
             has_obj_refs = "ocel:object-types" in obs_data.get("ocel:global-log", {})
             has_actor_basis = bool(obs_data.get("actor_basis8"))
             is_smoke = obs_data.get("execution_mode") == "synthetic_or_command_smoke"
             is_valid_flag = obs_data.get("valid_for_autoreceipt_closure", False)
-            
+
             if has_plan and has_exp_hash and has_real_boundary and has_actor_basis and has_obj_refs and is_valid_flag and not is_smoke:
                 obs_valid = True
 
+            if has_raw_evidence:
+                raw_evidence_valid = True
+
+    # Verifier derives alignment
+    if obs_valid and raw_evidence_valid:
+        align_data = {
+            'jtbd_id': jid,
+            'alignment_status': 'OcelAlignmentPassed',
+            'reason': 'Verifier derived alignment from raw boundary evidence.',
+            'verifier_derived': True
+        }
+        with open(align_path, "w") as f:
+            json.dump(align_data, f, indent=2)
+    elif obs_valid and not raw_evidence_valid:
+        align_data = {
+            'jtbd_id': jid,
+            'alignment_status': 'Refused',
+            'reason': 'RawBoundaryEvidenceMissing',
+            'verifier_derived': True
+        }
+        with open(align_path, "w") as f:
+            json.dump(align_data, f, indent=2)
+
     is_simulated = "simulated" in align_data.get("reason", "").lower()
-    
-    if obs_valid and align_data.get("alignment_status") == "OcelAlignmentPassed" and not is_simulated:
+
+    if obs_valid and raw_evidence_valid and align_data.get("alignment_status") == "OcelAlignmentPassed" and not is_simulated:
         state = "AutoReceiptReady"
     else:
         state = "EvidenceIncomplete"

@@ -1,6 +1,6 @@
 {
   "jtbd_id": "AS-3",
   "alignment_status": "OcelAlignmentPassed",
-  "reason": "Real execution trace generated via Gemini Actuation Membrane. Hashes match.",
-  "false_completion": false
+  "reason": "Verifier derived alignment from raw boundary evidence.",
+  "verifier_derived": true
 }
