@@ -3,7 +3,7 @@
 //! Uses the headless `gemini` CLI (OAuth, no API key required) as the LLM
 //! backend — the same pattern as speckit-ralph's `gemini-invoke.sh`. Invokes:
 //!
-//!   npx -y @google/gemini-cli -p "<prompt>" --model gemini-3.1-flash-lite-preview --approval-mode yolo
+//!   npx -y @google/gemini-cli -p "<prompt>" --model gemini-3.1-flash-lite --approval-mode yolo
 //!
 //! Skip conditions (not a test failure):
 //!   - `gemini` binary not found in PATH or GEMINI_BIN
@@ -48,7 +48,7 @@ fn build_server() -> (tempfile::TempDir, OpenOntologiesServer) {
 fn gemini_available() -> bool {
     let bin = std::env::var("GEMINI_BIN").unwrap_or_else(|_| "gemini".to_string());
     match std::process::Command::new(&bin)
-        .args(["-p", "ping", "--model", "gemini-3.1-flash-lite-preview", "--approval-mode", "yolo"])
+        .args(["-p", "ping", "--model", "gemini-3.1-flash-lite", "--approval-mode", "yolo"])
         .output()
     {
         Ok(out) => out.status.success(),

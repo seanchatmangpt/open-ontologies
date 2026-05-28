@@ -397,36 +397,7 @@ fn certify(data_dir: Option<String>) -> NounVerbResult<CertifyOutput> {
 fn doctor(data_dir: Option<String>) -> NounVerbResult<DoctorOutput> {
     let (_db, graph) = setup(data_dir.as_deref().unwrap_or(DEFAULT_DATA_DIR)).map_err(to_verb_err)?;
 
-    let mut checks = vec![];
-
-    // Check 1: RDF store connectivity
-    let store_ok = graph
-        .sparql_select("SELECT (COUNT(*) AS ?count) WHERE { ?s ?p ?o }")
-        .is_ok();
-    checks.push((
-        "RDF Store".to_string(),
-        store_ok,
-        if store_ok {
-            "RDF store accessible".to_string()
-        } else {
-            "RDF store unreachable".to_string()
-        },
-    ));
-
-    // Check 2: Thesis shapes file (stub: always pass)
-    checks.push((
-        "Thesis Shapes".to_string(),
-        true,
-        "ontology/thesis-shapes.ttl located".to_string(),
-    ));
-
-    // Check 3: Gemini connectivity (stub: assume pass)
-    checks.push((
-        "Gemini Connectivity".to_string(),
-        true,
-        "Gemini 3.1 Flash reachable (stub)".to_string(),
-    ));
-
+    let checks = open_ontologies::thesis_doctor::run_doctor_checks(&graph);
     let all_ok = checks.iter().all(|(_, ok, _)| *ok);
 
     Ok(DoctorOutput {

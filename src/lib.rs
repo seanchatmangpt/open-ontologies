@@ -38,6 +38,7 @@ pub mod webhook;
 pub mod mapping;
 pub mod marketplace;
 pub mod ontology;
+pub mod thesis_doctor;
 pub mod reason;
 pub mod registry;
 // Round 4 WD — §29 Cell8 retirement closure.

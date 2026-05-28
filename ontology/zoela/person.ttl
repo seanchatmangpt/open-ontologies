@@ -9,6 +9,7 @@
 @prefix foaf:    <http://xmlns.com/foaf/0.1/> .
 @prefix org:     <http://www.w3.org/ns/org#> .
 @prefix sh:      <http://www.w3.org/ns/shacl#> .
+@prefix vcard:   <http://www.w3.org/2006/vcard/ns#> .
 
 # ============================================================================
 # ZOE LA — Person / Household Domain Ontology
@@ -31,19 +32,42 @@ zoe:PersonOntology a owl:Ontology ;
 # Classes
 # ============================================================================
 
+zoe:Agent a owl:Class ;
+    rdfs:label      "Agent"@en ;
+    rdfs:comment    "An agent (person, group, software, or organization) in the ZOE LA system."@en ;
+    owl:equivalentClass foaf:Agent ;
+    rdfs:subClassOf schema:Thing .
+
 zoe:PersonProfile a owl:Class ;
     rdfs:label      "Person Profile"@en ;
-    rdfs:comment    "A church member or visitor whose identity and household affiliation are tracked in the ZOE LA Mobile app."@en ;
-    rdfs:subClassOf schema:Person ;
-    owl:equivalentClass foaf:Person ;
+    rdfs:comment    "A church member, volunteer, staff, or visitor whose identity and household affiliation are tracked in the ZOE LA Mobile app."@en ;
+    rdfs:subClassOf schema:Person, zoe:Agent ;
+    owl:equivalentClass foaf:Person, vcard:Individual ;
     skos:notation   "persons" .
+
+zoe:Organization a owl:Class ;
+    rdfs:label      "Organization"@en ;
+    rdfs:comment    "An organization, department, or group in the ZOE LA system."@en ;
+    rdfs:subClassOf schema:Organization, zoe:Agent ;
+    owl:equivalentClass foaf:Organization, org:Organization .
 
 zoe:Household a owl:Class ;
     rdfs:label      "Household"@en ;
     rdfs:comment    "A family or cohabiting group registered with ZOE LA, used to group PersonProfiles by physical address."@en ;
-    rdfs:subClassOf schema:Organization ;
-    rdfs:subClassOf org:Organization ;
+    rdfs:subClassOf zoe:Organization ;
     skos:notation   "households" .
+
+zoe:FormalOrganization a owl:Class ;
+    rdfs:label      "Formal Organization"@en ;
+    rdfs:comment    "A legally recognized organization in the ZOE LA ecosystem, such as partner non-profits or corporate entities."@en ;
+    rdfs:subClassOf zoe:Organization ;
+    owl:equivalentClass org:FormalOrganization .
+
+zoe:OrganizationalUnit a owl:Class ;
+    rdfs:label      "Organizational Unit"@en ;
+    rdfs:comment    "A department, ministry area, storehouse management unit, or other division within ZOE LA."@en ;
+    rdfs:subClassOf zoe:Organization ;
+    owl:equivalentClass org:OrganizationalUnit .
 
 # ============================================================================
 # PersonProfile — Datatype Properties
@@ -56,7 +80,8 @@ zoe:firstName a owl:DatatypeProperty ;
     rdfs:range      xsd:string ;
     skos:notation   "first_name" ;
     owl:equivalentProperty foaf:firstName ;
-    owl:equivalentProperty schema:givenName .
+    owl:equivalentProperty schema:givenName ;
+    owl:equivalentProperty vcard:given-name .
 
 zoe:lastName a owl:DatatypeProperty ;
     rdfs:label      "last name"@en ;
@@ -65,7 +90,18 @@ zoe:lastName a owl:DatatypeProperty ;
     rdfs:range      xsd:string ;
     skos:notation   "last_name" ;
     owl:equivalentProperty foaf:lastName ;
-    owl:equivalentProperty schema:familyName .
+    owl:equivalentProperty schema:familyName ;
+    owl:equivalentProperty vcard:family-name .
+
+zoe:fullName a owl:DatatypeProperty ;
+    rdfs:label      "full name"@en ;
+    rdfs:comment    "The complete formatted name of the person."@en ;
+    rdfs:domain     zoe:PersonProfile ;
+    rdfs:range      xsd:string ;
+    skos:notation   "full_name" ;
+    owl:equivalentProperty foaf:name ;
+    owl:equivalentProperty schema:name ;
+    owl:equivalentProperty vcard:fn .
 
 zoe:email a owl:DatatypeProperty ;
     rdfs:label      "email"@en ;
@@ -74,7 +110,8 @@ zoe:email a owl:DatatypeProperty ;
     rdfs:range      xsd:string ;
     skos:notation   "email" ;
     owl:equivalentProperty foaf:mbox ;
-    owl:equivalentProperty schema:email .
+    owl:equivalentProperty schema:email ;
+    owl:equivalentProperty vcard:hasEmail , vcard:email .
 
 zoe:phone a owl:DatatypeProperty ;
     rdfs:label      "phone"@en ;
@@ -82,7 +119,8 @@ zoe:phone a owl:DatatypeProperty ;
     rdfs:domain     zoe:PersonProfile ;
     rdfs:range      xsd:string ;
     skos:notation   "phone" ;
-    owl:equivalentProperty schema:telephone .
+    owl:equivalentProperty schema:telephone ;
+    owl:equivalentProperty vcard:hasTelephone , vcard:tel .
 
 zoe:role a owl:DatatypeProperty ;
     rdfs:label      "role"@en ;
@@ -121,7 +159,8 @@ zoe:addressLine1 a owl:DatatypeProperty ;
     rdfs:domain     zoe:Household ;
     rdfs:range      xsd:string ;
     skos:notation   "address_line1" ;
-    owl:equivalentProperty schema:streetAddress .
+    owl:equivalentProperty schema:streetAddress ;
+    owl:equivalentProperty vcard:street-address .
 
 zoe:city a owl:DatatypeProperty ;
     rdfs:label      "city"@en ;
@@ -129,7 +168,17 @@ zoe:city a owl:DatatypeProperty ;
     rdfs:domain     zoe:Household ;
     rdfs:range      xsd:string ;
     skos:notation   "city" ;
-    owl:equivalentProperty schema:addressLocality .
+    owl:equivalentProperty schema:addressLocality ;
+    owl:equivalentProperty vcard:locality .
+
+zoe:state a owl:DatatypeProperty ;
+    rdfs:label      "state or region"@en ;
+    rdfs:comment    "The state, province, or region of the address."@en ;
+    rdfs:domain     zoe:Household ;
+    rdfs:range      xsd:string ;
+    skos:notation "state" ;
+    owl:equivalentProperty schema:addressRegion ;
+    owl:equivalentProperty vcard:region .
 
 zoe:zip a owl:DatatypeProperty ;
     rdfs:label      "zip code"@en ;
@@ -137,4 +186,5 @@ zoe:zip a owl:DatatypeProperty ;
     rdfs:domain     zoe:Household ;
     rdfs:range      xsd:string ;
     skos:notation   "zip" ;
-    owl:equivalentProperty schema:postalCode .
+    owl:equivalentProperty schema:postalCode ;
+    owl:equivalentProperty vcard:postal-code .

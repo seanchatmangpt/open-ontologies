@@ -6,6 +6,7 @@
 @prefix dcterms: <http://purl.org/dc/terms/> .
 @prefix odrl:    <http://www.w3.org/ns/odrl/2/> .
 @prefix skos:    <http://www.w3.org/2004/02/skos/core#> .
+@prefix acl:     <http://www.w3.org/ns/auth/acl#> .
 
 # ============================================================================
 # ZOE LA Mobile — Permission Policy Ontology
@@ -75,8 +76,62 @@ zoe:YouthProtected a zoe:SensitivityLevel ;
   rdfs:label      "Youth Protected"@en ;
   rdfs:comment    "Data concerning minors. Subject to safeguarding policies; visible only to cleared youth ministry staff and admin."@en ;
   skos:notation   "youth_protected" .
+# ============================================================================
+# Solid ACL Vocabulary Declarations
+# ============================================================================
+
+acl:Authorization a owl:Class ;
+  rdfs:label "Authorization"@en ;
+  rdfs:comment "An element of access control, which associates agents and resources with access modes."@en .
+
+acl:AccessMode a owl:Class ;
+  rdfs:label "Access Mode"@en ;
+  rdfs:comment "A mode of access (e.g., Read, Write, Control, Append)."@en .
+
+acl:mode a owl:ObjectProperty ;
+  rdfs:label "access mode"@en ;
+  rdfs:comment "Links an Authorization to its allowed AccessMode."@en ;
+  rdfs:domain acl:Authorization ;
+  rdfs:range acl:AccessMode .
+
+acl:agent a owl:ObjectProperty ;
+  rdfs:label "agent"@en ;
+  rdfs:comment "Links an Authorization to the agent being authorized."@en ;
+  rdfs:domain acl:Authorization .
+
+acl:agentClass a owl:ObjectProperty ;
+  rdfs:label "agent class"@en ;
+  rdfs:comment "Links an Authorization to a class of agents (like a role) being authorized."@en ;
+  rdfs:domain acl:Authorization .
+
+acl:accessTo a owl:ObjectProperty ;
+  rdfs:label "access to"@en ;
+  rdfs:comment "Links an Authorization to the specific resource being secured."@en ;
+  rdfs:domain acl:Authorization .
+
+acl:accessToClass a owl:ObjectProperty ;
+  rdfs:label "access to class"@en ;
+  rdfs:comment "Links an Authorization to a class of resources being secured."@en ;
+  rdfs:domain acl:Authorization .
+
+acl:Read a acl:AccessMode ;
+  rdfs:label "Read"@en ;
+  rdfs:comment "The mode of access that allows reading/viewing a resource."@en .
+
+acl:Write a acl:AccessMode ;
+  rdfs:label "Write"@en ;
+  rdfs:comment "The mode of access that allows editing/modifying/writing a resource."@en .
+
+acl:Control a acl:AccessMode ;
+  rdfs:label "Control"@en ;
+  rdfs:comment "The mode of access that allows managing permissions/policies on a resource."@en .
+
+acl:Append a acl:AccessMode ;
+  rdfs:label "Append"@en ;
+  rdfs:comment "The mode of access that allows appending data to a resource."@en .
 
 # ── ODRL action vocabulary extensions ────────────────────────────────────────
+
 
 zoe:viewPublicEvents a odrl:Action ;
   rdfs:label   "View Public Events"@en ;
@@ -168,6 +223,37 @@ zoe:manageConnectGroups a odrl:Action ;
   rdfs:comment "Permission for ministry leads and admins to manage Connect Group records."@en ;
   skos:notation "manage_connect_groups" .
 
+zoe:viewStorehouses a odrl:Action ;
+  rdfs:label   "View Storehouses"@en ;
+  rdfs:comment "Permission to view storehouse facilities and storage units."@en ;
+  skos:notation "view_storehouses" .
+
+zoe:manageStorehouses a odrl:Action ;
+  rdfs:label   "Manage Storehouses"@en ;
+  rdfs:comment "Permission to create, update, or delete storehouse facilities and storage units."@en ;
+  skos:notation "manage_storehouses" .
+
+zoe:viewStorehouseAssets a odrl:Action ;
+  rdfs:label   "View Storehouse Assets"@en ;
+  rdfs:comment "Permission to view physical storehouse assets and inventory items."@en ;
+  skos:notation "view_storehouse_assets" .
+
+zoe:manageStorehouseAssets a odrl:Action ;
+  rdfs:label   "Manage Storehouse Assets"@en ;
+  rdfs:comment "Permission to manage storehouse assets and inventory records."@en ;
+  skos:notation "manage_storehouse_assets" .
+
+zoe:viewResources a odrl:Action ;
+  rdfs:label   "View Resources"@en ;
+  rdfs:comment "Permission to view resource taxonomy and definitions."@en ;
+  skos:notation "view_resources" .
+
+zoe:manageResources a odrl:Action ;
+  rdfs:label   "Manage Resources"@en ;
+  rdfs:comment "Permission to manage and define new resource categories and taxonomies."@en ;
+  skos:notation "manage_resources" .
+
+
 # ── Member Policy ─────────────────────────────────────────────────────────────
 
 zoe:MemberPolicy a odrl:Policy ;
@@ -239,6 +325,14 @@ zoe:MemberPolicy a odrl:Policy ;
     a odrl:Permission ;
     odrl:action zoe:viewConnectGroups ;
     rdfs:comment "Members may browse the Connect Group catalog."@en
+  ] ;
+
+  odrl:permission [
+    a odrl:Permission, acl:Authorization ;
+    odrl:action zoe:viewResources ;
+    acl:mode acl:Read ;
+    acl:accessToClass zoe:Resource ;
+    rdfs:comment "Members may read public resource definitions."@en
   ] .
 
 # ── Volunteer Policy ──────────────────────────────────────────────────────────
@@ -290,6 +384,22 @@ zoe:VolunteerPolicy a odrl:Policy ;
     a odrl:Prohibition ;
     odrl:action zoe:manageAssignments ;
     rdfs:comment "Volunteers may not assign needs to others."@en
+  ] ;
+
+  odrl:permission [
+    a odrl:Permission, acl:Authorization ;
+    odrl:action zoe:viewStorehouses ;
+    acl:mode acl:Read ;
+    acl:accessToClass zoe:Storehouse, zoe:StorageUnit ;
+    rdfs:comment "Volunteers may view storehouses and storage units."@en
+  ] ;
+
+  odrl:permission [
+    a odrl:Permission, acl:Authorization ;
+    odrl:action zoe:viewStorehouseAssets ;
+    acl:mode acl:Read ;
+    acl:accessToClass zoe:StorehouseAsset ;
+    rdfs:comment "Volunteers may view storehouse assets."@en
   ] .
 
 # ── MinistryLead Policy ───────────────────────────────────────────────────────
@@ -341,6 +451,14 @@ zoe:MinistryLeadPolicy a odrl:Policy ;
     a odrl:Prohibition ;
     odrl:action zoe:createEditEvents ;
     rdfs:comment "Ministry leads may not create or edit published events."@en
+  ] ;
+
+  odrl:permission [
+    a odrl:Permission, acl:Authorization ;
+    odrl:action zoe:manageStorehouseAssets ;
+    acl:mode acl:Write ;
+    acl:accessToClass zoe:StorehouseAsset ;
+    rdfs:comment "Ministry leads may manage storehouse assets."@en
   ] .
 
 # ── Admin Policy ──────────────────────────────────────────────────────────────
@@ -398,4 +516,20 @@ zoe:AdminPolicy a odrl:Policy ;
     a odrl:Permission ;
     odrl:action zoe:manageConnectGroups ;
     rdfs:comment "Admins may manage all Connect Group records."@en
+  ] ;
+
+  odrl:permission [
+    a odrl:Permission, acl:Authorization ;
+    odrl:action zoe:manageStorehouses ;
+    acl:mode acl:Write, acl:Control ;
+    acl:accessToClass zoe:Storehouse, zoe:StorageUnit ;
+    rdfs:comment "Admins may create, edit, or delete storehouse and storage unit records."@en
+  ] ;
+
+  odrl:permission [
+    a odrl:Permission, acl:Authorization ;
+    odrl:action zoe:manageResources ;
+    acl:mode acl:Write, acl:Control ;
+    acl:accessToClass zoe:Resource ;
+    rdfs:comment "Admins may create, edit, or delete resource definitions."@en
   ] .

@@ -95,10 +95,12 @@ pub fn capture_observed_ocel(
     plan: &ActuationPlan,
     tenant_id: &str,
 ) -> Result<ActuationResult, SubprocessError> {
-    let mut cmd = Command::new("npx");
+    let gemini_bin = crate::config::resolve_gemini_bin();
+    let mut cmd = Command::new(&gemini_bin);
+    if gemini_bin == "npx" {
+        cmd.args(&["-y", "@google/gemini-cli"]);
+    }
     cmd.args(&[
-        "-y",
-        "@google/gemini-cli",
         "-p",
         &plan.command,
         "--approval-mode",
@@ -109,7 +111,7 @@ pub fn capture_observed_ocel(
     let ctx = SubprocessContext {
         model: "gemini-cli",
         tenant_id,
-        script_path: "npx @google/gemini-cli",
+        script_path: &gemini_bin,
     };
 
     // Use a hard 10-minute timeout for actuation.
@@ -170,5 +172,45 @@ More random text
         assert_eq!(events.len(), 2);
         assert_eq!(events[0]["event_id"], "e1");
         assert_eq!(events[1]["ocel:id"], "e2");
+    }
+
+    #[test]
+    fn test_capture_observed_ocel_with_mock_binary() {
+        use std::fs;
+        use std::os::unix::fs::PermissionsExt;
+
+        let temp_script_path = std::env::temp_dir().join("mock_gemini_cli.sh");
+        fs::write(&temp_script_path, "#!/bin/sh\necho '{\"event_id\": \"e_mock\", \"activity\": \"mock_act\"}'\n")
+            .expect("failed to write temp script");
+        
+        let mut perms = fs::metadata(&temp_script_path).expect("failed to get metadata").permissions();
+        perms.set_mode(0o755);
+        fs::set_permissions(&temp_script_path, perms).expect("failed to set permissions");
+
+        unsafe {
+            std::env::set_var("GEMINI_BIN", &temp_script_path);
+        }
+
+        let plan = ActuationPlan {
+            action_id: "act-123".to_string(),
+            emitted_by: "test".to_string(),
+            policy_id: "policy-456".to_string(),
+            allowed: true,
+            working_directory: ".".to_string(),
+            command: "some command".to_string(),
+        };
+
+        let result = capture_observed_ocel(&plan, "test-tenant");
+        
+        unsafe {
+            std::env::remove_var("GEMINI_BIN");
+        }
+        let _ = fs::remove_file(temp_script_path);
+
+        let res = result.expect("should run mock script successfully");
+        assert_eq!(res.action_id, "act-123");
+        assert!(res.stdout.contains("mock_act"), "stdout was: {}", res.stdout);
+        assert_eq!(res.ocel_events.len(), 1);
+        assert_eq!(res.ocel_events[0]["event_id"], "e_mock");
     }
 }

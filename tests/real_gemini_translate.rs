@@ -4,7 +4,7 @@
 //! backend — the same pattern as speckit-ralph's `copilot-shim.sh` /
 //! `gemini-invoke.sh`. Invokes:
 //!
-//!   npx -y @google/gemini-cli -p "<prompt>" --model gemini-3.1-flash-lite-preview --approval-mode yolo
+//!   npx -y @google/gemini-cli -p "<prompt>" --model gemini-3.1-flash-lite --approval-mode yolo
 //!
 //! Skip conditions (not a test failure):
 //!   - `gemini` binary not found in PATH or GEMINI_BIN
@@ -51,7 +51,7 @@ fn gemini_available() -> bool {
     let bin = std::env::var("GEMINI_BIN").unwrap_or_else(|_| "gemini".to_string());
     // Try a trivial prompt with a very short timeout to check auth.
     match std::process::Command::new(&bin)
-        .args(["-p", "ping", "--model", "gemini-3.1-flash-lite-preview", "--approval-mode", "yolo"])
+        .args(["-p", "ping", "--model", "gemini-3.1-flash-lite", "--approval-mode", "yolo"])
         .output()
     {
         Ok(out) => out.status.success(),

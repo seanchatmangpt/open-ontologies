@@ -5554,7 +5554,7 @@ impl OpenOntologiesServer {
     /// `llm_authority_claimed` OCEL **before** lifting the fields into
     /// `CandidateCtq`, so the audit trail records the adversarial
     /// claim independently of any downstream defect classification.
-    #[tool(name = "onto_translate_candidate", description = "Requirements Andon: invoke the LLM boundary translator on a previously-proposed requirement. AUDIT-ONLY — output is provisional and must pass through onto_admit_ctq before any work order is admitted. Response is projection-only (`_projection_only: true`); admission flows through `onto_admit_ctq`. Emits `llm_candidate_translated` + `llm_invoked` OCEL events with candidate_ctq_id (BLAKE3 of the candidate JSON) but never the API key. `engine` selects `inproc` (default), `groq_pm4py` (shells to scripts/ctq_from_voice.py), or `gemini` (headless Gemini CLI via OAuth, no API key required; uses gemini-3.1-flash-lite-preview).")]
+    #[tool(name = "onto_translate_candidate", description = "Requirements Andon: invoke the LLM boundary translator on a previously-proposed requirement. AUDIT-ONLY — output is provisional and must pass through onto_admit_ctq before any work order is admitted. Response is projection-only (`_projection_only: true`); admission flows through `onto_admit_ctq`. Emits `llm_candidate_translated` + `llm_invoked` OCEL events with candidate_ctq_id (BLAKE3 of the candidate JSON) but never the API key. `engine` selects `inproc` (default), `groq_pm4py` (shells to scripts/ctq_from_voice.py), or `gemini` (headless Gemini CLI via OAuth, no API key required; uses gemini-3.1-flash-lite).")]
     pub async fn onto_translate_candidate(&self, Parameters(input): Parameters<OntoTranslateCandidateInput>) -> String {
         let started = std::time::Instant::now();
 
@@ -5753,7 +5753,7 @@ impl OpenOntologiesServer {
         }
 
         // ── Alternative engine: Gemini CLI (OAuth, no API key required) ──
-        // Invokes `gemini -p <prompt> --model gemini-3.1-flash-lite-preview
+        // Invokes `gemini -p <prompt> --model gemini-3.1-flash-lite
         // --approval-mode yolo` and extracts the trailing JSON line from stdout.
         // Mirrors the speckit-ralph copilot-shim.sh / gemini-invoke.sh pattern.
         //
@@ -5784,11 +5784,12 @@ impl OpenOntologiesServer {
                 input.source_voice
             );
 
-            let gemini_bin = std::env::var("GEMINI_BIN").unwrap_or_else(|_| "npx".to_string());
+            let gemini_bin = crate::config::resolve_gemini_bin();
             let mut cmd = std::process::Command::new(&gemini_bin);
-            cmd.arg("-y")
-                .arg("@google/gemini-cli")
-                .arg("-p")
+            if gemini_bin == "npx" {
+                cmd.arg("-y").arg("@google/gemini-cli");
+            }
+            cmd.arg("-p")
                 .arg(&prompt)
                 .arg("--model")
                 .arg(crate::config::GEMINI_DEFAULT_MODEL)
@@ -6731,9 +6732,10 @@ impl OpenOntologiesServer {
             );
             let gemini_bin = crate::config::resolve_gemini_bin();
             let mut cmd = std::process::Command::new(&gemini_bin);
-            cmd.arg("-y")
-                .arg("@google/gemini-cli")
-                .arg("-p")
+            if gemini_bin == "npx" {
+                cmd.arg("-y").arg("@google/gemini-cli");
+            }
+            cmd.arg("-p")
                 .arg(&prompt)
                 .arg("--model")
                 .arg(crate::config::GEMINI_DEFAULT_MODEL)
@@ -7033,7 +7035,7 @@ impl OpenOntologiesServer {
         resp.to_string()
     }
 
-    #[tool(name = "onto_gemini_status", description = "Read-only liveness probe for the Gemini CLI engine. Checks (1) binary availability via `gemini --version`, (2) OAuth session validity via `gemini -p ping --model gemini-3.1-flash-lite-preview --approval-mode yolo`. No API key required — Gemini uses OAuth. Returns {ok, binary_found, oauth_active, model, error}.")]
+    #[tool(name = "onto_gemini_status", description = "Read-only liveness probe for the Gemini CLI engine. Checks (1) binary availability via `gemini --version`, (2) OAuth session validity via `gemini -p ping --model gemini-3.1-flash-lite --approval-mode yolo`. No API key required — Gemini uses OAuth. Returns {ok, binary_found, oauth_active, model, error}.")]
     pub async fn onto_gemini_status(&self, Parameters(input): Parameters<OntoGeminiStatusInput>) -> String {
         let started = std::time::Instant::now();
         let gemini_bin = input.gemini_bin
@@ -7044,9 +7046,11 @@ impl OpenOntologiesServer {
         let model = crate::config::GEMINI_DEFAULT_MODEL;
 
         // Step 1: binary found?
-        let binary_found = std::process::Command::new(&gemini_bin)
-            .arg("-y")
-            .arg("@google/gemini-cli")
+        let mut cmd = std::process::Command::new(&gemini_bin);
+        if gemini_bin == "npx" {
+            cmd.arg("-y").arg("@google/gemini-cli");
+        }
+        let binary_found = cmd
             .arg("--version")
             .output()
             .map(|o| o.status.success())
@@ -7064,9 +7068,11 @@ impl OpenOntologiesServer {
         }
 
         // Step 2: OAuth active? Run a minimal prompt with a short timeout.
-        let oauth_active = match std::process::Command::new(&gemini_bin)
-            .arg("-y")
-            .arg("@google/gemini-cli")
+        let mut cmd2 = std::process::Command::new(&gemini_bin);
+        if gemini_bin == "npx" {
+            cmd2.arg("-y").arg("@google/gemini-cli");
+        }
+        let oauth_active = match cmd2
             .arg("-p")
             .arg("ping")
             .arg("--model")

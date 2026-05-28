@@ -199,3 +199,39 @@ fn key_unset_falls_back_to_inproc() {
         "invalid env value must be ignored and auto-detect must fall back to inproc"
     );
 }
+
+#[test]
+fn pr_ralph_backend_override_wins() {
+    let _lock = env_lock();
+    let guard = EnvGuard::capture(&["PR_RALPH_BACKEND", "OPEN_ONTOLOGIES_LLM_ENGINE", "GROQ_API_KEY"]);
+    guard.unset_all();
+    
+    // Set PR_RALPH_BACKEND to gemini
+    guard.set("PR_RALPH_BACKEND", "gemini");
+    
+    // Even if OPEN_ONTOLOGIES_LLM_ENGINE is set to groq_pm4py, PR_RALPH_BACKEND must win.
+    guard.set("OPEN_ONTOLOGIES_LLM_ENGINE", "groq_pm4py");
+    
+    let resolved = resolve_llm_engine(&LlmConfig::default());
+    assert_eq!(
+        resolved, "gemini",
+        "PR_RALPH_BACKEND override to gemini must beat all other settings"
+    );
+}
+
+#[test]
+fn test_resolve_gemini_bin_precedence() {
+    let _lock = env_lock();
+    let guard = EnvGuard::capture(&["GEMINI_BIN"]);
+    guard.unset_all();
+
+    // 1. Explicitly set GEMINI_BIN env var should be used verbatim
+    guard.set("GEMINI_BIN", "/custom/bin/gemini-cli");
+    let resolved = open_ontologies::config::resolve_gemini_bin();
+    assert_eq!(resolved, "/custom/bin/gemini-cli");
+
+    // 2. Unset GEMINI_BIN env var: check that it falls back to gemini or npx
+    guard.unset_all();
+    let resolved_default = open_ontologies::config::resolve_gemini_bin();
+    assert!(resolved_default == "gemini" || resolved_default == "npx");
+}

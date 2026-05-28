@@ -7,6 +7,8 @@
 @prefix rdfs:    <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix xsd:     <http://www.w3.org/2001/XMLSchema#> .
 @prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix foaf:    <http://xmlns.com/foaf/0.1/> .
+@prefix vcard:   <http://www.w3.org/2006/vcard/ns#> .
 
 # ============================================================================
 # ZOE LA Mobile — Roles Ontology
@@ -17,7 +19,7 @@
 #
 # Role hierarchy (ascending privilege):
 #   Member(1) → Volunteer(2) / PartnerOrg(2) → Leader(3) / CareTeam(3)
-#             / YouthLeader(3) → Admin(4) → Pastor(5)
+#             / YouthLeader(3) / StorehouseKeeper(3) / StorehouseAuditor(3) → Admin(4) → Pastor(5)
 #
 # skos:notation values record the canonical role code used in the database
 # profiles.role column and in RLS policy predicates.
@@ -84,6 +86,20 @@ zoe:requiresBackgroundCheck a owl:DatatypeProperty ;
     rdfs:domain  zoe:ZoeRole ;
     rdfs:range   xsd:boolean .
 
+zoe:canManageAssets a owl:DatatypeProperty ;
+    rdfs:label   "can manage assets"@en ;
+    rdfs:comment "Indicates whether this role may create or update storehouse assets."@en ;
+    skos:notation "can_manage_assets" ;
+    rdfs:domain  zoe:ZoeRole ;
+    rdfs:range   xsd:boolean .
+
+zoe:canAuditAssets a owl:DatatypeProperty ;
+    rdfs:label   "can audit assets"@en ;
+    rdfs:comment "Indicates whether this role may perform physical or digital audits on storehouse assets."@en ;
+    skos:notation "can_audit_assets" ;
+    rdfs:domain  zoe:ZoeRole ;
+    rdfs:range   xsd:boolean .
+
 # ============================================================================
 # Properties on PersonRoleAssignment
 # ============================================================================
@@ -121,7 +137,8 @@ zoe:hasRole a owl:ObjectProperty ;
     rdfs:comment "Links a PersonRoleAssignment to the ZoeRole concept it grants."@en ;
     skos:notation "role_id" ;
     rdfs:domain  zoe:PersonRoleAssignment ;
-    rdfs:range   zoe:ZoeRole .
+    rdfs:range   zoe:ZoeRole ;
+    owl:equivalentProperty org:role .
 
 zoe:hasMinistry a owl:ObjectProperty ;
     rdfs:label   "has ministry"@en ;
@@ -129,6 +146,22 @@ zoe:hasMinistry a owl:ObjectProperty ;
     skos:notation "ministry_id" ;
     rdfs:domain  zoe:PersonRoleAssignment ;
     rdfs:range   skos:Concept .
+
+zoe:member a owl:ObjectProperty ;
+    rdfs:label   "member"@en ;
+    rdfs:comment "Links a role assignment to the agent who holds the role."@en ;
+    skos:notation "member_id" ;
+    rdfs:domain  zoe:PersonRoleAssignment ;
+    rdfs:range   zoe:PersonProfile ;
+    owl:equivalentProperty org:member .
+
+zoe:organization a owl:ObjectProperty ;
+    rdfs:label   "organization"@en ;
+    rdfs:comment "Links a role assignment to the organization or unit in which the role is held."@en ;
+    skos:notation "organization_id" ;
+    rdfs:domain  zoe:PersonRoleAssignment ;
+    rdfs:range   zoe:Organization ;
+    owl:equivalentProperty org:organization .
 
 # ============================================================================
 # Classes
@@ -167,7 +200,9 @@ zoe:MemberRole a zoe:ZoeRole, skos:Concept ;
     zoe:canCreateReceipts     false ;
     zoe:canAssignVolunteers   false ;
     zoe:requiresTraining      false ;
-    zoe:requiresBackgroundCheck false .
+    zoe:requiresBackgroundCheck false ;
+    zoe:canManageAssets       false ;
+    zoe:canAuditAssets        false .
 
 # ── VolunteerRole ─────────────────────────────────────────────────────────────
 
@@ -183,7 +218,9 @@ zoe:VolunteerRole a zoe:ZoeRole, skos:Concept ;
     zoe:canCreateReceipts     false ;
     zoe:canAssignVolunteers   false ;
     zoe:requiresTraining      true ;
-    zoe:requiresBackgroundCheck false .
+    zoe:requiresBackgroundCheck false ;
+    zoe:canManageAssets       false ;
+    zoe:canAuditAssets        false .
 
 # ── LeaderRole ────────────────────────────────────────────────────────────────
 
@@ -199,7 +236,9 @@ zoe:LeaderRole a zoe:ZoeRole, skos:Concept ;
     zoe:canCreateReceipts     false ;
     zoe:canAssignVolunteers   true ;
     zoe:requiresTraining      false ;
-    zoe:requiresBackgroundCheck false .
+    zoe:requiresBackgroundCheck false ;
+    zoe:canManageAssets       false ;
+    zoe:canAuditAssets        false .
 
 # ── CareTeamRole ──────────────────────────────────────────────────────────────
 
@@ -215,7 +254,9 @@ zoe:CareTeamRole a zoe:ZoeRole, skos:Concept ;
     zoe:canCreateReceipts     false ;
     zoe:canAssignVolunteers   false ;
     zoe:requiresTraining      false ;
-    zoe:requiresBackgroundCheck true .
+    zoe:requiresBackgroundCheck true ;
+    zoe:canManageAssets       false ;
+    zoe:canAuditAssets        false .
 
 # ── YouthLeaderRole ───────────────────────────────────────────────────────────
 
@@ -231,7 +272,9 @@ zoe:YouthLeaderRole a zoe:ZoeRole, skos:Concept ;
     zoe:canCreateReceipts     false ;
     zoe:canAssignVolunteers   false ;
     zoe:requiresTraining      true ;
-    zoe:requiresBackgroundCheck true .
+    zoe:requiresBackgroundCheck true ;
+    zoe:canManageAssets       false ;
+    zoe:canAuditAssets        false .
 
 # ── AdminRole ─────────────────────────────────────────────────────────────────
 
@@ -247,7 +290,9 @@ zoe:AdminRole a zoe:ZoeRole, skos:Concept ;
     zoe:canCreateReceipts     true ;
     zoe:canAssignVolunteers   true ;
     zoe:requiresTraining      false ;
-    zoe:requiresBackgroundCheck false .
+    zoe:requiresBackgroundCheck false ;
+    zoe:canManageAssets       true ;
+    zoe:canAuditAssets        true .
 
 # ── PastorRole ────────────────────────────────────────────────────────────────
 
@@ -263,7 +308,9 @@ zoe:PastorRole a zoe:ZoeRole, skos:Concept ;
     zoe:canCreateReceipts     true ;
     zoe:canAssignVolunteers   true ;
     zoe:requiresTraining      false ;
-    zoe:requiresBackgroundCheck false .
+    zoe:requiresBackgroundCheck false ;
+    zoe:canManageAssets       true ;
+    zoe:canAuditAssets        true .
 
 # ── PartnerOrgRole ────────────────────────────────────────────────────────────
 
@@ -279,7 +326,45 @@ zoe:PartnerOrgRole a zoe:ZoeRole, skos:Concept ;
     zoe:canCreateReceipts     false ;
     zoe:canAssignVolunteers   false ;
     zoe:requiresTraining      false ;
-    zoe:requiresBackgroundCheck false .
+    zoe:requiresBackgroundCheck false ;
+    zoe:canManageAssets       false ;
+    zoe:canAuditAssets        false .
+
+# ── StorehouseKeeperRole ─────────────────────────────────────────────────────
+
+zoe:StorehouseKeeperRole a zoe:ZoeRole, skos:Concept ;
+    rdfs:label        "Storehouse Keeper"@en ;
+    skos:prefLabel    "Storehouse Keeper"@en ;
+    skos:definition   "An operational role responsible for managing storehouse inventory, assets, and storage units."@en ;
+    skos:notation     "STORE-KEEP" ;
+    skos:inScheme     zoe:RoleScheme ;
+    zoe:roleCode              "STORE-KEEP" ;
+    zoe:permissionLevel       3 ;
+    zoe:canViewSensitive      false ;
+    zoe:canCreateReceipts     true ;
+    zoe:canAssignVolunteers   false ;
+    zoe:requiresTraining      true ;
+    zoe:requiresBackgroundCheck true ;
+    zoe:canManageAssets       true ;
+    zoe:canAuditAssets        false .
+
+# ── StorehouseAuditorRole ────────────────────────────────────────────────────
+
+zoe:StorehouseAuditorRole a zoe:ZoeRole, skos:Concept ;
+    rdfs:label        "Storehouse Auditor"@en ;
+    skos:prefLabel    "Storehouse Auditor"@en ;
+    skos:definition   "A quality control role responsible for conducting physical audits and verifying ledger status."@en ;
+    skos:notation     "STORE-AUDIT" ;
+    skos:inScheme     zoe:RoleScheme ;
+    zoe:roleCode              "STORE-AUDIT" ;
+    zoe:permissionLevel       3 ;
+    zoe:canViewSensitive      false ;
+    zoe:canCreateReceipts     false ;
+    zoe:canAssignVolunteers   false ;
+    zoe:requiresTraining      true ;
+    zoe:requiresBackgroundCheck true ;
+    zoe:canManageAssets       false ;
+    zoe:canAuditAssets        true .
 
 # ── Scheme top-concept links ──────────────────────────────────────────────────
 
@@ -290,4 +375,6 @@ zoe:RoleScheme skos:hasTopConcept zoe:MemberRole,
                                    zoe:YouthLeaderRole,
                                    zoe:AdminRole,
                                    zoe:PastorRole,
-                                   zoe:PartnerOrgRole .
+                                   zoe:PartnerOrgRole,
+                                   zoe:StorehouseKeeperRole,
+                                   zoe:StorehouseAuditorRole .

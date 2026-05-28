@@ -503,7 +503,7 @@ pub const ENGINE_GEMINI: &str = "gemini";
 
 /// Default Gemini model used by the headless CLI engine (`gemini` engine).
 /// Override via the `--model` flag or a future config key.
-pub const GEMINI_DEFAULT_MODEL: &str = "gemini-3.1-flash-lite-preview";
+pub const GEMINI_DEFAULT_MODEL: &str = "gemini-3.1-flash-lite";
 
 /// Return `true` when the Gemini CLI binary is available.
 ///
@@ -550,6 +550,10 @@ fn gemini_available() -> bool {
 /// assert!(open_ontologies::config::VALID_LLM_ENGINES.contains(&engine.as_str()));
 /// ```
 pub fn resolve_llm_engine(cfg: &LlmConfig) -> String {
+    if std::env::var("PR_RALPH_BACKEND").ok().as_deref() == Some("gemini") {
+        return ENGINE_GEMINI.to_string();
+    }
+
     fn validated(v: String) -> Option<String> {
         let trimmed = v.trim().to_string();
         if VALID_LLM_ENGINES.contains(&trimmed.as_str()) {
@@ -594,7 +598,7 @@ pub fn resolve_llm_engine(cfg: &LlmConfig) -> String {
 /// // (Safe to run even if Gemini CLI is not installed.)
 /// # unsafe { std::env::remove_var("GEMINI_BIN"); }
 /// let bin = open_ontologies::config::resolve_gemini_bin();
-/// assert_eq!(bin, "npx");
+/// assert!(bin == "npx" || bin == "gemini");
 /// ```
 ///
 /// ```
@@ -606,10 +610,19 @@ pub fn resolve_llm_engine(cfg: &LlmConfig) -> String {
 /// assert_eq!(bin, "/usr/local/bin/gemini-cli");
 /// ```
 pub fn resolve_gemini_bin() -> String {
-    std::env::var("GEMINI_BIN")
-        .ok()
-        .filter(|v| !v.trim().is_empty())
-        .unwrap_or_else(|| "npx".to_string())
+    if let Some(bin) = std::env::var("GEMINI_BIN").ok().filter(|v| !v.trim().is_empty()) {
+        return bin;
+    }
+    let gemini_on_path = std::process::Command::new("which")
+        .arg("gemini")
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false);
+    if gemini_on_path {
+        "gemini".to_string()
+    } else {
+        "npx".to_string()
+    }
 }
 
 /// Resolve the python interpreter for the `groq_pm4py` engine.
