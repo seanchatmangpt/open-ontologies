@@ -1,0 +1,317 @@
+# ============================================================================
+# SPARQL QUERY LIBRARY FOR CLI COMMAND VOCABULARY
+# ============================================================================
+# Queries against the RDF command vocabulary for discovering, analyzing,
+# and introspecting CLI command definitions.
+
+# ============================================================================
+# QUERY 1: List All Verbs by Namespace
+# ============================================================================
+# Returns all verbs organized by their noun namespace with documentation.
+#
+# Usage: Get all available commands for generation
+#
+PREFIX cli: <http://example.org/cli/>
+PREFIX cnv: <http://example.org/clap-noun-verb/v26.6.1/>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+
+QUERY list_all_verbs {
+  SELECT ?namespace ?noun ?verb ?name ?docstring ?handler ?example
+  WHERE {
+    ?verb a cli:Verb ;
+          cli:name ?name ;
+          cli:namespace ?noun ;
+          cli:handler ?handler ;
+          cli:docstring ?docstring ;
+          cli:example ?example .
+    ?noun cli:name ?namespace .
+  }
+  ORDER BY ?namespace ?name
+}
+
+# ============================================================================
+# QUERY 2: Get Verb Definition with Full Metadata
+# ============================================================================
+# Retrieves complete definition of a specific verb including parameters,
+# return type, and error types.
+#
+# Usage: Code generation for a specific command
+#
+QUERY get_verb_definition {
+  CONSTRUCT {
+    ?verb a cli:Verb ;
+          cli:name ?verbName ;
+          cli:namespace ?noun ;
+          cli:handler ?handler ;
+          cli:docstring ?docstring ;
+          cli:example ?example ;
+          cli:hasParameter ?param ;
+          cli:returnsType ?outputType ;
+          cli:canFail ?errorType .
+    ?param cli:name ?paramName ;
+           cli:type ?paramType ;
+           cli:isRequired ?required ;
+           cli:description ?paramDesc .
+    ?outputType cli:name ?outputTypeName ;
+                cli:type ?outputTypeClass ;
+                cli:hasProperty ?prop .
+    ?errorType cli:name ?errorTypeName .
+  }
+  WHERE {
+    ?verb a cli:Verb ;
+          cli:name ?verbName ;
+          cli:namespace ?noun ;
+          cli:handler ?handler ;
+          cli:docstring ?docstring ;
+          cli:example ?example .
+    OPTIONAL { ?verb cli:hasParameter ?param .
+               ?param cli:name ?paramName ;
+                      cli:type ?paramType ;
+                      cli:isRequired ?required ;
+                      cli:description ?paramDesc . }
+    OPTIONAL { ?verb cli:returnsType ?outputType .
+               ?outputType cli:name ?outputTypeName ;
+                          cli:type ?outputTypeClass .
+               OPTIONAL { ?outputType cli:hasProperty ?prop . } }
+    OPTIONAL { ?verb cli:canFail ?errorType .
+               ?errorType cli:name ?errorTypeName . }
+  }
+}
+
+# ============================================================================
+# QUERY 3: Find Required Parameters for a Verb
+# ============================================================================
+# Returns all required parameters for a given verb, useful for validation.
+#
+# Usage: CLI argument validation and help text generation
+#
+QUERY required_parameters {
+  SELECT ?verbName ?paramName ?paramType ?description
+  WHERE {
+    ?verb cli:name ?verbName ;
+          cli:hasParameter ?param .
+    ?param cli:isRequired true ;
+           cli:name ?paramName ;
+           cli:type ?paramType ;
+           cli:description ?description .
+  }
+  ORDER BY ?verbName ?paramName
+}
+
+# ============================================================================
+# QUERY 4: Output Type Schema
+# ============================================================================
+# Retrieves the structure of output types for serialization/deserialization.
+#
+# Usage: Schema generation and validation
+#
+QUERY output_type_schema {
+  SELECT ?outputType ?outputName ?property ?propertyLabel
+  WHERE {
+    ?outputType a cli:OutputType ;
+                cli:name ?outputName ;
+                cli:hasProperty ?property .
+    ?property rdfs:label ?propertyLabel .
+  }
+  ORDER BY ?outputName ?propertyLabel
+}
+
+# ============================================================================
+# QUERY 5: Error Type Reference
+# ============================================================================
+# Lists all possible error types a verb can produce.
+#
+# Usage: Error handling and recovery strategies
+#
+QUERY error_reference {
+  SELECT ?verbName ?errorType ?errorName ?description
+  WHERE {
+    ?verb cli:name ?verbName ;
+          cli:canFail ?errorType .
+    ?errorType cli:name ?errorName ;
+               rdfs:comment ?description .
+  }
+  ORDER BY ?verbName ?errorName
+}
+
+# ============================================================================
+# QUERY 6: Command by Handler Name
+# ============================================================================
+# Finds command definition by Rust handler function name.
+#
+# Usage: Link Rust implementation back to CLI definition
+#
+QUERY find_by_handler {
+  SELECT ?verb ?name ?namespace ?docstring
+  WHERE {
+    ?verb a cli:Verb ;
+          cli:handler ?handler ;
+          cli:name ?name ;
+          cli:namespace ?noun ;
+          cli:docstring ?docstring .
+    ?noun cli:name ?namespace .
+  }
+}
+
+# ============================================================================
+# QUERY 7: Parameters for All Verbs in Namespace
+# ============================================================================
+# Returns parameter definitions for all verbs in a given noun namespace.
+#
+# Usage: Generate namespace-specific CLI builders
+#
+QUERY namespace_parameters {
+  SELECT ?noun ?verb ?verbName ?paramName ?paramType ?required
+  WHERE {
+    ?noun cli:name ?nounName .
+    ?verb cli:namespace ?noun ;
+          cli:name ?verbName ;
+          cli:hasParameter ?param .
+    ?param cli:name ?paramName ;
+           cli:type ?paramType ;
+           cli:isRequired ?required .
+  }
+  ORDER BY ?nounName ?verbName ?paramName
+}
+
+# ============================================================================
+# QUERY 8: Count Commands Per Namespace
+# ============================================================================
+# Aggregates command count by noun namespace.
+#
+# Usage: Capacity planning and metrics
+#
+QUERY commands_per_namespace {
+  SELECT ?namespace (COUNT(?verb) as ?commandCount)
+  WHERE {
+    ?noun cli:name ?namespace .
+    ?verb a cli:Verb ;
+          cli:namespace ?noun .
+  }
+  GROUP BY ?namespace
+  ORDER BY DESC(?commandCount)
+}
+
+# ============================================================================
+# QUERY 9: Validation Rules
+# ============================================================================
+# Retrieves validation rules for parameters.
+#
+# Usage: Input validation before execution
+#
+QUERY validation_rules {
+  SELECT ?paramName ?validator ?description
+  WHERE {
+    ?param cli:name ?paramName ;
+           cli:validation ?validator ;
+           cli:description ?description .
+  }
+}
+
+# ============================================================================
+# QUERY 10: Examples by Namespace
+# ============================================================================
+# Collects all command examples organized by namespace.
+#
+# Usage: Documentation and help text generation
+#
+QUERY examples {
+  SELECT ?namespace ?verb ?example
+  WHERE {
+    ?noun cli:name ?namespace .
+    ?verb a cli:Verb ;
+          cli:namespace ?noun ;
+          cli:example ?example .
+  }
+  ORDER BY ?namespace
+}
+
+# ============================================================================
+# QUERY 11: ASK Query - Verb Exists
+# ============================================================================
+# Checks if a specific verb is defined.
+#
+# Usage: Runtime verification that a command is registered
+#
+QUERY verb_exists {
+  ASK
+  WHERE {
+    ?verb a cli:Verb ;
+          cli:namespace ?noun ;
+          cli:name ?verbName .
+    ?noun cli:name ?namespace .
+  }
+}
+
+# ============================================================================
+# QUERY 12: Parameter Type Coverage
+# ============================================================================
+# Lists all unique parameter types used across all commands.
+#
+# Usage: Type system design and validation
+#
+QUERY parameter_types {
+  SELECT DISTINCT ?type (COUNT(?param) as ?usageCount)
+  WHERE {
+    ?param cli:type ?type .
+  }
+  GROUP BY ?type
+  ORDER BY DESC(?usageCount)
+}
+
+# ============================================================================
+# QUERY 13: Verbs with No Parameters
+# ============================================================================
+# Finds verbs that take no arguments.
+#
+# Usage: Identify simple commands
+#
+QUERY zero_arg_verbs {
+  SELECT ?verb ?name ?namespace
+  WHERE {
+    ?verb a cli:Verb ;
+          cli:name ?name ;
+          cli:namespace ?noun .
+    ?noun cli:name ?namespace .
+    FILTER NOT EXISTS { ?verb cli:hasParameter ?param . }
+  }
+}
+
+# ============================================================================
+# QUERY 14: Required Output Properties
+# ============================================================================
+# Retrieves all properties that output types must include.
+#
+# Usage: Output serialization validation
+#
+QUERY required_output_properties {
+  SELECT ?outputType ?property ?label
+  WHERE {
+    ?outputType a cli:OutputType ;
+                cli:hasProperty ?property .
+    ?property rdfs:label ?label .
+  }
+  ORDER BY ?outputType ?label
+}
+
+# ============================================================================
+# QUERY 15: Command Adjacency - Related Commands
+# ============================================================================
+# Finds commands in the same namespace (frequently used together).
+#
+# Usage: CLI design patterns and workflows
+#
+QUERY related_commands {
+  SELECT ?namespace ?verb1Name ?verb2Name
+  WHERE {
+    ?noun cli:name ?namespace .
+    ?verb1 a cli:Verb ;
+           cli:namespace ?noun ;
+           cli:name ?verb1Name .
+    ?verb2 a cli:Verb ;
+           cli:namespace ?noun ;
+           cli:name ?verb2Name .
+    FILTER (?verb1Name < ?verb2Name)
+  }
+  ORDER BY ?namespace ?verb1Name ?verb2Name
+}

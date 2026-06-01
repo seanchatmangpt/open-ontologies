@@ -388,7 +388,7 @@ impl GgenBridge {
 
         let timed_output = run_with_timeout(
             &mut cmd,
-            std::time::Duration::from_secs(self.subprocess_timeout_secs),
+            Duration::from_secs(self.subprocess_timeout_secs),
             ctx,
         )?;
         let elapsed = start.elapsed().as_millis() as u64;
@@ -397,8 +397,7 @@ impl GgenBridge {
         if !timed_output.output.status.success() {
             let stderr = String::from_utf8_lossy(&timed_output.output.stderr);
             return Err(crate::subprocess::SubprocessError::SpawnFailed(
-                std::io::Error::new(
-                    std::io::ErrorKind::Other,
+                std::io::Error::other(
                     format!("ggen sync exited {}: {}", timed_output.output.status, stderr),
                 ),
             ));

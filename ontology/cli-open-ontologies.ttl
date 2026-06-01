@@ -8,6 +8,7 @@
 
 #################################################################
 # Ontology header
+# Test modification for roundtrip validation (2026-06-01)
 #################################################################
 
 onto:Ontology a owl:Ontology ;
@@ -1313,3 +1314,5 @@ truex:FilesystemMutationDerivesArtifactObject a truex:DerivationRule ;
 truex:Verifier truex:enforcesRule truex:RawExitCodeDerivesExecutionStatus, 
                                   truex:StdoutHashDerivesArtifactEmission,
                                   truex:FilesystemMutationDerivesArtifactObject .
+
+# Integration test feedback loop - Mon Jun  1 15:49:30 PDT 2026

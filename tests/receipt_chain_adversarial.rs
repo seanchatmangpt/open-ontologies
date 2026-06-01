@@ -35,7 +35,7 @@ fn fresh_db() -> StateDb {
     StateDb::open(&path).expect("open StateDb")
 }
 
-fn emit_stage(store: &OcelStore, session: &str, scope: &str, stage: &str) {
+fn emit_stage(store: &OcelStore, session: &str, scope: &str, stage: &str, tenant: &str) {
     let now = chrono::Utc::now().to_rfc3339();
     let event_id = format!(
         "{}:{}:{}",
@@ -44,7 +44,7 @@ fn emit_stage(store: &OcelStore, session: &str, scope: &str, stage: &str) {
         chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0)
     );
     store
-        .emit_event(&event_id, stage, &now, session, &[], &[], Some(scope))
+        .emit_event_in_tenant(&event_id, stage, &now, session, &[], &[], Some(scope), tenant)
         .unwrap();
 }
 
@@ -158,12 +158,13 @@ fn concurrent_sessions_do_not_cross_chain() {
         // RequirementsManufacturing because PowlBridgeReplay classifies its
         // trace as `conform`.
         let scope = WorkflowScope::new(&db, &session);
+        let tenant = format!("tenant-{}", session);
         let token = scope
-            .open(Some(RM_WORKFLOW), None, None)
+            .open_in_tenant(Some(RM_WORKFLOW), None, None, &tenant)
             .expect("open scope");
         scope.close(&token).expect("close scope");
         for stage in RM_STAGES {
-            emit_stage(&store, &session, &token, stage);
+            emit_stage(&store, &session, &token, stage, &tenant);
         }
         let observed = store.observed_event_types_for_session(&session).unwrap();
 
@@ -193,7 +194,7 @@ fn concurrent_sessions_do_not_cross_chain() {
                 &session,
                 powl,
                 &observed,
-                "default",
+                &tenant,
             )
             .expect("admission must grant");
         }
@@ -326,7 +327,7 @@ fn orphan_detection_refuses_to_chain() {
         .expect("open scope");
     scope.close(&token).expect("close scope");
     for stage in RM_STAGES {
-        emit_stage(&store, session, &token, stage);
+        emit_stage(&store, session, &token, stage, "default");
     }
     let observed = store.observed_event_types_for_session(session).unwrap();
 
