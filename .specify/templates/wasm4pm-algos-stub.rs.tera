@@ -326,7 +326,7 @@ pub mod conformance {
     ///   5. At the end, count remaining tokens
     ///
     /// Returns TraceReplayResult with fitness, token counts, and event sequence.
-    {%- for i, item_name in item_name_list %}
+    {%- for item_name in item_name_list %}
     {%- if "replay_trace" in item_name %}
     pub fn replay_trace(
         model: &PowlPetriNet,
@@ -411,7 +411,7 @@ pub mod conformance {
     ///
     /// Re-replays all traces and aggregates fitness metrics.
     /// Returns FitnessResult with average, min, max fitness and perfect trace count.
-    {%- for i, item_name in item_name_list %}
+    {%- for item_name in item_name_list %}
     {%- if "compute_fitness" in item_name %}
     pub fn compute_fitness(
         model: &PowlPetriNet,
@@ -448,7 +448,7 @@ pub mod conformance {
     ///   - threshold: Acceptable fitness threshold (0.0 to 1.0)
     ///
     /// Returns true if the trace is aligned (fitness >= threshold).
-    {%- for i, item_name in item_name_list %}
+    {%- for item_name in item_name_list %}
     {%- if "check_conformance_alignment" in item_name %}
     pub fn check_conformance_alignment(
         log: &EventLog,

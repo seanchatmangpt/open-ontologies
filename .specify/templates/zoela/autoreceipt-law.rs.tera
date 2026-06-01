@@ -28,6 +28,7 @@ pub struct {{ lawId }}<S> {
 {% if cond_list | length > 0 -%}
 impl {{ lawId }}<{{ cond_list[0] }}> {
     /// Initialize the state machine in the starting state.
+    #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         Self { state: {{ cond_list[0] }} }
     }

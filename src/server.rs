@@ -4205,17 +4205,15 @@ impl OpenOntologiesServer {
                     let stdout_str = String::from_utf8_lossy(&out.stdout).into_owned();
                     let stdout_hash = blake3::hash(out.stdout.as_slice()).to_hex().to_string();
                     let stderr_hash = blake3::hash(out.stderr.as_slice()).to_hex().to_string();
-                    let core_receipt = crate::autoreceipt::Receipt::new_from_boundary(
+                    let core_receipt = crate::autoreceipt::Receipt::boundary_builder(
                         "wvda_agent_claim".to_string(),
                         "wasm4pm".to_string(),
                         "onto_process_validate_claim".to_string(),
-                        None,
-                        None,
-                        None,
-                        Some(stdout_hash),
-                        Some(stderr_hash),
-                        Some(0),
-                    );
+                    )
+                    .stdout_hash(Some(stdout_hash))
+                    .stderr_hash(Some(stderr_hash))
+                    .exit_code(Some(0))
+                    .build();
 
                     match serde_json::from_str::<serde_json::Value>(&stdout_str) {
                         Ok(mut json_obj) => {
@@ -4520,17 +4518,15 @@ impl OpenOntologiesServer {
                     
                     let stdout_hash = blake3::hash(output.stdout.as_slice()).to_hex().to_string();
                     let stderr_hash = blake3::hash(output.stderr.as_slice()).to_hex().to_string();
-                    let core_receipt = crate::autoreceipt::Receipt::new_from_boundary(
+                    let core_receipt = crate::autoreceipt::Receipt::boundary_builder(
                         format!("codegen_{}", unique_id),
                         "ggen".to_string(),
                         "onto_codegen".to_string(),
-                        None,
-                        None,
-                        None, // Raw evidence hash ideally mapped from file
-                        Some(stdout_hash),
-                        Some(stderr_hash),
-                        Some(0),
-                    );
+                    )
+                    .stdout_hash(Some(stdout_hash))
+                    .stderr_hash(Some(stderr_hash))
+                    .exit_code(Some(0))
+                    .build();
 
                     serde_json::json!({
                         "ok": true,

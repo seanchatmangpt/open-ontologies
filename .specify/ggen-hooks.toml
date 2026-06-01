@@ -1,0 +1,151 @@
+# .specify/ggen-hooks.toml — open-ontologies MCP integration hooks
+#
+# Hook orchestration for open-ontologies MCP server
+# Executes at key ggen pipeline stages to:
+#  1. Validate ontology before generation
+#  2. Load ontology into Oxigraph store for SPARQL execution
+#  3. Register generated artifacts as RDF individuals
+#  4. Validate artifacts against SHACL shapes (Cell8 gates A1-A3)
+#  5. Store receipt in RDF triple store for lineage
+#  6. Record lineage events for audit trail
+#
+# Hook failure modes:
+#  - block   : fail the ggen sync if hook fails (hard stop)
+#  - warn    : log warning but continue (soft gate)
+#  - ignore  : silent failure, continue (risky, use sparingly)
+
+[hooks.pre-load]
+name = "validate-ontology"
+description = "Validate TTL syntax and SHACL shapes before loading"
+command = "onto validate ontology/cli-open-ontologies.ttl"
+timeout_ms = 30000
+failureMode = "block"
+required = true
+
+[hooks.post-load]
+name = "load-into-store"
+description = "Load validated ontology into Oxigraph RDF store for SPARQL execution"
+command = "onto load --name cli-open-ontologies --format turtle --ontology ontology/cli-open-ontologies.ttl"
+timeout_ms = 60000
+failureMode = "block"
+required = true
+capture_output = true
+
+[hooks.pre-generate]
+name = "preflight-shapes"
+description = "Verify SHACL shapes exist and are loadable before generation"
+command = "onto validate --shapes ontology/cell8-shapes.ttl --silent"
+timeout_ms = 15000
+failureMode = "warn"
+required = false
+
+[hooks.post-generate]
+name = "register-generated-artifacts"
+description = "Register generated .rs files as RDF individuals for provenance tracking"
+command = "onto ingest --artifacts src/cmds/generated.rs src/cmds/generated_revops.rs src/autoreceipt_law.rs src/wasm4pm_*.rs --class onto:GeneratedArtifact --registerAs onto:generated-artifact-$(date +%s)"
+timeout_ms = 45000
+failureMode = "warn"
+required = false
+capture_output = true
+
+[hooks.post-generate]
+name = "validate-artifacts-shacl"
+description = "Run Cell8 gates A1-A3: SHACL validation of generated artifacts against shapes"
+command = "onto shacl validate --shapes ontology/cell8-shapes.ttl --format earl"
+timeout_ms = 60000
+failureMode = "block"
+required = true
+capture_output = true
+
+[hooks.pre-emit]
+name = "preflight-receipt"
+description = "Verify receipt will be valid before emission (Ed25519 key availability check)"
+timeout_ms = 10000
+command = "onto attestation_rotate_keys --verify-only"
+failureMode = "warn"
+required = false
+
+[hooks.post-emit]
+name = "store-receipt-in-rdf"
+description = "Ingest ggen receipt JSON into RDF graph for OCEL/Cell8 attestation"
+command = "onto ingest --receipt .ggen/receipts/latest.json --graph onto:receipt-store --class onto:GenerationReceipt"
+timeout_ms = 30000
+failureMode = "warn"
+required = false
+capture_output = true
+
+[hooks.post-emit]
+name = "record-lineage-event"
+description = "Record lineage event: ggen-emit stage completed with artifact hashes"
+command = "onto lineage record --event ggen-emit --artifacts src/cmds/generated.rs src/cmds/generated_revops.rs src/autoreceipt_law.rs --operation-id $(jq -r '.operation_id' .ggen/receipts/latest.json) --timestamp $(jq -r '.timestamp' .ggen/receipts/latest.json)"
+timeout_ms = 15000
+failureMode = "warn"
+required = false
+
+[hooks.post-emit]
+name = "update-cell8-attestation"
+description = "Update Cell8 conformance attestation with new artifact digests"
+command = "onto cell8_attest --artifacts src/cmds/generated.rs src/cmds/generated_revops.rs src/autoreceipt_law.rs --evidence-graph onto:receipt-store"
+timeout_ms = 45000
+failureMode = "warn"
+required = false
+
+[hooks.post-sync]
+name = "verify-ggen-receipt"
+description = "Final verification: ggen receipt Ed25519 signature must be valid"
+command = "onto receipt-verify .ggen/receipts/latest.json --strict"
+timeout_ms = 10000
+failureMode = "block"
+required = true
+
+# Hook execution context
+[hooks.env]
+ONTO_STORE_PATH = ".ggen/rdf-store"
+ONTO_RECEIPT_PATH = ".ggen/receipts"
+ONTO_SHAPES = "ontology/cell8-shapes.ttl"
+GGEN_ONTOLOGY = "ontology/cli-open-ontologies.ttl"
+OTEL_LOG_LEVEL = "info"
+
+# Hook ordering constraints
+[hooks.ordering]
+# These hooks MUST run before generate
+before_generate = [
+  "validate-ontology",
+  "load-into-store",
+  "preflight-shapes"
+]
+
+# These hooks MUST run after emit
+after_emit = [
+  "verify-ggen-receipt",
+  "store-receipt-in-rdf",
+  "record-lineage-event",
+  "update-cell8-attestation"
+]
+
+# Parallel execution groups (hooks in same group may run in parallel)
+[hooks.parallel_groups]
+validation = ["validate-ontology", "preflight-shapes"]
+registration = ["register-generated-artifacts", "validate-artifacts-shacl"]
+finalization = ["store-receipt-in-rdf", "record-lineage-event", "update-cell8-attestation"]
+
+# Telemetry & observability
+[hooks.telemetry]
+emit_otel_spans = true
+span_prefix = "ggen.hook"
+capture_stderr = true
+capture_stdout = true
+log_full_output = false  # Log only failures unless RUST_LOG=trace
+
+# Error recovery
+[hooks.error_handling]
+stop_on_first_failure = false  # Continue with `warn` hooks even if previous `block` failed
+collect_all_errors = true
+max_retries_on_transient = 1
+retry_backoff_ms = 1000
+
+# Hook health & monitoring
+[hooks.monitoring]
+health_check_interval_ms = 30000
+warn_on_slow_hook_ms = 5000
+timeout_jitter_ms = 500

@@ -6,7 +6,6 @@ use std::collections::HashSet;
 use std::sync::Arc;
 
 pub mod autoreceipt {
-    use super::*;
     use crate::autoreceipt_law::{AutoReceiptPipeline as Law, ArchitecturalReceiptParsed};
 
     /// Theorem Stage 1: Admission of intent.
@@ -26,12 +25,18 @@ pub mod autoreceipt {
         phase: P,
     }
 
-    impl AutoReceiptPipeline<Admit> {
-        pub fn new() -> Self {
+    impl Default for AutoReceiptPipeline<Admit> {
+        fn default() -> Self {
             Self {
                 law: Law::new(),
                 phase: Admit,
             }
+        }
+    }
+
+    impl AutoReceiptPipeline<Admit> {
+        pub fn new() -> Self {
+            Self::default()
         }
 
         pub fn admit(self) -> AutoReceiptPipeline<Receipt> {
@@ -96,10 +101,8 @@ impl Planner {
                 if let Some(name) = line.split('"').nth(1) {
                     containers.push(serde_json::json!({ "name": name }));
                 }
-            } else if line.contains("Component(") {
-                if let Some(name) = line.split('"').nth(1) {
-                    components.push(serde_json::json!({ "name": name }));
-                }
+            } else if line.contains("Component(") && let Some(name) = line.split('"').nth(1) {
+                components.push(serde_json::json!({ "name": name }));
             }
         }
 

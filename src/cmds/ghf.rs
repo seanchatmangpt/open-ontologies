@@ -10,6 +10,7 @@ use super::helpers::to_verb_err;
 use open_ontologies::ghf::{ContributionReceipt, verify_receipt};
 
 #[derive(Serialize)]
+#[allow(dead_code)]
 pub struct VerifyOutput {
     pub ok: bool,
     pub receipt_path: String,

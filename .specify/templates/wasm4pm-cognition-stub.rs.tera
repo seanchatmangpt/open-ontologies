@@ -42,8 +42,8 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 {#- Parse breed names from pipe-delimited string -#}
-{%- set breed_list = breed_names | split(pat="|") | map(attribute="trim") | filter(attribute="") %}
-{%- set breed_docs_list = breed_docs | split(pat="|") | map(attribute="trim") | filter(attribute="") %}
+{%- set breed_list = itemNames | split(pat="|") | map(attribute="trim") | filter(attribute="") %}
+{%- set breed_docs_list = descriptions | split(pat="|") | map(attribute="trim") | filter(attribute="") %}
 
 // ============================================================================
 // BREED ENUMERATION

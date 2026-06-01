@@ -56,9 +56,9 @@ pub fn run_real_boundary(command: &str, args: &[&str], dir: &str) -> serde_json:
     
     let git_after = capture_git_state(dir);
     let files_changed = git_before != git_after;
-    
-    let stdout_str = String::from_utf8_lossy(&output.stdout).to_string();
-    let stderr_str = String::from_utf8_lossy(&output.stderr).to_string();
+
+    let _stdout_str = String::from_utf8_lossy(&output.stdout).to_string();
+    let _stderr_str = String::from_utf8_lossy(&output.stderr).to_string();
     let exit_code = output.status.code().unwrap_or(-1);
     
     let stdout_hash = blake3::hash(&output.stdout).to_hex().to_string();
@@ -127,25 +127,24 @@ pub fn capture_observed_ocel(
         let rt = tokio::runtime::Builder::new_current_thread()
             .enable_all()
             .build()
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
+            .map_err(|e| std::io::Error::other(e.to_string()))?;
         rt.block_on(async move {
-            let response = command_to_run.send().await.map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
+            let response = command_to_run.send().await.map_err(|e| std::io::Error::other(e.to_string()))?;
             let status = response.status();
-            let text = response.text().await.map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
+            let text = response.text().await.map_err(|e| std::io::Error::other(e.to_string()))?;
             Ok::<_, std::io::Error>((status, text))
         })
     }).join()
-      .map_err(|_| SubprocessError::SpawnFailed(std::io::Error::new(std::io::ErrorKind::Other, "Thread join failed")))??;
+      .map_err(|_| SubprocessError::SpawnFailed(std::io::Error::other("Thread join failed")))??;
 
     if !status.is_success() {
-        return Err(SubprocessError::SpawnFailed(std::io::Error::new(
-            std::io::ErrorKind::Other,
+        return Err(SubprocessError::SpawnFailed(std::io::Error::other(
             format!("Groq API returned status {}: {}", status, response_text),
         )));
     }
 
     let parsed: serde_json::Value = serde_json::from_str(&response_text)
-        .map_err(|e| SubprocessError::SpawnFailed(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
+        .map_err(|e| SubprocessError::SpawnFailed(std::io::Error::other(e.to_string())))?;
     let stdout = parsed["choices"][0]["message"]["content"]
         .as_str()
         .unwrap_or("")

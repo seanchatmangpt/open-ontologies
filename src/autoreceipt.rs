@@ -85,9 +85,84 @@ pub struct Receipt {
     pub receipt_hash: Option<String>,
 }
 
+/// Builder for constructing a Receipt from boundary evidence.
+#[derive(Debug, Default)]
+pub struct BoundaryReceiptBuilder {
+    artifact_id: String,
+    operator_id: String,
+    route_id: String,
+    expected_ocel_hash: Option<String>,
+    observed_ocel_hash: Option<String>,
+    raw_evidence_hash: Option<String>,
+    stdout_hash: Option<String>,
+    stderr_hash: Option<String>,
+    exit_code: Option<i32>,
+}
+
+impl BoundaryReceiptBuilder {
+    pub fn new(artifact_id: String, operator_id: String, route_id: String) -> Self {
+        Self {
+            artifact_id,
+            operator_id,
+            route_id,
+            ..Default::default()
+        }
+    }
+
+    pub fn expected_ocel_hash(mut self, hash: Option<String>) -> Self {
+        self.expected_ocel_hash = hash;
+        self
+    }
+
+    pub fn observed_ocel_hash(mut self, hash: Option<String>) -> Self {
+        self.observed_ocel_hash = hash;
+        self
+    }
+
+    pub fn raw_evidence_hash(mut self, hash: Option<String>) -> Self {
+        self.raw_evidence_hash = hash;
+        self
+    }
+
+    pub fn stdout_hash(mut self, hash: Option<String>) -> Self {
+        self.stdout_hash = hash;
+        self
+    }
+
+    pub fn stderr_hash(mut self, hash: Option<String>) -> Self {
+        self.stderr_hash = hash;
+        self
+    }
+
+    pub fn exit_code(mut self, code: Option<i32>) -> Self {
+        self.exit_code = code;
+        self
+    }
+
+    pub fn build(self) -> Receipt {
+        Receipt::new_from_boundary_internal(
+            self.artifact_id,
+            self.operator_id,
+            self.route_id,
+            self.expected_ocel_hash,
+            self.observed_ocel_hash,
+            self.raw_evidence_hash,
+            self.stdout_hash,
+            self.stderr_hash,
+            self.exit_code,
+        )
+    }
+}
+
 impl Receipt {
-    /// Helper to construct an OpenOntologyReceipt from raw boundary evidence.
-    pub fn new_from_boundary(
+    /// Convenience builder for constructing from boundary evidence.
+    pub fn boundary_builder(artifact_id: String, operator_id: String, route_id: String) -> BoundaryReceiptBuilder {
+        BoundaryReceiptBuilder::new(artifact_id, operator_id, route_id)
+    }
+
+    /// Internal helper to construct an OpenOntologyReceipt from raw boundary evidence.
+    #[allow(clippy::too_many_arguments)]
+    fn new_from_boundary_internal(
         artifact_id: String,
         operator_id: String,
         route_id: String,

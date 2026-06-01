@@ -36,6 +36,7 @@ pub struct AutoReceiptPipeline<S> {
 
 impl AutoReceiptPipeline<ArchitecturalReceiptParsed> {
     /// Initialize the state machine in the starting state.
+    #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         Self { state: ArchitecturalReceiptParsed }
     }

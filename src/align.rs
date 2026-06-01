@@ -122,10 +122,9 @@ impl AlignmentEngine {
             if let Some(obs) = observed.get(i) {
                 if obs["ocel:activity"].as_str() == Some(exp_activity) {
                     // Check for hardcoded timestamps
-                    if let Some(ts) = obs["ocel:timestamp"].as_str() {
-                        if ts == "2026-05-20T12:00:00Z" || ts == "2026-05-20T12:01:00Z" {
-                             return (0.0, 0.0, "SyntheticObservedOcelRejected".to_string());
-                        }
+                    if let Some(ts) = obs["ocel:timestamp"].as_str()
+                        && (ts == "2026-05-20T12:00:00Z" || ts == "2026-05-20T12:01:00Z") {
+                        return (0.0, 0.0, "SyntheticObservedOcelRejected".to_string());
                     }
                     matches += 1;
                 } else {

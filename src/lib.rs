@@ -22,6 +22,7 @@ pub mod clinical;
 pub mod drift;
 pub mod enforce;
 pub mod feedback;
+pub mod ggen_bridge;
 pub mod graph;
 pub mod ingest;
 pub mod inputs;

@@ -14,6 +14,6 @@ WHERE {
   BIND("String|Vec<Event>|DateTime|DateTime" AS ?traceTypes)
   BIND("object_id|object_type|attributes|lifecycle_state" AS ?attributeProps)
   BIND("String|String|Map<String, Value>|String" AS ?attributeTypes)
-  BIND("Created|InProgress|Completed|Cancelled|Active|Inactive" AS ?lifecycles)
-  BIND("Created-&gt;InProgress|InProgress-&gt;Completed|InProgress-&gt;Cancelled|Completed-&gt;Archived" AS ?transitions)
+  BIND("Created|InProgress|Completed|Cancelled|Active|Inactive|Seeded|Archived" AS ?lifecycles)
+  BIND("LifecycleState::Created, LifecycleState::InProgress|LifecycleState::InProgress, LifecycleState::Completed|LifecycleState::InProgress, LifecycleState::Cancelled|LifecycleState::Completed, LifecycleState::Archived" AS ?transitions)
 }

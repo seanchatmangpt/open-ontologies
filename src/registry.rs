@@ -94,12 +94,18 @@ pub struct ExecutionRegistry<State = Unbound> {
     pub bindings: std::collections::HashMap<String, String>,
 }
 
-impl ExecutionRegistry<Unbound> {
-    pub fn new() -> Self {
+impl Default for ExecutionRegistry<Unbound> {
+    fn default() -> Self {
         Self {
             _state: PhantomData,
             bindings: std::collections::HashMap::new(),
         }
+    }
+}
+
+impl ExecutionRegistry<Unbound> {
+    pub fn new() -> Self {
+        Self::default()
     }
 
     pub fn bind(mut self, component: &str, target: &str) -> Self {

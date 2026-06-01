@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 /// Foundational "8-basis" structs mapping to specific ontological concepts.
 /// These provide the semantic grounding for all GitHub Factory operations.
-
+///
 /// Represents a role (mapping to `org:Role`).
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Role8(pub String);
