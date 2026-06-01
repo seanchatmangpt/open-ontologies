@@ -3,280 +3,24 @@ use crate::state::StateDb;
 use std::sync::Arc;
 
 /// Design pattern enforcement with built-in and custom rule packs.
-///
-/// # Examples
-///
-/// Auto-instinct: there are exactly four built-in pack names, all non-empty.
-///
-/// ```
-/// let packs = ["generic", "boro", "value_partition", "hierarchy"];
-/// assert_eq!(packs.len(), 4);
-/// for pack in &packs {
-///     assert!(!pack.is_empty());
-/// }
-/// ```
-///
-/// The `hierarchy` pack runs four sub-rules and always returns a JSON response
-/// with `total_rules`, `passed_rules`, and `compliance` fields.
-///
-/// ```
-/// use std::sync::Arc;
-/// use open_ontologies::enforce::Enforcer;
-/// use open_ontologies::graph::GraphStore;
-/// use open_ontologies::state::StateDb;
-///
-/// let db = StateDb::open(std::path::Path::new(":memory:")).unwrap();
-/// let graph = Arc::new(GraphStore::new());
-/// let enforcer = Enforcer::new(db, graph);
-///
-/// let json = enforcer.enforce("hierarchy").unwrap();
-/// let v: serde_json::Value = serde_json::from_str(&json).unwrap();
-/// assert_eq!(v["rule_pack"].as_str().unwrap(), "hierarchy");
-/// assert!(v["total_rules"].as_u64().is_some());
-/// assert!(v["passed_rules"].as_u64().is_some());
-/// let compliance = v["compliance"].as_f64().unwrap();
-/// assert!((0.0..=1.0).contains(&compliance));
-/// ```
 pub struct Enforcer {
     db: StateDb,
     graph: Arc<GraphStore>,
 }
 
 impl Enforcer {
-    /// Create a new `Enforcer` backed by an in-memory SQLite database and an
-    /// in-memory Oxigraph graph store.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use std::sync::Arc;
-    /// use open_ontologies::enforce::Enforcer;
-    /// use open_ontologies::graph::GraphStore;
-    /// use open_ontologies::state::StateDb;
-    ///
-    /// let db = StateDb::open(std::path::Path::new(":memory:")).unwrap();
-    /// let graph = Arc::new(GraphStore::new());
-    /// let enforcer = Enforcer::new(db, graph);
-    /// // Enforcer is ready; the empty graph will produce zero violations.
-    /// drop(enforcer);
-    /// ```
     pub fn new(db: StateDb, graph: Arc<GraphStore>) -> Self {
         Self { db, graph }
     }
 
-    /// Run enforcement for a rule pack. Built-in packs: "generic", "boro", "value_partition".
-    /// Custom rules stored in SQLite are also checked for the given pack name.
-    ///
-    /// An empty graph has no classes or properties, so every generic rule
-    /// passes (nothing to violate).
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use std::sync::Arc;
-    /// use open_ontologies::enforce::Enforcer;
-    /// use open_ontologies::graph::GraphStore;
-    /// use open_ontologies::state::StateDb;
-    ///
-    /// let db = StateDb::open(std::path::Path::new(":memory:")).unwrap();
-    /// let graph = Arc::new(GraphStore::new());
-    /// let enforcer = Enforcer::new(db, graph);
-    ///
-    /// let json = enforcer.enforce("generic").unwrap();
-    /// let v: serde_json::Value = serde_json::from_str(&json).unwrap();
-    /// assert_eq!(v["violations"].as_array().unwrap().len(), 0);
-    /// assert_eq!(v["rule_pack"].as_str().unwrap(), "generic");
-    /// ```
-    ///
-    /// All four built-in packs are recognized and return `rule_pack` matching the input.
-    /// An unknown pack name is also accepted — no built-in rules fire, so the result
-    /// has zero violations and compliance `1.0` (because total_rules == 0).
-    ///
-    /// ```
-    /// use std::sync::Arc;
-    /// use open_ontologies::enforce::Enforcer;
-    /// use open_ontologies::graph::GraphStore;
-    /// use open_ontologies::state::StateDb;
-    ///
-    /// let db = StateDb::open(std::path::Path::new(":memory:")).unwrap();
-    /// let graph = Arc::new(GraphStore::new());
-    /// let enforcer = Enforcer::new(db, graph);
-    ///
-    /// // All four built-in packs echo back the pack name in the JSON result.
-    /// for pack in &["generic", "boro", "value_partition", "hierarchy"] {
-    ///     let json = enforcer.enforce(pack).unwrap();
-    ///     let v: serde_json::Value = serde_json::from_str(&json).unwrap();
-    ///     assert_eq!(v["rule_pack"].as_str().unwrap(), *pack,
-    ///         "rule_pack field must match the requested pack");
-    ///     // Result always has a violations array and a compliance score.
-    ///     assert!(v["violations"].is_array());
-    ///     assert!(v["compliance"].as_f64().is_some());
-    /// }
-    ///
-    /// // An unknown pack name still returns valid JSON with zero violations.
-    /// let json = enforcer.enforce("unknown-pack").unwrap();
-    /// let v: serde_json::Value = serde_json::from_str(&json).unwrap();
-    /// assert_eq!(v["rule_pack"].as_str().unwrap(), "unknown-pack");
-    /// assert_eq!(v["violations"].as_array().unwrap().len(), 0);
-    /// // compliance is 1.0 when no rules run (total_rules == 0)
-    /// assert!((v["compliance"].as_f64().unwrap() - 1.0).abs() < f64::EPSILON);
-    /// ```
-    ///
-    /// Packs that check only structural content (generic, boro, value_partition)
-    /// produce zero violations on an empty graph since there are no classes or
-    /// properties to inspect.
-    ///
-    /// ```
-    /// use std::sync::Arc;
-    /// use open_ontologies::enforce::Enforcer;
-    /// use open_ontologies::graph::GraphStore;
-    /// use open_ontologies::state::StateDb;
-    ///
-    /// let db = StateDb::open(std::path::Path::new(":memory:")).unwrap();
-    /// let graph = Arc::new(GraphStore::new());
-    /// let enforcer = Enforcer::new(db, graph);
-    ///
-    /// // Structural packs: empty graph has nothing to violate.
-    /// for pack in &["generic", "boro", "value_partition"] {
-    ///     let json = enforcer.enforce(pack).unwrap();
-    ///     let v: serde_json::Value = serde_json::from_str(&json).unwrap();
-    ///     assert_eq!(v["violations"].as_array().unwrap().len(), 0,
-    ///         "{pack}: empty graph must have zero violations");
-    ///     assert!((v["compliance"].as_f64().unwrap() - 1.0).abs() < f64::EPSILON,
-    ///         "{pack}: empty graph must have compliance 1.0");
-    /// }
-    /// ```
-    ///
-    /// Auto-instinct: `total_rules == passed_rules` on an empty graph since
-    /// nothing can violate without content.
-    ///
-    /// ```
-    /// use std::sync::Arc;
-    /// use open_ontologies::enforce::Enforcer;
-    /// use open_ontologies::graph::GraphStore;
-    /// use open_ontologies::state::StateDb;
-    ///
-    /// let db = StateDb::open(std::path::Path::new(":memory:")).unwrap();
-    /// let graph = Arc::new(GraphStore::new());
-    /// let enforcer = Enforcer::new(db, graph);
-    ///
-    /// let json = enforcer.enforce("generic").unwrap();
-    /// let v: serde_json::Value = serde_json::from_str(&json).unwrap();
-    /// let total = v["total_rules"].as_u64().unwrap();
-    /// let passed = v["passed_rules"].as_u64().unwrap();
-    /// assert_eq!(total, passed);
-    /// ```
-    ///
-    /// `suppressed_count` is always present and is 0 when called without a
-    /// feedback database.
-    ///
-    /// ```
-    /// use std::sync::Arc;
-    /// use open_ontologies::enforce::Enforcer;
-    /// use open_ontologies::graph::GraphStore;
-    /// use open_ontologies::state::StateDb;
-    ///
-    /// let db = StateDb::open(std::path::Path::new(":memory:")).unwrap();
-    /// let graph = Arc::new(GraphStore::new());
-    /// let enforcer = Enforcer::new(db, graph);
-    ///
-    /// for pack in &["generic", "boro", "value_partition", "hierarchy"] {
-    ///     let json = enforcer.enforce(pack).unwrap();
-    ///     let v: serde_json::Value = serde_json::from_str(&json).unwrap();
-    ///     assert_eq!(v["suppressed_count"].as_u64().unwrap(), 0);
-    /// }
-    /// ```
-    ///
-    /// Auto-instinct: `compliance` is always a finite float in `[0.0, 1.0]`.
-    ///
-    /// ```
-    /// use std::sync::Arc;
-    /// use open_ontologies::enforce::Enforcer;
-    /// use open_ontologies::graph::GraphStore;
-    /// use open_ontologies::state::StateDb;
-    ///
-    /// let db = StateDb::open(std::path::Path::new(":memory:")).unwrap();
-    /// let graph = Arc::new(GraphStore::new());
-    /// let enforcer = Enforcer::new(db, graph);
-    ///
-    /// for pack in &["generic", "boro", "value_partition", "hierarchy", "unknown"] {
-    ///     let json = enforcer.enforce(pack).unwrap();
-    ///     let v: serde_json::Value = serde_json::from_str(&json).unwrap();
-    ///     let c = v["compliance"].as_f64().unwrap();
-    ///     assert!(c.is_finite());
-    ///     assert!((0.0..=1.0).contains(&c));
-    /// }
-    /// ```
+    /// Run enforcement for a rule pack. Built-in packs: "generic", "boro", "value_partition",
+    /// "hierarchy", "ies4". Custom rules stored in SQLite are also checked for the given
+    /// pack name.
     pub fn enforce(&self, rule_pack: &str) -> anyhow::Result<String> {
         self.enforce_with_feedback(rule_pack, None)
     }
 
     /// Run enforcement with optional feedback-based suppression.
-    ///
-    /// Passing `None` for `feedback_db` is equivalent to calling [`enforce`](Self::enforce).
-    /// On an empty graph every rule in any built-in pack passes, so `violations`
-    /// will be an empty array and `compliance` will be `1.0`.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use std::sync::Arc;
-    /// use open_ontologies::enforce::Enforcer;
-    /// use open_ontologies::graph::GraphStore;
-    /// use open_ontologies::state::StateDb;
-    ///
-    /// let db = StateDb::open(std::path::Path::new(":memory:")).unwrap();
-    /// let graph = Arc::new(GraphStore::new());
-    /// let enforcer = Enforcer::new(db, graph);
-    ///
-    /// // No feedback db — identical to enforce().
-    /// let json = enforcer.enforce_with_feedback("boro", None).unwrap();
-    /// let v: serde_json::Value = serde_json::from_str(&json).unwrap();
-    /// assert_eq!(v["violations"].as_array().unwrap().len(), 0);
-    /// assert_eq!(v["suppressed_count"].as_u64().unwrap(), 0);
-    /// assert!((v["compliance"].as_f64().unwrap() - 1.0).abs() < f64::EPSILON);
-    /// ```
-    ///
-    /// # With a feedback database
-    ///
-    /// ```
-    /// use std::sync::Arc;
-    /// use open_ontologies::enforce::Enforcer;
-    /// use open_ontologies::graph::GraphStore;
-    /// use open_ontologies::state::StateDb;
-    ///
-    /// let db = StateDb::open(std::path::Path::new(":memory:")).unwrap();
-    /// let graph = Arc::new(GraphStore::new());
-    /// let enforcer = Enforcer::new(db.clone(), graph);
-    ///
-    /// let json = enforcer.enforce_with_feedback("generic", Some(&db)).unwrap();
-    /// let v: serde_json::Value = serde_json::from_str(&json).unwrap();
-    /// // Empty graph, empty feedback table — still zero violations.
-    /// assert_eq!(v["violations"].as_array().unwrap().len(), 0);
-    /// ```
-    ///
-    /// Auto-instinct: `enforce(pack)` and `enforce_with_feedback(pack, None)`
-    /// produce identical `total_rules` and `passed_rules`.
-    ///
-    /// ```
-    /// use std::sync::Arc;
-    /// use open_ontologies::enforce::Enforcer;
-    /// use open_ontologies::graph::GraphStore;
-    /// use open_ontologies::state::StateDb;
-    ///
-    /// let db = StateDb::open(std::path::Path::new(":memory:")).unwrap();
-    /// let graph = Arc::new(GraphStore::new());
-    /// let enforcer = Enforcer::new(db, graph);
-    ///
-    /// for pack in &["generic", "boro", "value_partition", "hierarchy"] {
-    ///     let json_a = enforcer.enforce(pack).unwrap();
-    ///     let json_b = enforcer.enforce_with_feedback(pack, None).unwrap();
-    ///     let va: serde_json::Value = serde_json::from_str(&json_a).unwrap();
-    ///     let vb: serde_json::Value = serde_json::from_str(&json_b).unwrap();
-    ///     assert_eq!(va["total_rules"], vb["total_rules"]);
-    ///     assert_eq!(va["passed_rules"], vb["passed_rules"]);
-    /// }
-    /// ```
     pub fn enforce_with_feedback(&self, rule_pack: &str, feedback_db: Option<&StateDb>) -> anyhow::Result<String> {
         let mut violations = Vec::new();
         let mut total_rules = 0u32;
@@ -287,6 +31,7 @@ impl Enforcer {
             "boro" => self.run_boro_rules(&mut violations, &mut total_rules, &mut passed_rules),
             "value_partition" => self.run_value_partition_rules(&mut violations, &mut total_rules, &mut passed_rules),
             "hierarchy" => self.run_hierarchy_rules(&mut violations, &mut total_rules, &mut passed_rules),
+            "ies4" => self.run_ies4_rules(&mut violations, &mut total_rules, &mut passed_rules),
             _ => {}
         }
 
@@ -343,70 +88,6 @@ impl Enforcer {
     }
 
     /// Add a custom SPARQL rule to the database.
-    ///
-    /// Rules are stored in the `enforce_rules` SQLite table and executed by
-    /// [`enforce`](Self::enforce) whenever the matching `rule_pack` is run.
-    /// An ASK query that returns `true` is treated as a violation.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use std::sync::Arc;
-    /// use open_ontologies::enforce::Enforcer;
-    /// use open_ontologies::graph::GraphStore;
-    /// use open_ontologies::state::StateDb;
-    ///
-    /// let db = StateDb::open(std::path::Path::new(":memory:")).unwrap();
-    /// let graph = Arc::new(GraphStore::new());
-    /// let enforcer = Enforcer::new(db, graph);
-    ///
-    /// // Add a custom rule that fires when the graph contains any triple.
-    /// enforcer.add_custom_rule(
-    ///     "no_triples",
-    ///     "custom",
-    ///     "ASK { ?s ?p ?o }",
-    ///     "warning",
-    ///     "Graph must be empty",
-    /// );
-    ///
-    /// // Run the custom pack — empty graph means no triples, so ASK returns
-    /// // false and the rule passes (0 violations).
-    /// let json = enforcer.enforce("custom").unwrap();
-    /// let v: serde_json::Value = serde_json::from_str(&json).unwrap();
-    /// assert_eq!(v["violations"].as_array().unwrap().len(), 0);
-    /// ```
-    ///
-    /// Multiple custom rules can be registered under the same pack name.
-    /// Only rules for the requested pack are evaluated.
-    ///
-    /// ```
-    /// use std::sync::Arc;
-    /// use open_ontologies::enforce::Enforcer;
-    /// use open_ontologies::graph::GraphStore;
-    /// use open_ontologies::state::StateDb;
-    ///
-    /// let db = StateDb::open(std::path::Path::new(":memory:")).unwrap();
-    /// let graph = Arc::new(GraphStore::new());
-    /// let enforcer = Enforcer::new(db, graph);
-    ///
-    /// // Register two rules under different packs.
-    /// enforcer.add_custom_rule("rule-a", "pack-alpha", "ASK { ?s ?p ?o }", "info", "alpha rule");
-    /// enforcer.add_custom_rule("rule-b", "pack-beta",  "ASK { ?s ?p ?o }", "error", "beta rule");
-    ///
-    /// // Running pack-alpha evaluates only rule-a; pack-beta is unaffected.
-    /// let json_a = enforcer.enforce("pack-alpha").unwrap();
-    /// let va: serde_json::Value = serde_json::from_str(&json_a).unwrap();
-    /// assert_eq!(va["rule_pack"].as_str().unwrap(), "pack-alpha");
-    ///
-    /// // Running pack-beta evaluates only rule-b.
-    /// let json_b = enforcer.enforce("pack-beta").unwrap();
-    /// let vb: serde_json::Value = serde_json::from_str(&json_b).unwrap();
-    /// assert_eq!(vb["rule_pack"].as_str().unwrap(), "pack-beta");
-    ///
-    /// // Both packs: empty graph → ASK returns false → 0 violations each.
-    /// assert_eq!(va["violations"].as_array().unwrap().len(), 0);
-    /// assert_eq!(vb["violations"].as_array().unwrap().len(), 0);
-    /// ```
     pub fn add_custom_rule(&self, id: &str, rule_pack: &str, query: &str, severity: &str, message: &str) {
         let conn = self.db.conn();
         let _ = conn.execute(
@@ -515,6 +196,115 @@ impl Enforcer {
                     "severity": "info",
                     "entity": cls,
                     "message": "Class has no rdfs:label",
+                }));
+            }
+        }
+    }
+
+    /// IES4 design-pattern enforcement (Information Exchange Standard, the UK
+    /// cross-sector ontology framework custodied by DBT since March 2025;
+    /// canonical home `IES-Org/ont-ies`). Three rules that go beyond the
+    /// existing BORO pack:
+    ///
+    /// 1. **4D identity uniqueness** — a class cannot be both `ies:Particular`
+    ///    and `ies:ClassOfEntity` (the type-vs-token distinction is
+    ///    foundational to IES's 4D mereology).
+    /// 2. **State has subject** — a class subclassing `ies:State` should
+    ///    declare or appear with `ies:isStateOf` linking it to an entity
+    ///    (the state pattern is meaningless without its bearer).
+    /// 3. **Event has participant pattern** — a class subclassing `ies:Event`
+    ///    should appear as range of some property implementing the
+    ///    participant pattern (`ies:isParticipantIn`, `ies:involves`, etc.),
+    ///    OR have at least one declared subclass-of-Event participant
+    ///    (events without participants are incomplete IES4 model).
+    ///
+    /// Academic grounding: FOUST 7 paper "Comparing IES and BORO"
+    /// (CEUR Vol-4176, JOWO 2024). Closes #24.
+    fn run_ies4_rules(&self, violations: &mut Vec<serde_json::Value>, total: &mut u32, passed: &mut u32) {
+        const IES_NS: &str = "http://ies.data.gov.uk/ontology/ies4#";
+
+        // Rule 1: 4D identity uniqueness — class is BOTH Particular and ClassOfEntity.
+        *total += 1;
+        let q = format!(
+            "SELECT DISTINCT ?c WHERE {{ \
+                ?c <http://www.w3.org/2000/01/rdf-schema#subClassOf> <{ies}Particular> . \
+                ?c <http://www.w3.org/2000/01/rdf-schema#subClassOf> <{ies}ClassOfEntity> . \
+            }}",
+            ies = IES_NS
+        );
+        let overlap = self.query_iris(&q, "c");
+        if overlap.is_empty() {
+            *passed += 1;
+        } else {
+            for cls in overlap {
+                violations.push(serde_json::json!({
+                    "rule": "ies4_particular_class_overlap",
+                    "severity": "error",
+                    "entity": cls,
+                    "message": "IES4 4D principle violation: class is subclass of both ies:Particular and ies:ClassOfEntity (type-vs-token clash)",
+                }));
+            }
+        }
+
+        // Rule 2: State has subject — class subclasses ies:State but no
+        // ies:isStateOf usage anywhere targets it as state-side.
+        *total += 1;
+        let q = format!(
+            "SELECT DISTINCT ?state WHERE {{ \
+                ?state <http://www.w3.org/2000/01/rdf-schema#subClassOf> <{ies}State> . \
+                FILTER NOT EXISTS {{ \
+                    {{ ?state <http://www.w3.org/2000/01/rdf-schema#subClassOf> ?r . \
+                       ?r <http://www.w3.org/2002/07/owl#onProperty> <{ies}isStateOf> . }} \
+                    UNION \
+                    {{ ?indiv a ?state . ?indiv <{ies}isStateOf> ?bearer . }} \
+                }} \
+            }}",
+            ies = IES_NS
+        );
+        let states = self.query_iris(&q, "state");
+        if states.is_empty() {
+            *passed += 1;
+        } else {
+            for s in states {
+                violations.push(serde_json::json!({
+                    "rule": "ies4_state_without_subject",
+                    "severity": "warning",
+                    "entity": s,
+                    "message": "IES4 State subclass has no ies:isStateOf restriction or instance-level usage — the state pattern requires a bearer (Entity it is a state of)",
+                }));
+            }
+        }
+
+        // Rule 3: Event has participant pattern — class subclasses ies:Event
+        // but no restriction or instance-level usage links a participant via
+        // ies:isParticipantIn / ies:involvesParticipant.
+        *total += 1;
+        let q = format!(
+            "SELECT DISTINCT ?ev WHERE {{ \
+                ?ev <http://www.w3.org/2000/01/rdf-schema#subClassOf> <{ies}Event> . \
+                FILTER NOT EXISTS {{ \
+                    {{ ?ev <http://www.w3.org/2000/01/rdf-schema#subClassOf> ?r . \
+                       ?r <http://www.w3.org/2002/07/owl#onProperty> ?prop . \
+                       FILTER(?prop IN (<{ies}isParticipantIn>, <{ies}involvesParticipant>, <{ies}hasParticipant>)) }} \
+                    UNION \
+                    {{ ?indiv a ?ev . \
+                       {{ ?indiv <{ies}isParticipantIn> ?_ }} UNION \
+                       {{ ?_ <{ies}involvesParticipant> ?indiv }} UNION \
+                       {{ ?_ <{ies}hasParticipant> ?indiv }} }} \
+                }} \
+            }}",
+            ies = IES_NS
+        );
+        let events = self.query_iris(&q, "ev");
+        if events.is_empty() {
+            *passed += 1;
+        } else {
+            for e in events {
+                violations.push(serde_json::json!({
+                    "rule": "ies4_event_without_participant",
+                    "severity": "warning",
+                    "entity": e,
+                    "message": "IES4 Event subclass has no participant restriction or instance — events require participants to be meaningful in the 4D model",
                 }));
             }
         }

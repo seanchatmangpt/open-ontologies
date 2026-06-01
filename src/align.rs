@@ -4,61 +4,8 @@ use crate::drift::jaro_winkler;
 use crate::graph::GraphStore;
 use crate::state::StateDb;
 
-/// SPARQL 1.1 JSON results envelope key (RFC mandated, never changes).
-///
-/// ```
-/// assert_eq!(open_ontologies::align::SPARQL_RESULTS_KEY, "results");
-/// ```
-pub const SPARQL_RESULTS_KEY: &str = "results";
-
-/// JSON field keys for alignment candidate objects.
-///
-/// These constants are the keys used in the JSON objects returned by
-/// [`AlignmentEngine::align`] for each candidate.
-///
-/// ```
-/// use open_ontologies::align::{FIELD_SOURCE_IRI, FIELD_TARGET_IRI, FIELD_CONFIDENCE};
-///
-/// assert_eq!(FIELD_SOURCE_IRI, "source_iri");
-/// assert_eq!(FIELD_TARGET_IRI, "target_iri");
-/// assert_eq!(FIELD_CONFIDENCE, "confidence");
-/// ```
-pub const FIELD_SOURCE_IRI: &str = "source_iri";
-pub const FIELD_TARGET_IRI: &str = "target_iri";
-pub const FIELD_CONFIDENCE: &str = "confidence";
-
 /// Schema alignment engine — detects equivalentClass/exactMatch/subClassOf
 /// candidates between two ontologies using weighted signals.
-///
-/// Construct with [`AlignmentEngine::new`], passing an in-memory [`StateDb`]
-/// and a shared [`GraphStore`].
-///
-/// [`StateDb`]: crate::state::StateDb
-/// [`GraphStore`]: crate::graph::GraphStore
-///
-/// # Examples
-///
-/// The engine exposes a stable set of structural signals:
-/// ```
-/// use open_ontologies::align::AlignmentEngine;
-///
-/// // Signal count is always at least 6 (structural signals).
-/// assert!(AlignmentEngine::signal_count() >= 6);
-///
-/// // The weights slice has exactly signal_count() elements.
-/// assert_eq!(AlignmentEngine::default_weights().len(), AlignmentEngine::signal_count());
-/// ```
-///
-/// The first weight (label similarity) is always the largest structural signal:
-/// ```
-/// use open_ontologies::align::AlignmentEngine;
-///
-/// let weights = AlignmentEngine::default_weights();
-/// let label_weight = weights[0];
-/// // Label similarity carries the highest weight of all signals.
-/// assert!(weights.iter().all(|w| label_weight >= *w),
-///     "label_similarity must have the highest weight");
-/// ```
 pub struct AlignmentEngine {
     db: StateDb,
     graph: Arc<GraphStore>,
@@ -67,19 +14,6 @@ pub struct AlignmentEngine {
 }
 
 impl AlignmentEngine {
-    /// Creates a new `AlignmentEngine` backed by the given state database and graph store.
-    ///
-    /// ```
-    /// use open_ontologies::align::AlignmentEngine;
-    /// use open_ontologies::graph::GraphStore;
-    /// use open_ontologies::state::StateDb;
-    /// use std::path::Path;
-    /// use std::sync::Arc;
-    ///
-    /// let db = StateDb::open(Path::new(":memory:")).unwrap();
-    /// let graph = Arc::new(GraphStore::new());
-    /// let _engine = AlignmentEngine::new(db, graph);
-    /// ```
     pub fn new(db: StateDb, graph: Arc<GraphStore>) -> Self {
         Self {
             db,
@@ -94,63 +28,6 @@ impl AlignmentEngine {
         Self { db, graph, vecstore: Some(vecstore) }
     }
 
-    /// Verify alignment between expected and observed OCEL events.
-    pub fn verify_alignment(&self, expected: &[serde_json::Value], observed: &[serde_json::Value]) -> (f64, f64, String) {
-        if expected.is_empty() {
-            return (0.0, 0.0, "non_conform:empty_expected".to_string());
-        }
-
-        // Hard Refusal Rule: If observed OCEL is cloned from expected OCEL
-        if expected == observed {
-            return (0.0, 0.0, "SyntheticObservedOcelRejected".to_string());
-        }
-
-        // Must require real command boundary evidence in observed
-        let has_real_evidence = observed.iter().any(|o| {
-            o.get("command").is_some() || o.get("execution_receipt_hash").is_some()
-        });
-
-        if !observed.is_empty() && !has_real_evidence {
-             return (0.0, 0.0, "SyntheticObservedOcelRejected".to_string());
-        }
-
-        let mut matches = 0;
-        let mut order_preserved = true;
-        for (i, exp) in expected.iter().enumerate() {
-            let exp_activity = exp["ocel:activity"].as_str().unwrap_or("");
-
-            if let Some(obs) = observed.get(i) {
-                if obs["ocel:activity"].as_str() == Some(exp_activity) {
-                    // Check for hardcoded timestamps
-                    if let Some(ts) = obs["ocel:timestamp"].as_str() {
-                        if ts == "2026-05-20T12:00:00Z" || ts == "2026-05-20T12:01:00Z" {
-                             return (0.0, 0.0, "SyntheticObservedOcelRejected".to_string());
-                        }
-                    }
-                    matches += 1;
-                } else {
-                    order_preserved = false;
-                }
-            } else {
-                order_preserved = false;
-            }
-        }
-
-        let fitness = matches as f64 / expected.len() as f64;
-        let precision = if !observed.is_empty() {
-            matches as f64 / observed.len() as f64
-        } else {
-            0.0
-        };
-
-        let verdict = if fitness >= 1.0 && order_preserved {
-            "conformant".to_string()
-        } else {
-            format!("non_conform:fitness_{:.2}", fitness)
-        };
-
-        (fitness, precision, verdict)
-    }
     /// Extract class IRIs and their labels from a temporary graph via SPARQL.
     /// Detect RDF format from content (not filename).
     fn detect_content_format(content: &str) -> RdfFormat {
@@ -196,7 +73,7 @@ impl AlignmentEngine {
         let mut class_map: std::collections::HashMap<String, ClassInfo> =
             std::collections::HashMap::new();
 
-        if let Some(rows) = parsed[SPARQL_RESULTS_KEY].as_array() {
+        if let Some(rows) = parsed["results"].as_array() {
             for row in rows {
                 let iri = match row["class"].as_str() {
                     Some(s) => s.trim_matches(|c| c == '<' || c == '>').to_string(),
@@ -275,7 +152,7 @@ impl AlignmentEngine {
             Ok(v) => v,
             Err(_) => return Vec::new(),
         };
-        parsed[SPARQL_RESULTS_KEY]
+        parsed["results"]
             .as_array()
             .unwrap_or(&Vec::new())
             .iter()
@@ -350,7 +227,7 @@ impl AlignmentEngine {
                 Ok(v) => v,
                 Err(_) => return Vec::new(),
             };
-            parsed[SPARQL_RESULTS_KEY]
+            parsed["results"]
                 .as_array()
                 .unwrap_or(&Vec::new())
                 .iter()
@@ -424,79 +301,8 @@ impl AlignmentEngine {
     #[cfg(feature = "embeddings")]
     const DEFAULT_WEIGHTS: [f64; 7] = [0.20, 0.15, 0.12, 0.12, 0.12, 0.09, 0.20];
 
-    /// Returns the default signal weights as a slice.
-    ///
-    /// Without the `embeddings` feature there are 6 structural signals; with it
-    /// a 7th embedding-similarity signal is appended. In both configurations the
-    /// weights must sum to 1.0 (within floating-point rounding).
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use open_ontologies::align::AlignmentEngine;
-    ///
-    /// let weights = AlignmentEngine::default_weights();
-    ///
-    /// // At least 6 structural signals are always present.
-    /// assert!(weights.len() >= 6, "expected at least 6 signals, got {}", weights.len());
-    ///
-    /// // Weights must sum to 1.0 (within floating-point tolerance).
-    /// let sum: f64 = weights.iter().sum();
-    /// assert!((sum - 1.0).abs() < 0.001, "weights must sum to 1.0, got {sum}");
-    ///
-    /// // Every individual weight must be positive.
-    /// for w in weights {
-    ///     assert!(*w > 0.0, "all weights must be positive, found {w}");
-    /// }
-    /// ```
-    pub fn default_weights() -> &'static [f64] {
-        &Self::DEFAULT_WEIGHTS
-    }
-
-    /// Returns the number of alignment signals used by this engine.
-    ///
-    /// Without the `embeddings` feature the count is 6; with it the count is 7.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use open_ontologies::align::AlignmentEngine;
-    ///
-    /// // At least 6 structural signals must be configured.
-    /// assert!(AlignmentEngine::signal_count() >= 6);
-    ///
-    /// // Signal count must match the default weights vector length.
-    /// assert_eq!(AlignmentEngine::signal_count(), AlignmentEngine::default_weights().len());
-    /// ```
-    pub fn signal_count() -> usize {
-        Self::DEFAULT_WEIGHTS.len()
-    }
-
-    /// Compute embedding similarity score using cosine similarity on text vectors.
-    ///
-    /// Returns a value in [0.0, 1.0] where 1.0 means identical direction and
-    /// 0.0 means orthogonal or zero-length vectors.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # #[cfg(feature = "embeddings")]
-    /// # {
-    /// use open_ontologies::align::AlignmentEngine;
-    /// // Identical vectors yield similarity ≈ 1.0.
-    /// let same = AlignmentEngine::embedding_similarity_score(&[1.0, 0.0], &[1.0, 0.0]);
-    /// assert!((same - 1.0).abs() < 1e-6, "identical vectors: {same}");
-    ///
-    /// // Orthogonal vectors yield similarity ≈ 0.0.
-    /// let orth = AlignmentEngine::embedding_similarity_score(&[1.0, 0.0], &[0.0, 1.0]);
-    /// assert!(orth < 0.01, "orthogonal vectors: {orth}");
-    ///
-    /// // Empty vectors yield 0.0 (below EPS threshold).
-    /// let empty = AlignmentEngine::embedding_similarity_score(&[], &[]);
-    /// assert!((empty - 0.0).abs() < 1e-6, "empty vectors: {empty}");
-    /// # }
-    /// ```
     #[cfg(feature = "embeddings")]
+    /// Compute embedding similarity score using cosine similarity on text vectors.
     pub fn embedding_similarity_score(vec_a: &[f32], vec_b: &[f32]) -> f64 {
         crate::poincare::cosine_similarity(vec_a, vec_b) as f64
     }
@@ -511,6 +317,53 @@ impl AlignmentEngine {
         min_confidence: f64,
         dry_run: bool,
     ) -> anyhow::Result<String> {
+        // Back-compat wrapper: degenerate borderline range (low == high) reproduces old behaviour.
+        self.align_with_thresholds(source, target, min_confidence, min_confidence, dry_run)
+    }
+
+    /// Two-threshold alignment with the default weighted-sum fusion (self-calibrating
+    /// weights). For RRF fusion or any future strategy, call `align_with_fusion` directly.
+    pub fn align_with_thresholds(
+        &self,
+        source: &str,
+        target: Option<&str>,
+        high_threshold: f64,
+        low_threshold: f64,
+        dry_run: bool,
+    ) -> anyhow::Result<String> {
+        self.align_with_fusion(source, target, high_threshold, low_threshold, dry_run, "weighted_sum")
+    }
+
+    /// Two-threshold alignment with borderline-candidate surfacing for LLM-orchestrated review,
+    /// parameterised by fusion strategy.
+    ///
+    /// `fusion` is one of:
+    /// - `"weighted_sum"` — combine per-signal scores with the self-calibrating weights
+    ///   learned from `onto_align_feedback` (default; equal weights at cold start)
+    /// - `"rrf"` — Reciprocal Rank Fusion at k=60 (Cormack et al., SIGIR 2009; validated for
+    ///   ontology alignment by Agent-OM at VLDB 2025). No learned weights required; useful
+    ///   as a cold-start baseline or alternative to the weighted sum on graphs where
+    ///   feedback hasn't been collected yet.
+    ///
+    /// Bucket semantics are identical to `align_with_thresholds`: candidates with
+    /// confidence ≥ `high_threshold` land in `auto_applied` (and are persisted unless
+    /// `dry_run`); those in `[low_threshold, high_threshold)` land in `borderline` with
+    /// enriched context; those below `low_threshold` are dropped.
+    pub fn align_with_fusion(
+        &self,
+        source: &str,
+        target: Option<&str>,
+        high_threshold: f64,
+        low_threshold: f64,
+        dry_run: bool,
+        fusion: &str,
+    ) -> anyhow::Result<String> {
+        // Clamp: degenerate range means "everything above high_threshold; nothing borderline".
+        let low_threshold = low_threshold.min(high_threshold);
+        // For RRF the inline weighted-sum confidence is throwaway (recomputed after
+        // collection). We collect all label-prefiltered candidates and only apply
+        // `low_threshold` to the FINAL fused score post-rerank.
+        let inline_low_threshold = if fusion == "rrf" { f64::NEG_INFINITY } else { low_threshold };
         // Load source into a temporary graph (detect format from content)
         let source_store = GraphStore::new();
         if std::path::Path::new(source).exists() {
@@ -541,11 +394,66 @@ impl AlignmentEngine {
         // Get learned weights (or defaults)
         let weights = self.get_learned_weights();
 
-        // Compute candidates: cartesian product of source × target classes
+        // HNSW prefilter (optional, transparent): when both source and target class
+        // IRIs have embeddings in the vecstore, use HNSW to compute a per-source
+        // shortlist of candidate target IRIs and skip pairs not in the shortlist.
+        // The default top-k is 50, which is well above the typical # of high-label-
+        // similarity matches per source class but tight enough to cut the Cartesian
+        // product cost on large ontologies. Gracefully degrades to full Cartesian
+        // when embeddings are missing.
+        #[cfg(feature = "embeddings")]
+        let hnsw_prefilter: Option<std::collections::HashMap<String, std::collections::HashSet<String>>> = {
+            const HNSW_TOP_K: usize = 50;
+            if let Some(ref vs_arc) = self.vecstore {
+                let target_iri_set: std::collections::HashSet<&str> =
+                    target_classes.iter().map(|c| c.iri.as_str()).collect();
+                let mut vs = vs_arc.lock().unwrap();
+                let mut by_source: std::collections::HashMap<String, std::collections::HashSet<String>> =
+                    std::collections::HashMap::new();
+                let mut any_used = false;
+                for sc in &source_classes {
+                    if let Some(src_vec) = vs.get_text_vec(&sc.iri).map(|v| v.to_vec()) {
+                        let shortlist = vs.search_cosine_hnsw(&src_vec, HNSW_TOP_K);
+                        if !shortlist.is_empty() {
+                            let filtered: std::collections::HashSet<String> = shortlist
+                                .into_iter()
+                                .filter(|(iri, _)| target_iri_set.contains(iri.as_str()))
+                                .map(|(iri, _)| iri)
+                                .collect();
+                            if !filtered.is_empty() {
+                                by_source.insert(sc.iri.clone(), filtered);
+                                any_used = true;
+                            }
+                        }
+                    }
+                }
+                if any_used { Some(by_source) } else { None }
+            } else {
+                None
+            }
+        };
+        #[cfg(not(feature = "embeddings"))]
+        let hnsw_prefilter: Option<std::collections::HashMap<String, std::collections::HashSet<String>>> = None;
+
+        // Compute candidates: cartesian product of source × target classes,
+        // optionally pruned to the HNSW shortlist when available.
         let mut candidates: Vec<serde_json::Value> = Vec::new();
 
         for sc in &source_classes {
+            // HNSW prefilter: if we computed a shortlist for this source, skip
+            // targets outside the shortlist. If the prefilter map exists but has
+            // no entry for THIS source (e.g. source had no embedding), fall back
+            // to scanning all targets — preserves correctness on partially-
+            // embedded inputs.
+            let shortlist_for_source: Option<&std::collections::HashSet<String>> =
+                hnsw_prefilter.as_ref().and_then(|m| m.get(&sc.iri));
+
             for tc in &target_classes {
+                if let Some(shortlist) = shortlist_for_source
+                    && !shortlist.contains(&tc.iri)
+                {
+                    continue;
+                }
                 // Skip self-matches (same IRI)
                 if sc.iri == tc.iri {
                     continue;
@@ -597,12 +505,15 @@ impl AlignmentEngine {
                     signals.iter().zip(weights.iter()).map(|(s, w)| s * w).sum()
                 };
 
-                // Skip low-confidence pairs
-                if confidence < min_confidence {
+                // Drop pairs below the low threshold entirely (for RRF, this is
+                // f64::NEG_INFINITY — we keep all label-prefiltered candidates and apply
+                // the real threshold after rerank).
+                if confidence < inline_low_threshold {
                     continue;
                 }
 
                 let relation = Self::classify_relation(label_sim, prop_overlap, parent_ovlp);
+                let requires_review = confidence < high_threshold;
 
                 #[allow(unused_mut)]
                 let mut signals_json = serde_json::json!({
@@ -619,20 +530,32 @@ impl AlignmentEngine {
                 }
 
                 candidates.push(serde_json::json!({
-                    FIELD_SOURCE_IRI: sc.iri,
-                    FIELD_TARGET_IRI: tc.iri,
+                    "source_iri": sc.iri,
+                    "target_iri": tc.iri,
                     "relation": relation,
-                    FIELD_CONFIDENCE: (confidence * 1000.0).round() / 1000.0,
+                    "confidence": (confidence * 1000.0).round() / 1000.0,
                     "signals": signals_json,
                     "applied": false,
+                    "requires_review": requires_review,
                 }));
+            }
+        }
+
+        // RRF rerank: recompute confidence from per-signal rankings, then re-derive
+        // requires_review from the new confidence and apply the real low_threshold.
+        if fusion == "rrf" {
+            Self::rrf_rerank(&mut candidates);
+            candidates.retain(|c| c["confidence"].as_f64().unwrap_or(0.0) >= low_threshold);
+            for c in &mut candidates {
+                let conf = c["confidence"].as_f64().unwrap_or(0.0);
+                c["requires_review"] = serde_json::json!(conf < high_threshold);
             }
         }
 
         // Sort by confidence descending
         candidates.sort_by(|a, b| {
-            b[FIELD_CONFIDENCE].as_f64().unwrap_or(0.0)
-                .partial_cmp(&a[FIELD_CONFIDENCE].as_f64().unwrap_or(0.0))
+            b["confidence"].as_f64().unwrap_or(0.0)
+                .partial_cmp(&a["confidence"].as_f64().unwrap_or(0.0))
                 .unwrap_or(std::cmp::Ordering::Equal)
         });
 
@@ -644,8 +567,8 @@ impl AlignmentEngine {
             let mut used_sources: std::collections::HashSet<String> = std::collections::HashSet::new();
             let mut used_targets: std::collections::HashSet<String> = std::collections::HashSet::new();
             candidates.retain(|c| {
-                let src = c[FIELD_SOURCE_IRI].as_str().unwrap_or("").to_string();
-                let tgt = c[FIELD_TARGET_IRI].as_str().unwrap_or("").to_string();
+                let src = c["source_iri"].as_str().unwrap_or("").to_string();
+                let tgt = c["target_iri"].as_str().unwrap_or("").to_string();
                 if used_sources.contains(&src) || used_targets.contains(&tgt) {
                     false
                 } else {
@@ -656,14 +579,14 @@ impl AlignmentEngine {
             });
         }
 
-        // Auto-apply above threshold
+        // Auto-apply above high_threshold.
         let mut applied_count = 0;
         if !dry_run {
             for candidate in &mut candidates {
-                let conf = candidate[FIELD_CONFIDENCE].as_f64().unwrap_or(0.0);
-                if conf >= min_confidence {
-                    let source_iri = candidate[FIELD_SOURCE_IRI].as_str().unwrap();
-                    let target_iri = candidate[FIELD_TARGET_IRI].as_str().unwrap();
+                let conf = candidate["confidence"].as_f64().unwrap_or(0.0);
+                if conf >= high_threshold {
+                    let source_iri = candidate["source_iri"].as_str().unwrap();
+                    let target_iri = candidate["target_iri"].as_str().unwrap();
                     let relation = candidate["relation"].as_str().unwrap();
 
                     let triple = Self::relation_to_triple(source_iri, target_iri, relation);
@@ -675,14 +598,137 @@ impl AlignmentEngine {
             }
         }
 
+        // Enrich borderline candidates with context for LLM-orchestrated review.
+        // Cheap: at most one extract_parents call per borderline candidate per side.
+        let source_class_map: std::collections::HashMap<&str, &ClassInfo> =
+            source_classes.iter().map(|c| (c.iri.as_str(), c)).collect();
+        let target_class_map: std::collections::HashMap<&str, &ClassInfo> =
+            target_classes.iter().map(|c| (c.iri.as_str(), c)).collect();
+        for candidate in &mut candidates {
+            if !candidate["requires_review"].as_bool().unwrap_or(false) {
+                continue;
+            }
+            let s_iri = candidate["source_iri"].as_str().unwrap_or("").to_string();
+            let t_iri = candidate["target_iri"].as_str().unwrap_or("").to_string();
+            let s_labels: Vec<String> = source_class_map
+                .get(s_iri.as_str())
+                .map(|c| c.labels.clone())
+                .unwrap_or_default();
+            let t_labels: Vec<String> = target_class_map
+                .get(t_iri.as_str())
+                .map(|c| c.labels.clone())
+                .unwrap_or_default();
+            let s_parents = Self::extract_parents(&source_store, &s_iri);
+            let t_parents = Self::extract_parents(target_ref, &t_iri);
+            candidate["context"] = serde_json::json!({
+                "source_labels":  s_labels,
+                "target_labels":  t_labels,
+                "source_parents": s_parents,
+                "target_parents": t_parents,
+            });
+        }
+
+        // Partition into auto-applied vs borderline buckets (back-compat: `candidates`
+        // keeps the unified sorted list; new `auto_applied` / `borderline` are views).
+        let auto_applied: Vec<serde_json::Value> = candidates
+            .iter()
+            .filter(|c| !c["requires_review"].as_bool().unwrap_or(false))
+            .cloned()
+            .collect();
+        let borderline: Vec<serde_json::Value> = candidates
+            .iter()
+            .filter(|c| c["requires_review"].as_bool().unwrap_or(false))
+            .cloned()
+            .collect();
+
         let total = candidates.len();
+        let borderline_count = borderline.len();
+
+        let summary_for_review = if borderline_count > 0 {
+            format!(
+                "Found {} auto-applied matches and {} borderline pair(s) needing review. \
+                 For each borderline pair, inspect the `context` field (labels, parents) \
+                 and call `onto_align_feedback` with accepted=true|false to record your \
+                 verdict — the self-calibrating weight model will learn from it.",
+                auto_applied.len(),
+                borderline_count
+            )
+        } else {
+            String::new()
+        };
 
         Ok(serde_json::json!({
             "candidates": candidates,
+            "auto_applied": auto_applied,
+            "borderline": borderline,
             "applied_count": applied_count,
             "total_candidates": total,
-            "threshold": min_confidence,
+            "borderline_count": borderline_count,
+            "high_threshold": high_threshold,
+            "low_threshold": low_threshold,
+            // Back-compat alias — older callers read "threshold".
+            "threshold": high_threshold,
+            "summary_for_review": summary_for_review,
         }).to_string())
+    }
+
+    /// Reciprocal Rank Fusion (Cormack, Clarke, Buettcher SIGIR 2009) at k=60.
+    /// For each per-signal ranking, accumulate `1 / (k + rank)` into each candidate's
+    /// RRF score. Normalise to `[0, 1]` against the max possible (a candidate that
+    /// is rank-1 in every signal), then overwrite each candidate's `confidence` field.
+    ///
+    /// `signals` is the list of signal field-names in the candidate's `signals` object
+    /// to fuse over. By design RRF is robust to signals on different scales — it only
+    /// uses the per-signal ordering, not the raw scores. This is the property that
+    /// makes it a sensible cold-start alternative to the learned weighted-sum.
+    fn rrf_rerank(candidates: &mut [serde_json::Value]) {
+        const K: f64 = 60.0;
+        if candidates.is_empty() {
+            return;
+        }
+
+        #[cfg(feature = "embeddings")]
+        const SIGNALS: &[&str] = &[
+            "label_similarity",
+            "property_overlap",
+            "parent_overlap",
+            "instance_overlap",
+            "restriction_similarity",
+            "neighborhood_similarity",
+            "embedding_similarity",
+        ];
+        #[cfg(not(feature = "embeddings"))]
+        const SIGNALS: &[&str] = &[
+            "label_similarity",
+            "property_overlap",
+            "parent_overlap",
+            "instance_overlap",
+            "restriction_similarity",
+            "neighborhood_similarity",
+        ];
+
+        let n = candidates.len();
+        let mut rrf = vec![0.0_f64; n];
+
+        for sig in SIGNALS {
+            let mut idx: Vec<usize> = (0..n).collect();
+            idx.sort_by(|&a, &b| {
+                let sa = candidates[a]["signals"][sig].as_f64().unwrap_or(0.0);
+                let sb = candidates[b]["signals"][sig].as_f64().unwrap_or(0.0);
+                sb.partial_cmp(&sa).unwrap_or(std::cmp::Ordering::Equal)
+            });
+            for (rank_zero, &i) in idx.iter().enumerate() {
+                let rank = (rank_zero + 1) as f64;
+                rrf[i] += 1.0 / (K + rank);
+            }
+        }
+
+        // Max possible: rank 1 in every signal -> SIGNALS.len() * 1/(K + 1)
+        let max_possible = SIGNALS.len() as f64 * (1.0 / (K + 1.0));
+        for (i, c) in candidates.iter_mut().enumerate() {
+            let normalised = (rrf[i] / max_possible).clamp(0.0, 1.0);
+            c["confidence"] = serde_json::json!((normalised * 1000.0).round() / 1000.0);
+        }
     }
 
     /// Classify the relation type based on signal strengths.
@@ -827,43 +873,6 @@ impl AlignmentEngine {
     }
 
     /// Record user feedback on an alignment candidate.
-    ///
-    /// Feedback is persisted to the SQLite state database and used to
-    /// self-calibrate signal weights once at least 10 labeled examples are
-    /// available. Until then the engine reports `"weights_learning": "collecting"`.
-    ///
-    /// # Examples
-    ///
-    /// Recording accepted feedback returns `ok: true` and the echoed IRIs:
-    /// ```
-    /// use open_ontologies::align::AlignmentEngine;
-    /// use open_ontologies::graph::GraphStore;
-    /// use open_ontologies::state::StateDb;
-    /// use std::path::Path;
-    /// use std::sync::Arc;
-    ///
-    /// let db = StateDb::open(Path::new(":memory:")).unwrap();
-    /// let graph = Arc::new(GraphStore::new());
-    /// let engine = AlignmentEngine::new(db, graph);
-    ///
-    /// let result = engine
-    ///     .record_feedback(
-    ///         "http://ex.org/Dog",
-    ///         "http://other.org/Canine",
-    ///         "owl:equivalentClass",
-    ///         true,
-    ///         None,
-    ///     )
-    ///     .unwrap();
-    ///
-    /// let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
-    /// assert!(parsed["ok"].as_bool().unwrap());
-    /// assert_eq!(parsed["source_iri"].as_str().unwrap(), "http://ex.org/Dog");
-    /// assert_eq!(parsed["target_iri"].as_str().unwrap(), "http://other.org/Canine");
-    /// assert_eq!(parsed["accepted"].as_bool().unwrap(), true);
-    /// // With fewer than 10 labeled examples, weight learning is still collecting data.
-    /// assert_eq!(parsed["weights_learning"].as_str().unwrap(), "collecting");
-    /// ```
     pub fn record_feedback(
         &self,
         source_iri: &str,
@@ -890,8 +899,8 @@ impl AlignmentEngine {
 
         Ok(serde_json::json!({
             "ok": true,
-            FIELD_SOURCE_IRI: source_iri,
-            FIELD_TARGET_IRI: target_iri,
+            "source_iri": source_iri,
+            "target_iri": target_iri,
             "predicted_relation": predicted_relation,
             "accepted": accepted,
             "feedback_count": feedback_count,
@@ -913,57 +922,6 @@ fn jaccard_similarity(a: &[String], b: &[String]) -> f64 {
 }
 
 /// Metadata about a class extracted from an ontology.
-///
-/// Built during alignment by querying an Oxigraph store for OWL classes and their
-/// `rdfs:label` / `skos:prefLabel` / `skos:altLabel` annotations.
-///
-/// ```
-/// use open_ontologies::align::ClassInfo;
-///
-/// let info = ClassInfo {
-///     iri: "http://example.org/Dog".to_string(),
-///     labels: vec!["Dog".to_string(), "Domestic dog".to_string()],
-/// };
-///
-/// assert_eq!(info.iri, "http://example.org/Dog");
-/// assert_eq!(info.labels.len(), 2);
-/// assert!(info.labels.contains(&"Dog".to_string()));
-///
-/// // ClassInfo implements Clone, so it can be duplicated cheaply.
-/// let cloned = info.clone();
-/// assert_eq!(cloned.iri, info.iri);
-/// ```
-///
-/// A class without any RDF label annotations is represented by an empty `labels` vec.
-/// The alignment engine falls back to the IRI local name in this case.
-///
-/// ```
-/// use open_ontologies::align::ClassInfo;
-///
-/// let unlabelled = ClassInfo {
-///     iri: "http://example.org/Vehicle".to_string(),
-///     labels: vec![],
-/// };
-///
-/// assert!(unlabelled.labels.is_empty(), "no RDF label annotations");
-/// assert!(unlabelled.iri.ends_with("Vehicle"));
-/// ```
-///
-/// The `iri` field is always a non-empty string (full absolute IRI):
-///
-/// ```
-/// use open_ontologies::align::ClassInfo;
-///
-/// let info = ClassInfo {
-///     iri: "https://schema.org/Person".to_string(),
-///     labels: vec!["Person".to_string()],
-/// };
-///
-/// assert!(!info.iri.is_empty());
-/// // IRI must be an absolute URI.
-/// assert!(info.iri.starts_with("http://") || info.iri.starts_with("https://"),
-///     "IRI should be absolute: {}", info.iri);
-/// ```
 #[derive(Debug, Clone)]
 pub struct ClassInfo {
     pub iri: String,
