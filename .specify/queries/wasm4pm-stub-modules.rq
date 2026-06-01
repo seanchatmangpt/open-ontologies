@@ -1,0 +1,19 @@
+# wasm4pm-stub-modules.rq
+# Returns pipe-delimited module metadata for wasm4pm-stub template
+
+PREFIX wasm4pm: <urn:wasm4pm:requirements:>
+PREFIX w4pmstub: <https://ggen.io/onto/wasm4pm/stub/>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+
+SELECT ?moduleNames ?typeNames ?fieldNames ?fieldTypes ?methodNames ?methodSigs ?methodDocs ?deriveMacros
+WHERE {
+  BIND("powl|arena|parser|models|conformance|discovery|fitness" AS ?moduleNames)
+  BIND("PowlVariant|PowlArena|PowlParser|PowlMarking|TraceReplayResult|FitnessResult|DiscoveryResult" AS ?typeNames)
+  BIND("id:name:definition:frequency:conformance_score|data:capacity|tokens|deltas|models|config|initial:final|fitness:replay_details|precision:generalization:algorithm|net:initial_marking:final_marking" AS ?fieldNames)
+  BIND("String:String:String:usize:f64|Vec<u8>:usize|Vec<Token>:Vec<TokenDelta>|Vec<PowlModel>:Config|Marking:Marking|f64:Vec<ReplayStep>|f64:f64:String|PetriNet:Marking:Marking" AS ?fieldTypes)
+  BIND("new|from_definition|validate|compute_fitness" AS ?methodNames)
+  BIND("(&str, usize) -> Self|(&str) -> Result<Self, Error>|() -> bool|(&EventLog) -> f64" AS ?methodSigs)
+  BIND("Create new variant|From POWL definition string|Validate variant structure|Compute fitness over log" AS ?methodDocs)
+  BIND("Debug|Clone|Serialize|Deserialize" AS ?deriveMacros)
+}
