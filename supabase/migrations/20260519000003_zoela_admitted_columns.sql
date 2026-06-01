@@ -11,7 +11,7 @@
 -- =============================================================================
 
 -- ----------------------------------------------------------------------------
--- Body column rows: 24
+-- Body column rows: 26
 -- ----------------------------------------------------------------------------
 -- Full body text of the push notification providing context and call-to-action. (from https://zoela.org/ontology/PushNotification)
 ALTER TABLE push_notification ADD COLUMN IF NOT EXISTS notification_body TEXT;
@@ -41,6 +41,8 @@ ALTER TABLE push_notification ADD COLUMN IF NOT EXISTS deep_link_route TEXT;
 ALTER TABLE households ADD COLUMN IF NOT EXISTS zip TEXT;
 -- Links a PushNotification to the RouteStage whose completion or activation triggered the notification dispatch. (from https://zoela.org/ontology/PushNotification)
 ALTER TABLE push_notification ADD COLUMN IF NOT EXISTS triggered_by_stage UUID;
+-- The complete formatted name of the person. (from https://zoela.org/ontology/PersonProfile)
+ALTER TABLE persons ADD COLUMN IF NOT EXISTS full_name TEXT;
 -- Membership role of the person within ZOE LA (e.g.  member  leader  visitor  staff). (from https://zoela.org/ontology/PersonProfile)
 ALTER TABLE persons ADD COLUMN IF NOT EXISTS role TEXT;
 -- Links a PersonProfile to the Household to which the person belongs. (from https://zoela.org/ontology/PersonProfile)
@@ -55,6 +57,8 @@ ALTER TABLE connect_groups ADD COLUMN IF NOT EXISTS group_frequency TEXT;
 ALTER TABLE households ADD COLUMN IF NOT EXISTS address_line1 TEXT;
 -- Category identifier from the NotificationCategoryScheme  used to route and filter notifications in the app. (from https://zoela.org/ontology/PushNotification)
 ALTER TABLE push_notification ADD COLUMN IF NOT EXISTS notification_category TEXT;
+-- The state  province  or region of the address. (from https://zoela.org/ontology/Household)
+ALTER TABLE households ADD COLUMN IF NOT EXISTS state TEXT;
 -- Associates the Connect Group with the ZOE LA campus at which it primarily meets. (from https://zoela.org/ontology/ConnectGroup)
 ALTER TABLE connect_groups ADD COLUMN IF NOT EXISTS group_has_campus UUID;
 -- True when the group is accepting new members (currentSize < maxCapacity and group is active). (from https://zoela.org/ontology/ConnectGroup)

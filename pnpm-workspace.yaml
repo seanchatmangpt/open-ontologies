@@ -1,0 +1,12 @@
+packages:
+  - 'packages/truex/vkg'
+  - 'packages/truex/cli'
+  - 'packages/truex/examples'
+  - 'packages/truex/conformance'
+  - 'packages/truex/replay'
+  - 'packages/truex/otel'
+  - 'packages/truex/capture'
+  - 'packages/truex/verifier'
+  - 'packages/truex/receipt'
+  - 'packages/truex/canonical'
+  - 'packages/truex/ocel2'

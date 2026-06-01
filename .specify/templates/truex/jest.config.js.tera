@@ -1,0 +1,12 @@
+module.exports = {
+  preset: 'ts-jest',
+  testEnvironment: 'node',
+  moduleNameMapper: {
+    {%- set pkg_list = packages | split(pat="|||") %}
+    {%- for pkg in pkg_list %}
+    {%- set name = pkg | split(pat="@@@") | first %}
+    '^{{ name }}$': '<rootDir>/packages/truex/{{ name | replace(from="@truex/", to="") }}/index.ts',
+    {%- endfor %}
+    '^@truex/(.*)$': '<rootDir>/packages/truex/$1/index.ts'
+  }
+};

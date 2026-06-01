@@ -158,21 +158,7 @@ fn key_unset_falls_back_to_inproc() {
     let guard = EnvGuard::capture(RELEVANT_KEYS);
     guard.unset_all();
 
-    // If `gemini` is present on PATH (and GEMINI_BIN is unset), the auto-detect
-    // cascade correctly resolves to "gemini" rather than "inproc".  This test
-    // only makes sense on machines where gemini is not available.
-    let gemini_on_path = std::process::Command::new("which")
-        .arg("gemini")
-        .output()
-        .map(|o| o.status.success())
-        .unwrap_or(false);
-    if gemini_on_path {
-        // gemini CLI is installed; "inproc" is not the expected fallback here.
-        // The behaviour is correct — skip rather than fail.
-        return;
-    }
-
-    // No env, no config, no key, no gemini on PATH → inproc.
+    // No env, no config, no key → inproc.
     let resolved = resolve_llm_engine(&LlmConfig::default());
     assert_eq!(
         resolved, "inproc",
@@ -217,21 +203,4 @@ fn pr_ralph_backend_override_wins() {
         resolved, "gemini",
         "PR_RALPH_BACKEND override to gemini must beat all other settings"
     );
-}
-
-#[test]
-fn test_resolve_gemini_bin_precedence() {
-    let _lock = env_lock();
-    let guard = EnvGuard::capture(&["GEMINI_BIN"]);
-    guard.unset_all();
-
-    // 1. Explicitly set GEMINI_BIN env var should be used verbatim
-    guard.set("GEMINI_BIN", "/custom/bin/gemini-cli");
-    let resolved = open_ontologies::config::resolve_gemini_bin();
-    assert_eq!(resolved, "/custom/bin/gemini-cli");
-
-    // 2. Unset GEMINI_BIN env var: check that it falls back to gemini or npx
-    guard.unset_all();
-    let resolved_default = open_ontologies::config::resolve_gemini_bin();
-    assert!(resolved_default == "gemini" || resolved_default == "npx");
 }

@@ -73,6 +73,7 @@ imports = [
     # existing screen/route/connect-group rules. See B4d-fix-acceptance.md
     # for the bisection results and the full-graph census (via Python
     # diagnostic, non-acceptance) that this scope is leaving on the table.
+    "ontology/revops-manufacturing.ttl",
 ]
 
 [rdf]
@@ -255,9 +256,11 @@ rules = [
     # We use multiple rules because ggen v5 expects one file per output_file. 
     # For the 10 packages, we will generate the core package.json.
     { name = "truex-packages", query = { file = ".specify/queries/truex/packages.rq" }, template = { file = ".specify/templates/truex/package.json.tera" }, output_file = "packages/truex/{{ name | replace(from='@truex/', to='') }}/package.json", mode = "Overwrite" },
-    { name = "truex-verifier-src", query = { file = ".specify/queries/truex/failure-taxonomy-aggregated.rq" }, template = { file = ".specify/templates/truex/verifier/index.ts.tera" }, output_file = "packages/truex/verifier/index.ts", mode = "Overwrite" },
+    { name = "truex-verifier-src", query = { file = ".specify/queries/truex/ecosystem-master-aggregated.rq" }, template = { file = ".specify/templates/truex/verifier/index.ts.tera" }, output_file = "packages/truex/verifier/index.ts", mode = "Overwrite" },
+    { name = "truex-ocel2-src",    query = { file = ".specify/queries/truex/packages.rq" },                 template = { file = ".specify/templates/truex/ocel2/index.ts.tera" },    output_file = "packages/truex/ocel2/index.ts",    mode = "Overwrite" },
     { name = "truex-receipt-src",  query = { file = ".specify/queries/truex/packages.rq" },                 template = { file = ".specify/templates/truex/receipt/index.ts.tera" },  output_file = "packages/truex/receipt/index.ts",  mode = "Overwrite" },
     { name = "truex-replay-src",   query = { file = ".specify/queries/truex/packages.rq" },                 template = { file = ".specify/templates/truex/replay/index.ts.tera" },   output_file = "packages/truex/replay/index.ts",   mode = "Overwrite" },
+    { name = "truex-vkg-src",     query = { file = ".specify/queries/truex/packages.rq" },                 template = { file = ".specify/templates/truex/vkg/index.ts.tera" },     output_file = "packages/truex/vkg/index.ts",     mode = "Overwrite" },
     { name = "truex-cli-src",      query = { file = ".specify/queries/truex/packages.rq" },                 template = { file = ".specify/templates/truex/cli/main.ts.tera" },     output_file = "packages/truex/cli/main.ts",     mode = "Overwrite" },
 
     # Truex Ecosystem — Schemas
@@ -265,12 +268,18 @@ rules = [
     { name = "truex-schema-boundary", query = { file = ".specify/queries/truex/artifacts.rq" }, template = { file = ".specify/templates/truex/schemas/receipt.v1.schema.json.tera" },  output_file = "schemas/truex-boundary.v1.schema.json", mode = "Overwrite" },
 
     # Truex Ecosystem — Refusal Tests
+    { name = "truex-test-e2e", query = { file = ".specify/queries/truex/e2e-tests.rq" }, template = { file = ".specify/templates/truex/tests/e2e.test.ts.tera" }, output_file = "tests/truex-e2e-{{ label }}.test.ts", mode = "Overwrite" },
     { name = "truex-test-refusal", query = { file = ".specify/queries/truex/failure-taxonomy-aggregated.rq" }, template = { file = ".specify/templates/truex/tests/receipt-refusal.test.ts.tera" }, output_file = "tests/truex-summary-only-refusal.test.ts", mode = "Overwrite" },
 
     # Truex Ecosystem — Documentation
     { name = "truex-docs", query = { file = ".specify/queries/truex/ecosystem-master-aggregated.rq" }, template = { file = ".specify/templates/truex/docs/truex-ecosystem.md.tera" }, output_file = "docs/truex-ecosystem.md", mode = "Overwrite" },
 
     { name = "truex-manufacture-receipt", query = { file = ".specify/queries/truex/test-obligations.rq" }, template = { file = ".specify/templates/truex/receipts/manufacture-receipt.json.tera" }, output_file = "receipts/manufacture-receipt.json", mode = "Overwrite" },
+    # Truex Ecosystem — Workspace Configuration (Appended via remediation)
+    { name = "truex-pnpm-workspace", query = { file = ".specify/queries/truex/ecosystem-master-aggregated.rq" }, template = { file = ".specify/templates/truex/pnpm-workspace.yaml.tera" }, output_file = "pnpm-workspace.yaml", mode = "Overwrite" },
+    { name = "truex-root-package",   query = { file = ".specify/queries/truex/ecosystem-master-aggregated.rq" }, template = { file = ".specify/templates/truex/root-package.json.tera" }, output_file = "package.json", mode = "Overwrite" },
+    { name = "truex-jest-config",    query = { file = ".specify/queries/truex/ecosystem-master-aggregated.rq" }, template = { file = ".specify/templates/truex/jest.config.js.tera" },  output_file = "jest.config.js", mode = "Overwrite" },
+    { name = "truex-tsconfig",       query = { file = ".specify/queries/truex/ecosystem-master-aggregated.rq" }, template = { file = ".specify/templates/truex/tsconfig.json.tera" },   output_file = "tsconfig.json",  mode = "Overwrite" },
     ]
 
 # Protected paths — the hand-written implementations; never overwrite

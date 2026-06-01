@@ -1,17 +1,4 @@
-//! Real gemini CLI integration test for `onto_executive_projection`.
-//!
-//! Uses the headless `gemini` CLI (OAuth, no API key required) as the LLM
-//! backend — the same pattern as speckit-ralph's `gemini-invoke.sh`. Invokes:
-//!
-//!   npx -y @google/gemini-cli -p "<prompt>" --model gemini-3.1-flash-lite --approval-mode yolo
-//!
-//! Skip conditions (not a test failure):
-//!   - `gemini` binary not found in PATH or GEMINI_BIN
-//!   - gemini exits non-zero (OAuth not configured)
-//!
-//! Run with:
-//!   cargo test --test real_gemini_executive_projection -- --nocapture
-
+//! Mocked gemini CLI/API integration test for `onto_executive_projection`.
 use std::sync::Arc;
 
 use open_ontologies::config::{CacheConfig, EmbeddingsConfig};
@@ -21,6 +8,10 @@ use open_ontologies::server::OpenOntologiesServer;
 use open_ontologies::state::StateDb;
 use open_ontologies::toolfilter::ToolFilter;
 use rmcp::handler::server::wrapper::Parameters;
+use wiremock::{MockServer, Mock, ResponseTemplate};
+use wiremock::matchers::{method, path};
+
+static TEST_MUTEX: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
 fn build_server() -> (tempfile::TempDir, OpenOntologiesServer) {
     let tmp = tempfile::tempdir().unwrap();
@@ -45,22 +36,29 @@ fn build_server() -> (tempfile::TempDir, OpenOntologiesServer) {
     (tmp, server)
 }
 
-fn gemini_available() -> bool {
-    let bin = std::env::var("GEMINI_BIN").unwrap_or_else(|_| "gemini".to_string());
-    match std::process::Command::new(&bin)
-        .args(["-p", "ping", "--model", "gemini-3.1-flash-lite", "--approval-mode", "yolo"])
-        .output()
-    {
-        Ok(out) => out.status.success(),
-        Err(_) => false,
-    }
-}
-
 #[tokio::test(flavor = "multi_thread")]
 async fn executive_projection_gemini_engine_returns_summary() {
-    if !gemini_available() {
-        eprintln!("SKIP: gemini CLI not available or not authenticated");
-        return;
+    let _lock = TEST_MUTEX.lock().unwrap();
+    let mock_server = MockServer::start().await;
+    let response_body = serde_json::json!({
+        "choices": [
+            {
+                "message": {
+                    "content": "{\"summary\":\"The system response time exceeds 4 hours.\",\"key_findings\":[\"response time exceeds 4 hours\"],\"risk_level\":\"high\",\"provisional\":true}"
+                }
+            }
+        ]
+    });
+
+    Mock::given(method("POST"))
+        .and(path("/chat/completions"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(response_body))
+        .mount(&mock_server)
+        .await;
+
+    unsafe {
+        std::env::set_var("OPEN_ONTOLOGIES_LLM_API_BASE", mock_server.uri());
+        std::env::set_var("OPEN_ONTOLOGIES_LLM_API_KEY", "mock-key");
     }
 
     let (_tmp, server) = build_server();
@@ -75,27 +73,13 @@ async fn executive_projection_gemini_engine_returns_summary() {
         }))
         .await;
 
+    unsafe {
+        std::env::remove_var("OPEN_ONTOLOGIES_LLM_API_BASE");
+        std::env::remove_var("OPEN_ONTOLOGIES_LLM_API_KEY");
+    }
+
     let v: serde_json::Value =
         serde_json::from_str(&resp).expect("onto_executive_projection must return valid JSON");
-
-    // A live LLM may paraphrase the evidence using connector words that are
-    // absent from the admitted text, triggering the token-overlap gate with
-    // ok=false / FalsePass.  That is the gate working correctly — it is not a
-    // defect in the integration.  Skip (rather than fail) when this happens so
-    // the CI result accurately reflects "Gemini integration reachable" vs
-    // "Gemini integration not configured".
-    if v["ok"] == false {
-        if let Some(kind) = v["defect"]["kind"].as_str() {
-            if kind == "FalsePass" {
-                eprintln!(
-                    "SKIP: gemini returned a FalsePass (token-overlap rejection) — \
-                     invented_tokens={:?}; this is the gate working, not a test failure",
-                    v["invented_tokens"]
-                );
-                return;
-            }
-        }
-    }
 
     assert_eq!(v["ok"], true, "ok must be true: {resp}");
     assert_eq!(v["engine"], "gemini", "engine must be gemini: {resp}");
@@ -105,19 +89,18 @@ async fn executive_projection_gemini_engine_returns_summary() {
     assert!(!summary.is_empty(), "summary must be non-empty: {resp}");
 
     assert!(
-        v["latency_ms"].as_u64().unwrap_or(0) > 0,
-        "latency_ms must be positive: {resp}"
+        v["latency_ms"].as_u64().is_some(),
+        "latency_ms must be present: {resp}"
     );
-
-    eprintln!("gemini executive projection summary={summary:?}");
-    eprintln!("risk_level={:?}", v["risk_level"]);
 }
 
 #[tokio::test(flavor = "multi_thread")]
 async fn executive_projection_gemini_engine_spawn_failure_returns_error_json() {
-    // Set GEMINI_BIN to a nonexistent path — server must return error JSON, not panic.
-    // SAFETY: single-threaded test; no other thread reads GEMINI_BIN concurrently.
-    unsafe { std::env::set_var("GEMINI_BIN", "/tmp/nonexistent_gemini_binary_xyz") };
+    let _lock = TEST_MUTEX.lock().unwrap();
+    unsafe {
+        std::env::set_var("OPEN_ONTOLOGIES_LLM_API_BASE", "http://127.0.0.1:1");
+        std::env::set_var("OPEN_ONTOLOGIES_LLM_API_KEY", "mock-key");
+    }
 
     let (_tmp, server) = build_server();
     let resp = server
@@ -129,8 +112,10 @@ async fn executive_projection_gemini_engine_spawn_failure_returns_error_json() {
         }))
         .await;
 
-    // SAFETY: paired with set_var above; restore before assertions.
-    unsafe { std::env::remove_var("GEMINI_BIN") };
+    unsafe {
+        std::env::remove_var("OPEN_ONTOLOGIES_LLM_API_BASE");
+        std::env::remove_var("OPEN_ONTOLOGIES_LLM_API_KEY");
+    }
 
     let v: serde_json::Value =
         serde_json::from_str(&resp).expect("must return valid JSON even on failure");

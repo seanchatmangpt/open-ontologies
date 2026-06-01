@@ -255,10 +255,8 @@ impl Reasoner {
     /// let v: serde_json::Value = serde_json::from_str(&json).unwrap();
     /// assert_eq!(v["profile_used"], "owl-rl");
     ///
-    /// // "owlrl" (without hyphens) is not a valid profile — it falls back to rdfs.
-    /// let json2 = Reasoner::run(&graph, "owlrl", false).unwrap();
-    /// let v2: serde_json::Value = serde_json::from_str(&json2).unwrap();
-    /// assert_eq!(v2["profile_used"], "rdfs");
+    /// // "owlrl" (without hyphens) is not a valid profile — it returns an Err.
+    /// assert!(Reasoner::run(&graph, "owlrl", false).is_err());
     /// ```
     ///
     /// `inferred_count` is always a non-negative integer (u64-representable).

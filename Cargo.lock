@@ -2999,6 +2999,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "ocel-core"
+version = "26.5.30"
+dependencies = [
+ "chrono",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "once_cell"
 version = "1.21.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3618,7 +3627,7 @@ dependencies = [
 
 [[package]]
 name = "prolog8"
-version = "26.5.21"
+version = "26.5.29"
 dependencies = [
  "blake3",
  "once_cell",
@@ -5831,7 +5840,7 @@ dependencies = [
 
 [[package]]
 name = "wasm4pm"
-version = "26.5.21"
+version = "26.5.29"
 dependencies = [
  "blake3",
  "chrono",
@@ -5863,7 +5872,7 @@ dependencies = [
 
 [[package]]
 name = "wasm4pm-algos"
-version = "26.5.21"
+version = "26.5.29"
 dependencies = [
  "blake3",
  "hashbrown 0.17.0",
@@ -5876,7 +5885,7 @@ dependencies = [
 
 [[package]]
 name = "wasm4pm-cognition"
-version = "26.5.21"
+version = "26.5.29"
 dependencies = [
  "blake3",
  "hex",
@@ -5892,12 +5901,13 @@ dependencies = [
 
 [[package]]
 name = "wasm4pm-types"
-version = "26.5.21"
+version = "26.5.29"
 dependencies = [
  "blake3",
  "chrono",
  "flate2",
  "hashbrown 0.17.0",
+ "ocel-core",
  "quick-xml 0.37.5",
  "rustc-hash",
  "serde",

@@ -7,7 +7,7 @@
 The manufacture of this ecosystem is only complete when the following obligations are discharged:
 
 
-- **ReplayAdjudicationRule**
+- **AdmissibleGraphProjection**
 
 - **ReleaseReceiptEmitted**
 
@@ -33,6 +33,7 @@ The manufacture of this ecosystem is only complete when the following obligation
 
 | Name | Purpose |
 |---|---|
+| @truex/vkg | Virtual knowledge graph projection over execution traces and state mutations. |
 | @truex/cli | Command-line interface for Truex (verify, admit, replay). |
 | @truex/examples | Valid and fraudulent checkout demonstrations. |
 | @truex/conformance | Golden corpus and adversarial conformance tests. |
@@ -48,8 +49,6 @@ The manufacture of this ecosystem is only complete when the following obligation
 
 ## Rules of Engagement
 
-### Replay Adjudication
-Receipts must be replayable to reconstruct the causal derivation path and visualize the proof. No admissible consequence may be omitted from replay.
 ### Raw Boundary Mandatory
 Closure requires raw boundary evidence (stdout/stderr/exit), not summary hashes.
 ### Independent Verifier
@@ -76,12 +75,12 @@ Physical invariant: closure is not admitted without a cryptographic receipt.
 ## Derivation Calculus Rules
 
 ### MaximalDerivation
-Proof that the OCEL path contains all admissible consequences derivable from raw evidence, with no selective omissions.
+none
 ### FilesystemMutationDerivesArtifactObject
-Observed filesystem mutations in the boundary evidence must derive the lifecycle of artifact objects.
+none
 ### StdoutHashDerivesArtifactEmission
-Presence of specific output strings or hashes in stdout derives the creation of artifact objects.
+none
 ### RawExitCodeDerivesExecutionStatus
-Physical exit codes (0 vs non-zero) must derive the corresponding OCEL event status.
+ExecutionComplete
 
 

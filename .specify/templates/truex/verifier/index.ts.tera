@@ -1,5 +1,6 @@
 import { Receipt } from '@truex/receipt';
 import { OCEL } from '@truex/ocel2';
+import * as crypto from 'crypto';
 
 export enum VerificationState {
   Admitted = 'Admitted',
@@ -17,37 +18,54 @@ export class Verifier {
   async verify(receipt: Receipt): Promise<ValidationResult> {
     // 1. Raw Boundary mandatory
     if (!receipt.raw_evidence) {
-      return { state: VerificationState::Refused, refusal_state: 'SummaryOnlyProof' };
+      return { state: VerificationState.Refused, refusal_state: 'SummaryOnlyProof' };
     }
 
-    // 2. OCEL Laundering check
+    // 2. Physical Hash Recomputation (Anti-Laundering)
+    const computedHash = crypto.createHash('sha256').update(JSON.stringify(receipt.raw_evidence)).digest('hex');
+    if (receipt.raw_evidence_hash && receipt.raw_evidence_hash !== computedHash) {
+      return { state: VerificationState.Refused, refusal_state: 'OCELLaundering' };
+    }
+
+    // 3. Structural Derivation Adjudication
     if (!this.isBoundaryDerived(receipt.observed_ocel, receipt.raw_evidence)) {
-      return { state: VerificationState::Refused, refusal_state: 'OCELLaundering' };
+      return { state: VerificationState.Refused, refusal_state: 'OCELLaundering' };
     }
 
-    return { state: VerificationState::Admitted };
+    return { state: VerificationState.Admitted };
   }
 
   private isBoundaryDerived(ocel: any, raw: any): boolean {
     if (!ocel || !raw) return false;
 
     const events = ocel['ocel:events'] || [];
-    const executionEvents = events.filter((e: any) => e['ocel:activity'].startsWith('ExecutionComplete'));
+    
+    {% if derivations %}
+    {%- set drv_list = derivations | split(pat="|||") %}
+    {%- for drv in drv_list %}
+    {%- set data = drv | split(pat="@@@") %}
+    {%- set rule_label = data[0] %}
+    {%- set prefix = data[1] %}
+    {%- set raw_field = data[2] %}
+    {%- set ocel_field = data[3] %}
+    // Enforcing Derivation Rule: {{ rule_label }}
+    {% if prefix != "none" %}
+    const events_{{ loop.index }} = events.filter((e: any) => e['ocel:activity'].startsWith('{{ prefix }}'));
+    {% else %}
+    const events_{{ loop.index }} = events;
+    {% endif %}
 
-    for (const event of executionEvents) {
+    for (const event of events_{{ loop.index }}) {
       const vmap = event['ocel:vmap'] || {};
-      
-      // Physical match: OCEL exit_code must match Raw exit_code
-      if (vmap.exit_code !== undefined && vmap.exit_code !== raw.exit_code) {
+      {% if raw_field != "none" and ocel_field != "none" %}
+      // Adjudicating physical field mapping: {{ raw_field }} -> {{ ocel_field }}
+      if (vmap.{{ ocel_field }} !== undefined && vmap.{{ ocel_field }} !== raw.{{ raw_field }}) {
         return false;
       }
-
-      // Physical match: OCEL stdout_hash must match recomputed Raw stdout hash
-      // (Simplified check for the demo: presence in raw matches presence in ocel)
-      if (vmap.stdout_hash && !raw.stdout) {
-        return false;
-      }
+      {% endif %}
     }
+    {%- endfor %}
+    {% endif %}
 
     return true;
   }

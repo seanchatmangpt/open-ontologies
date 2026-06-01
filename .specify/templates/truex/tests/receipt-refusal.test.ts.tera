@@ -24,7 +24,13 @@ describe('Truex Refusal Engine', () => {
   it('should refuse OCEL laundering (fake paths)', async () => {
     const verifier = new Verifier();
     const launderedReceipt = new Receipt({
-      observed_ocel: { /* summary-formatted data */ },
+      raw_evidence: { exit_code: 0, stdout: 'Success' },
+      observed_ocel: { 
+        'ocel:events': [{
+          'ocel:activity': 'ExecutionComplete_Fake',
+          'ocel:vmap': { stdout_hash: 'laundered_hash' } // Mismatch: OCEL claims hash, but Raw has no hash logic
+        }]
+      },
       raw_evidence_hash: 'mismatch' 
     });
 

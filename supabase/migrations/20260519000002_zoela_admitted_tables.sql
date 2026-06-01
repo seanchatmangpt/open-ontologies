@@ -85,7 +85,7 @@ CREATE TRIGGER set_push_notification_updated_at
 --   Public anchor:        https://schema.org/Person
 --   Materialization kind: https://open-ontologies.org/ggen#AgentMaterialization
 --   SHACL shape:          https://open-ontologies.org/ggen#AgentMaterializationShape
---   A church member or visitor whose identity and household affiliation are tracked in the ZOE LA Mobile app.
+--   A church member, volunteer, staff, or visitor whose identity and household affiliation are tracked in the ZOE LA Mobile app.
 -- ----------------------------------------------------------------------------
 
 CREATE TABLE IF NOT EXISTS persons (

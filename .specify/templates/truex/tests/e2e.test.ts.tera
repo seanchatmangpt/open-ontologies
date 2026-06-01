@@ -1,0 +1,21 @@
+import { Verifier, VerificationState } from '../packages/truex/verifier';
+import { Receipt } from '../packages/truex/receipt';
+
+describe('Truex Autonomic E2E Validation: {{ label }}', () => {
+  /**
+   * Scenario: {{ label }}
+   * Expected: {{ expected }}{% if reason %} ({{ reason }}){% endif %}
+   */
+  it('{{ label }}', async () => {
+    const verifier = new Verifier();
+    const inputStr = `{{ input_safe | safe }}`.replace(/'/g, '"');
+    const receiptData = JSON.parse(inputStr);
+    const receipt = new Receipt(receiptData);
+
+    const result = await verifier.verify(receipt);
+    expect(result.state).toBe('{{ expected }}');
+    {% if reason %}
+    expect(result.refusal_state).toBe('{{ reason }}');
+    {% endif %}
+  });
+});

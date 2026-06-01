@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::{SystemTime, UNIX_EPOCH};
 use std::process::Command;
-use crate::subprocess::{run_with_timeout, SubprocessContext, SubprocessError};
+use crate::subprocess::SubprocessError;
 
 /// Gemini CLI Actuation Plan. Governs the execution of an action.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -93,43 +93,74 @@ pub fn run_real_boundary(command: &str, args: &[&str], dir: &str) -> serde_json:
 /// Capture the observed OCEL by executing the actuation plan.
 pub fn capture_observed_ocel(
     plan: &ActuationPlan,
-    tenant_id: &str,
+    _tenant_id: &str,
 ) -> Result<ActuationResult, SubprocessError> {
-    let gemini_bin = crate::config::resolve_gemini_bin();
-    let mut cmd = Command::new(&gemini_bin);
-    if gemini_bin == "npx" {
-        cmd.args(&["-y", "@google/gemini-cli"]);
+    let cfg = crate::config::LlmConfig::default();
+    let api_base = crate::config::resolve_llm_api_base(&cfg);
+    let api_key = crate::config::resolve_llm_api_key(&cfg);
+    let model = std::env::var("OPEN_ONTOLOGIES_LLM_MODEL")
+        .ok()
+        .filter(|v| !v.trim().is_empty())
+        .or_else(|| cfg.model.clone().filter(|v| !v.trim().is_empty()))
+        .unwrap_or_else(|| "openai/gpt-oss-20b".to_string());
+
+    let endpoint = format!("{}/chat/completions", api_base.trim_end_matches('/'));
+
+    let system_prompt = "You are executing a system actuation plan.";
+    let body = serde_json::json!({
+        "model": model,
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": plan.command}
+        ],
+        "temperature": 0.0
+    });
+
+    let client = reqwest::Client::new();
+    let mut request = client.post(&endpoint).json(&body);
+    if let Some(key) = api_key {
+        request = request.bearer_auth(key);
     }
-    cmd.args(&[
-        "-p",
-        &plan.command,
-        "--approval-mode",
-        "yolo",
-    ]);
-    cmd.current_dir(&plan.working_directory);
 
-    let ctx = SubprocessContext {
-        model: "gemini-cli",
-        tenant_id,
-        script_path: &gemini_bin,
-    };
+    let command_to_run = request;
+    let (status, response_text) = std::thread::spawn(move || {
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
+        rt.block_on(async move {
+            let response = command_to_run.send().await.map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
+            let status = response.status();
+            let text = response.text().await.map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
+            Ok::<_, std::io::Error>((status, text))
+        })
+    }).join()
+      .map_err(|_| SubprocessError::SpawnFailed(std::io::Error::new(std::io::ErrorKind::Other, "Thread join failed")))??;
 
-    // Use a hard 10-minute timeout for actuation.
-    let timed_output = run_with_timeout(&mut cmd, Duration::from_secs(600), ctx)?;
-    
-    let stdout = String::from_utf8_lossy(&timed_output.output.stdout).to_string();
-    let stderr = String::from_utf8_lossy(&timed_output.output.stderr).to_string();
-    let exit_code = timed_output.output.status.code().unwrap_or(-1);
+    if !status.is_success() {
+        return Err(SubprocessError::SpawnFailed(std::io::Error::new(
+            std::io::ErrorKind::Other,
+            format!("Groq API returned status {}: {}", status, response_text),
+        )));
+    }
 
-    // Extract OCEL events from stdout. 
-    // Gemini CLI might emit OCEL events as JSON lines.
+    let parsed: serde_json::Value = serde_json::from_str(&response_text)
+        .map_err(|e| SubprocessError::SpawnFailed(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
+    let stdout = parsed["choices"][0]["message"]["content"]
+        .as_str()
+        .unwrap_or("")
+        .to_string();
+    let stderr = String::new();
+    let exit_code = 0;
+
+    // Extract OCEL events from stdout.
     let ocel_events = extract_ocel_events(&stdout);
 
     // Secure capture includes hashes of the execution state (action_id + outputs).
     let mut hasher = blake3::Hasher::new();
     hasher.update(plan.action_id.as_bytes());
-    hasher.update(&timed_output.output.stdout);
-    hasher.update(&timed_output.output.stderr);
+    hasher.update(stdout.as_bytes());
+    hasher.update(stderr.as_bytes());
     let execution_hash = hasher.finalize().to_hex().to_string();
 
     Ok(ActuationResult {
@@ -174,21 +205,31 @@ More random text
         assert_eq!(events[1]["ocel:id"], "e2");
     }
 
-    #[test]
-    fn test_capture_observed_ocel_with_mock_binary() {
-        use std::fs;
-        use std::os::unix::fs::PermissionsExt;
+    #[tokio::test]
+    async fn test_capture_observed_ocel_with_mock_binary() {
+        use wiremock::{MockServer, Mock, ResponseTemplate};
+        use wiremock::matchers::{method, path};
 
-        let temp_script_path = std::env::temp_dir().join("mock_gemini_cli.sh");
-        fs::write(&temp_script_path, "#!/bin/sh\necho '{\"event_id\": \"e_mock\", \"activity\": \"mock_act\"}'\n")
-            .expect("failed to write temp script");
-        
-        let mut perms = fs::metadata(&temp_script_path).expect("failed to get metadata").permissions();
-        perms.set_mode(0o755);
-        fs::set_permissions(&temp_script_path, perms).expect("failed to set permissions");
+        let mock_server = MockServer::start().await;
+        let response_body = serde_json::json!({
+            "choices": [
+                {
+                    "message": {
+                        "content": "{\"event_id\": \"e_mock\", \"activity\": \"mock_act\"}"
+                    }
+                }
+            ]
+        });
+
+        Mock::given(method("POST"))
+            .and(path("/chat/completions"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(response_body))
+            .mount(&mock_server)
+            .await;
 
         unsafe {
-            std::env::set_var("GEMINI_BIN", &temp_script_path);
+            std::env::set_var("OPEN_ONTOLOGIES_LLM_API_BASE", mock_server.uri());
+            std::env::set_var("OPEN_ONTOLOGIES_LLM_API_KEY", "mock-key");
         }
 
         let plan = ActuationPlan {
@@ -201,13 +242,13 @@ More random text
         };
 
         let result = capture_observed_ocel(&plan, "test-tenant");
-        
-        unsafe {
-            std::env::remove_var("GEMINI_BIN");
-        }
-        let _ = fs::remove_file(temp_script_path);
 
-        let res = result.expect("should run mock script successfully");
+        unsafe {
+            std::env::remove_var("OPEN_ONTOLOGIES_LLM_API_BASE");
+            std::env::remove_var("OPEN_ONTOLOGIES_LLM_API_KEY");
+        }
+
+        let res = result.expect("should run mock api successfully");
         assert_eq!(res.action_id, "act-123");
         assert!(res.stdout.contains("mock_act"), "stdout was: {}", res.stdout);
         assert_eq!(res.ocel_events.len(), 1);

@@ -5764,7 +5764,7 @@ impl OpenOntologiesServer {
         // returning an error immediately.  This lets the system automatically
         // select the next reliable engine without caller intervention.
         if engine == "gemini" {
-            // Attempt the Gemini path; returns Some(response_json) on success or
+            // Attempt the Groq REST path; returns Some(response_json) on success or
             // None on any failure (timeout / spawn error / no JSON / parse error).
             // On None we fall through to inproc below.
             let gemini_outcome: Option<String> = 'gemini: {
@@ -5784,38 +5784,74 @@ impl OpenOntologiesServer {
                 input.source_voice
             );
 
-            let gemini_bin = crate::config::resolve_gemini_bin();
-            let mut cmd = std::process::Command::new(&gemini_bin);
-            if gemini_bin == "npx" {
-                cmd.arg("-y").arg("@google/gemini-cli");
+            let cfg = crate::config::LlmConfig::default();
+            let api_base = crate::config::resolve_llm_api_base(&cfg);
+            let api_key = crate::config::resolve_llm_api_key(&cfg);
+            let model = std::env::var("OPEN_ONTOLOGIES_LLM_MODEL")
+                .ok()
+                .filter(|v| !v.trim().is_empty())
+                .or_else(|| cfg.model.clone().filter(|v| !v.trim().is_empty()))
+                .unwrap_or_else(|| "openai/gpt-oss-20b".to_string());
+
+            let endpoint = format!("{}/chat/completions", api_base.trim_end_matches('/'));
+
+            let body = serde_json::json!({
+                "model": model,
+                "messages": [
+                    {"role": "system", "content": "You are executing a system translation plan."},
+                    {"role": "user", "content": prompt}
+                ],
+                "temperature": 0.0,
+                "response_format": {"type": "json_object"}
+            });
+
+            let client = reqwest::Client::new();
+            let mut request = client.post(&endpoint).json(&body);
+            if let Some(key) = api_key {
+                request = request.bearer_auth(key);
             }
-            cmd.arg("-p")
-                .arg(&prompt)
-                .arg("--model")
-                .arg(crate::config::GEMINI_DEFAULT_MODEL)
-                .arg("--approval-mode")
-                .arg("yolo");
 
             let sub_started = std::time::Instant::now();
-            let out = match self.run_subprocess_with_timeout(&mut cmd, "gemini", "gemini") {
-                Ok(timed) => timed.output,
-                Err(crate::subprocess::SubprocessError::LlmTimeout { elapsed_ms, limit_ms, .. }) => {
-                    let reason = format!("gemini timed out after {}ms (limit {}ms)", elapsed_ms, limit_ms);
-                    let now_fb = chrono::Utc::now().to_rfc3339();
-                    let ts_fb = chrono::Utc::now().timestamp_millis();
-                    let _ = self.ocel_store().emit_event(
-                        &format!("{}:llm_engine_fallback:{}", self.session_id, ts_fb),
-                        "llm_engine_fallback",
-                        &now_fb,
-                        &self.session_id,
-                        &[("from_engine", "gemini"), ("to_engine", "inproc"), ("reason", &reason)],
-                        &[],
-                        Some(&input.scope_token),
-                    );
-                    break 'gemini None;
+            let out_res = request.send().await;
+
+            let out = match out_res {
+                Ok(resp) => {
+                    if !resp.status().is_success() {
+                        let reason = format!("gemini Groq request returned status {}", resp.status());
+                        let now_fb = chrono::Utc::now().to_rfc3339();
+                        let ts_fb = chrono::Utc::now().timestamp_millis();
+                        let _ = self.ocel_store().emit_event(
+                            &format!("{}:llm_engine_fallback:{}", self.session_id, ts_fb),
+                            "llm_engine_fallback",
+                            &now_fb,
+                            &self.session_id,
+                            &[("from_engine", "gemini"), ("to_engine", "inproc"), ("reason", &reason)],
+                            &[],
+                            Some(&input.scope_token),
+                        );
+                        break 'gemini None;
+                    }
+                    match resp.text().await {
+                        Ok(t) => t,
+                        Err(e) => {
+                            let reason = format!("failed to read gemini Groq response: {}", e);
+                            let now_fb = chrono::Utc::now().to_rfc3339();
+                            let ts_fb = chrono::Utc::now().timestamp_millis();
+                            let _ = self.ocel_store().emit_event(
+                                &format!("{}:llm_engine_fallback:{}", self.session_id, ts_fb),
+                                "llm_engine_fallback",
+                                &now_fb,
+                                &self.session_id,
+                                &[("from_engine", "gemini"), ("to_engine", "inproc"), ("reason", &reason)],
+                                &[],
+                                Some(&input.scope_token),
+                            );
+                            break 'gemini None;
+                        }
+                    }
                 }
-                Err(crate::subprocess::SubprocessError::SpawnFailed(e)) => {
-                    let reason = format!("failed to spawn gemini: {}", e.to_string().replace('"', "'").replace('\n', " "));
+                Err(e) => {
+                    let reason = format!("gemini Groq request failed: {}", e);
                     let now_fb = chrono::Utc::now().to_rfc3339();
                     let ts_fb = chrono::Utc::now().timestamp_millis();
                     let _ = self.ocel_store().emit_event(
@@ -5830,7 +5866,31 @@ impl OpenOntologiesServer {
                     break 'gemini None;
                 }
             };
-            let stdout = String::from_utf8_lossy(&out.stdout).into_owned();
+
+            let parsed_resp: serde_json::Value = match serde_json::from_str(&out) {
+                Ok(v) => v,
+                Err(e) => {
+                    let reason = format!("failed to parse gemini Groq response: {}", e);
+                    let now_fb = chrono::Utc::now().to_rfc3339();
+                    let ts_fb = chrono::Utc::now().timestamp_millis();
+                    let _ = self.ocel_store().emit_event(
+                        &format!("{}:llm_engine_fallback:{}", self.session_id, ts_fb),
+                        "llm_engine_fallback",
+                        &now_fb,
+                        &self.session_id,
+                        &[("from_engine", "gemini"), ("to_engine", "inproc"), ("reason", &reason)],
+                        &[],
+                        Some(&input.scope_token),
+                    );
+                    break 'gemini None;
+                }
+            };
+
+            let stdout = parsed_resp["choices"][0]["message"]["content"]
+                .as_str()
+                .unwrap_or("")
+                .to_string();
+
             // Extract trailing JSON: scan from end for a line containing `{`
             // anywhere (not just at start, to handle warning prefixes from gemini).
             let json_line = stdout
@@ -5894,7 +5954,6 @@ impl OpenOntologiesServer {
             let refinements = result.get("refinements").and_then(|v| v.as_u64()).unwrap_or(0);
             let candidate_json = serde_json::to_string(&candidate).unwrap_or_else(|_| "{}".into());
             let candidate_id_hex = blake3::hash(candidate_json.as_bytes()).to_hex().to_string();
-            let model = crate::config::GEMINI_DEFAULT_MODEL;
             let now = chrono::Utc::now().to_rfc3339();
             let ts_ms = chrono::Utc::now().timestamp_millis();
             let latency_str = latency_ms.to_string();
@@ -5906,7 +5965,7 @@ impl OpenOntologiesServer {
                 &self.session_id,
                 &[
                     ("candidate_ctq_id", &candidate_id_hex[..16]),
-                    ("model", model),
+                    ("model", &model),
                     ("provisional", "true"),
                     ("engine", "gemini"),
                 ],
@@ -5919,7 +5978,7 @@ impl OpenOntologiesServer {
                 &now,
                 &self.session_id,
                 &[
-                    ("model", model),
+                    ("model", &model),
                     ("latency_ms", &latency_str),
                     ("refinements", &refinements_str),
                     ("engine", "gemini"),
@@ -6730,36 +6789,81 @@ impl OpenOntologiesServer {
                  Respond with ONLY the JSON object:",
                 evidence
             );
-            let gemini_bin = crate::config::resolve_gemini_bin();
-            let mut cmd = std::process::Command::new(&gemini_bin);
-            if gemini_bin == "npx" {
-                cmd.arg("-y").arg("@google/gemini-cli");
+            let cfg = crate::config::LlmConfig::default();
+            let api_base = crate::config::resolve_llm_api_base(&cfg);
+            let api_key = crate::config::resolve_llm_api_key(&cfg);
+            let model = std::env::var("OPEN_ONTOLOGIES_LLM_MODEL")
+                .ok()
+                .filter(|v| !v.trim().is_empty())
+                .or_else(|| cfg.model.clone().filter(|v| !v.trim().is_empty()))
+                .unwrap_or_else(|| "openai/gpt-oss-20b".to_string());
+
+            let endpoint = format!("{}/chat/completions", api_base.trim_end_matches('/'));
+
+            let body = serde_json::json!({
+                "model": model,
+                "messages": [
+                    {"role": "system", "content": "You are executing a system executive summary plan."},
+                    {"role": "user", "content": prompt}
+                ],
+                "temperature": 0.0,
+                "response_format": {"type": "json_object"}
+            });
+
+            let client = reqwest::Client::new();
+            let mut request = client.post(&endpoint).json(&body);
+            if let Some(key) = api_key {
+                request = request.bearer_auth(key);
             }
-            cmd.arg("-p")
-                .arg(&prompt)
-                .arg("--model")
-                .arg(crate::config::GEMINI_DEFAULT_MODEL)
-                .arg("--approval-mode")
-                .arg("yolo");
+
             let sub_started = std::time::Instant::now();
-            let out = match self.run_subprocess_with_timeout(&mut cmd, "gemini", "gemini") {
-                Ok(timed) => timed.output,
-                Err(crate::subprocess::SubprocessError::LlmTimeout { elapsed_ms, limit_ms, .. }) => {
-                    self.emit_tool_ocel("onto_executive_projection", started, false, &[]);
-                    return format!(
-                        r#"{{"ok":false,"error":"gemini timed out after {}ms (limit {}ms)"}}"#,
-                        elapsed_ms, limit_ms
-                    );
+            let out_res = request.send().await;
+
+            let out = match out_res {
+                Ok(resp) => {
+                    if !resp.status().is_success() {
+                        self.emit_tool_ocel("onto_executive_projection", started, false, &[]);
+                        return format!(
+                            r#"{{"ok":false,"error":"gemini Groq request returned status {}"}}"#,
+                            resp.status()
+                        );
+                    }
+                    match resp.text().await {
+                        Ok(t) => t,
+                        Err(e) => {
+                            self.emit_tool_ocel("onto_executive_projection", started, false, &[]);
+                            return format!(
+                                r#"{{"ok":false,"error":"failed to read gemini Groq response: {}"}}"#,
+                                e.to_string().replace('"', "'")
+                            );
+                        }
+                    }
                 }
-                Err(crate::subprocess::SubprocessError::SpawnFailed(e)) => {
+                Err(e) => {
                     self.emit_tool_ocel("onto_executive_projection", started, false, &[]);
                     return format!(
-                        r#"{{"ok":false,"error":"failed to spawn gemini: {}"}}"#,
+                        r#"{{"ok":false,"error":"gemini Groq request failed: {}"}}"#,
                         e.to_string().replace('"', "'")
                     );
                 }
             };
-            let stdout = String::from_utf8_lossy(&out.stdout).into_owned();
+
+            let parsed_resp: serde_json::Value = match serde_json::from_str(&out) {
+                Ok(v) => v,
+                Err(e) => {
+                    self.emit_tool_ocel("onto_executive_projection", started, false, &[]);
+                    return format!(
+                        r#"{{"ok":false,"error":"failed to parse gemini Groq response: {}"}}"#,
+                        e.to_string().replace('"', "'")
+                    );
+                }
+            };
+
+            let stdout = parsed_resp["choices"][0]["message"]["content"]
+                .as_str()
+                .unwrap_or("")
+                .to_string();
+
             let json_line = stdout
                 .lines()
                 .rev()
@@ -6787,7 +6891,6 @@ impl OpenOntologiesServer {
             };
             let latency_ms = sub_started.elapsed().as_millis() as u64;
             let summary_str = result.get("summary").and_then(|v| v.as_str()).unwrap_or("").to_string();
-            let model = crate::config::GEMINI_DEFAULT_MODEL;
             // Token-overlap check: every word (length >= 4) in the summary must
             // appear in the admitted evidence — same invariant as the inproc path.
             let invented = crate::projection_check::invented_tokens(&summary_str, evidence);
@@ -6811,7 +6914,7 @@ impl OpenOntologiesServer {
                 &now,
                 &self.session_id,
                 &[
-                    ("model", model),
+                    ("model", &model),
                     ("latency_ms", &latency_str),
                     ("refinements", "0"),
                     ("engine", "gemini"),
@@ -7036,62 +7139,58 @@ impl OpenOntologiesServer {
     }
 
     #[tool(name = "onto_gemini_status", description = "Read-only liveness probe for the Gemini CLI engine. Checks (1) binary availability via `gemini --version`, (2) OAuth session validity via `gemini -p ping --model gemini-3.1-flash-lite --approval-mode yolo`. No API key required — Gemini uses OAuth. Returns {ok, binary_found, oauth_active, model, error}.")]
-    pub async fn onto_gemini_status(&self, Parameters(input): Parameters<OntoGeminiStatusInput>) -> String {
+    pub async fn onto_gemini_status(&self, Parameters(_input): Parameters<OntoGeminiStatusInput>) -> String {
         let started = std::time::Instant::now();
-        let gemini_bin = input.gemini_bin
-            .as_deref()
-            .filter(|v| !v.trim().is_empty())
-            .map(str::to_string)
-            .unwrap_or_else(crate::config::resolve_gemini_bin);
-        let model = crate::config::GEMINI_DEFAULT_MODEL;
+        let model = "openai/gpt-oss-20b";
+        let api_key_opt = crate::config::resolve_llm_api_key(&crate::config::LlmConfig::default());
 
-        // Step 1: binary found?
-        let mut cmd = std::process::Command::new(&gemini_bin);
-        if gemini_bin == "npx" {
-            cmd.arg("-y").arg("@google/gemini-cli");
-        }
-        let binary_found = cmd
-            .arg("--version")
-            .output()
-            .map(|o| o.status.success())
-            .unwrap_or(false);
+        let result: Result<(), String> = async {
+            let api_key = api_key_opt.ok_or_else(|| "No LLM API key configured".to_string())?;
+            let api_base = crate::config::resolve_llm_api_base(&crate::config::LlmConfig::default());
+            let endpoint = format!("{}/chat/completions", api_base.trim_end_matches('/'));
 
-        if !binary_found {
-            self.emit_tool_ocel(TOOL_GEMINI_STATUS, started, false, &[]);
-            return serde_json::json!({
-                "ok": false,
-                "binary_found": false,
-                "oauth_active": false,
+            let client = reqwest::Client::builder()
+                .timeout(std::time::Duration::from_secs(5))
+                .build()
+                .map_err(|e| format!("Failed to build reqwest client: {e}"))?;
+
+            let body = serde_json::json!({
                 "model": model,
-                "error": format!("gemini binary not found or not executable: {gemini_bin}"),
-            }).to_string();
-        }
+                "messages": [
+                    {"role": "user", "content": "ping"}
+                ],
+                "max_tokens": 1
+            });
 
-        // Step 2: OAuth active? Run a minimal prompt with a short timeout.
-        let mut cmd2 = std::process::Command::new(&gemini_bin);
-        if gemini_bin == "npx" {
-            cmd2.arg("-y").arg("@google/gemini-cli");
-        }
-        let oauth_active = match cmd2
-            .arg("-p")
-            .arg("ping")
-            .arg("--model")
-            .arg(model)
-            .arg("--approval-mode")
-            .arg("yolo")
-            .output()
-        {
-            Ok(o) => o.status.success(),
-            Err(_) => false,
+            let resp = client.post(&endpoint)
+                .bearer_auth(api_key)
+                .json(&body)
+                .send()
+                .await
+                .map_err(|e| format!("HTTP request failed: {e}"))?;
+
+            if !resp.status().is_success() {
+                let status = resp.status();
+                let text = resp.text().await.unwrap_or_else(|_| "no response body".to_string());
+                return Err(format!("HTTP status {}: {}", status, text));
+            }
+            Ok(())
+        }.await;
+
+        let (oauth_active, error) = match result {
+            Ok(_) => (true, serde_json::Value::Null),
+            Err(e) => (false, serde_json::Value::String(e)),
         };
 
-        let ok = binary_found && oauth_active;
+        let ok = oauth_active;
         self.emit_tool_ocel(TOOL_GEMINI_STATUS, started, ok, &[]);
+
         serde_json::json!({
             "ok": ok,
-            "binary_found": binary_found,
+            "binary_found": true,
             "oauth_active": oauth_active,
             "model": model,
+            "error": error,
         }).to_string()
     }
 

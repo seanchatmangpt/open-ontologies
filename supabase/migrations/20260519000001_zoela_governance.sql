@@ -16,7 +16,7 @@
 -- by default).
 -- =============================================================================
 
--- Governance tables: 4
+-- Governance tables: 3
 
 -- ----------------------------------------------------------------------------
 -- Role (roles)
@@ -66,23 +66,6 @@ CREATE TABLE IF NOT EXISTS person_role_assignments (
 DROP TRIGGER IF EXISTS set_person_role_assignments_updated_at ON person_role_assignments;
 CREATE TRIGGER set_person_role_assignments_updated_at
   BEFORE UPDATE ON person_role_assignments
-  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-
--- ----------------------------------------------------------------------------
--- Household (households)
---   Local class: https://zoela.org/ontology/Household
---   A family or cohabiting group registered with ZOE LA, used to group PersonProfiles by physical address.
--- ----------------------------------------------------------------------------
-
-CREATE TABLE IF NOT EXISTS households (
-  id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
-  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at  TIMESTAMPTZ
-);
-
-DROP TRIGGER IF EXISTS set_households_updated_at ON households;
-CREATE TRIGGER set_households_updated_at
-  BEFORE UPDATE ON households
   FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 -- ----------------------------------------------------------------------------

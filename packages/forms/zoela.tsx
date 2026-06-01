@@ -12,6 +12,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 // ============================================================================
 export interface HouseholdsFormValues {
   zip: string;
+  state: string;
   city: string;
   address_line1: string;
   household_name: string;
@@ -24,6 +25,13 @@ export const HouseholdsFormFields = [
     type: 'text',
     required: true,
     placeholder: "US postal (ZIP) code for the household's address.",
+  },
+  {
+    name: 'state',
+    label: 'state or region',
+    type: 'text',
+    required: true,
+    placeholder: "The state, province, or region of the address.",
   },
   {
     name: 'city',

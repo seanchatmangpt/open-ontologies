@@ -31,51 +31,34 @@ pub fn run_doctor_checks(graph: &crate::graph::GraphStore) -> Vec<(String, bool,
         },
     ));
 
-    // Check 3: Gemini connectivity check
-    let gemini_bin = crate::config::resolve_gemini_bin();
-    let mut cmd = std::process::Command::new(&gemini_bin);
-    if gemini_bin == "npx" {
-        cmd.arg("-y").arg("@google/gemini-cli");
-    }
-    cmd.arg("--version");
+    // Check 3: Groq connectivity check
+    let cfg = crate::config::LlmConfig::default();
+    let api_key = crate::config::resolve_llm_api_key(&cfg);
+    let api_base = crate::config::resolve_llm_api_base(&cfg);
 
-    let (gemini_ok, gemini_msg) = match cmd.output() {
-        Ok(output) => {
-            if output.status.success() {
-                let stdout_str = String::from_utf8_lossy(&output.stdout);
-                let version = stdout_str.trim();
-                (
-                    true,
-                    format!("Gemini CLI reachable: version {}", version),
-                )
-            } else {
-                let stderr_str = String::from_utf8_lossy(&output.stderr);
-                let stdout_str = String::from_utf8_lossy(&output.stdout);
-                let err_msg = if !stderr_str.trim().is_empty() {
-                    stderr_str.trim().to_string()
-                } else if !stdout_str.trim().is_empty() {
-                    stdout_str.trim().to_string()
-                } else {
-                    format!("exit status {}", output.status.code().unwrap_or(-1))
-                };
-                (
-                    false,
-                    format!("Gemini CLI failed: {}", err_msg),
-                )
-            }
-        }
-        Err(e) => {
+    let (groq_ok, groq_msg) = if let Some(key) = api_key {
+        if !key.trim().is_empty() {
+            (
+                true,
+                format!("Groq API key is present. Base URL: {}", api_base),
+            )
+        } else {
             (
                 false,
-                format!("Gemini CLI command failed to start: {}", e),
+                "Groq API key is empty".to_string(),
             )
         }
+    } else {
+        (
+            false,
+            "Groq API key (GROQ_API_KEY or OPEN_ONTOLOGIES_LLM_API_KEY) not found in environment".to_string(),
+        )
     };
 
     checks.push((
-        "Gemini Connectivity".to_string(),
-        gemini_ok,
-        gemini_msg,
+        "Groq Connectivity".to_string(),
+        groq_ok,
+        groq_msg,
     ));
 
     checks
@@ -93,7 +76,7 @@ mod tests {
         assert_eq!(checks.len(), 3);
         assert_eq!(checks[0].0, "RDF Store");
         assert_eq!(checks[1].0, "Thesis Shapes");
-        assert_eq!(checks[2].0, "Gemini Connectivity");
+        assert_eq!(checks[2].0, "Groq Connectivity");
     }
 }
 
