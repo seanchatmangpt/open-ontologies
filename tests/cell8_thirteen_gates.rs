@@ -566,6 +566,86 @@ fn a10_valid_ed25519_passes() {
     cell_ready(inp, &store).expect("valid Ed25519 signature must pass all 13 gates");
 }
 
+// ─── GAP_015: Real Ed25519 negative test ─────────────────────────────────
+
+#[test]
+fn a10_invalid_ed25519_denies() {
+    // Sign with keypair A, but register keypair B in TrustedKeys.
+    // cell_ready must return AttestationInvalid (or AttestationMissing if
+    // the implementation checks key presence before signature correctness).
+    use open_ontologies::attestation::{Signer, TrustedKeys};
+
+    let db = fresh_db();
+    let store = OcelStore::new(db.clone());
+    let session = "c8-ed25519-invalid";
+    let token = setup_scope(&db, session);
+
+    // Keypair A signs the message.
+    let signer_a = Signer::from_bytes(&[42u8; 32]);
+    // Keypair B is trusted — A's signature will be unverifiable.
+    let signer_b = Signer::from_bytes(&[99u8; 32]);
+    let vk_b = signer_b.verifying_key();
+    let mut trust = TrustedKeys::new();
+    trust.insert(vk_b);
+    let fpr_b = signer_b.fingerprint();
+
+    let powl_string = "PO=(nodes={a, b}, order={a-->b})".to_string();
+    let powl_hash = *blake3::hash(powl_string.as_bytes()).as_bytes();
+
+    // Sign arbitrary bytes with signer_a — this signature will not verify
+    // against the trusted key (signer_b).
+    let bad_sig: [u8; 64] = signer_a.sign(b"wrong-message").to_bytes();
+
+    let required: Vec<String> = vec!["a".into(), "b".into()];
+    let observed: Vec<String> = vec!["a".into(), "b".into()];
+    let provenance: Vec<String> = vec![HEX32.to_string()];
+    let granted: Vec<String> = vec!["2026-05-08T00:00:00Z".to_string()];
+
+    let powl_ref_inv = PowlOpRef {
+        powl_string: &powl_string,
+        powl_hash,
+    };
+
+    let inp = CellReadyInputs {
+        scope_token: &token,
+        declared_powl: &powl_ref_inv,
+        ocel_trace_hash: HEX32,
+        artifact_hash: HEX32,
+        gate_config_hash: HEX32,
+        session_revoked: false,
+        fitness_observed: 0.99,
+        precision_observed: 0.99,
+        fitness_required: 0.95,
+        precision_required: 0.85,
+        required_stages: &required,
+        observed_stages: &observed,
+        conformance_run_id: "run-test",
+        production_law_version: "ontostar-1.0.0",
+        prior_receipt: None,
+        session_id: session,
+        provenance_evidence: &provenance,
+        external_attestation: "",
+        granted_at_chain: &granted,
+        admitted_receipts: &[],
+        replay_canonical_hash: HEX32,
+        signature: Some(bad_sig),
+        signing_key_fpr: Some(fpr_b),
+        trusted_keys: Some(&trust),
+        allow_legacy_unsigned: false,
+        post_bootstrap: false,
+        prior_tenant_receipt_count: 0,
+        trusted_keys_db: None,
+    };
+
+    match cell_ready(inp, &store) {
+        Err(DefectClass::AttestationInvalid { .. }) => {}
+        Err(DefectClass::AttestationMissing) => {}
+        other => panic!(
+            "expected AttestationInvalid or AttestationMissing for tampered Ed25519 signature, got {other:?}"
+        ),
+    }
+}
+
 // ─── SHACL coverage tests ──────────────────────────────────────────────────
 
 fn load_shapes_ttl() -> String {
