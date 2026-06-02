@@ -118,7 +118,7 @@ for s in set(g.subjects()):
     hashes = list(g.objects(s, CELL8.receiptHash))
     paths = list(g.objects(s, CELL8.subjectPath))
     if hashes and paths:
-        fpath = str(paths[0])
+        fpath = os.path.join(BOS, str(paths[0]))
         r = subprocess.run(["b3sum", fpath], capture_output=True, text=True)
         if r.returncode != 0:
             print(f"ERROR: b3sum failed for {fpath}", file=sys.stderr); ok = False; continue
