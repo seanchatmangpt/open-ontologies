@@ -1,8 +1,16 @@
 #!/usr/bin/env bash
 # validate_bible_o_star.sh — Bible O* Validation Script
 # Purge invalid structure. Enforce Inspection Gate law.
+#
+# Invocation: may be called from any directory. Script resolves all paths
+# relative to its own location (bible-o-star/scripts/), so:
+#   bash bible-o-star/scripts/validate_bible_o_star.sh  # from open-ontologies/
+#   bash scripts/validate_bible_o_star.sh               # from bible-o-star/
+# both work correctly.
 set -e
-BOS="/Users/sac/open-ontologies/bible-o-star"
+# Resolve BOS from the script's own directory, not the caller's cwd.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BOS="$(cd "$SCRIPT_DIR/.." && pwd)"
 echo "=== BIBLE_O_STAR_001 VALIDATION ==="
 
 # Step 1: Turtle parse validation with rapper
@@ -93,13 +101,15 @@ fi
 
 echo ""
 echo "Step 5: Verifying BLAKE3 receipt chain..."
-python3 - <<'PYEOF'
-import subprocess, sys
+BOS_FOR_PY="$BOS" python3 - <<'PYEOF'
+import os, subprocess, sys
 from rdflib import Graph, Namespace
 CELL8 = Namespace("urn:cell8:gate:")
+BOS = os.environ.get("BOS_FOR_PY", ".")
 g = Graph()
+receipt_path = os.path.join(BOS, "receipts", "receipt-chain.ttl")
 try:
-    g.parse("receipts/receipt-chain.ttl", format="turtle")
+    g.parse(receipt_path, format="turtle")
 except Exception as e:
     print("ERROR: Could not parse receipt-chain.ttl:", e, file=sys.stderr)
     sys.exit(1)

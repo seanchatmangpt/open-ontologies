@@ -586,11 +586,12 @@ fn expanded_dispatch_arms_match_source_attributes() {
     let expanded_metadata = expanded_path.metadata().ok();
     let is_empty = expanded_metadata.map(|m| m.len() == 0).unwrap_or(true);
     if !expanded_path.exists() || is_empty {
-        eprintln!(
-            "skipping expanded_dispatch_arms_match_source_attributes: \
-             target/expanded.rs not present or empty. Run `make expand` to produce it."
+        panic!(
+            "expanded_dispatch_arms_match_source_attributes FAILED: \
+             target/expanded.rs is absent or empty. \
+             Run `make expand` to produce it before running `make adversarial`. \
+             Silent skip is not permitted — a missing expansion file is itself a B4-class bypass risk."
         );
-        return;
     }
 
     let source_count = extract_tool_handlers(&parse_server()).len();
