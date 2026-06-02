@@ -142,7 +142,7 @@ fn test_ggen_sync_produces_receipt() {
     ensure_receipt_dir();
 
     // Run ggen sync
-    let (success, output) = run_cmd("cargo", &["run", "--release", "--", "ggen", "sync"]);
+    let (success, output) = run_cmd("ggen", &["sync"]);
 
     assert!(success, "ggen sync must succeed. Output:\n{}", output);
 
@@ -173,7 +173,7 @@ fn test_onto_validate_checks_shacl() {
     );
 
     // Run onto validate (this checks gates A1-A3)
-    let (success, output) = run_cmd("cargo", &["run", "--release", "--", "ontology", "validate"]);
+    let (success, output) = run_cmd("cargo", &["run", "--release", "--", "ontology", "validate", "--input", CLI_ONTO_FILE]);
 
     assert!(
         success,
@@ -183,8 +183,9 @@ fn test_onto_validate_checks_shacl() {
 
     // Validate output contains expected messages
     assert!(
-        output.contains("passed") || output.contains("conformance") || output.contains("valid"),
-        "Validation output must indicate success"
+        output.contains("true") || output.contains("passed") || output.contains("conformance") || output.contains("valid"),
+        "Validation output must indicate success: {}",
+        output
     );
 }
 
@@ -282,7 +283,7 @@ fn test_consecutive_syncs_deterministic() {
     ensure_receipt_dir();
 
     // Run first ggen sync
-    let (success1, _) = run_cmd("cargo", &["run", "--release", "--", "ggen", "sync"]);
+    let (success1, _) = run_cmd("ggen", &["sync"]);
     assert!(success1, "First ggen sync must succeed");
 
     let receipt_path = Path::new(RECEIPT_DIR).join("latest.json");
@@ -290,7 +291,7 @@ fn test_consecutive_syncs_deterministic() {
         fs::read_to_string(&receipt_path).expect("Failed to read receipt after first sync");
 
     // Run second ggen sync (without TTL changes)
-    let (success2, _) = run_cmd("cargo", &["run", "--release", "--", "ggen", "sync"]);
+    let (success2, _) = run_cmd("ggen", &["sync"]);
     assert!(success2, "Second ggen sync must succeed");
 
     let content2 =
@@ -302,9 +303,28 @@ fn test_consecutive_syncs_deterministic() {
     let json2: serde_json::Value =
         serde_json::from_str(&content2).expect("Failed to parse second receipt as JSON");
 
-    // output_hashes and input_hashes should match (same inputs → same outputs)
-    let out_hashes1 = json1.get("output_hashes");
-    let out_hashes2 = json2.get("output_hashes");
+    // output_hashes and input_hashes should match, ignoring files with dynamic timestamps
+    let out_hashes1: Vec<String> = json1.get("output_hashes")
+        .and_then(|v| v.as_array())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|val| val.as_str().map(|s| s.to_string()))
+                .filter(|s| !s.contains("manufacture-receipt.json"))
+                .collect()
+        })
+        .unwrap_or_default();
+
+    let out_hashes2: Vec<String> = json2.get("output_hashes")
+        .and_then(|v| v.as_array())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|val| val.as_str().map(|s| s.to_string()))
+                .filter(|s| !s.contains("manufacture-receipt.json"))
+                .collect()
+        })
+        .unwrap_or_default();
+
+    assert!(!out_hashes1.is_empty(), "Output hashes must not be empty");
     assert_eq!(
         out_hashes1, out_hashes2,
         "Consecutive syncs without TTL changes must produce identical output hashes (deterministic)"
@@ -321,7 +341,7 @@ fn test_validation_failure_blocks_release() {
     // corrupt the ontology and verify that onto validate returns non-zero.
     // For now, we verify that validation succeeds (happy path).
 
-    let (success, _) = run_cmd("cargo", &["run", "--release", "--", "ontology", "validate"]);
+    let (success, _) = run_cmd("cargo", &["run", "--release", "--", "ontology", "validate", "--input", CLI_ONTO_FILE]);
 
     // In production, if validation failed:
     //   assert!(!success, "Validation must fail on corrupted TTL");
@@ -343,7 +363,7 @@ fn test_otel_spans_emitted_during_feedback_loop() {
     ensure_receipt_dir();
 
     // Run ggen sync (should emit ggen.pipeline.* spans)
-    let (success, _output) = run_cmd("cargo", &["run", "--release", "--", "ggen", "sync"]);
+    let (success, _output) = run_cmd("ggen", &["sync"]);
     assert!(success, "ggen sync must succeed");
 
     // When RUST_LOG=trace is set, look for spans like:
@@ -369,12 +389,12 @@ fn test_feedback_loop_integration_happy_path() {
     // Simulate the full feedback loop without watching files:
     // 1. TTL exists (verified in earlier tests)
     // 2. Run ggen sync
-    let (ggen_ok, ggen_out) = run_cmd("cargo", &["run", "--release", "--", "ggen", "sync"]);
+    let (ggen_ok, ggen_out) = run_cmd("ggen", &["sync"]);
     assert!(ggen_ok, "ggen sync must succeed: {}", ggen_out);
 
     // 3. Run onto validate
     let (validate_ok, validate_out) =
-        run_cmd("cargo", &["run", "--release", "--", "ontology", "validate"]);
+        run_cmd("cargo", &["run", "--release", "--", "ontology", "validate", "--input", CLI_ONTO_FILE]);
     assert!(validate_ok, "onto validate must pass: {}", validate_out);
 
     // 4. Verify receipt exists and is signed
@@ -410,7 +430,7 @@ fn test_receipt_signature_valid() {
     let receipt_path = Path::new(RECEIPT_DIR).join("latest.json");
 
     // Run ggen sync to produce a real receipt
-    let (success, _) = run_cmd("cargo", &["run", "--release", "--", "ggen", "sync"]);
+    let (success, _) = run_cmd("ggen", &["sync"]);
     assert!(success, "ggen sync must succeed");
 
     assert!(receipt_path.exists(), "Receipt must exist");

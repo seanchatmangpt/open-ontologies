@@ -1,0 +1,2 @@
+# Nightly Rust required — wasm4pm-compat uses generic_const_exprs and other nightly features.
+# rust-toolchain.toml pins the channel. Do not switch to stable.

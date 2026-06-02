@@ -5867,6 +5867,7 @@ dependencies = [
  "wasm-bindgen-futures",
  "wasm4pm-algos",
  "wasm4pm-cognition",
+ "wasm4pm-compat",
  "wasm4pm-types",
 ]
 
@@ -5898,6 +5899,10 @@ dependencies = [
  "serde_json",
  "smallvec",
 ]
+
+[[package]]
+name = "wasm4pm-compat"
+version = "0.1.0"
 
 [[package]]
 name = "wasm4pm-types"

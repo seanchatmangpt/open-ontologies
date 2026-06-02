@@ -65,6 +65,7 @@ adversarial: check-dead-params check-test-count check-test-removal-tag check-ast
 	@echo "✓ All adversarial JTBD gates passed"
 
 cell8-certify: adversarial
+	@command -v python3 >/dev/null 2>&1 || (echo "ERROR: python3 required" && exit 1)
 	@echo "Generating Cell8 A1-A13 EARL certification report..."
 	@cargo test --test cell8_thirteen_gates -- --test-threads=1 2>&1 | grep -q "test result: ok"
 	@python3 tools/emit-earl-report.py > cell8-final-assertion-report.ttl
@@ -72,6 +73,7 @@ cell8-certify: adversarial
 	@! grep -q 'earl:failed' cell8-final-assertion-report.ttl
 	@echo "✓ Cell8 A1-A13 certification complete"
 
+# NOTE: cargo audit requires network access (rustsec advisory-db). Fails offline.
 audit:
 	cargo audit
 
@@ -126,7 +128,7 @@ ggen-sync-full:
 	@echo "Step 1/4: validate source TTL..."
 	cargo run --release -- ontology validate --input ontology/cli-open-ontologies.ttl
 	@echo "Step 2/4: ggen sync..."
-	cargo run --release -- ggen sync
+	ggen sync
 	@echo "Step 3/4: compile check..."
 	$(MAKE) check
 	@echo "Step 4/4: test suite..."

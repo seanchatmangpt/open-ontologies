@@ -277,13 +277,10 @@ fn no_dead_params_in_expanded_if_present() {
     // invoked from `src/cmds/`. The pre-expansion gate is blind because
     // the literal `let _` doesn't appear in `src/cmds/`.
     let expanded = Path::new(env!("CARGO_MANIFEST_DIR")).join("target/expanded.rs");
-    if !expanded.exists() {
-        eprintln!(
-            "skipping expanded scan: target/expanded.rs not present. \
-             Run `make expand` to produce it."
-        );
-        return;
-    }
+    assert!(
+        expanded.exists(),
+        "target/expanded.rs missing — run make expand first. Absence is a defect, not skippable."
+    );
     let src = std::fs::read_to_string(&expanded).expect("read expanded.rs");
     let Ok(file) = syn::parse_file(&src) else {
         // cargo expand can produce non-stable tokens; print head and

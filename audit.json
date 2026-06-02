@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-05-19T06:22:39.815572+00:00",
-  "ggen_version": "26.5.18",
+  "generated_at": "2026-06-02T07:41:41.522296+00:00",
+  "ggen_version": "26.5.21",
   "inputs": {
     "manifest_hash": "",
     "ontology_hashes": {},
@@ -136,18 +136,6 @@
       "source_rule": "rule-./packages/evidence/OcelEvents.ts"
     },
     {
-      "path": "./packages/routes/routeGates.ts",
-      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "size_bytes": 0,
-      "source_rule": "rule-./packages/routes/routeGates.ts"
-    },
-    {
-      "path": "./packages/evidence/receipts.ts",
-      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "size_bytes": 0,
-      "source_rule": "rule-./packages/evidence/receipts.ts"
-    },
-    {
       "path": "./packages/screens/zoela.tsx",
       "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "size_bytes": 0,
@@ -166,34 +154,10 @@
       "source_rule": "rule-./packages/navigation/zoela.tsx"
     },
     {
-      "path": "./packages/types/roles.ts",
-      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "size_bytes": 0,
-      "source_rule": "rule-./packages/types/roles.ts"
-    },
-    {
-      "path": "./packages/routes/assignmentEligibility.ts",
-      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "size_bytes": 0,
-      "source_rule": "rule-./packages/routes/assignmentEligibility.ts"
-    },
-    {
       "path": "./packages/types/pushCards.ts",
       "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "size_bytes": 0,
       "source_rule": "rule-./packages/types/pushCards.ts"
-    },
-    {
-      "path": "./packages/routes/resourceMatch.ts",
-      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "size_bytes": 0,
-      "source_rule": "rule-./packages/routes/resourceMatch.ts"
-    },
-    {
-      "path": "./packages/routes/followupRules.ts",
-      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "size_bytes": 0,
-      "source_rule": "rule-./packages/routes/followupRules.ts"
     },
     {
       "path": "./packages/evidence/ocelSchema.ts",
@@ -214,34 +178,304 @@
       "source_rule": "rule-./packages/navigation/navigationStack.tsx"
     },
     {
-      "path": "./packages/routes/connectGroupStages.ts",
+      "path": "./src/autoreceipt_law.rs",
       "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "size_bytes": 0,
-      "source_rule": "rule-./packages/routes/connectGroupStages.ts"
+      "source_rule": "rule-./src/autoreceipt_law.rs"
     },
     {
-      "path": "./packages/routes/connectGroupWorkOrders.ts",
+      "path": "./src/autoreceipt_law.rs",
       "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "size_bytes": 0,
-      "source_rule": "rule-./packages/routes/connectGroupWorkOrders.ts"
+      "source_rule": "rule-./src/autoreceipt_law.rs"
     },
     {
-      "path": "./packages/routes/connectGroupAdmin.ts",
+      "path": "./artifacts/ghf/terraform/repositories.tf",
       "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "size_bytes": 0,
-      "source_rule": "rule-./packages/routes/connectGroupAdmin.ts"
+      "source_rule": "rule-./artifacts/ghf/terraform/repositories.tf"
     },
     {
-      "path": "./packages/forms/connectGroupInterestForm.tsx",
+      "path": "./artifacts/ghf/terraform/labels.tf",
       "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "size_bytes": 0,
-      "source_rule": "rule-./packages/forms/connectGroupInterestForm.tsx"
+      "source_rule": "rule-./artifacts/ghf/terraform/labels.tf"
     },
     {
-      "path": "./supabase/functions/route-gate/index.ts",
+      "path": "./artifacts/ghf/terraform/branch-protection.tf",
       "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "size_bytes": 0,
-      "source_rule": "rule-./supabase/functions/route-gate/index.ts"
+      "source_rule": "rule-./artifacts/ghf/terraform/branch-protection.tf"
+    },
+    {
+      "path": "./artifacts/ghf/terraform/environments.tf",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./artifacts/ghf/terraform/environments.tf"
+    },
+    {
+      "path": "./.github/workflows/receipt-verify.yml",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./.github/workflows/receipt-verify.yml"
+    },
+    {
+      "path": "./.github/workflows/contribution-ledger.yml",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./.github/workflows/contribution-ledger.yml"
+    },
+    {
+      "path": "./.github/ISSUE_TEMPLATE/work-order.yml",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./.github/ISSUE_TEMPLATE/work-order.yml"
+    },
+    {
+      "path": "./scripts/gh-create-issue.sh",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./scripts/gh-create-issue.sh"
+    },
+    {
+      "path": "./scripts/gh-create-pr.sh",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./scripts/gh-create-pr.sh"
+    },
+    {
+      "path": "./scripts/collect-github-evidence.sh",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./scripts/collect-github-evidence.sh"
+    },
+    {
+      "path": "./artifacts/ghf/ocel/expected.ocel.jsonl",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./artifacts/ghf/ocel/expected.ocel.jsonl"
+    },
+    {
+      "path": "./docs/ghf-proof-matrix.md",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./docs/ghf-proof-matrix.md"
+    },
+    {
+      "path": "./docs/weekly-ledger-template.md",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./docs/weekly-ledger-template.md"
+    },
+    {
+      "path": "./SECURITY.md",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./SECURITY.md"
+    },
+    {
+      "path": "./packages/truex/canonical/package.json",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./packages/truex/canonical/package.json"
+    },
+    {
+      "path": "./packages/truex/capture/package.json",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./packages/truex/capture/package.json"
+    },
+    {
+      "path": "./packages/truex/cli/package.json",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./packages/truex/cli/package.json"
+    },
+    {
+      "path": "./packages/truex/conformance/package.json",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./packages/truex/conformance/package.json"
+    },
+    {
+      "path": "./packages/truex/examples/package.json",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./packages/truex/examples/package.json"
+    },
+    {
+      "path": "./packages/truex/ocel2/package.json",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./packages/truex/ocel2/package.json"
+    },
+    {
+      "path": "./packages/truex/otel/package.json",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./packages/truex/otel/package.json"
+    },
+    {
+      "path": "./packages/truex/receipt/package.json",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./packages/truex/receipt/package.json"
+    },
+    {
+      "path": "./packages/truex/replay/package.json",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./packages/truex/replay/package.json"
+    },
+    {
+      "path": "./packages/truex/verifier/package.json",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./packages/truex/verifier/package.json"
+    },
+    {
+      "path": "./packages/truex/vkg/package.json",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./packages/truex/vkg/package.json"
+    },
+    {
+      "path": "./packages/truex/verifier/index.ts",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./packages/truex/verifier/index.ts"
+    },
+    {
+      "path": "./packages/truex/ocel2/index.ts",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./packages/truex/ocel2/index.ts"
+    },
+    {
+      "path": "./packages/truex/receipt/index.ts",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./packages/truex/receipt/index.ts"
+    },
+    {
+      "path": "./packages/truex/replay/index.ts",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./packages/truex/replay/index.ts"
+    },
+    {
+      "path": "./packages/truex/vkg/index.ts",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./packages/truex/vkg/index.ts"
+    },
+    {
+      "path": "./packages/truex/cli/main.ts",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./packages/truex/cli/main.ts"
+    },
+    {
+      "path": "./schemas/truex-receipt.v1.schema.json",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./schemas/truex-receipt.v1.schema.json"
+    },
+    {
+      "path": "./schemas/truex-boundary.v1.schema.json",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./schemas/truex-boundary.v1.schema.json"
+    },
+    {
+      "path": "./tests/truex-e2e-LaunderedHashTest.test.ts",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./tests/truex-e2e-LaunderedHashTest.test.ts"
+    },
+    {
+      "path": "./tests/truex-e2e-MissingRawEvidenceTest.test.ts",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./tests/truex-e2e-MissingRawEvidenceTest.test.ts"
+    },
+    {
+      "path": "./tests/truex-e2e-NonDerivableExitCodeTest.test.ts",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./tests/truex-e2e-NonDerivableExitCodeTest.test.ts"
+    },
+    {
+      "path": "./tests/truex-e2e-ValidCheckoutTest.test.ts",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./tests/truex-e2e-ValidCheckoutTest.test.ts"
+    },
+    {
+      "path": "./tests/truex-summary-only-refusal.test.ts",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./tests/truex-summary-only-refusal.test.ts"
+    },
+    {
+      "path": "./docs/truex-ecosystem.md",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./docs/truex-ecosystem.md"
+    },
+    {
+      "path": "./receipts/manufacture-receipt.json",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./receipts/manufacture-receipt.json"
+    },
+    {
+      "path": "./pnpm-workspace.yaml",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./pnpm-workspace.yaml"
+    },
+    {
+      "path": "./package.json",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./package.json"
+    },
+    {
+      "path": "./jest.config.js",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./jest.config.js"
+    },
+    {
+      "path": "./tsconfig.json",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./tsconfig.json"
+    },
+    {
+      "path": "./src/wasm4pm_algos_stub.rs",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./src/wasm4pm_algos_stub.rs"
+    },
+    {
+      "path": "./src/wasm4pm_cognition_stub.rs",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./src/wasm4pm_cognition_stub.rs"
+    },
+    {
+      "path": "./src/wasm4pm_stub.rs",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./src/wasm4pm_stub.rs"
+    },
+    {
+      "path": "./src/wasm4pm_types_stub.rs",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./src/wasm4pm_types_stub.rs"
     }
   ],
   "validation_passed": true,

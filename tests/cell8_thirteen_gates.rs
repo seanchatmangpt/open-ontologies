@@ -304,6 +304,268 @@ fn a13_replay_divergence_denies() {
     }
 }
 
+// ─── A1–A8 deny-path tests ────────────────────────────────────────────────
+
+#[test]
+fn a1_workflow_not_declared_denies() {
+    let db = fresh_db();
+    let store = OcelStore::new(db.clone());
+    let session = "c8-a1";
+    // Use a scope_token that was never inserted — no declared_workflows row.
+    let mut bag = ok_bag("nonexistent-scope-token-zzz".to_string(), session);
+    // Ensure observed_stages is non-empty so A3 would pass if we got there.
+    bag.observed_stages = vec!["a".into(), "b".into()];
+
+    match cell_ready(inputs_from(&bag), &store) {
+        Err(DefectClass::ScopeUnclosed) => {}
+        other => panic!("expected ScopeUnclosed (A1: workflow not declared), got {other:?}"),
+    }
+}
+
+#[test]
+fn a2_scope_not_closed_denies() {
+    let db = fresh_db();
+    let store = OcelStore::new(db.clone());
+    let session = "c8-a2";
+    // Open a scope but do NOT close it.
+    let scope = WorkflowScope::new(&db, session);
+    let token = scope
+        .open(None, Some("PO=(nodes={a, b}, order={a-->b})"), None)
+        .expect("open scope");
+    // Deliberately skip: scope.close(&token)
+    let mut bag = ok_bag(token, session);
+    bag.observed_stages = vec!["a".into(), "b".into()];
+
+    match cell_ready(inputs_from(&bag), &store) {
+        Err(DefectClass::ScopeUnclosed) => {}
+        other => panic!("expected ScopeUnclosed (A2: scope not closed), got {other:?}"),
+    }
+}
+
+#[test]
+fn a3_ocel_incomplete_denies() {
+    let db = fresh_db();
+    let store = OcelStore::new(db.clone());
+    let session = "c8-a3";
+    let token = setup_scope(&db, session);
+    let mut bag = ok_bag(token, session);
+    // Empty observed_stages → ocel_complete returns false.
+    bag.observed_stages = Vec::new();
+
+    match cell_ready(inputs_from(&bag), &store) {
+        Err(DefectClass::OcelIncomplete) => {}
+        other => panic!("expected OcelIncomplete (A3), got {other:?}"),
+    }
+}
+
+/// Helper: declare+close a scope but insert NO conformance_runs row.
+/// This exercises A4 (POWLReplayPass) specifically.
+fn setup_scope_no_conformance(db: &StateDb, session: &str) -> String {
+    let scope = WorkflowScope::new(db, session);
+    let token = scope
+        .open(None, Some("PO=(nodes={a, b}, order={a-->b})"), None)
+        .expect("open scope");
+    scope.close(&token).expect("close scope");
+    // No INSERT INTO conformance_runs — replay_pass will return false.
+    token
+}
+
+#[test]
+fn a4_replay_failed_denies() {
+    let db = fresh_db();
+    let store = OcelStore::new(db.clone());
+    let session = "c8-a4";
+    let token = setup_scope_no_conformance(&db, session);
+    let bag = ok_bag(token, session);
+
+    match cell_ready(inputs_from(&bag), &store) {
+        Err(DefectClass::ReplayFailed) => {}
+        other => panic!("expected ReplayFailed (A4), got {other:?}"),
+    }
+}
+
+#[test]
+fn a5_threshold_below_required_denies() {
+    let db = fresh_db();
+    let store = OcelStore::new(db.clone());
+    let session = "c8-a5";
+    let token = setup_scope(&db, session);
+    let mut bag = ok_bag(token, session);
+    // fitness_observed far below fitness_required (0.95).
+    bag.fitness_observed = 0.50;
+
+    match cell_ready(inputs_from(&bag), &store) {
+        Err(DefectClass::ThresholdFailed { metric, observed, required }) => {
+            assert_eq!(metric, "fitness");
+            assert!((observed - 0.50).abs() < 1e-9);
+            assert!((required - 0.95).abs() < 1e-9);
+        }
+        other => panic!("expected ThresholdFailed (A5), got {other:?}"),
+    }
+}
+
+#[test]
+fn a6_required_stage_missing_denies() {
+    let db = fresh_db();
+    let store = OcelStore::new(db.clone());
+    let session = "c8-a6";
+    let token = setup_scope(&db, session);
+    let mut bag = ok_bag(token, session);
+    // required_stages has "b" but observed_stages only has "a".
+    bag.required_stages = vec!["a".into(), "b".into()];
+    bag.observed_stages = vec!["a".into()];
+
+    match cell_ready(inputs_from(&bag), &store) {
+        Err(DefectClass::CapabilityZero) => {}
+        other => panic!("expected CapabilityZero (A6: required stage missing), got {other:?}"),
+    }
+}
+
+#[test]
+fn a7_session_revoked_denies() {
+    let db = fresh_db();
+    let store = OcelStore::new(db.clone());
+    let session = "c8-a7";
+    let token = setup_scope(&db, session);
+    let mut bag = ok_bag(token, session);
+    bag.session_revoked = true;
+
+    match cell_ready(inputs_from(&bag), &store) {
+        Err(DefectClass::BypassRevoked { .. }) => {}
+        other => panic!("expected BypassRevoked (A7), got {other:?}"),
+    }
+}
+
+#[test]
+fn a8_receipt_chain_broken_denies() {
+    let db = fresh_db();
+    let store = OcelStore::new(db.clone());
+    let session = "c8-a8";
+    let token = setup_scope(&db, session);
+    let mut bag = ok_bag(token, session);
+    // Reference a prior receipt that is NOT in admitted_receipts.
+    bag.prior_receipt = Some([0x11u8; 32]);
+    bag.admitted_receipts = Vec::new();
+
+    match cell_ready(inputs_from(&bag), &store) {
+        Err(DefectClass::DependencyClosureBroken { missing_hash }) => {
+            assert_eq!(missing_hash, "11".repeat(32));
+        }
+        other => panic!("expected DependencyClosureBroken (A8/A12), got {other:?}"),
+    }
+}
+
+// ─── GAP_015: Real Ed25519 positive test ──────────────────────────────────
+
+#[test]
+fn a10_valid_ed25519_passes() {
+    use open_ontologies::attestation::{Signer, TrustedKeys};
+    use open_ontologies::defects::DEFECTS_TAXONOMY_VERSION;
+    use open_ontologies::production_record::ProductionRecord;
+
+    let db = fresh_db();
+    let store = OcelStore::new(db.clone());
+    let session = "c8-ed25519";
+    let token = setup_scope(&db, session);
+
+    // Generate a deterministic keypair from a fixed 32-byte seed.
+    let signer = Signer::from_bytes(&[42u8; 32]);
+    let fpr = signer.fingerprint();
+    let vk = signer.verifying_key();
+    let mut trust = TrustedKeys::new();
+    trust.insert(vk);
+
+    // Replicate the exact preview that cell_ready builds internally before
+    // verifying the signature (signature: None, signing_key_fpr: None).
+    let powl_string = "PO=(nodes={a, b}, order={a-->b})".to_string();
+    let powl_hash = *blake3::hash(powl_string.as_bytes()).as_bytes();
+
+    // Parse hash fields the same way cell_ready does.
+    fn parse_hex32_local(s: &str) -> [u8; 32] {
+        let mut out = [0u8; 32];
+        for i in 0..32 {
+            out[i] = u8::from_str_radix(&s[i * 2..i * 2 + 2], 16).unwrap();
+        }
+        out
+    }
+
+    let preview = ProductionRecord {
+        artifact_hash: parse_hex32_local(HEX32),
+        scope_token: token.clone(),
+        declared_powl_hash: powl_hash,
+        ocel_canonical_hash: parse_hex32_local(HEX32),
+        conformance_run_id: "run-test".to_string(),
+        gate_config_hash: parse_hex32_local(HEX32),
+        production_law_version: "ontostar-1.0.0".to_string(),
+        defects_taxonomy_version: DEFECTS_TAXONOMY_VERSION.to_string(),
+        gates_passed: vec![
+            "A1_WorkflowDeclared".into(),
+            "A2_ScopeClosed".into(),
+            "A3_OCELComplete".into(),
+            "A4_POWLReplayPass".into(),
+            "A5_ThresholdPass".into(),
+            "A6_RequiredStagesPresent".into(),
+            "A7_NoBypassRevocation".into(),
+            "A8_ReceiptValid".into(),
+            "A9_ProvenanceChain".into(),
+            "A10_ExternalAttestation".into(),
+            "A11_TemporalValidity".into(),
+            "A12_DependencyClosure".into(),
+            "A13_ReplayProof".into(),
+        ],
+        gates_refused: Vec::new(),
+        prior_receipt: None,
+        signature: None,
+        signing_key_fpr: None,
+    };
+
+    let msg = preview.canonical_bytes_for_signing();
+    let sig = signer.sign(&msg);
+    let sig_bytes: [u8; 64] = sig.to_bytes();
+
+    let powl_ref_ed = PowlOpRef {
+        powl_string: &powl_string,
+        powl_hash,
+    };
+    let required: Vec<String> = vec!["a".into(), "b".into()];
+    let observed: Vec<String> = vec!["a".into(), "b".into()];
+    let provenance: Vec<String> = vec![HEX32.to_string()];
+    let granted: Vec<String> = vec!["2026-05-08T00:00:00Z".to_string()];
+
+    let inp = CellReadyInputs {
+        scope_token: &token,
+        declared_powl: &powl_ref_ed,
+        ocel_trace_hash: HEX32,
+        artifact_hash: HEX32,
+        gate_config_hash: HEX32,
+        session_revoked: false,
+        fitness_observed: 0.99,
+        precision_observed: 0.99,
+        fitness_required: 0.95,
+        precision_required: 0.85,
+        required_stages: &required,
+        observed_stages: &observed,
+        conformance_run_id: "run-test",
+        production_law_version: "ontostar-1.0.0",
+        prior_receipt: None,
+        session_id: session,
+        provenance_evidence: &provenance,
+        external_attestation: "",
+        granted_at_chain: &granted,
+        admitted_receipts: &[],
+        replay_canonical_hash: HEX32,
+        signature: Some(sig_bytes),
+        signing_key_fpr: Some(fpr),
+        trusted_keys: Some(&trust),
+        allow_legacy_unsigned: false,
+        post_bootstrap: false,
+        prior_tenant_receipt_count: 0,
+        trusted_keys_db: None,
+    };
+
+    cell_ready(inp, &store).expect("valid Ed25519 signature must pass all 13 gates");
+}
+
 // ─── SHACL coverage tests ──────────────────────────────────────────────────
 
 fn load_shapes_ttl() -> String {

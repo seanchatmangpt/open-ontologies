@@ -25,18 +25,11 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-# Resolve BASE: explicit env var, then merge-base with origin/main, then
-# bail gracefully.
-BASE="${BASE:-}"
-if [ -z "$BASE" ]; then
-  for ref in origin/main origin/master main master; do
-    if git rev-parse --verify --quiet "$ref" >/dev/null 2>&1; then
-      BASE="$(git merge-base HEAD "$ref" 2>/dev/null || true)"
-      if [ -n "$BASE" ]; then
-        break
-      fi
-    fi
-  done
+# Resolve BASE: explicit env var, then origin/main, then HEAD~1, then HEAD.
+BASE="${BASE:-$(git rev-parse origin/main 2>/dev/null || git rev-parse HEAD~1 2>/dev/null || echo HEAD)}"
+
+if [ "$(git rev-parse "$BASE" 2>/dev/null)" = "$(git rev-parse HEAD)" ]; then
+  echo "WARNING: BASE equals HEAD — zero test removals will be detected. Set BASE explicitly." >&2
 fi
 
 if [ -z "$BASE" ]; then
