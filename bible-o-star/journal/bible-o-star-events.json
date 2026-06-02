@@ -1,0 +1,205 @@
+{
+  "ocel:global-log": {
+    "ocel:version": "2.0",
+    "ocel:ordering": "timestamp"
+  },
+  "ocel:object-types": [
+    {"ocel:name": "BosArtifact"},
+    {"ocel:name": "BosAgent"}
+  ],
+  "ocel:objects": {
+    "bos:BibleOStarOntology": {
+      "ocel:type": "BosArtifact",
+      "ocel:ovmap": {"path": "ontology/bible-o-star.ttl"}
+    },
+    "bos:SourceLedger": {
+      "ocel:type": "BosArtifact",
+      "ocel:ovmap": {"path": "ontology/source-ledger.ttl"}
+    },
+    "bos:CrossRefLayer": {
+      "ocel:type": "BosArtifact",
+      "ocel:ovmap": {"path": "ontology/bible-o-star.ttl#CrossRefLayer"}
+    },
+    "bos:PericopsLayer": {
+      "ocel:type": "BosArtifact",
+      "ocel:ovmap": {"path": "ontology/bible-o-star.ttl#PericopsLayer"}
+    },
+    "bos:Nehemiah52Ontology": {
+      "ocel:type": "BosArtifact",
+      "ocel:ovmap": {"path": "ontology/nehemiah-52.ttl"}
+    },
+    "bos:TOGAFMapping": {
+      "ocel:type": "BosArtifact",
+      "ocel:ovmap": {"path": "docs/TOGAF_MAPPING.md"}
+    },
+    "bos:SHACLShapes": {
+      "ocel:type": "BosArtifact",
+      "ocel:ovmap": {"path": "ontology/nehemiah-52-shapes.ttl"}
+    },
+    "bos:ExampleSet": {
+      "ocel:type": "BosArtifact",
+      "ocel:ovmap": {"path": "examples/"}
+    },
+    "bos:LicenseBoundary": {
+      "ocel:type": "BosArtifact",
+      "ocel:ovmap": {"path": "docs/LICENSE_AND_USAGE_BOUNDARY.md"}
+    },
+    "bos:ValidationReceipt": {
+      "ocel:type": "BosArtifact",
+      "ocel:ovmap": {"path": "receipts/BIBLE_O_STAR_001_VALIDATION_RECEIPT.md"}
+    },
+    "bos:Eliashib": {
+      "ocel:type": "BosAgent",
+      "ocel:ovmap": {"gate": "SheepGate", "role": "Agent1"}
+    },
+    "bos:Meremoth": {
+      "ocel:type": "BosAgent",
+      "ocel:ovmap": {"gate": "FishGate", "role": "Agent2"}
+    },
+    "bos:Meshullam": {
+      "ocel:type": "BosAgent",
+      "ocel:ovmap": {"gate": "OldGate", "role": "Agent3"}
+    },
+    "bos:Zadok": {
+      "ocel:type": "BosAgent",
+      "ocel:ovmap": {"gate": "ValleyGate", "role": "Agent4"}
+    },
+    "bos:Hanun": {
+      "ocel:type": "BosAgent",
+      "ocel:ovmap": {"gate": "DungGate", "role": "Agent5"}
+    },
+    "bos:Shallun": {
+      "ocel:type": "BosAgent",
+      "ocel:ovmap": {"gate": "FountainGate", "role": "Agent6"}
+    },
+    "bos:Malkijah": {
+      "ocel:type": "BosAgent",
+      "ocel:ovmap": {"gate": "WaterGate", "role": "Agent7"}
+    },
+    "bos:Hassenaah": {
+      "ocel:type": "BosAgent",
+      "ocel:ovmap": {"gate": "HorseGate", "role": "Agent8"}
+    },
+    "bos:Joiada": {
+      "ocel:type": "BosAgent",
+      "ocel:ovmap": {"gate": "EastGate", "role": "Agent9"}
+    },
+    "bos:Nehemiah": {
+      "ocel:type": "BosAgent",
+      "ocel:ovmap": {"gate": "InspectionRound", "role": "Agent10"}
+    }
+  },
+  "ocel:events": {
+    "E1": {
+      "ocel:activity": "compose",
+      "ocel:timestamp": "2026-06-02T00:01:00Z",
+      "ocel:omap": ["bos:BibleOStarOntology", "bos:Eliashib"],
+      "ocel:vmap": {
+        "agent": "Eliashib",
+        "gate": "SheepGate",
+        "artifact": "ontology/bible-o-star.ttl",
+        "description": "Composed core Bible O* ontology canonical spine"
+      }
+    },
+    "E2": {
+      "ocel:activity": "compose",
+      "ocel:timestamp": "2026-06-02T00:03:00Z",
+      "ocel:omap": ["bos:SourceLedger", "bos:Meremoth"],
+      "ocel:vmap": {
+        "agent": "Meremoth",
+        "gate": "FishGate",
+        "artifact": "ontology/source-ledger.ttl",
+        "section": "OSHB",
+        "description": "Composed source ledger section for Open Scriptures Hebrew Bible"
+      }
+    },
+    "E3": {
+      "ocel:activity": "compose",
+      "ocel:timestamp": "2026-06-02T00:05:00Z",
+      "ocel:omap": ["bos:CrossRefLayer", "bos:Meshullam"],
+      "ocel:vmap": {
+        "agent": "Meshullam",
+        "gate": "OldGate",
+        "artifact": "ontology/bible-o-star.ttl#CrossRefLayer",
+        "description": "Composed cross-reference terms for semantic verse linking"
+      }
+    },
+    "E4": {
+      "ocel:activity": "compose",
+      "ocel:timestamp": "2026-06-02T00:07:00Z",
+      "ocel:omap": ["bos:PericopsLayer", "bos:Zadok"],
+      "ocel:vmap": {
+        "agent": "Zadok",
+        "gate": "ValleyGate",
+        "artifact": "ontology/bible-o-star.ttl#PericopsLayer",
+        "description": "Composed Pericope terms for liturgical passage delimitation"
+      }
+    },
+    "E5": {
+      "ocel:activity": "compose",
+      "ocel:timestamp": "2026-06-02T00:09:00Z",
+      "ocel:omap": ["bos:Nehemiah52Ontology", "bos:Hanun"],
+      "ocel:vmap": {
+        "agent": "Hanun",
+        "gate": "DungGate",
+        "artifact": "ontology/nehemiah-52.ttl",
+        "description": "Composed Nehemiah 52-builder domain ontology mapping wall builders"
+      }
+    },
+    "E6": {
+      "ocel:activity": "compose",
+      "ocel:timestamp": "2026-06-02T00:11:00Z",
+      "ocel:omap": ["bos:TOGAFMapping", "bos:Shallun"],
+      "ocel:vmap": {
+        "agent": "Shallun",
+        "gate": "FountainGate",
+        "artifact": "docs/TOGAF_MAPPING.md",
+        "description": "Composed TOGAF architecture mapping documentation"
+      }
+    },
+    "E7": {
+      "ocel:activity": "compose",
+      "ocel:timestamp": "2026-06-02T00:13:00Z",
+      "ocel:omap": ["bos:SHACLShapes", "bos:Malkijah"],
+      "ocel:vmap": {
+        "agent": "Malkijah",
+        "gate": "WaterGate",
+        "artifact": "ontology/nehemiah-52-shapes.ttl",
+        "description": "Composed SHACL shape constraints for Nehemiah 52 domain validation"
+      }
+    },
+    "E8": {
+      "ocel:activity": "compose",
+      "ocel:timestamp": "2026-06-02T00:15:00Z",
+      "ocel:omap": ["bos:ExampleSet", "bos:Hassenaah"],
+      "ocel:vmap": {
+        "agent": "Hassenaah",
+        "gate": "HorseGate",
+        "artifact": "examples/",
+        "description": "Composed runnable SPARQL and RDF usage examples"
+      }
+    },
+    "E9": {
+      "ocel:activity": "compose",
+      "ocel:timestamp": "2026-06-02T00:17:00Z",
+      "ocel:omap": ["bos:LicenseBoundary", "bos:Joiada"],
+      "ocel:vmap": {
+        "agent": "Joiada",
+        "gate": "EastGate",
+        "artifact": "docs/LICENSE_AND_USAGE_BOUNDARY.md",
+        "description": "Composed license and usage boundary documentation"
+      }
+    },
+    "E10": {
+      "ocel:activity": "emit-receipt",
+      "ocel:timestamp": "2026-06-02T00:19:00Z",
+      "ocel:omap": ["bos:ValidationReceipt", "bos:Nehemiah"],
+      "ocel:vmap": {
+        "agent": "Nehemiah",
+        "gate": "InspectionRound",
+        "artifact": "receipts/BIBLE_O_STAR_001_VALIDATION_RECEIPT.md",
+        "description": "Emitted BIBLE_O_STAR_001 validation receipt after full wall inspection"
+      }
+    }
+  }
+}
