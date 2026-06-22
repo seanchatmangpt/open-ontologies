@@ -83,6 +83,14 @@ impl DriftDetector {
 
     /// Detect drift between two Turtle strings.
     ///
+    /// Each snapshot is canonicalised via RDFC 1.0 (W3C Recommendation, 21 May 2024,
+    /// SHA-256) before vocabulary extraction. The earlier per-callsite "filter `_:`
+    /// IRIs out of SPARQL results" (PR #14, @rustforrecess) protected the rename
+    /// detector from spurious bnode noise on reparse — canonicalisation preserves the
+    /// same protection (identical graphs reparse to identical canonical IDs) while
+    /// keeping anonymous restriction classes / quoted axioms visible in the diff
+    /// instead of dropping them entirely.
+    ///
     /// Returns a JSON string with keys: `added`, `removed`, `likely_renames`,
     /// `drift_velocity`, `v1_count`, `v2_count`.
     ///
@@ -133,10 +141,12 @@ impl DriftDetector {
     /// assert_eq!(parsed["added"].as_array().unwrap().len(), 1);
     /// ```
     pub fn detect(&self, v1_turtle: &str, v2_turtle: &str) -> anyhow::Result<String> {
-        let store1 = Arc::new(GraphStore::new());
-        let store2 = Arc::new(GraphStore::new());
-        store1.load_turtle(v1_turtle, None)?;
-        store2.load_turtle(v2_turtle, None)?;
+        let raw1 = GraphStore::new();
+        let raw2 = GraphStore::new();
+        raw1.load_turtle(v1_turtle, None)?;
+        raw2.load_turtle(v2_turtle, None)?;
+        let store1 = Arc::new(raw1.canonicalize_blank_nodes()?);
+        let store2 = Arc::new(raw2.canonicalize_blank_nodes()?);
 
         let v1_vocab = self.extract_vocabulary(&store1);
         let v2_vocab = self.extract_vocabulary(&store2);
@@ -192,6 +202,20 @@ impl DriftDetector {
         });
 
         Ok(result.to_string())
+    }
+
+    /// Detect drift and convert to a KGCL change report (high-level semantic format).
+    /// `rename_threshold` controls when a likely_rename becomes an obsoletion-with-replacement
+    /// (default 0.7 is a reasonable starting point).
+    pub fn detect_kgcl(
+        &self,
+        v1_turtle: &str,
+        v2_turtle: &str,
+        rename_threshold: f64,
+    ) -> anyhow::Result<crate::kgcl::KgclReport> {
+        let json_str = self.detect(v1_turtle, v2_turtle)?;
+        let json: serde_json::Value = serde_json::from_str(&json_str)?;
+        Ok(crate::kgcl::drift_to_kgcl(&json, rename_threshold))
     }
 
     /// Record feedback for a rename prediction to improve future confidence scores.
@@ -394,6 +418,11 @@ impl DriftDetector {
 
     fn extract_vocabulary(&self, store: &GraphStore) -> HashMap<String, VocabEntry> {
         let mut vocab = HashMap::new();
+
+        // Blank nodes are canonicalised upstream in `detect()` via RDFC 1.0, so
+        // they carry deterministic `_:c14n<n>` identifiers stable across reparses.
+        // They participate in the vocab diff like any other node — the previous
+        // `_:`-prefix filter (PR #14) is no longer needed.
 
         // Classes
         let class_query = "SELECT DISTINCT ?c WHERE { ?c a <http://www.w3.org/2002/07/owl#Class> }";

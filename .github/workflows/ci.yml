@@ -34,6 +34,24 @@ jobs:
       - name: run verification matrix
         run: bash .github/scripts/run-verification-matrix.sh
 
+  windows-build:
+    name: Windows build
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: windows-build
+      - name: Build
+        run: cargo build
+      - name: Test
+        run: cargo test
+      - name: Clippy
+        run: cargo clippy -- -D warnings
+
   real-toolchain-smoke:
     name: real-toolchain smoke (${{ matrix.os }})
     needs: verification-matrix

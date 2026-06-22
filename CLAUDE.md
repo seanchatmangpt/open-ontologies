@@ -128,14 +128,14 @@ Claude dynamically decides the next tool call based on what the previous tool re
 | `onto_crosswalk` | To look up clinical terminology mappings (ICD-10 ↔ SNOMED ↔ MeSH) |
 | `onto_enrich` | To add skos:exactMatch triples linking classes to clinical codes |
 | `onto_validate_clinical` | To check class labels against clinical crosswalk terminology |
-| `onto_align` | To detect alignment candidates (equivalentClass, exactMatch, subClassOf) between two ontologies using 7 weighted signals (6 structural + embedding similarity when embeddings are loaded) |
+| `onto_align` | To detect alignment candidates (equivalentClass, exactMatch, subClassOf) between two ontologies using 7 weighted signals (6 structural + embedding similarity when embeddings are loaded). Labels are matched with their parsed BCP-47 language tag; with the multilingual embedder loaded, cross-lingual pairs that share no surface tokens (e.g. `Dog`↔`Chien`) are admitted via the embedding signal. Restrict the languages consulted with `[language] preferred = [...]` / `OPEN_ONTOLOGIES_LANGUAGES` (empty = all) |
 | `onto_align_feedback` | To accept/reject alignment candidates for self-calibrating confidence weights |
 | `onto_lineage` | To view the session's lineage trail (plan → enforce → apply → monitor → drift) |
 | `onto_lint_feedback` | To accept/dismiss a lint issue — teaches lint to suppress repeatedly dismissed warnings |
 | `onto_enforce_feedback` | To accept/dismiss an enforce violation — teaches enforce to suppress repeatedly dismissed violations |
 | `onto_dl_explain` | To explain why a class is unsatisfiable using DL tableaux reasoning — returns clash trace |
 | `onto_dl_check` | To check if one class is subsumed by another using DL tableaux reasoning |
-| `onto_embed` | After loading an ontology — generates text + Poincaré structural embeddings for all classes. Honours `[embeddings] provider = "local" \| "openai"` in `config.toml`; OpenAI-compatible gateways (Azure, Ollama, vLLM, LocalAI, …) are supported via `OPEN_ONTOLOGIES_EMBEDDINGS_*` env vars |
+| `onto_embed` | After loading an ontology — generates text + Poincaré structural embeddings for all classes. The default local model is **multilingual** (`paraphrase-multilingual-MiniLM-L12-v2`), so labels in different natural languages embed into a shared space. Honours `[embeddings] provider = "local" \| "openai"` in `config.toml`; OpenAI-compatible gateways (Azure, Ollama, vLLM, LocalAI, …) are supported via `OPEN_ONTOLOGIES_EMBEDDINGS_*` env vars |
 | `onto_search` | To find classes by natural language description — requires onto_embed first |
 | `onto_similarity` | To compute embedding similarity between two specific IRIs |
 | `onto_unload` | To unload the active ontology from memory. Optional `name` targets a specific cached entry; `delete_cache=true` also removes the on-disk N-Triples cache file |
@@ -159,7 +159,7 @@ When evolving an ontology in production, follow this Terraform-style cycle. Clau
 
 ### Enforce
 
-4. Call `onto_enforce` with a rule pack (`generic`, `boro`, `value_partition`, `hierarchy`) — checks design pattern compliance
+4. Call `onto_enforce` with a rule pack (`generic`, `boro`, `value_partition`, `hierarchy`, `ies4`) — checks design pattern compliance. The `ies4` pack catches 4D-modelling violations specific to the UK Information Exchange Standard (particular/ClassOfEntity overlap as error; State without `isStateOf` and Event without participant pattern as warnings).
 5. Fix any violations before applying
 
 ### Apply
@@ -229,6 +229,54 @@ When exploring or aligning ontologies using semantic embeddings:
 
 7. When running `onto_align`, embedding similarity is automatically used as signal #7 if embeddings are loaded
 8. This catches semantically equivalent classes that have different labels (e.g., Vehicle ↔ Automobile)
+
+### Cross-Lingual Alignment
+
+The default `onto_embed` model is multilingual, so labels in different natural
+languages embed into a shared vector space. `onto_align` parses the BCP-47
+language tag off each label and, when label similarity is near zero (as it is
+across languages — `Dog` vs `Chien` share no tokens), lets a strong embedding
+match bypass the label pre-filter so the pair is still scored. Such pairs
+typically surface as `borderline` candidates with their language-tagged labels
+in the `context` block, for review via `onto_align_feedback`.
+
+Control which languages are consulted with the `[language]` config section:
+
+```toml
+[language]
+# Empty (default) = keep ALL languages — multilingual matching.
+# Restrict to a set to pin matching to specific languages (untagged labels are
+# always kept). Override with OPEN_ONTOLOGIES_LANGUAGES=en,fr
+preferred = []
+```
+
+### Borderline-Candidate Review (LLM-as-Oracle Pattern)
+
+`onto_align` partitions candidates into three buckets by confidence:
+
+- `auto_applied`: confidence ≥ `high_threshold` (default 0.85) — applied as triples
+- `borderline`: confidence in [`low_threshold`, `high_threshold`) (default low 0.4) — surfaced with rich `context` (source/target labels, source/target parents) for review
+- below `low_threshold`: dropped
+
+When borderline pairs are present, the tool returns a `summary_for_review` string instructing you (the connected LLM) to:
+
+1. **Inspect each borderline pair** — read its `context` block (labels, parent classes) and the per-signal breakdown in `signals`. The structural context tells you whether the pair represents a true match obscured by label difference, a partial overlap that warrants `skos:closeMatch`, or a false positive that needs rejection.
+2. **Decide accept / reject** based on the structural and lexical evidence in the conversation, plus any external knowledge you have about the domain.
+3. **Call `onto_align_feedback`** for each verdict — this writes to the SQLite feedback table and the self-calibrating-weights model learns from it. Future `onto_align` runs will weight the seven signals better.
+
+This is the MCP-native form of the LogMap-LLM "LLM-as-oracle" pattern (Jiménez-Ruiz et al., EACL 2026, top-2 OAEI 2025 Bio-ML). The server provides the scorer + borderline surface; you do the judging in-conversation; the feedback loop closes via existing tools.
+
+## Architecture Convention: MCP-Native Tool Design
+
+When a tool needs LLM-style judgment (NL generation, semantic matching, accept/reject decisions), the server must NOT embed its own LLM client. The connected orchestrator (you, over MCP) is already a capable LLM. The server's role is to provide:
+
+- **Validation primitives** that the orchestrator can't compute structurally itself (e.g., `onto_shacl_check` verifies proposed SHACL references real classes/properties in the loaded ontology)
+- **Scaffolding outputs** that give the orchestrator the schema context it needs to author against (e.g., `onto_stats`, `onto_query` for SPARQL, `borderline` candidates with parent IRIs)
+- **Feedback channels** so the orchestrator's verdicts can train the server's self-calibrating models (e.g., `onto_align_feedback`, `onto_lint_feedback`, `onto_enforce_feedback`)
+
+Concrete shape: if a tool description starts with "the server will call an LLM to ..." — flip the design. Have the server return what needs judging; do the judging in the conversation; pipe verdicts back through a feedback tool.
+
+This pattern is the project convention going forward. See `onto_align` borderline buckets (commit a7d3990) and `onto_shacl_check` (commit 9867133) for canonical examples.
 
 ## Enforcer Rules (Optional)
 

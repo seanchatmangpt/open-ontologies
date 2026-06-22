@@ -13,9 +13,11 @@
 //! observe the legacy behaviour.
 
 use std::sync::atomic::{AtomicBool, AtomicI64, AtomicU64, AtomicUsize, Ordering};
+use std::sync::RwLock;
 
 use crate::config::{
-    self, Config, FeedbackConfig, ImportsConfig, ReasonerConfig, RepoConfig, WebhookConfig,
+    self, Config, FeedbackConfig, ImportsConfig, LanguageConfig, ReasonerConfig, RepoConfig,
+    WebhookConfig,
 };
 
 // ── Defaults match the previous hardcoded constants exactly ─────────────
@@ -104,6 +106,10 @@ static IMPORTS_MAX_DEPTH: AtomicUsize = AtomicUsize::new(DEFAULT_IMPORTS_MAX_DEP
 static IMPORTS_TIMEOUT: AtomicU64 = AtomicU64::new(DEFAULT_IMPORTS_TIMEOUT);
 static IMPORTS_FOLLOW_REMOTE: AtomicBool = AtomicBool::new(true);
 static WEBHOOK_TIMEOUT: AtomicU64 = AtomicU64::new(DEFAULT_WEBHOOK_TIMEOUT);
+/// Preferred natural-language tags for label matching. Empty (the default)
+/// means "keep all languages" — fully multilingual. Populated from
+/// `[language] preferred` / `OPEN_ONTOLOGIES_LANGUAGES` at startup.
+static PREFERRED_LANGUAGES: RwLock<Vec<String>> = RwLock::new(Vec::new());
 
 /// Initialise all runtime knobs from a loaded `Config`. Idempotent — calling
 /// this multiple times simply overwrites the current values, which is fine
@@ -155,6 +161,14 @@ pub fn init_from_config(cfg: &Config) {
     apply_repo(&cfg.repo);
     apply_imports(&cfg.imports);
     apply_webhook(&cfg.webhook);
+    apply_language(&cfg.language);
+}
+
+fn apply_language(l: &LanguageConfig) {
+    let resolved = config::resolve_languages(l);
+    if let Ok(mut guard) = PREFERRED_LANGUAGES.write() {
+        *guard = resolved;
+    }
 }
 
 fn apply_reasoner(r: &ReasonerConfig) {
@@ -322,13 +336,29 @@ pub fn imports_follow_remote() -> bool { IMPORTS_FOLLOW_REMOTE.load(Ordering::Re
 /// ```
 pub fn webhook_request_timeout_secs() -> u64 { WEBHOOK_TIMEOUT.load(Ordering::Relaxed) }
 
+/// Preferred natural-language tags for label matching. An empty vector means
+/// "keep all languages" (multilingual mode). Cloned per call so callers hold no
+/// lock; alignment runs are infrequent relative to this cost.
+pub fn preferred_languages() -> Vec<String> {
+    PREFERRED_LANGUAGES
+        .read()
+        .map(|g| g.clone())
+        .unwrap_or_default()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    // Both assertions live in ONE test so they run sequentially. They share
+    // global atomic state (`init_from_config` mutates the static accessors),
+    // and cargo runs tests in parallel by default — so if the two were
+    // separate `#[test]` functions, `init_overrides_values` could set the
+    // tableaux_max_depth to 250 mid-flight and cause `defaults_match_legacy_constants`
+    // to observe 250 instead of 100. Combining them serialises the race.
     #[test]
-    fn defaults_match_legacy_constants() {
-        // Without calling init_from_config the accessors return the
+    fn defaults_then_init_overrides_then_restore() {
+        // Phase 1: without calling init_from_config the accessors return the
         // original hardcoded defaults.
         assert_eq!(tableaux_max_depth(), 100);
         assert_eq!(tableaux_max_nodes(), 10_000);
@@ -336,10 +366,8 @@ mod tests {
         assert_eq!(repo_default_list_limit(), 1000);
         assert_eq!(imports_max_depth(), 3);
         assert!(imports_follow_remote());
-    }
 
-    #[test]
-    fn init_overrides_values() {
+        // Phase 2: init_from_config overrides the values.
         let mut cfg = Config::default();
         cfg.reasoner.tableaux_max_depth = 250;
         cfg.cache.hash_prefix_bytes = 128 * 1024;
@@ -349,8 +377,10 @@ mod tests {
         assert_eq!(cache_hash_prefix_bytes(), 128 * 1024);
         assert!(!imports_follow_remote());
 
-        // Restore defaults so subsequent tests in the same process aren't
-        // affected.
+        // Phase 3: restore defaults so subsequent tests in the same process
+        // (any test that reads these accessors) aren't affected.
         init_from_config(&Config::default());
+        assert_eq!(tableaux_max_depth(), 100);
+        assert!(imports_follow_remote());
     }
 }

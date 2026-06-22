@@ -3,7 +3,7 @@ use std::sync::Mutex;
 
 use oxigraph::io::{RdfFormat, RdfParser, RdfSerializer};
 use oxigraph::model::*;
-use oxigraph::sparql::QueryResults;
+use oxigraph::sparql::{QueryResults, SparqlEvaluator};
 use oxigraph::store::Store;
 
 // ── Format token constants ────────────────────────────────────────────────────
@@ -79,6 +79,48 @@ pub const GRAPH_STAT_TRIPLES: &str = "triples";
 /// assert_eq!(GRAPH_STAT_CLASSES, "classes");
 /// ```
 pub const GRAPH_STAT_CLASSES: &str = "classes";
+
+/// Optional HTTP authentication for remote SPARQL endpoints.
+///
+/// Enterprise triple stores gate their SPARQL Protocol endpoints behind auth:
+/// Stardog and Ontotext GraphDB accept HTTP Basic; token-secured deployments
+/// accept a Bearer token. Open stores (Apache Jena/Fuseki, Eclipse RDF4J,
+/// public Virtuoso) need none — leave this empty.
+#[derive(Default, Clone)]
+pub struct SparqlAuth {
+    /// HTTP Basic credentials as (username, password).
+    pub basic: Option<(String, String)>,
+    /// Bearer token (takes precedence over `basic` if both are set).
+    pub bearer: Option<String>,
+}
+
+impl SparqlAuth {
+    /// Build from optional username/password/token (e.g. tool inputs).
+    /// Returns a no-auth value when all are absent.
+    pub fn from_parts(
+        username: Option<String>,
+        password: Option<String>,
+        token: Option<String>,
+    ) -> Self {
+        let basic = match (username, password) {
+            (Some(u), Some(p)) => Some((u, p)),
+            (Some(u), None) => Some((u, String::new())),
+            _ => None,
+        };
+        SparqlAuth { basic, bearer: token }
+    }
+
+    /// Apply the configured auth to a request builder.
+    fn apply(&self, rb: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
+        if let Some(t) = &self.bearer {
+            rb.bearer_auth(t)
+        } else if let Some((u, p)) = &self.basic {
+            rb.basic_auth(u, Some(p))
+        } else {
+            rb
+        }
+    }
+}
 
 /// In-memory RDF graph store backed by Oxigraph.
 ///
@@ -485,7 +527,11 @@ impl GraphStore {
     /// ```
     pub fn sparql_select(&self, query: &str) -> anyhow::Result<String> {
         let store = self.store.lock().unwrap();
-        match store.query(query)? {
+        match SparqlEvaluator::new()
+            .parse_query(query)?
+            .on_store(&store)
+            .execute()?
+        {
             QueryResults::Solutions(solutions) => {
                 let vars: Vec<String> = solutions
                     .variables()
@@ -550,6 +596,51 @@ impl GraphStore {
         Ok(after.saturating_sub(before))
     }
 
+    /// Canonicalise the store's blank nodes via RDFC 1.0 (W3C Recommendation,
+    /// 21 May 2024) using SHA-256, returning a NEW `GraphStore` whose blank
+    /// nodes have deterministic `_:c14n<n>` identifiers derived from the graph
+    /// structure.
+    ///
+    /// This is the principled successor to per-callsite "filter `_:` IRIs out
+    /// of the SPARQL result set" — for any operation that depends on stable
+    /// identity across reparses (drift detection, hashing, signature
+    /// comparison), canonicalisation preserves the semantic content of
+    /// anonymous restriction classes / quoted axioms instead of dropping them.
+    ///
+    /// **Warning:** per the W3C spec, canonical IDs are a function of the
+    /// whole graph. Mutating one quad can shift many bnode IDs, so this
+    /// is poorly suited to producing minimal-diff outputs over arbitrary
+    /// edits. For drift detection specifically, the existing rename-pairing
+    /// logic in `drift.rs::detect()` will re-match shifted IDs via the
+    /// label/domain/range/hierarchy/individual signal ensemble, so the
+    /// net result is more informative than the previous "filter and forget"
+    /// approach (PR #14, @rustforrecess) that dropped bnode content entirely.
+    pub fn canonicalize_blank_nodes(&self) -> anyhow::Result<GraphStore> {
+        use oxigraph::model::dataset::{CanonicalizationAlgorithm, CanonicalizationHashAlgorithm};
+        use oxigraph::model::Dataset;
+
+        let store = self.store.lock().unwrap();
+        let mut dataset = Dataset::new();
+        for quad in store.iter() {
+            let q = quad?;
+            dataset.insert(&q);
+        }
+        drop(store);
+
+        dataset.canonicalize(CanonicalizationAlgorithm::Rdfc10 {
+            hash_algorithm: CanonicalizationHashAlgorithm::Sha256,
+        });
+
+        let new_gs = GraphStore::new();
+        {
+            let new_store = new_gs.store.lock().unwrap();
+            for quad in dataset.iter() {
+                new_store.insert(quad)?;
+            }
+        }
+        Ok(new_gs)
+    }
+
     /// Serialize all triples in the store to a string in the given format.
     ///
     /// Supported format strings: `"turtle"` / `"ttl"`, `"ntriples"` / `"nt"`,
@@ -590,7 +681,11 @@ impl GraphStore {
             let quad = quad?;
             serializer.serialize_triple(quad.as_ref())?;
         }
-        drop(serializer);
+        // `finish()` writes the final terminator (e.g. the trailing `.` on the
+        // last Turtle triple, or `</rdf:RDF>` for RDF/XML). Dropping the
+        // serializer skips this step, which produced truncated, unparseable
+        // output — see `convert` → `drift` round-trip on the Pizza ontology.
+        serializer.finish()?;
         Ok(String::from_utf8(buf)?)
     }
 
@@ -688,7 +783,11 @@ impl GraphStore {
         let individual_query = "SELECT (COUNT(DISTINCT ?i) AS ?count) WHERE { ?i a ?c . FILTER(?c != <http://www.w3.org/2002/07/owl#Class> && ?c != <http://www.w3.org/2000/01/rdf-schema#Class> && ?c != <http://www.w3.org/2002/07/owl#ObjectProperty> && ?c != <http://www.w3.org/2002/07/owl#DatatypeProperty> && ?c != <http://www.w3.org/2002/07/owl#Ontology>) }";
 
         let count_from_query = |q: &str| -> usize {
-            let Ok(QueryResults::Solutions(solutions)) = store.query(q) else { return 0 };
+            let Ok(prepared) = SparqlEvaluator::new().parse_query(q) else { return 0 };
+            let Ok(QueryResults::Solutions(solutions)) = prepared
+                .on_store(&store)
+                .execute()
+            else { return 0 };
             let Some(Ok(row)) = solutions.into_iter().next() else { return 0 };
             let Some(Term::Literal(lit)) = row.get("count") else { return 0 };
             lit.value().parse().unwrap_or(0)
@@ -816,6 +915,8 @@ impl GraphStore {
     /// Send a SPARQL CONSTRUCT query to a remote SPARQL endpoint and return the
     /// response body (typically Turtle or N-Triples).
     ///
+    /// Runs the query against an open (unauthenticated) endpoint.
+    ///
     /// # Note
     ///
     /// Requires a live network connection to a SPARQL endpoint.
@@ -834,14 +935,28 @@ impl GraphStore {
     /// }
     /// ```
     pub async fn fetch_sparql(endpoint: &str, query: &str) -> anyhow::Result<String> {
+        Self::fetch_sparql_auth(endpoint, query, &SparqlAuth::default()).await
+    }
+
+    /// Run a SPARQL query against an endpoint, with optional HTTP auth.
+    ///
+    /// Works against any SPARQL 1.1 Protocol endpoint: Apache Jena/Fuseki and
+    /// Eclipse RDF4J (no auth), Stardog and Ontotext GraphDB (Basic/Bearer).
+    /// Amazon Neptune with IAM auth requires SigV4 request signing, which this
+    /// path does not perform; use an unsigned/IAM-disabled endpoint or a signing
+    /// proxy in front of Neptune.
+    pub async fn fetch_sparql_auth(
+        endpoint: &str,
+        query: &str,
+        auth: &SparqlAuth,
+    ) -> anyhow::Result<String> {
         let client = reqwest::Client::new();
-        let resp = client
+        let rb = client
             .post(endpoint)
             .header("Content-Type", "application/sparql-query")
             .header("Accept", "text/turtle")
-            .body(query.to_string())
-            .send()
-            .await?;
+            .body(query.to_string());
+        let resp = auth.apply(rb).send().await?;
         if !resp.status().is_success() {
             anyhow::bail!("SPARQL endpoint returned HTTP {}", resp.status());
         }
@@ -870,7 +985,18 @@ impl GraphStore {
     /// }
     /// ```
     pub async fn push_sparql(endpoint: &str, content: &str) -> anyhow::Result<String> {
-        Self::push_sparql_graph(endpoint, content, None, &[]).await
+        Self::push_sparql_graph_auth(endpoint, content, None, &[], &SparqlAuth::default()).await
+    }
+
+    /// Push triples to an endpoint via SPARQL 1.1 Update, with optional named
+    /// graph and HTTP auth.
+    pub async fn push_sparql_auth(
+        endpoint: &str,
+        content: &str,
+        graph: Option<&str>,
+        auth: &SparqlAuth,
+    ) -> anyhow::Result<String> {
+        Self::push_sparql_graph_auth(endpoint, content, graph, &[], auth).await
     }
 
     /// SPARQL 1.1 Update push with optional named graph and arbitrary extra
@@ -890,6 +1016,17 @@ impl GraphStore {
         content: &str,
         graph_iri: Option<&str>,
         extra_headers: &[(&str, &str)],
+    ) -> anyhow::Result<String> {
+        Self::push_sparql_graph_auth(endpoint, content, graph_iri, extra_headers, &SparqlAuth::default()).await
+    }
+
+    /// Unified SPARQL 1.1 Update push with optional named graph, extra headers, and HTTP auth.
+    pub async fn push_sparql_graph_auth(
+        endpoint: &str,
+        content: &str,
+        graph_iri: Option<&str>,
+        extra_headers: &[(&str, &str)],
+        auth: &SparqlAuth,
     ) -> anyhow::Result<String> {
         let body = match graph_iri {
             None => format!("INSERT DATA {{ {} }}", content),
@@ -911,13 +1048,14 @@ impl GraphStore {
             }
         };
         let client = reqwest::Client::new();
-        let mut req = client
+        let mut rb = client
             .post(endpoint)
             .header("Content-Type", "application/sparql-update");
         for (name, value) in extra_headers {
-            req = req.header(*name, *value);
+            rb = rb.header(*name, *value);
         }
-        let resp = req.body(body).send().await?;
+        let rb = rb.body(body);
+        let resp = auth.apply(rb).send().await?;
         if !resp.status().is_success() {
             anyhow::bail!("SPARQL update returned HTTP {}", resp.status());
         }

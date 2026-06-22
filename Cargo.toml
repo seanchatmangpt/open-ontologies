@@ -16,7 +16,7 @@ axum = "0.8"
 tower-http = { version = "0.6", features = ["cors"] }
 tokio-util = "0.7"
 tokio = { version = "1", features = ["full"] }
-oxigraph = "0.4"
+oxigraph = "0.5"
 rusqlite = { version = "0.32", features = ["bundled"] }
 reqwest = { version = "0.12", features = ["json"] }
 schemars = "1"
@@ -43,6 +43,9 @@ sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio",
 duckdb = { version = "1", optional = true, features = ["bundled"] }
 tract-onnx = { version = "0.21", optional = true }
 tokenizers = { version = "0.21", optional = true, default-features = false, features = ["onig"] }
+instant-distance = { version = "0.6", optional = true, features = ["with-serde"] }
+bincode = { version = "1.3", optional = true }
+sha2 = "0.10"
 dirs = "6"
 shell-words = "1"
 wasm4pm-types = { path = "/Users/sac/wasm4pm/crates/wasm4pm-types", features = ["import"] }
@@ -76,8 +79,15 @@ default = []
 postgres = ["sqlx"]
 duckdb = ["dep:duckdb"]
 sql = ["postgres", "duckdb"]
-embeddings = ["tract-onnx", "tokenizers"]
+embeddings = ["tract-onnx", "tokenizers", "instant-distance", "bincode"]
 mcpp = ["dep:mcpp-core"]
+# Causal layer (#48): subprocess wrapper around PyWhy/DoWhy for backdoor
+# identification + adjustment estimation. Caller must have `python3` on PATH
+# and `pip install dowhy networkx pandas numpy`. The wrapper degrades to a
+# clean `pywhy_unavailable` error when imports fail; CIVeX falls back to the
+# structural proxy. Zero additional Rust dependencies — the entire feature
+# is shipped as embedded Python + subprocess plumbing.
+causal-pywhy = []
 
 [lints.clippy]
 todo = "deny"

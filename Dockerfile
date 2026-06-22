@@ -5,7 +5,7 @@
 # Build args:
 #   FEATURES        Cargo feature list, space-separated. Default: "" (empty).
 #                   Pass FEATURES=embeddings to enable ONNX/local embeddings.
-#   RUST_VERSION    Rust toolchain. Default 1.75.
+#   RUST_VERSION    Rust toolchain. Default 1.88.
 #
 # Expected runtime mounts / env:
 #   /data                 -> persistent state (Oxigraph DB, cache, snapshots).

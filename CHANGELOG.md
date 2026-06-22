@@ -1,9 +1,6 @@
 # Changelog
 
-All notable changes to this project will be documented in this file.
-
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+All notable changes to Open Ontologies are documented here.
 
 ## [26.5.21] - 2026-05-21
 
@@ -12,3 +9,163 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Receipt Validation**: Implemented core validation laws requiring explicit `expected_ocel`, `observed_ocel`, alignment state, and boundary evidence. Refuses closure for synthetic/cloned traces or exit-code-only proofs.
 - **GHF Fleet Sentinel**: Demonstrated the first regression-bound route family with a complete refusal/remediation/admission loop (missing artifact -> OutOfMembraneReceipt -> ggen remediation -> FleetHealthReceipt).
 - **AutoReceipt Manifest**: Formalized that `AutoReceiptClosed` is a derived theorem from the Validation Ladder, not a self-certified agent state.
+
+## [1.0.0] - 2026-05-21
+
+### Added
+- **Causal (v0.5): `certify_action` × PyWhy integration.** Wires the #48 PyWhy scaffold into the live `certify_action` path. New `ActionFrame.identification_mode` field (`Structural` | `DoCalculusBackdoor`, default `Structural` for back-compat) selects which identifiability proof to attempt. New helper `build_causal_dag(graph, target_iris)` extracts a causal DAG from the loaded RDF graph: nodes = target IRIs + their one-hop structural neighbours (same slice CIVeX already hashes); edges = `rdfs:subClassOf` / `rdfs:subPropertyOf` / `rdfs:domain` / `rdfs:range` triples among slice members (treated as cause → effect); plus a synthetic `__utility__` sink downstream of every node. When `DoCalculusBackdoor` is requested AND the `causal-pywhy` Cargo feature is enabled, the verifier calls `civex_pywhy::run_pywhy_backdoor` and on success stamps the certificate's `identification_proof` with DoWhy's adjustment estimand + tags assumptions with `"do_calculus_backdoor"`. On any failure path (Python unavailable / DoWhy unavailable / DoWhy runtime error / target unidentifiable) the verifier **silently falls back to the structural proxy** and records the reason in assumptions as `"do_calculus_unavailable:<kind>"`. When the feature is off, the marker is `"do_calculus_unavailable:feature_disabled"`. The certificate's `identification_proof` field is never empty regardless of branch taken. MCP tool `onto_certify_action` gains `identification_mode: Option<String>` accepting `"structural"` (default) or `"do_calculus_backdoor"`. Two new integration tests in `tests/civex_test.rs`: `structural_mode_records_structural_only_assumption` (back-compat) and `do_calculus_mode_falls_back_to_structural_when_feature_disabled` (verifies the fallback path doesn't crash and records the marker). All 9 civex integration tests pass in both default and `causal-pywhy` build configurations; clippy clean across `--lib --tests --examples` in both configs.
+- **Causal: PyWhy/DoWhy backdoor identification subprocess scaffold (#48).** Scaffolds the Causal flagship's substantive v0.5 work without pulling Python into the default build. New optional Cargo feature `causal-pywhy` (off by default) enables a `src/civex_pywhy.rs` module that wraps DoWhy v0.13 as a subprocess — same pattern as `src/plan_classical.rs` does for Fast Downward. The wrapper embeds a self-contained Python driver (`PYWHY_PYTHON_DRIVER`) that reads `{nodes, edges, treatment, outcome}` from stdin, builds a `networkx` DiGraph, runs DoWhy's `identify_effect` for backdoor adjustment, and emits `{identifiable, adjustment_set, estimand_expression}` to stdout. Per the May 2026 roadmap memo: **Pearl–Shpitser ID is not ported to Rust** — DoWhy is a 15-year-stable Python implementation, so we wrap it. Honest behaviour when Python or DoWhy is missing: structured errors with `kind = "python_unavailable"` / `"pywhy_unavailable"` / `"dowhy_runtime_failed"` that the caller (eventually `certify_action` in v0.5) dispatches on to fall back to the structural proxy. Binary resolution order: explicit `python_override` → `PYTHON_BIN` env var → `python3` on PATH. **NOT yet integrated into `certify_action`** — the structural proxy (`"structural_only"` assumption) remains the only identifier in shipped certificates; integration tracks as the v0.5 ship. 9 unit tests cover parser cases (identifiable, unidentifiable, both error kinds, invalid JSON), python resolver (override + default + env var), embedded-driver sanity check, and `python_unavailable` behaviour on missing binary. Zero additional Rust dependencies — the entire feature is embedded Python + subprocess plumbing.
+- **Dynamics: non-deterministic outcomes for ActionSchema (#49).** `ActionSchema` gains an additive `outcomes: Vec<Outcome>` field. Each `Outcome` carries a categorical `probability` in `[0, 1]`, its own `effects: Vec<EffectSpec>` list, and an optional human-readable `label` (e.g. `"success"` / `"degraded"` / `"failure"`). When `outcomes` is non-empty, `apply()` samples one outcome and executes its effects; the deterministic `effects` field is ignored. When empty (the default), the schema behaves exactly as before — full back-compat with v0.4 base. Probabilities are validated: the sum must equal `1.0 ± 1e-6` or `apply()` returns an error; negative probabilities are also rejected. Sampling uses an inline xorshift64 PRNG keyed by a seed — **zero new dependencies**, no `rand`/`fastrand` pulled in. New method `ActionSchema::apply_with_seed(graph, db, bindings, seed)` exposes the seed for reproducible sampling; the default `apply()` derives a seed from `SystemTime::now()`. `ApplyResult` gains `sampled_outcome: Option<usize>` and `sampled_outcome_label: Option<String>` so callers can see which branch fired. `onto_action_apply` gains an optional `seed: Option<u64>` parameter — pass it when you need reproducible runs (CIVeX certification, replay-from-audit-log, controlled experiments). Tests (4 new): `nondeterministic_apply_with_seed_is_reproducible`, `nondeterministic_apply_distribution_matches_probabilities` (1000-call smoke check that a 70/30 split lands within `[0.60, 0.80]`), `nondeterministic_apply_rejects_invalid_probability_sum`, `deterministic_schema_still_works_when_outcomes_is_empty` (back-compat).
+- **Planner: `onto_plan_classical` — Fast Downward subprocess wrap (#50).** Optional convenience tool that completes the LLM-Modulo Planner pipeline (`compile_pddl` → `classical` → IRI-bind client-side → `validate`). Per the LLM-Modulo convention, the classical solver is still client-side — this wrapper exists so a caller who *does* have Fast Downward installed locally can ask the server to run it for them rather than shelling out themselves. Honest behaviour when Fast Downward is missing: returns a structured `binary_unavailable` error with installation guidance, never falls back to a silent stub. Binary resolution order: explicit `fast_downward_bin` parameter → `FAST_DOWNWARD_BIN` env var → `fast-downward.py` on PATH. Returns the raw `sas_plan` content (preserved verbatim) plus a parsed `operators: [{name, args}]` list and the `; cost = N (...)` footer extracted separately. Search strategy is configurable (default `"lama-first"`; pass `"astar(lmcut())"` etc.). Reads the highest-numbered `sas_plan.N` variant when satisficing search emits multiple plans. New module `src/plan_classical.rs` with 7 unit tests covering parse cases (three-operator plan with cost footer, blank-line + comment skipping, empty input, zero-arg operators) and resolver / error behaviour (explicit override, default fallback, `binary_unavailable` on missing binary). New MCP tool `onto_plan_classical` + `OntoPlanClassicalInput`.
+- **Planner: `onto_plan_validate` — LLM-Modulo validator primitive (#45).** Server-side companion to `onto_plan_compile_pddl`. Per the LLM-Modulo convention (Kambhampati arXiv 2402.01817), the server compiles + validates, the orchestrator solves. The validator takes a candidate plan (an ordered list of `{action_name, bindings}` operator instances — typically produced client-side by Fast Downward, LLM prompting, or any other source) and step-by-step: (a) looks up each step's registered `ActionSchema`, (b) re-evaluates its preconditions against the cumulative sandbox state under the step's bindings, (c) if applicable, executes its effects against the sandbox, (d) if not, returns immediately with the failing step index and a diagnostic. **Critically, the validator forks the loaded graph into an isolated sandbox** so the real store is never mutated — verified by a dedicated test. Multi-step plans correctly chain state through: a test exercises Step 1 establishing the precondition that Step 2 needs (declare `ex:Feline` as a class, then add `ex:Cat rdfs:subClassOf ex:Feline`). Optional `goal_facts` are checked post-plan and reported in `unsatisfied_goals` (without invalidating the plan itself — a well-formed plan that just doesn't reach the goal is still well-formed). Internal scratch `StateDb` opened as `:memory:` so per-step lineage entries don't pollute the production audit trail. New module `src/plan_validate.rs` + 6 unit tests covering empty plan, single-step success, missing action, unsatisfied precondition, multi-step state-chain, and goal-checking semantics. New MCP tool `onto_plan_validate` + `OntoPlanValidateInput` / `PlanStepInput`.
+- **Dynamics: ramification via OWL-RL closure after apply (#47).** First follow-on to the Dynamics scaffold. New `ActionSchema::apply_with_ramification(graph, db, bindings, profile)` method that runs the existing `reason::Reasoner` immediately after the literal effects land, materialising downstream entailments into the same graph. `ApplyResult` gains two new fields: `derived_triples_added: usize` (count of new triples the reasoner produced beyond the literal effects) and `ramification_profile: Option<String>` (the profile actually run, or `None` when ramification was skipped). The `onto_action_apply` MCP tool gains a `ramify` parameter accepting any of `"rdfs"` / `"owl-rl"` / `"owl-rl-ext"` / `"owl-dl"`; default `None` preserves the previous literal-effects-only behaviour. Validated against the canonical acceptance case from #47: a schema that adds `?child rdfs:subClassOf ?parent`, applied with `ramify="owl-rl"` over a graph containing `ex:tigger a ex:Cat`, materialises `ex:tigger a ex:Animal` via subClassOf transitivity. Two new unit tests in `src/dynamics.rs`.
+- **Dynamics layer scaffold + Planner stub (three-layer architecture, #43 + #45).** First two of the three v0.4–v0.6 layers from the May 2026 KR/UAI/ICAPS/AAMAS roadmap land as additive scaffolding on top of v0.2's primitives — no breaking changes to existing tools. **Dynamics** introduces `ActionSchema` (BC+ deterministic-single-effect subset): typed `Parameter` slots, SPARQL `ASK`/`SELECT` `preconditions` with `{param}` substitution, and KGCL-shaped `effects` (`AddTriple` / `RemoveTriple` / `AddClass`). Schemas persist by name in a new `dynamics_action_schemas` SQLite table; `apply()` runs the effects, emits the KGCL Controlled-Natural-Language patch, mints an IES4-style event IRI, and logs to `lineage`. Four new MCP tools: `onto_action_register` (persist a schema from inline JSON), `onto_action_applicable` (evaluate preconditions against the loaded graph under a binding map), `onto_action_apply` (execute effects + return patch + event IRI; re-checks preconditions by default), `onto_action_list` (enumerate registered schema names). **Causal-layer hookup**: `civex::ActionFrame` gains an optional `action_schema_name`; when set, `onto_certify_action` echoes `dynamics_action_schema:<name>` into the certificate's assumptions, so the audit trail is explicit about which Dynamics action was gated. **Planner stub** (`src/plan_pddl.rs` + `onto_plan_compile_pddl`): emits a PDDL domain from registered action schemas plus a problem instance from the loaded graph and a goal Turtle slice. Single-predicate `(triple ?s ?p ?o)` over typed sort `iri`; ASK-shaped preconditions translate cleanly, SELECT-shaped ones surface in `translation_notes` so the lossy translation is honest. Per the LLM-Modulo convention (Kambhampati arXiv 2402.01817), the actual planner (Fast Downward) is delegated to the orchestrator; this primitive only emits the PDDL. New files: `src/dynamics.rs` (~458 LOC including 7 unit tests), `src/plan_pddl.rs` (~280 LOC including 6 unit tests). Causal extension verified by a new integration test `action_schema_name_is_recorded_in_certificate_assumptions` in `tests/civex_test.rs`. Honest deferrals: ramification rules, non-deterministic dynamics, and concurrent action semantics defer to v0.4.x; OWL → PDDL rigour (Borgwardt KR 2025) defers to v0.6 proper.
+- **`onto_certify_action` — CIVeX-style causal certificate for state-changing actions** (#42, [arXiv 2605.09168](https://arxiv.org/abs/2605.09168)). New MCP tool that gates any state-changing onto_* operation before execution. Maps a proposed action to a structural identifiability check + Wilson one-sided LCB on the do-effect, returns one of four auditable verdicts: **EXECUTE / REJECT / EXPERIMENT / ABSTAIN**. Each verdict carries a certificate documenting the labelled assumptions, structural-dependency identification proof, point estimate, LCB at level α, provenance SHA-256, and risk bound. Scaffold port: keeps the four-way verdict + Wilson LCB + locked-IRI hard-reject; uses a **structural-dependency proxy** for identifiability (honestly documented as `"structural_only"` in the assumptions list) rather than full do-calculus backdoor/frontdoor algorithms. EXPERIMENT degrades to ABSTAIN unless caller passes `allow_experiment=true`. New module `src/civex.rs` + 6 integration tests in `tests/civex_test.rs` covering EXECUTE, REJECT (cost > risk_threshold), REJECT (locked IRI), ABSTAIN (irreversible + ambiguous LCB), EXPERIMENT (reversible + authorised), and provenance-hash determinism.
+- **`graph_projection_lossy_check` — audit projected RAG slices for information loss** (#35, IJCAI 2025). New MCP tool that compares a projected Turtle slice against the loaded ontology's full neighbourhood of seed IRIs and reports dropped predicates, dropped object IRIs, per-seed coverage ratio, and aggregate coverage. Pairs with the upcoming `onto_segment_retrieve` (#34) — the retriever produces the slice; this auditor reports what it left behind, so the calling LLM can decide whether the slice is sufficient. New module `src/projection_check.rs` + 4 inline unit tests covering full-projection-OK, dropped-predicate-flagged, parse-failure path, and missing-seed-in-source-trivially-covered.
+- **HNSW polish — per-call tuning, Poincaré variant, async flush.** Three follow-on wins on the HNSW moat: (1) `onto_search` gains `use_hnsw` and `ef_search` parameters, so callers can route a single query through the HNSW cosine index and optionally trigger a rebuild with custom `ef_search` per query. Caveat documented: `instant-distance` bakes `ef_search` into the HNSW structure at build time and doesn't support per-query overrides, so a non-default `ef_search` triggers a rebuild — prefer `onto_hnsw_build` if you query frequently with the same value. (2) New `PoincareIndex` variant alongside `CosineIndex`, indexing structural embeddings (Poincaré ball) instead of text embeddings (cosine). Wired into `VecStore` with `search_poincare_hnsw`, `rebuild_poincare_index`, `persist_poincare_index`, `load_poincare_index`. The two indices coexist independently; both share the `hnsw_index_cache` SQLite table (kind = 'cosine' | 'poincare') with the same entries-fingerprint, so a mutation invalidates both at once. (3) Async background flush via `persist_cosine_index_async` / `persist_poincare_index_async` — returns a `tokio::task::JoinHandle` that resolves when the SQLite write completes. Serialisation happens synchronously (in-memory bincode, < 100ms for ontologies under ~10k classes); only the SQLite write is dispatched to `spawn_blocking`. Useful for keeping MCP tool handlers responsive when persisting large indices. Three new integration tests (Poincaré top-1 vs brute-force, coexistence with cosine, async persist round-trip) plus an additional Poincaré persistence test, taking the vecstore suite from 9 to 15 tests.
+- **HNSW persistence + tuning + onto_align prefilter** (completes the moat scaffold). Three follow-on changes wire the prior HNSW scaffold into the rest of the system: (1) the built HNSW index now persists across process restarts via a new `hnsw_index_cache` SQLite table; `VecStore::load_from_db` automatically reinstates the cached index when its entries-fingerprint (deterministic FNV-1a 64-bit hash of sorted iri+text-vec bytes) matches the just-loaded vectors, and rejects stale caches when vectors changed — so a process startup over a populated DB skips the full rebuild. (2) New `onto_hnsw_build` MCP tool exposes the HNSW `ef_construction` and `ef_search` parameters so the connected orchestrator can tune index quality vs build/query time on larger ontologies; the tool optionally persists the rebuilt index. New `OntoHnswBuildInput` in `src/inputs.rs`. (3) `onto_align`'s candidate loop now transparently uses the HNSW index as a pre-filter when both source and target IRIs have embeddings in the vecstore: for each source class, a top-50 cosine shortlist of target candidates is computed once via HNSW, and the inner loop skips pairs not in the shortlist. The optimisation degrades gracefully — sources without embeddings fall back to the full target scan, preserving correctness on partially-embedded inputs. Two new persistence tests in `tests/vecstore_test.rs` cover the round-trip (vectors + index reload on a fresh `VecStore` over the same DB) and the cache-invalidation path (mutated vectors + unmutated index → cache rejected, rebuild on next search).
+- **HNSW-accelerated cosine search scaffold** (the "vector-index moat"). New optional `instant-distance` dependency (gated behind the existing `embeddings` feature, no impact on default builds) and a new `src/hnsw_index.rs` module wrapping the HNSW algorithm (Malkov & Yashunin, TPAMI 2020). `VecStore` grows a `search_cosine_hnsw(query, top_k)` method that builds the index lazily on first call and rebuilds whenever the store is mutated; the existing `search_cosine` brute-force linear scan is unchanged and continues to work without HNSW (zero regression risk). Strategic context: per the May 2026 ecosystem research, no Rust knowledge-graph engine ships native HNSW alongside its triple store — the de-facto stack is `Neo4j + Qdrant + a Python adapter`. This module is the foundation for Open Ontologies to fill that gap as a Rust-native MCP server with first-class semantic search inside the same process. Scaffold scope: the core index + integration + tests; follow-up work (persistence layer for the built index, MCP-tool surface for tuning HNSW `ef_search` / `ef_construction`, wiring into `onto_align`'s embedding-similarity signal) is tracked in the project notes. New tests: 3 unit tests in `src/hnsw_index.rs` + 3 integration tests in `tests/vecstore_test.rs` (round-trip top-1 agreement with brute-force, mutation-invalidation behaviour, empty-store edge case).
+- **GenOM-style description-based embedding enrichment for `onto_embed`**. New optional `descriptions: HashMap<String, String>` field on `OntoEmbedInput`. When the map is supplied, each class IRI in the map is embedded from its description text instead of from its `rdfs:label`; IRIs absent from the map fall back to the existing label-based embedding. Returns a new `enriched: <count>` field alongside the existing `embedded: <count>` so callers can see how many classes used descriptions vs. labels. This is the MCP-native form of the GenOM pattern (Mensa et al. 2025, accepted World Wide Web Journal, which showed Qwen-32B-generated descriptions lift alignment F1 substantially over raw-label embedding): the server doesn't generate descriptions, the connected orchestrator (Claude) authors them in-conversation using its own reasoning, then passes them in via this field. Net new dependencies: zero. Behaviour with no `descriptions` map is identical to before (back-compat). New inline unit tests in `src/inputs.rs` cover the deserialization both with and without the field present.
+- **`ies-4.3.1` marketplace preset — frozen MIT baseline** (#25). New marketplace catalogue entry pointing at the archived `dstl/IES4` repo at tag `v4.3.1` (3 Mar 2025, MIT-licensed, last public release before the IES governance transition to DBT / IES-Org). Distinct from the existing `ies` preset (which tracks `IES-Org/ont-ies` main and shifts as upstream evolves) — use `ies-4.3.1` when you need a reproducible compliance baseline that won't drift. Source: 5,375-line Turtle artefact `ies4.ttl`, baseURI `http://ies.data.gov.uk/ontology/ies4`, the same namespace used by the existing `boro` and `ies4` enforce rule packs. Install via `onto_marketplace install ies-4.3.1`. Inline unit tests in `src/marketplace.rs` verify the URL pins to the `v4.3.1` tag (not `main`) and that the live `ies` and frozen `ies-4.3.1` presets coexist with distinct IDs and URLs.
+- **RRF (Reciprocal Rank Fusion) as an opt-in fusion strategy for `onto_align`**. New `OntoAlignInput.fusion` field accepts `"weighted_sum"` (default, unchanged behaviour with self-calibrating learned weights) or `"rrf"` (Cormack et al. SIGIR 2009 at k=60, validated for ontology alignment by Agent-OM at VLDB 2025). RRF is order-based rather than score-based, so it doesn't need feedback to bootstrap; it's a sensible cold-start choice when the `align_feedback` table is empty. The per-signal scores remain on each candidate's `signals` field so downstream `onto_align_feedback` calls keep working identically. New public method `AlignmentEngine::align_with_fusion(source, target, high, low, dry_run, fusion)`; the existing `align_with_thresholds(...)` and `align(...)` entry points are preserved as thin wrappers that pass `"weighted_sum"`. New `tests/align_rrf_test.rs` (5 tests) covering normalisation to [0, 1], per-signal preservation, low-threshold post-rerank filtering, weighted_sum back-compat, and weighted_sum/RRF top-pair agreement on perfect matches.
+- **`ies4` enforce rule pack** (#24). New built-in design-pattern pack for the [Information Exchange Standard](https://informationexchangestandard.org/), the UK cross-sector ontology framework custodied by Department for Business and Trade since March 2025 (canonical repo `IES-Org/ont-ies`). Three rules beyond the existing `boro` pack: (1) `ies4_particular_class_overlap` (severity: error) — a class cannot subclass both `ies:Particular` and `ies:ClassOfEntity`, as that violates the type-vs-token distinction foundational to IES4's 4D mereology; (2) `ies4_state_without_subject` (severity: warning) — a class subclassing `ies:State` must declare `ies:isStateOf` via owl:Restriction or have at least one instance using it (the state pattern is meaningless without a bearer); (3) `ies4_event_without_participant` (severity: warning) — a class subclassing `ies:Event` must have a participant pattern via `ies:isParticipantIn` / `ies:involvesParticipant` / `ies:hasParticipant` (events without participants are incomplete 4D models). Invoke via `onto_enforce` MCP tool or `enforce` CLI with `rule_pack = "ies4"`. Academic grounding: FOUST 7 paper "Comparing IES and BORO" (CEUR Vol-4176, JOWO 2024). New `tests/enforce_ies4_test.rs` (5 tests covering each rule's positive and negative cases, plus the instance-level participation accept path).
+
+### Fixed
+- **`onto_drift` now canonicalises blank nodes via RDFC 1.0 instead of filtering them out.** Replaces the temporary `_:`-prefix filter shipped in PR #14 (Jason Smith / @rustforrecess, who originally diagnosed the bnode-instability bug and shipped the surgical fix that bought time for this proper successor). New method `GraphStore::canonicalize_blank_nodes()` uses W3C RDF Dataset Canonicalization 1.0 (SHA-256) — available built-in via Oxigraph 0.5.8 — to assign deterministic `_:c14n<n>` identifiers derived from the graph structure. `DriftDetector::detect()` canonicalises each snapshot before vocabulary extraction, so reparses of the same ontology produce identical canonical bnode IDs (the reparse-stability property PR #14 achieved by exclusion), but anonymous restriction classes / quoted axioms now PARTICIPATE in the diff with stable IDs rather than being dropped. Caveat: canonical IDs are a function of the whole graph, so a quad change can shift many bnode IDs — for typical edits the existing rename-pairing logic in `detect()` re-matches shifted bnodes via the 4-signal ensemble (label / domain-range / hierarchy / individuals), so the net result is more informative than PR #14's filter. `tests/drift_blank_node_test.rs` updated to assert the new canonical-stability contract; new test `canonical_bnode_ids_are_stable_across_independent_reparses` exercises the contract directly on two restriction shapes.
+- **`onto_drift` ignores blank nodes**. Pizza-style ontologies (and any OWL with restriction classes) use anonymous blank-node restriction classes that get freshly reminted on every parse. Two snapshots of the same file would show ~40 added + ~40 removed bnodes plus a Cartesian product of confidence-scored "renames" between them, drowning real entity changes in noise. The vocabulary extractor now filters `_:`-prefixed IRIs from both class- and property-gather loops.
+
+### Changed
+- **Oxigraph dependency bumped from 0.4 → 0.5.8** (#15). Oxigraph 0.5 ships RDF 1.2 / SPARQL 1.2 support (behind `rdf-12` / `sparql-12` feature flags), a new `SparqlEvaluator` builder-based query API, JSON-LD 1.1 by default, GeoSPARQL functions, a built-in `/sparql` HTTP server, single-pass ORDER BY, and — most relevant here — **built-in RDFC 1.0 canonicalisation** (W3C Recommendation, 21 May 2024), which gives deterministic blank-node identifiers via SHA-256 over canonical N-Quads. RDFC 1.0 is the proper successor to the bnode-filter hotfix in PR #14: a follow-up release can replace the `_:`-prefix filter in `extract_vocabulary` with canonicalisation, keeping semantic content while solving the reparse-instability problem at its root. The 0.4 → 0.5 migration was back-compatible for this codebase (the auto-migrating on-disk format means existing databases load without intervention). All six `Store::query` call sites in `graph.rs`, `shacl.rs`, and `ontology.rs` have been ported to the non-deprecated `SparqlEvaluator::new().parse_query(...).on_store(&store).execute()` chain; no deprecation warnings remain on the lib build. Full test suite (~290 tests) green on 0.5.8.
+
+### Documentation
+- `docs/data-pipeline.md` rewritten to cover both file-based and SQL-based ingest paths, the supported connection-string forms, federation examples (Parquet on S3 + Postgres scanner + remote CSV in one query), and a build matrix for the new feature flags.
+- `SKILL.md`, `skills/ontology-engineering/SKILL.md`, `skills/ontology-engineer.md`, and `CLAUDE.md` Tool Reference tables expanded to cover the SQL backbone tools and previously-missing tools (`onto_status`, `onto_marketplace`, `onto_unload`, `onto_recompile`, `onto_cache_status`, `onto_cache_list`, `onto_cache_remove`, `onto_repo_list`, `onto_repo_load`, `onto_embed`, `onto_search`, `onto_similarity`, `onto_dl_explain`, `onto_dl_check`, `onto_import_schema`, `onto_sql_ingest`).
+
+## [0.1.13] - 2026-05-01
+
+### Added
+- **Compile cache + TTL eviction + tool-exposure filter** (PR #1). Parsed ontologies are serialized to N-Triples on disk and reused on subsequent loads. A background evictor unloads idle ontologies after `[cache] idle_ttl_secs` (alias `unload_timeout_secs`); the on-disk cache is preserved and reloaded transparently on the next query. New `[tools]` config and `--tools-allow` / `--tools-deny` CLI flags restrict which `onto_*` tools the MCP server advertises (groups: `read_only`, `mutating`, `governance`, `remote`, `embeddings`).
+- **New MCP tools**: `onto_cache_status`, `onto_cache_list`, `onto_cache_remove`, plus optional `name` parameter on `onto_unload` / `onto_recompile` for per-name cache management.
+- **Ontology repository directories** (PR #2). New `[general] ontology_dirs` config (alias `data_dirs`) and `OPEN_ONTOLOGIES_ONTOLOGY_DIRS` env var let containerized deployments mount a folder of ontologies. Two new MCP tools enumerate and load from those directories with path-traversal guards: `onto_repo_list`, `onto_repo_load`.
+- **OpenAI-compatible embeddings provider** (PR #3). New `[embeddings] provider = "openai"` mode targets any OpenAI-compatible gateway (official OpenAI, Azure, Ollama, vLLM, LocalAI, LM Studio, Together, …). Config fields: `api_base` (alias `base_url`), `api_key`, `model`, `dimensions`, `request_timeout_secs`. Env-var precedence: `OPEN_ONTOLOGIES_EMBEDDINGS_*` > `OPENAI_API_KEY` (for the key) > config > defaults. Remote responses are L2-normalized to remain comparable with local ONNX embeddings.
+- **Surfaced operational config** (PR #4). New `[webhook]`, `[http]`, `[monitor]`, `[reasoner]`, `[feedback]`, `[imports]`, `[repo]`, `[socket]`, `[logging]` config sections expose previously hardcoded limits (tableaux depth/nodes, RDFS/OWL-RL fixpoint iterations, monitor interval, webhook timeout, import depth and remote-follow policy, feedback suppress/downgrade thresholds, etc.). A `0` value in the timeout / iteration fields is a sentinel that falls back to the documented default.
+- New tests: `tests/registry_test.rs`, `tests/cache_management_test.rs`, `tests/toolfilter_test.rs`, `tests/repo_test.rs`, plus inline tests for embeddings config parsing and runtime knob initialization.
+
+### Documentation
+- New `docs/cache-and-registry.md` covering the compile cache, TTL eviction, tool-exposure filter, and ontology repository directories.
+- `docs/embeddings.md` expanded with the OpenAI-compatible provider, supported gateways, config block, and env-var precedence.
+- `CLAUDE.md` and `SKILL.md` Tool Reference tables updated with the seven new tools.
+
+## [0.1.12] - 2026-03-27
+
+### Added
+- Virtualized tree view replacing D3/3D graph (handles 1500+ classes)
+- Hierarchy connector lines, breadcrumb, and connections panel
+- 13-step deep builder (`/build` command) producing IES-level ontologies
+- `/sketch` command for quick prototyping
+- `rdfs:Class` and `rdf:Property` support in Studio (not just `owl:Class`)
+- Shared cargo target directory
+
+### Fixed
+- Static Linux binary via musl target (closes #2)
+
+## [0.1.11] - 2026-03-25
+
+### Added
+- IES marketplace presets (`ies-top`, `ies-core`, `ies`)
+- IES Building Extension (525 classes, clean-room)
+- RDFS inference depth benchmark (662 vs 621)
+- Head-to-head IRIS comparison
+- Hierarchy enforce rule pack
+- EPC benchmark (36/36 vs 18/36)
+
+### Changed
+- Default features off (lean build — drops tract-onnx and sqlx from default)
+
+## [0.1.10] - 2026-03-13
+
+### Added
+- Quickstart guide (`docs/quickstart.md`)
+- Server round-trip integration test (`tests/server_roundtrip_test.rs`)
+- Complete architecture table in CONTRIBUTING.md (26 modules)
+
+### Fixed
+- Inconsistent CLI output: version/history/rollback/enrich/validate-clinical now respect `--pretty`
+- CONTRIBUTING.md architecture table missing 10 modules (error, config, inputs, lineage, mapping, state, schema, embed, structembed)
+
+## [0.1.9] - 2026-03-13
+
+### Added
+- Embedding similarity as alignment signal #7 (`onto_align` now uses text+structural embeddings when available)
+- `onto_embed`, `onto_search`, `onto_similarity` MCP tools for semantic search
+- End-to-end embedding pipeline test
+- Embedding tools in architecture diagram and workflow documentation
+
+### Fixed
+- Feature gating for `tool_router` macro, clippy warnings, and tokenizer download
+- Linux binary now built on ubuntu-22.04 for wider glibc compatibility
+
+## [0.1.8] - 2026-03-12
+
+### Added
+- Poincare structural embedding trainer (Riemannian SGD for hierarchy layout)
+- ONNX text embedder with tract (bge-small-en-v1.5, downloaded on init)
+- Dual-space vector store with cosine + Poincare search and SQLite persistence
+- Poincare ball geometry module (distance, exp_map, Riemannian SGD)
+
+### Fixed
+- Release binary naming now includes target triple
+- Replaced deprecated macos-13 runner with macos-14
+
+## [0.1.6] - 2026-03-11
+
+### Added
+- Glama server metadata and author verification
+
+### Fixed
+- Docker runtime libs and removed init from Dockerfile
+
+## [0.1.5] - 2026-03-11
+
+### Fixed
+- Added build-essential and clang to Docker builder for oxrocksdb-sys compilation
+
+## [0.1.4] - 2026-03-11
+
+### Fixed
+- Installed OpenSSL and libpq dev headers in Docker builder stage
+
+## [0.1.3] - 2026-03-10
+
+### Fixed
+- Use latest Rust image in Dockerfile (dependencies need Rust 1.88+)
+
+## [0.1.2] - 2026-03-10
+
+### Fixed
+- Free disk space in Docker workflow and optimize build
+- Bumped server.json to v0.1.1
+
+## [0.1.1] - 2026-03-09
+
+### Added
+- MCP Registry server.json, Docker publish workflow, and OCI label
+- Streamable HTTP transport (`serve-http` command)
+- MCP prompts (build_ontology, validate_ontology, compare_ontologies, ingest_data, explore_ontology)
+- Dockerfile for containerized deployment
+- OntoAxiom benchmark showdown (tool-augmented vs bare LLMs)
+- Claude Code plugin package and ClawHub skill wrapper
+- Bare Claude and hybrid benchmarks for three-way comparison
+- Self-calibrating feedback for lint and enforce (dismiss 3x to suppress)
+- Ontology alignment (`onto_align`, `onto_align_feedback`) with 6 weighted signals
+- Terraform-style lifecycle: plan, apply, lock, drift, enforce, monitor, lineage
+- Data pipeline: ingest, map, SHACL validate, reason, extend
+- Clinical crosswalks (ICD-10, SNOMED, MeSH)
+- OWL2-DL SHOIQ tableaux reasoner with parallel classification
+- Design pattern enforcement (generic, BORO, value_partition)
+- Version snapshots and rollback
+- Core ontology tools: validate, load, save, query, stats, diff, lint, convert, clear, pull, push, import
+
+### Fixed
+- Clippy `io_other_error` warning breaking CI
+- MCP benchmark scoring (camelCase normalization, pair order)
