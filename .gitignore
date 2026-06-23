@@ -64,3 +64,6 @@ artifacts/ghf/ocel/observed.ocel.jsonl
 .ggen/receipts/sync-*.json
 artifacts/ghf/fleet/
 artifacts/cli/JTBD-001-autonomic-ghf-verification.md
+
+# Teamwork Agents directory
+.agents/

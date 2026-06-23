@@ -1,6 +1,6 @@
 {
-  "operation_id": "4a967320-70ad-4f4d-8236-2ee76cdaf735",
-  "timestamp": "2026-06-23T06:05:25.584671Z",
+  "operation_id": "d875696a-6623-4bc1-b855-2dffdcd77c82",
+  "timestamp": "2026-06-23T07:29:55.826667Z",
   "input_hashes": [
     "actuator:ggen-sync@26.6.11",
     "ggen.toml:2230e74036c60bac96c5ff02117749348bf2962336b9777f172c4ba7bcc34fae",
@@ -28,9 +28,9 @@
     "ontology/truex-ecosystem.ttl:a4a176ec5a49d74f4975a867cf73aa9e5222e89e3e55924b4e6afc68ce54c533",
     "ontology/revops-manufacturing.ttl:23c39744f466b3919d4a32194b103007f238bf70427ff7fbaf9444aa065728d2",
     ".specify/queries/cli/commands_aggregated.rq:2430bed63073fbf7d54e8a4f7d7e586b69c5652999ff817f8365fffb36235bdc",
-    ".specify/templates/cli/cmds.rs.tera:4cb8be24820f3017becfb21342d2c0c7f107fc1f7ed600a5669fa781b73f12fc",
+    ".specify/templates/cli/cmds.rs.tera:bbacfded82529e811975f1f850c9c21cd2e746e674858250e37e2475c3ee170b",
     ".specify/queries/revops/stages_aggregated.rq:c1584ed0f361950eab68153dd2ec11aeca9f98f024c01ac92edb5cbf9da9a3e5",
-    ".specify/templates/revops/cmds.rs.tera:ab30f3ab6a5b6a549de4d624f3344d51026de6854713e7e3f13901d1dc44daf4",
+    ".specify/templates/revops/cmds.rs.tera:aea86f9090febf94dd4f750d571164c5c75f368a6cc6c3a75a35c6bac1192ec1",
     ".specify/queries/zoela/extract-types.rq:b133278fd98d3d2fdb22b089674a63e820907b7bf882aa2207da50b5095fcf7f",
     ".specify/templates/zoela/typescript-types.tera:8dfa9b1d19040786a4354d20cf86e9899ce3d131ee5cd13c72ba4f7db1412b74",
     ".specify/queries/zoela/extract-public-materializations.rq:27b747ffb1ac56272e44fd2a5580104cef378c059396692f41922cf7e42d93ad",
@@ -83,9 +83,9 @@
     ".specify/queries/zoela/extract-navigation.rq:c6a2fa6fa5736f86fda6078f7cab11c3c3bbfc25743b2be36894822ef4baf2ae",
     ".specify/templates/zoela/expo-navigation-stack.tera:4c50aef96355089100484d309e8059cbf00fa6c5905b6521898d29ea9f2c880d",
     ".specify/queries/zoela/extract-autoreceipt-law.rq:3e7b320ffd2dcbe16c2aed83337cfdf595f49993ae57ea2705451a12da63d39d",
-    ".specify/templates/zoela/autoreceipt-law.rs.tera:50ce580d89e324100a1043d1251a30ba885a2982466d99dfc380f96b21508373",
+    ".specify/templates/zoela/autoreceipt-law.rs.tera:e3f3d310e9d4723fa3304bb44d0612a23fef898f6be46cd8e0319e96b2ca0726",
     ".specify/queries/zoela/extract-autoreceipt-law.rq:3e7b320ffd2dcbe16c2aed83337cfdf595f49993ae57ea2705451a12da63d39d",
-    ".specify/templates/zoela/autoreceipt-law.rs.tera:50ce580d89e324100a1043d1251a30ba885a2982466d99dfc380f96b21508373",
+    ".specify/templates/zoela/autoreceipt-law.rs.tera:e3f3d310e9d4723fa3304bb44d0612a23fef898f6be46cd8e0319e96b2ca0726",
     ".specify/queries/ghf/repositories_aggregated.rq:11de254a1a8a57e12b88fcb872241fd1705533eabd926c800b5d40a824de27f3",
     ".specify/templates/ghf/terraform/repositories.tf.tera:0824e47c7e95ae389b89f8a7dc52536e9d6b1cb13c839c169dc4400d733b11f7",
     ".specify/queries/ghf/labels_aggregated.rq:ba875fd881f462866bf6b5a94ea7355f5d18022f5974441738bb8ba078c1aa7c",
@@ -155,8 +155,8 @@
     ".specify/templates/wasm4pm-types-stub.rs.tera:8e8d615ab172e61f52e14d08778cae1253bcf71b03fda54e6932a96c5a739fa6"
   ],
   "output_hashes": [
-    "./src/cmds/generated.rs:9ed4bfeef172855eafa991add52d1dd9e67045be8322d53ba4ae5ef75d181659",
-    "./src/cmds/generated_revops.rs:a9d00872c09a8667c6cfe41916858144d95b80f7169074111fa22d7c35720c06",
+    "./src/cmds/generated.rs:7468f5bc4e07f8130c1f1cbd998ff68d233a4c44fb7166a7568f50d53aaf2193",
+    "./src/cmds/generated_revops.rs:57ad08cd9e7588fdde7c054f14f5dd49007ffffa9b8a5c9bde48c167d46dc316",
     "./packages/types/zoela.ts:071490586ee93a3455209565d7c70bfd4e337b8b9311176276b7a9f349b5fee5",
     "./supabase/migrations/20260519000002_zoela_admitted_tables.sql:593d73a07fd8c5a024664b2371293a99df5fee7d21244191afc2579f08c4ef4b",
     "./.ggen/audit/p0-a/zoela-refusals.sql:2a724b330984580879a0fe7ee03da049fe16dcc0c406511479a92301e77f0399",
@@ -183,8 +183,8 @@
     "./packages/evidence/ocelSchema.ts:f67fe2c251e440ba52e9fc1baebc84970dbf481c0495a70bdfb3f6b5fb8b9b31",
     "./packages/screens/adminDetailScreen.tsx:df5a1936ae9d1b89d3f3d7df14f7986312cbc1a9f21dcc105d3a88b3693d2759",
     "./packages/navigation/navigationStack.tsx:03e6d4ec480aa266a199241679c6d0026e032b2f18ab4edb9df31acfefceab72",
-    "./src/autoreceipt_law.rs:918f81184ee02e38d45442716db34a5e6a7e116afeb8ee56c6f1f3fbb6418296",
-    "./src/autoreceipt_law.rs:918f81184ee02e38d45442716db34a5e6a7e116afeb8ee56c6f1f3fbb6418296",
+    "./src/autoreceipt_law.rs:f101e7467b4bdb480d1311c9a19ac6ce6f418384da174d04e158955d6fbe92d4",
+    "./src/autoreceipt_law.rs:f101e7467b4bdb480d1311c9a19ac6ce6f418384da174d04e158955d6fbe92d4",
     "./artifacts/ghf/terraform/repositories.tf:57c8e68df7c2f8eff8af3b5bf8be356a254e16701616fdf372584fdc7c7cfd17",
     "./artifacts/ghf/terraform/labels.tf:4293f5f3aa1b550ab02162e806c11f04ed8090e6605f7b5984fb19a1f080bfa7",
     "./artifacts/ghf/terraform/branch-protection.tf:449758ced23300f9ce8e09b3be64da74fe443f497eeb44a5c79cae99f0715e07",
@@ -224,7 +224,7 @@
     "./tests/truex-e2e-ValidCheckoutTest.test.ts:0705526a77c17d04ff0a885ea8d5fe3f79855f308d8ce970aa23df1811564c01",
     "./tests/truex-summary-only-refusal.test.ts:2e6336a987bde6f39d6253dfbc0c5bb06d3320f0e41d03f2b8eec104264b40d1",
     "./docs/truex-ecosystem.md:63f0fc11a7fb95b4feb8930982db6becae7cbcb286c87dff8dc30ee08e764f6c",
-    "./receipts/manufacture-receipt.json:446ba7c06eb1ddaf72eec3d8004e828f1e694d062ba31b14b27f1ff7b1e1a846",
+    "./receipts/manufacture-receipt.json:fb2f81c24acf36c803f5086df76dde4cddd5516211e59c68e7956414c8f6c0d1",
     "./pnpm-workspace.yaml:4e0d1f3765e4a10f2bb018c3e20ed70dc83ea9ef84533b16754b8027bf596246",
     "./package.json:c52cb479dbfb57e11635033154200b80709c7f51d872efe7b7ec77c664c4ef8e",
     "./jest.config.js:a4169e9cbc0ba79607d1e7693531fd66f56c96db7d760c392279d758ca9e658a",
@@ -234,6 +234,6 @@
     "./src/wasm4pm_stub.rs:2db6d64a0f10abde8abc9af5c1f9289b2819cf47d11ee934e534ef7ddced4828",
     "./src/wasm4pm_types_stub.rs:265475f67d43ff34593c8fb673f21f4dd31f5c11abb814cd632cb11981fad1cb"
   ],
-  "signature": "cd16dffac5352549f6da3d55b11712259f010464bd46ad7179e247b87cedab99eaf5aecf309d7802bf66a5c43a9b024de14f0d939a2510cb14cba5fd752f7401",
-  "previous_receipt_hash": "407e624294e89039a5c13daa9796fb49e919efd14d89abb3ff632528e0dcb92c"
+  "signature": "286cbd3be9b8211d7a156c71e55530363e7bd173a014601d3ceb5e145fd50d41276f1e6063b87e355f19d9946a24439b1ed5ba87808bcf5bdef8146024f33c0e",
+  "previous_receipt_hash": "5875cbd28394e4ac0703a6cfc0d638f11d18d538f343d404348c0d9ac0974bc2"
 }

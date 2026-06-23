@@ -30,20 +30,33 @@ impl {{ lawId }}<{{ cond_list[0] }}> {
     /// Initialize the state machine in the starting state.
     #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
-        Self { state: {{ cond_list[0] }} }
+        Self {
+            state: {{ cond_list[0] }},
+        }
     }
+{%- if cond_list | length > 1 %}
+
+    /// Transition from {{ cond_list[0] }} to {{ cond_list[1] }}.
+    pub fn transition(self) -> {{ lawId }}<{{ cond_list[1] }}> {
+        {{ lawId }} {
+            state: {{ cond_list[1] }},
+        }
+    }
+{%- endif %}
 }
 {%- endif %}
+{%- for cond in cond_list %}
+{%- set i = loop.index0 %}
+{%- if i > 0 and not loop.last %}
+{%- set next_index = i + 1 %}
+{%- set next = cond_list[next_index] %}
 
-{% for cond in cond_list -%}
-{%- set i = loop.index0 -%}
-{%- if not loop.last -%}
-{%- set next_index = i + 1 -%}
-{%- set next = cond_list[next_index] -%}
 impl {{ lawId }}<{{ cond }}> {
     /// Transition from {{ cond }} to {{ next }}.
     pub fn transition(self) -> {{ lawId }}<{{ next }}> {
-        {{ lawId }} { state: {{ next }} }
+        {{ lawId }} {
+            state: {{ next }},
+        }
     }
 }
 {%- endif %}

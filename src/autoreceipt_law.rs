@@ -42,9 +42,7 @@ impl AutoReceiptPipeline<ArchitecturalReceiptParsed> {
             state: ArchitecturalReceiptParsed,
         }
     }
-}
 
-impl AutoReceiptPipeline<ArchitecturalReceiptParsed> {
     /// Transition from ArchitecturalReceiptParsed to ExpectedOcelManufactured.
     pub fn transition(self) -> AutoReceiptPipeline<ExpectedOcelManufactured> {
         AutoReceiptPipeline {
@@ -52,6 +50,7 @@ impl AutoReceiptPipeline<ArchitecturalReceiptParsed> {
         }
     }
 }
+
 impl AutoReceiptPipeline<ExpectedOcelManufactured> {
     /// Transition from ExpectedOcelManufactured to ExecutionRegistryBound.
     pub fn transition(self) -> AutoReceiptPipeline<ExecutionRegistryBound> {
@@ -60,6 +59,7 @@ impl AutoReceiptPipeline<ExpectedOcelManufactured> {
         }
     }
 }
+
 impl AutoReceiptPipeline<ExecutionRegistryBound> {
     /// Transition from ExecutionRegistryBound to ObservedOcelCaptured.
     pub fn transition(self) -> AutoReceiptPipeline<ObservedOcelCaptured> {
@@ -68,6 +68,7 @@ impl AutoReceiptPipeline<ExecutionRegistryBound> {
         }
     }
 }
+
 impl AutoReceiptPipeline<ObservedOcelCaptured> {
     /// Transition from ObservedOcelCaptured to AlignmentVerified.
     pub fn transition(self) -> AutoReceiptPipeline<AlignmentVerified> {
@@ -76,6 +77,7 @@ impl AutoReceiptPipeline<ObservedOcelCaptured> {
         }
     }
 }
+
 impl AutoReceiptPipeline<AlignmentVerified> {
     /// Transition from AlignmentVerified to ReceiptEmitted.
     pub fn transition(self) -> AutoReceiptPipeline<ReceiptEmitted> {

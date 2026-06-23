@@ -9,7 +9,6 @@
 //!
 //! Each module corresponds to a top-level CLI noun (command).
 //! Verb implementations live in src/cmds/<noun>.rs (hand-written).
-
 // ============================================================================
 // DOCTOR — Health diagnostics
 
