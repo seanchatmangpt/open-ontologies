@@ -1,6 +1,6 @@
 {
-  "operation_id": "d875696a-6623-4bc1-b855-2dffdcd77c82",
-  "timestamp": "2026-06-23T07:29:55.826667Z",
+  "operation_id": "c8cd126c-b45c-4bc3-8330-92ad7cc8389c",
+  "timestamp": "2026-06-23T07:38:40.188219Z",
   "input_hashes": [
     "actuator:ggen-sync@26.6.11",
     "ggen.toml:2230e74036c60bac96c5ff02117749348bf2962336b9777f172c4ba7bcc34fae",
@@ -183,8 +183,8 @@
     "./packages/evidence/ocelSchema.ts:f67fe2c251e440ba52e9fc1baebc84970dbf481c0495a70bdfb3f6b5fb8b9b31",
     "./packages/screens/adminDetailScreen.tsx:df5a1936ae9d1b89d3f3d7df14f7986312cbc1a9f21dcc105d3a88b3693d2759",
     "./packages/navigation/navigationStack.tsx:03e6d4ec480aa266a199241679c6d0026e032b2f18ab4edb9df31acfefceab72",
-    "./src/autoreceipt_law.rs:f101e7467b4bdb480d1311c9a19ac6ce6f418384da174d04e158955d6fbe92d4",
-    "./src/autoreceipt_law.rs:f101e7467b4bdb480d1311c9a19ac6ce6f418384da174d04e158955d6fbe92d4",
+    "./src/autoreceipt_law.rs:faf50116e1fae410b4e405f03b7c6430f71914df755a076a1c531e89c223afa3",
+    "./src/autoreceipt_law.rs:faf50116e1fae410b4e405f03b7c6430f71914df755a076a1c531e89c223afa3",
     "./artifacts/ghf/terraform/repositories.tf:57c8e68df7c2f8eff8af3b5bf8be356a254e16701616fdf372584fdc7c7cfd17",
     "./artifacts/ghf/terraform/labels.tf:4293f5f3aa1b550ab02162e806c11f04ed8090e6605f7b5984fb19a1f080bfa7",
     "./artifacts/ghf/terraform/branch-protection.tf:449758ced23300f9ce8e09b3be64da74fe443f497eeb44a5c79cae99f0715e07",
@@ -224,7 +224,7 @@
     "./tests/truex-e2e-ValidCheckoutTest.test.ts:0705526a77c17d04ff0a885ea8d5fe3f79855f308d8ce970aa23df1811564c01",
     "./tests/truex-summary-only-refusal.test.ts:2e6336a987bde6f39d6253dfbc0c5bb06d3320f0e41d03f2b8eec104264b40d1",
     "./docs/truex-ecosystem.md:63f0fc11a7fb95b4feb8930982db6becae7cbcb286c87dff8dc30ee08e764f6c",
-    "./receipts/manufacture-receipt.json:fb2f81c24acf36c803f5086df76dde4cddd5516211e59c68e7956414c8f6c0d1",
+    "./receipts/manufacture-receipt.json:157145ff0a0783d5bd7552d0b1f58ba3afb7df35b8059ef5f53fda9c3a583696",
     "./pnpm-workspace.yaml:4e0d1f3765e4a10f2bb018c3e20ed70dc83ea9ef84533b16754b8027bf596246",
     "./package.json:c52cb479dbfb57e11635033154200b80709c7f51d872efe7b7ec77c664c4ef8e",
     "./jest.config.js:a4169e9cbc0ba79607d1e7693531fd66f56c96db7d760c392279d758ca9e658a",
@@ -234,6 +234,6 @@
     "./src/wasm4pm_stub.rs:2db6d64a0f10abde8abc9af5c1f9289b2819cf47d11ee934e534ef7ddced4828",
     "./src/wasm4pm_types_stub.rs:265475f67d43ff34593c8fb673f21f4dd31f5c11abb814cd632cb11981fad1cb"
   ],
-  "signature": "286cbd3be9b8211d7a156c71e55530363e7bd173a014601d3ceb5e145fd50d41276f1e6063b87e355f19d9946a24439b1ed5ba87808bcf5bdef8146024f33c0e",
-  "previous_receipt_hash": "5875cbd28394e4ac0703a6cfc0d638f11d18d538f343d404348c0d9ac0974bc2"
+  "signature": "72536800d6e433c500c5018f3505f598342f7aef8bd475e378a7084a0e19c69f0045c4b6df3fa288c72bfaff0ab8707b94051b8ac1f3d0ef48864fddf2e02505",
+  "previous_receipt_hash": "ce3578781550883bd636b893d6c16955870bec7e358183df097a239a517d77b2"
 }
