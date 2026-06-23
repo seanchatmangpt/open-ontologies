@@ -1,7 +1,7 @@
 #![cfg(feature = "embeddings")]
 
-use open_ontologies::vecstore::VecStore;
 use open_ontologies::state::StateDb;
+use open_ontologies::vecstore::VecStore;
 
 fn test_db() -> StateDb {
     let tmp = tempfile::NamedTempFile::new().unwrap();
@@ -21,8 +21,11 @@ fn test_insert_and_search_cosine() {
 
     let results = store.search_cosine(&[0.85, 0.15, 0.0], 2);
     assert_eq!(results.len(), 2);
-    assert!(results[0].0.contains("Dog") || results[0].0.contains("Cat"),
-        "Top result should be Dog or Cat, got {}", results[0].0);
+    assert!(
+        results[0].0.contains("Dog") || results[0].0.contains("Cat"),
+        "Top result should be Dog or Cat, got {}",
+        results[0].0
+    );
 }
 
 #[test]
@@ -113,12 +116,12 @@ fn search_cosine_hnsw_returns_same_top_1_as_brute_force() {
     let mut store = VecStore::new(db);
 
     let entries: [(&str, [f32; 3]); 6] = [
-        ("http://ex.org/Cat",    [1.0, 0.05, 0.0]),
+        ("http://ex.org/Cat", [1.0, 0.05, 0.0]),
         ("http://ex.org/Kitten", [0.98, 0.1, 0.0]),
-        ("http://ex.org/Dog",    [0.9, 0.3, 0.0]),
-        ("http://ex.org/Bird",   [0.4, 0.7, 0.0]),
-        ("http://ex.org/Car",    [0.0, 0.1, 1.0]),
-        ("http://ex.org/Bike",   [0.0, 0.0, 0.95]),
+        ("http://ex.org/Dog", [0.9, 0.3, 0.0]),
+        ("http://ex.org/Bird", [0.4, 0.7, 0.0]),
+        ("http://ex.org/Car", [0.0, 0.1, 1.0]),
+        ("http://ex.org/Bike", [0.0, 0.0, 0.95]),
     ];
     for (iri, vec) in entries.iter() {
         store.upsert(iri, vec, &[0.0]);
@@ -190,11 +193,11 @@ fn hnsw_index_persists_across_process_restart() {
         let db = StateDb::open(&path).unwrap();
         let mut store = VecStore::new(db);
         for (iri, v) in [
-            ("http://ex.org/Cat",    [1.0_f32, 0.05, 0.0]),
+            ("http://ex.org/Cat", [1.0_f32, 0.05, 0.0]),
             ("http://ex.org/Kitten", [0.98, 0.1, 0.0]),
-            ("http://ex.org/Dog",    [0.9, 0.3, 0.0]),
-            ("http://ex.org/Bird",   [0.4, 0.7, 0.0]),
-            ("http://ex.org/Car",    [0.0, 0.1, 1.0]),
+            ("http://ex.org/Dog", [0.9, 0.3, 0.0]),
+            ("http://ex.org/Bird", [0.4, 0.7, 0.0]),
+            ("http://ex.org/Car", [0.0, 0.1, 1.0]),
         ] {
             store.upsert(iri, &v, &[0.0]);
         }
@@ -334,7 +337,9 @@ fn poincare_hnsw_index_persists_across_process_restart() {
         }
         let _ = store.search_poincare_hnsw(&[0.1, 0.0, 0.0], 1);
         store.persist().expect("persist vectors");
-        store.persist_poincare_index().expect("persist poincare index");
+        store
+            .persist_poincare_index()
+            .expect("persist poincare index");
     }
 
     let db = StateDb::open(&path).unwrap();
@@ -343,7 +348,11 @@ fn poincare_hnsw_index_persists_across_process_restart() {
     assert_eq!(store.len(), 3);
     let results = store.search_poincare_hnsw(&[0.1, 0.0, 0.0], 1);
     assert_eq!(results.len(), 1);
-    assert!(results[0].0.contains('A'), "expected A as nearest; got {:?}", results);
+    assert!(
+        results[0].0.contains('A'),
+        "expected A as nearest; got {:?}",
+        results
+    );
 }
 
 #[test]
@@ -376,7 +385,9 @@ fn hnsw_index_cache_invalidated_when_entries_change() {
         // Different vectors than the persisted set.
         store.upsert("http://ex.org/Cat", &[0.0, 1.0, 0.0], &[0.0]);
         store.upsert("http://ex.org/Dog", &[0.0, 0.9, 0.1], &[0.0]);
-        store.persist().expect("persist new vectors only — NOT the index");
+        store
+            .persist()
+            .expect("persist new vectors only — NOT the index");
     }
 
     // Load fresh. The cached index's fingerprint won't match the new vectors,

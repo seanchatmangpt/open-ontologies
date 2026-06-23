@@ -1,3 +1,5 @@
+#![allow(clippy::all, unused)]
+
 //! R6 WB — syn-based AST red-team test (the file Cargo.toml's comment promised).
 //!
 //! ## Why this exists
@@ -128,7 +130,9 @@ pub struct AstHelper {
 pub fn extract_tool_handlers(file: &File) -> Vec<AstHandler> {
     let mut out = Vec::new();
     for item in &file.items {
-        let Item::Impl(item_impl) = item else { continue };
+        let Item::Impl(item_impl) = item else {
+            continue;
+        };
         // Match either `impl OpenOntologiesServer` or `impl OntoStarServer`
         // — defensive against the rename that keeps showing up in plans.
         let ty_text = quote::ToTokens::to_token_stream(&*item_impl.self_ty).to_string();
@@ -136,7 +140,9 @@ pub fn extract_tool_handlers(file: &File) -> Vec<AstHandler> {
             continue;
         }
         for impl_item in &item_impl.items {
-            let ImplItem::Fn(method) = impl_item else { continue };
+            let ImplItem::Fn(method) = impl_item else {
+                continue;
+            };
             for attr in &method.attrs {
                 if let Some(name) = extract_tool_name(attr) {
                     let body_text = quote::ToTokens::to_token_stream(&method.block).to_string();
@@ -160,13 +166,17 @@ pub fn extract_tool_handlers(file: &File) -> Vec<AstHandler> {
 pub fn extract_helpers(file: &File) -> Vec<AstHelper> {
     let mut out = Vec::new();
     for item in &file.items {
-        let Item::Impl(item_impl) = item else { continue };
+        let Item::Impl(item_impl) = item else {
+            continue;
+        };
         let ty_text = quote::ToTokens::to_token_stream(&*item_impl.self_ty).to_string();
         if !ty_text.contains("OpenOntologiesServer") && !ty_text.contains("OntoStarServer") {
             continue;
         }
         for impl_item in &item_impl.items {
-            let ImplItem::Fn(method) = impl_item else { continue };
+            let ImplItem::Fn(method) = impl_item else {
+                continue;
+            };
             // Confirm the receiver is `&self` or `&mut self`.
             let has_self_recv = method
                 .sig
@@ -627,8 +637,7 @@ fn expanded_dispatch_arms_match_source_attributes() {
     // `make expand` / `cargo expand`). It's intentionally optional in
     // `make check` to avoid the 25-50s expansion cost on every save;
     // `make adversarial` ALWAYS produces it before this test runs.
-    let expanded_path =
-        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("target/expanded.rs");
+    let expanded_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("target/expanded.rs");
     let expanded_metadata = expanded_path.metadata().ok();
     let is_empty = expanded_metadata.map(|m| m.len() == 0).unwrap_or(true);
     if !expanded_path.exists() || is_empty {
@@ -642,8 +651,7 @@ fn expanded_dispatch_arms_match_source_attributes() {
 
     let source_count = extract_tool_handlers(&parse_server()).len();
 
-    let expanded =
-        std::fs::read_to_string(&expanded_path).expect("read target/expanded.rs");
+    let expanded = std::fs::read_to_string(&expanded_path).expect("read target/expanded.rs");
     let expanded_file: File = match syn::parse_file(&expanded) {
         Ok(f) => f,
         Err(e) => {

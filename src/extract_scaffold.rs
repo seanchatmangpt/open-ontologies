@@ -39,9 +39,20 @@ pub struct PropertySpec {
 }
 
 /// Build an extraction scaffold for `class_iri` from the loaded ontology.
-pub fn build_scaffold(graph: &Arc<GraphStore>, class_iri: &str) -> anyhow::Result<ExtractionScaffold> {
-    let label = single_str(graph, class_iri, "http://www.w3.org/2000/01/rdf-schema#label");
-    let comment = single_str(graph, class_iri, "http://www.w3.org/2000/01/rdf-schema#comment");
+pub fn build_scaffold(
+    graph: &Arc<GraphStore>,
+    class_iri: &str,
+) -> anyhow::Result<ExtractionScaffold> {
+    let label = single_str(
+        graph,
+        class_iri,
+        "http://www.w3.org/2000/01/rdf-schema#label",
+    );
+    let comment = single_str(
+        graph,
+        class_iri,
+        "http://www.w3.org/2000/01/rdf-schema#comment",
+    );
 
     // Properties whose rdfs:domain is class_iri.
     let q = format!(
@@ -64,9 +75,7 @@ pub fn build_scaffold(graph: &Arc<GraphStore>, class_iri: &str) -> anyhow::Resul
                     .as_str()
                     .map(|s| s.trim_matches(|c| c == '<' || c == '>').to_string())
                     .unwrap_or_else(|| "literal".to_string());
-                let lbl = row["lbl"]
-                    .as_str()
-                    .map(|s| s.trim_matches('"').to_string());
+                let lbl = row["lbl"].as_str().map(|s| s.trim_matches('"').to_string());
                 props.push(PropertySpec {
                     property_iri: p,
                     property_label: lbl,
@@ -153,18 +162,14 @@ fn classify_range(range: &str) -> RangeKind {
     if let Some(local) = range.strip_prefix(XSD_NS) {
         match local {
             "integer" | "int" | "long" | "short" | "byte" | "nonNegativeInteger"
-            | "positiveInteger" | "negativeInteger" | "nonPositiveInteger"
-            | "unsignedInt" | "unsignedLong" | "unsignedShort" | "unsignedByte" => {
-                RangeKind::XsdInteger
-            }
+            | "positiveInteger" | "negativeInteger" | "nonPositiveInteger" | "unsignedInt"
+            | "unsignedLong" | "unsignedShort" | "unsignedByte" => RangeKind::XsdInteger,
             "decimal" => RangeKind::XsdDecimal,
             "float" => RangeKind::XsdFloat,
             "double" => RangeKind::XsdDouble,
             "boolean" => RangeKind::XsdBoolean,
             "string" | "normalizedString" | "token" | "anyURI" => RangeKind::XsdString,
-            "date" | "gYear" | "gMonth" | "gDay" | "gYearMonth" | "gMonthDay" => {
-                RangeKind::XsdDate
-            }
+            "date" | "gYear" | "gMonth" | "gDay" | "gYearMonth" | "gMonthDay" => RangeKind::XsdDate,
             "dateTime" | "dateTimeStamp" | "time" => RangeKind::XsdDateTime,
             _ => RangeKind::AnyLiteral,
         }
@@ -296,10 +301,7 @@ pub fn validate_extraction(
                             issues.push(ValidationIssue {
                                 instance_index: i,
                                 field: Some(preferred_key.to_string()),
-                                message: format!(
-                                    "{} (range: {})",
-                                    reason, spec.range
-                                ),
+                                message: format!("{} (range: {})", reason, spec.range),
                                 kind: type_mismatch_kind(kind),
                             });
                             instance_ok = false;
@@ -325,10 +327,7 @@ pub fn validate_extraction(
                 issues.push(ValidationIssue {
                     instance_index: i,
                     field: Some(k.clone()),
-                    message: format!(
-                        "field `{}` is not in the scaffold's property schema",
-                        k
-                    ),
+                    message: format!("field `{}` is not in the scaffold's property schema", k),
                     kind: "unknown_field".to_string(),
                 });
             }
@@ -378,9 +377,10 @@ fn single_str(graph: &Arc<GraphStore>, iri: &str, pred: &str) -> Option<String> 
     let q = format!("SELECT ?v WHERE {{ <{}> <{}> ?v }} LIMIT 1", iri, pred);
     let js = graph.sparql_select(&q).ok()?;
     let v: serde_json::Value = serde_json::from_str(&js).ok()?;
-    v["results"][0]["v"]
-        .as_str()
-        .map(|s| s.trim_matches(|c| c == '"' || c == '<' || c == '>').to_string())
+    v["results"][0]["v"].as_str().map(|s| {
+        s.trim_matches(|c| c == '"' || c == '<' || c == '>')
+            .to_string()
+    })
 }
 
 #[cfg(test)]
@@ -433,9 +433,11 @@ mod tests {
         assert_eq!(r.total, 2);
         assert_eq!(r.valid, 2);
         assert!(r.issues.is_empty(), "issues: {:?}", r.issues);
-        assert!(r.mean_conformance >= 0.99,
+        assert!(
+            r.mean_conformance >= 0.99,
             "well-formed extraction should score ~1.0; got {}",
-            r.mean_conformance);
+            r.mean_conformance
+        );
     }
 
     #[test]
@@ -447,8 +449,11 @@ mod tests {
         let r = validate_extraction(&s, extraction).unwrap();
         assert_eq!(r.valid, 0);
         let type_issue = r.issues.iter().find(|i| i.kind == "type_mismatch");
-        assert!(type_issue.is_some(),
-            "should flag age as type_mismatch; got: {:?}", r.issues);
+        assert!(
+            type_issue.is_some(),
+            "should flag age as type_mismatch; got: {:?}",
+            r.issues
+        );
         assert!(type_issue.unwrap().message.contains("xsd:integer"));
     }
 
@@ -471,7 +476,11 @@ mod tests {
         let r = validate_extraction(&s, extraction).unwrap();
         // Still valid (unknown field doesn't kill the instance) but issue raised.
         let unknown = r.issues.iter().find(|i| i.kind == "unknown_field");
-        assert!(unknown.is_some(), "expected unknown_field issue; got: {:?}", r.issues);
+        assert!(
+            unknown.is_some(),
+            "expected unknown_field issue; got: {:?}",
+            r.issues
+        );
     }
 
     #[test]

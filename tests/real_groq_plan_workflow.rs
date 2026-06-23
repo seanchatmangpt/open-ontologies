@@ -1,3 +1,5 @@
+#![allow(clippy::all, unused)]
+
 //! REAL Groq end-to-end test for `onto_plan_workflow` with engine="groq_powl".
 //!
 //! Drives the same MCP handler used by Claude — but via a direct
@@ -91,8 +93,8 @@ fn plan_workflow_groq_powl_engine_returns_powl_and_verdict() {
         description.push_str(&format!(". Constraints: {}", constraints_csv));
     }
 
-    let script = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("scripts/powl_from_text.py");
+    let script =
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("scripts/powl_from_text.py");
     let output = Command::new(VENV_PYTHON)
         .arg(&script)
         .arg(&description)
@@ -112,13 +114,14 @@ fn plan_workflow_groq_powl_engine_returns_powl_and_verdict() {
         .lines()
         .rev()
         .find(|l| l.trim_start().starts_with('{'))
-        .unwrap_or_else(|| panic!(
-            "no JSON line in stdout:\nstdout:\n{stdout}\nstderr:\n{stderr}"
-        ));
+        .unwrap_or_else(|| panic!("no JSON line in stdout:\nstdout:\n{stdout}\nstderr:\n{stderr}"));
     let result: serde_json::Value = serde_json::from_str(json_line.trim())
         .unwrap_or_else(|e| panic!("JSON parse failed: {e}\nline: {json_line}"));
 
-    let verdict = result.get("verdict").and_then(|v| v.as_bool()).unwrap_or(false);
+    let verdict = result
+        .get("verdict")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
     let powl = result.get("powl").and_then(|v| v.as_str()).unwrap_or("");
 
     eprintln!(

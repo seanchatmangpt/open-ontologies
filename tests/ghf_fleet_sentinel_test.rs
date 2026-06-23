@@ -1,7 +1,7 @@
+use serde_json::Value;
 use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
-use serde_json::Value;
 
 // Integration test for the GHF Fleet Sentinel closed loop
 #[test]
@@ -25,12 +25,16 @@ fn test_fleet_sentinel_detects_missing_security_md_then_passes_after_ggen_remedi
 
     let receipt_json = fs::read_to_string(&fleet_receipt_path).unwrap();
     let refusal_receipt: Value = serde_json::from_str(&receipt_json).unwrap();
-    
+
     assert_eq!(refusal_receipt["receipt_type"], "OutOfMembraneReceipt");
     assert_eq!(refusal_receipt["refusal_state"], "FleetDriftDetected");
     assert!(refusal_receipt["receipt_hash"].as_str().is_some());
     let missing_items = refusal_receipt["missing"].as_array().unwrap();
-    assert!(missing_items.iter().any(|v| v.as_str().unwrap() == "SECURITY.md is missing"));
+    assert!(
+        missing_items
+            .iter()
+            .any(|v| v.as_str().unwrap() == "SECURITY.md is missing")
+    );
 
     // 3. Remediation: ggen emits SECURITY.md from policy
     let ggen_status = Command::new("ggen")
@@ -51,10 +55,13 @@ fn test_fleet_sentinel_detects_missing_security_md_then_passes_after_ggen_remedi
 
     let health_json = fs::read_to_string(&fleet_receipt_path).unwrap();
     let health_receipt: Value = serde_json::from_str(&health_json).unwrap();
-    
+
     assert_eq!(health_receipt["receipt_type"], "FleetHealthReceipt");
     assert_eq!(health_receipt["DriftRiskScore"].as_f64().unwrap(), 0.0);
-    assert_eq!(health_receipt["TopologyConformanceScore"].as_f64().unwrap(), 1.0);
+    assert_eq!(
+        health_receipt["TopologyConformanceScore"].as_f64().unwrap(),
+        1.0
+    );
     assert!(health_receipt["receipt_hash"].as_str().is_some());
     assert_ne!(
         refusal_receipt["receipt_hash"].as_str().unwrap(),

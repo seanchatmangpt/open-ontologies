@@ -18,7 +18,11 @@ fn test_rdfs_subclass_inference() {
     let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
     let inferred = parsed["inferred_count"].as_u64().unwrap();
     // Tabby a Animal, Tabby a LivingThing, possibly Cat subClassOf LivingThing
-    assert!(inferred >= 2, "Expected at least 2 inferred triples, got {}", inferred);
+    assert!(
+        inferred >= 2,
+        "Expected at least 2 inferred triples, got {}",
+        inferred
+    );
 
     // Verify Tabby is inferred as an Animal
     let check = store
@@ -264,5 +268,9 @@ fn test_unknown_profile_returns_error() {
     let result = Reasoner::run(&store, "unknown-profile", true);
     assert!(result.is_err(), "Expected an error for unknown profile");
     let err_msg = result.unwrap_err().to_string();
-    assert!(err_msg.contains("invalid profile \"unknown-profile\""), "Unexpected error message: {}", err_msg);
+    assert!(
+        err_msg.contains("invalid profile \"unknown-profile\""),
+        "Unexpected error message: {}",
+        err_msg
+    );
 }

@@ -35,7 +35,7 @@ use std::time::{Duration, Instant};
 
 use crate::error::{OntologyError, Result};
 use crate::graph::GraphStore;
-use crate::subprocess::{run_with_timeout, SubprocessContext, TimedOutput};
+use crate::subprocess::{SubprocessContext, TimedOutput, run_with_timeout};
 
 // ── Receipt and Artifact Types ────────────────────────────────────────────
 
@@ -310,10 +310,10 @@ impl GgenBridge {
         self.validate_ontology_loaded(contract).await?;
 
         // Step 2: Run ggen sync subprocess.
-        let _timed_output =
-            self.invoke_ggen_sync()
-                .await
-                .map_err(|e| OntologyError::Store(format!("ggen sync failed: {e}")))?;
+        let _timed_output = self
+            .invoke_ggen_sync()
+            .await
+            .map_err(|e| OntologyError::Store(format!("ggen sync failed: {e}")))?;
 
         // Step 3: Parse receipt from .ggen/receipts/latest.json.
         let receipt = self
@@ -328,7 +328,9 @@ impl GgenBridge {
         let (shacl_conforms, violations) = self.validate_artifacts(&receipt).await;
 
         // Step 6: Register receipt and artifacts as RDF triples.
-        let artifact_iris = self.register_receipt_and_artifacts(&receipt, contract).await?;
+        let artifact_iris = self
+            .register_receipt_and_artifacts(&receipt, contract)
+            .await?;
 
         // Step 7: Return ManufactureResult with proof.
         Ok(ManufactureResult {
@@ -370,7 +372,9 @@ impl GgenBridge {
     /// - `ggen.command` = "sync"
     /// - `ggen.elapsed_ms` = actual duration
     /// - `ggen.exit_code` = subprocess exit code
-    async fn invoke_ggen_sync(&self) -> std::result::Result<TimedOutput, crate::subprocess::SubprocessError> {
+    async fn invoke_ggen_sync(
+        &self,
+    ) -> std::result::Result<TimedOutput, crate::subprocess::SubprocessError> {
         let start = Instant::now();
 
         let mut cmd = Command::new(&self.ggen_path);
@@ -397,9 +401,10 @@ impl GgenBridge {
         if !timed_output.output.status.success() {
             let stderr = String::from_utf8_lossy(&timed_output.output.stderr);
             return Err(crate::subprocess::SubprocessError::SpawnFailed(
-                std::io::Error::other(
-                    format!("ggen sync exited {}: {}", timed_output.output.status, stderr),
-                ),
+                std::io::Error::other(format!(
+                    "ggen sync exited {}: {}",
+                    timed_output.output.status, stderr
+                )),
             ));
         }
 
@@ -460,11 +465,7 @@ impl GgenBridge {
         //    ggen:signature "{signature}" .
         //
         // For now, return the artifact paths from the receipt.
-        let artifacts: Vec<PathBuf> = receipt
-            .output_hashes
-            .keys()
-            .map(PathBuf::from)
-            .collect();
+        let artifacts: Vec<PathBuf> = receipt.output_hashes.keys().map(PathBuf::from).collect();
 
         Ok(artifacts)
     }
@@ -712,12 +713,8 @@ mod tests {
     #[test]
     fn test_ggen_bridge_with_timeout() {
         let store = Arc::new(GraphStore::new());
-        let bridge = GgenBridge::new(
-            PathBuf::from("ggen"),
-            store,
-            PathBuf::from("/repo"),
-        )
-        .with_timeout(60);
+        let bridge =
+            GgenBridge::new(PathBuf::from("ggen"), store, PathBuf::from("/repo")).with_timeout(60);
 
         assert_eq!(bridge.subprocess_timeout_secs, 60);
     }

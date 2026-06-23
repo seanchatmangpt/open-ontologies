@@ -1,6 +1,6 @@
 use open_ontologies::graph::GraphStore;
-use open_ontologies::plan::Planner;
 use open_ontologies::monitor::Monitor;
+use open_ontologies::plan::Planner;
 use open_ontologies::state::StateDb;
 use std::sync::Arc;
 use tempfile::NamedTempFile;
@@ -39,13 +39,18 @@ fn test_plan_additions_only() {
 fn test_plan_detects_removals() {
     let (db, graph) = setup();
 
-    graph.load_turtle(r#"
+    graph
+        .load_turtle(
+            r#"
         @prefix owl: <http://www.w3.org/2002/07/owl#> .
         @prefix ex: <http://example.org/> .
         ex:Dog a owl:Class .
         ex:Cat a owl:Class .
         ex:Bird a owl:Class .
-    "#, None).unwrap();
+    "#,
+            None,
+        )
+        .unwrap();
 
     let new_turtle = r#"
         @prefix owl: <http://www.w3.org/2002/07/owl#> .
@@ -67,12 +72,17 @@ fn test_plan_detects_removals() {
 fn test_plan_detects_property_changes() {
     let (db, graph) = setup();
 
-    graph.load_turtle(r#"
+    graph
+        .load_turtle(
+            r#"
         @prefix owl: <http://www.w3.org/2002/07/owl#> .
         @prefix ex: <http://example.org/> .
         ex:hasName a owl:DatatypeProperty .
         ex:hasAge a owl:DatatypeProperty .
-    "#, None).unwrap();
+    "#,
+            None,
+        )
+        .unwrap();
 
     let new_turtle = r#"
         @prefix owl: <http://www.w3.org/2002/07/owl#> .
@@ -85,15 +95,29 @@ fn test_plan_detects_property_changes() {
     let plan = planner.plan(new_turtle).unwrap();
     let parsed: serde_json::Value = serde_json::from_str(&plan).unwrap();
 
-    assert!(parsed["removed_properties"].as_array().unwrap().iter().any(|v| v.as_str().unwrap().contains("hasAge")));
-    assert!(parsed["added_properties"].as_array().unwrap().iter().any(|v| v.as_str().unwrap().contains("hasEmail")));
+    assert!(
+        parsed["removed_properties"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|v| v.as_str().unwrap().contains("hasAge"))
+    );
+    assert!(
+        parsed["added_properties"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|v| v.as_str().unwrap().contains("hasEmail"))
+    );
 }
 
 #[test]
 fn test_plan_blast_radius_counts_triples() {
     let (db, graph) = setup();
 
-    graph.load_turtle(r#"
+    graph
+        .load_turtle(
+            r#"
         @prefix owl: <http://www.w3.org/2002/07/owl#> .
         @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
         @prefix ex: <http://example.org/> .
@@ -101,7 +125,10 @@ fn test_plan_blast_radius_counts_triples() {
         ex:Dog a owl:Class ; rdfs:subClassOf ex:Animal .
         ex:Cat a owl:Class ; rdfs:subClassOf ex:Animal .
         ex:Poodle a owl:Class ; rdfs:subClassOf ex:Dog .
-    "#, None).unwrap();
+    "#,
+            None,
+        )
+        .unwrap();
 
     // Remove Animal — everything depends on it
     let new_turtle = r#"
@@ -125,11 +152,16 @@ fn test_plan_blast_radius_counts_triples() {
 fn test_apply_safe_mode() {
     let (db, graph) = setup();
 
-    graph.load_turtle(r#"
+    graph
+        .load_turtle(
+            r#"
         @prefix owl: <http://www.w3.org/2002/07/owl#> .
         @prefix ex: <http://example.org/> .
         ex:Dog a owl:Class .
-    "#, None).unwrap();
+    "#,
+            None,
+        )
+        .unwrap();
 
     let new_turtle = r#"
         @prefix owl: <http://www.w3.org/2002/07/owl#> .
@@ -157,21 +189,28 @@ fn test_apply_blocked_by_monitor() {
 
     let planner = Planner::new(db, graph);
     let result = planner.apply("safe");
-    assert!(result.is_err() || {
-        let r = result.unwrap();
-        r.contains("blocked")
-    });
+    assert!(
+        result.is_err() || {
+            let r = result.unwrap();
+            r.contains("blocked")
+        }
+    );
 }
 
 #[test]
 fn test_migrate_generates_bridges() {
     let (db, graph) = setup();
 
-    graph.load_turtle(r#"
+    graph
+        .load_turtle(
+            r#"
         @prefix owl: <http://www.w3.org/2002/07/owl#> .
         @prefix ex: <http://example.org/> .
         ex:authoredBy a owl:ObjectProperty .
-    "#, None).unwrap();
+    "#,
+            None,
+        )
+        .unwrap();
 
     let new_turtle = r#"
         @prefix owl: <http://www.w3.org/2002/07/owl#> .
@@ -196,11 +235,16 @@ fn test_migrate_generates_bridges() {
 fn test_lock_prevents_plan() {
     let (db, graph) = setup();
 
-    graph.load_turtle(r#"
+    graph
+        .load_turtle(
+            r#"
         @prefix owl: <http://www.w3.org/2002/07/owl#> .
         @prefix ex: <http://example.org/> .
         ex:Person a owl:Class .
-    "#, None).unwrap();
+    "#,
+            None,
+        )
+        .unwrap();
 
     let planner = Planner::new(db, graph);
     planner.lock_iri("http://example.org/Person", "production");

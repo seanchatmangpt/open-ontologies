@@ -18,9 +18,7 @@
 
 use std::sync::{Arc, Mutex, OnceLock};
 
-use open_ontologies::config::{
-    resolve_llm_engine, CacheConfig, EmbeddingsConfig, LlmConfig,
-};
+use open_ontologies::config::{CacheConfig, EmbeddingsConfig, LlmConfig, resolve_llm_engine};
 use open_ontologies::graph::GraphStore;
 use open_ontologies::server::OpenOntologiesServer;
 use open_ontologies::state::StateDb;
@@ -32,7 +30,10 @@ use open_ontologies::toolfilter::ToolFilter;
 /// contract described in the module-level comment.
 static ENV_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
 fn env_lock() -> std::sync::MutexGuard<'static, ()> {
-    ENV_LOCK.get_or_init(|| Mutex::new(())).lock().unwrap_or_else(|e| e.into_inner())
+    ENV_LOCK
+        .get_or_init(|| Mutex::new(()))
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
 }
 
 /// RAII guard that restores environment-variable state when dropped, so
@@ -43,23 +44,24 @@ struct EnvGuard {
 
 impl EnvGuard {
     fn capture(keys: &[&'static str]) -> Self {
-        let saved = keys
-            .iter()
-            .map(|k| (*k, std::env::var(k).ok()))
-            .collect();
+        let saved = keys.iter().map(|k| (*k, std::env::var(k).ok())).collect();
         Self { saved }
     }
 
     fn unset_all(&self) {
         for (k, _) in &self.saved {
             // SAFETY: tests run with --test-threads=1.
-            unsafe { std::env::remove_var(k); }
+            unsafe {
+                std::env::remove_var(k);
+            }
         }
     }
 
     fn set(&self, key: &str, value: &str) {
         // SAFETY: tests run with --test-threads=1.
-        unsafe { std::env::set_var(key, value); }
+        unsafe {
+            std::env::set_var(key, value);
+        }
     }
 }
 
@@ -189,15 +191,19 @@ fn key_unset_falls_back_to_inproc() {
 #[test]
 fn pr_ralph_backend_override_wins() {
     let _lock = env_lock();
-    let guard = EnvGuard::capture(&["PR_RALPH_BACKEND", "OPEN_ONTOLOGIES_LLM_ENGINE", "GROQ_API_KEY"]);
+    let guard = EnvGuard::capture(&[
+        "PR_RALPH_BACKEND",
+        "OPEN_ONTOLOGIES_LLM_ENGINE",
+        "GROQ_API_KEY",
+    ]);
     guard.unset_all();
-    
+
     // Set PR_RALPH_BACKEND to gemini
     guard.set("PR_RALPH_BACKEND", "gemini");
-    
+
     // Even if OPEN_ONTOLOGIES_LLM_ENGINE is set to groq_pm4py, PR_RALPH_BACKEND must win.
     guard.set("OPEN_ONTOLOGIES_LLM_ENGINE", "groq_pm4py");
-    
+
     let resolved = resolve_llm_engine(&LlmConfig::default());
     assert_eq!(
         resolved, "gemini",

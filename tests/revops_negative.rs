@@ -18,10 +18,10 @@ use open_ontologies::admission::{
 use open_ontologies::defects::DefectClass;
 use open_ontologies::ocel_store::OcelStore;
 use open_ontologies::state::StateDb;
-use open_ontologies::workflows::{by_name, WorkflowScope};
+use open_ontologies::workflows::{WorkflowScope, by_name};
 use revops_common::{
-    booking_chain_is_reconciled, build_scenario, observed_events,
-    partner_attribution_is_in_order, REQUIREMENTS_WORKFLOW, Scenario,
+    REQUIREMENTS_WORKFLOW, Scenario, booking_chain_is_reconciled, build_scenario, observed_events,
+    partner_attribution_is_in_order,
 };
 use tempfile::tempdir;
 
@@ -36,7 +36,9 @@ fn fresh_scope(session: &str) -> (StateDb, OcelStore, String) {
     let db = fresh_db();
     let store = OcelStore::new(db.clone());
     let scope_mgr = WorkflowScope::new(&db, session);
-    let token = scope_mgr.open(Some(REQUIREMENTS_WORKFLOW), None, None).unwrap();
+    let token = scope_mgr
+        .open(Some(REQUIREMENTS_WORKFLOW), None, None)
+        .unwrap();
     scope_mgr.close(&token).unwrap();
     (db, store, token)
 }
@@ -54,7 +56,10 @@ fn n1_unsupported_forecast_has_no_contract_chain() {
         "UnsupportedForecast: contract_executed must be absent so the forecast cannot be classified as supported"
     );
     let has_forecast = evts.iter().any(|(t, _)| t == "forecast_submitted");
-    assert!(has_forecast, "the broken trace still carries the forecast — that is the point");
+    assert!(
+        has_forecast,
+        "the broken trace still carries the forecast — that is the point"
+    );
 }
 
 // ── N2 — LatePartnerAttribution ───────────────────────────────────────────
@@ -131,7 +136,10 @@ fn n6_raw_email_shaped_attribute_triggers_raw_data_leak_defect() {
     let leaked = evts
         .iter()
         .any(|(_t, a)| a.values().any(|v| v.contains("@") && v.contains(".com")));
-    assert!(leaked, "fixture must include a raw-email-shaped attribute for this test");
+    assert!(
+        leaked,
+        "fixture must include a raw-email-shaped attribute for this test"
+    );
 
     // The defect class that the gate would surface.
     let defect = DefectClass::RawDataLeak {
@@ -166,7 +174,10 @@ fn n7_admission_without_scope_token_yields_scope_unclosed_or_capability_zero() {
         "ontostar-1.0.0",
     );
     let powl = by_name(REQUIREMENTS_WORKFLOW).unwrap().powl_string;
-    let artifact = ArtifactRef { kind: "x", bytes: b"x" };
+    let artifact = ArtifactRef {
+        kind: "x",
+        bytes: b"x",
+    };
     let replay = PowlBridgeReplay::new(&store);
     let result = gate.evaluate(
         &token,
@@ -186,7 +197,9 @@ fn n7_admission_without_scope_token_yields_scope_unclosed_or_capability_zero() {
         Err((DefectClass::CapabilityZero, _))
         | Err((DefectClass::OcelIncomplete, _))
         | Err((DefectClass::ReplayFailed, _)) => {}
-        Err((other, _)) => panic!("expected CapabilityZero/OcelIncomplete/ReplayFailed, got {other:?}"),
+        Err((other, _)) => {
+            panic!("expected CapabilityZero/OcelIncomplete/ReplayFailed, got {other:?}")
+        }
         Ok(_) => panic!("admission must deny when no required stages observed"),
     }
 }
@@ -198,8 +211,7 @@ fn n8_truncated_trace_has_only_origin_events() {
     let (_db, store, scope) = fresh_scope("n8");
     build_scenario(&store, "n8", &scope, Scenario::OcelTruncated);
     let evts = observed_events(&store, "n8");
-    let n_distinct: std::collections::HashSet<_> =
-        evts.iter().map(|(t, _)| t.clone()).collect();
+    let n_distinct: std::collections::HashSet<_> = evts.iter().map(|(t, _)| t.clone()).collect();
     assert!(
         n_distinct.len() <= 4,
         "OcelTruncated must have only the origin + 1 trailing event; got {n_distinct:?}"

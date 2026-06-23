@@ -92,7 +92,12 @@ fn test_cli_validate_file() {
     .unwrap();
 
     let out = oo()
-        .args(["ontology", "validate", "--input", ttl_path.to_str().unwrap()])
+        .args([
+            "ontology",
+            "validate",
+            "--input",
+            ttl_path.to_str().unwrap(),
+        ])
         .output()
         .unwrap();
     assert!(
@@ -118,7 +123,9 @@ fn test_cli_validate_stdin() {
         .stdin
         .take()
         .unwrap()
-        .write_all(b"@prefix ex: <http://example.org/> . ex:Dog a <http://www.w3.org/2002/07/owl#Class> .")
+        .write_all(
+            b"@prefix ex: <http://example.org/> . ex:Dog a <http://www.w3.org/2002/07/owl#Class> .",
+        )
         .unwrap();
     let out = child.wait_with_output().unwrap();
     assert!(
@@ -131,7 +138,11 @@ fn test_cli_validate_stdin() {
 #[test]
 fn test_cli_stats_empty() {
     let dir = tempfile::tempdir().unwrap();
-    let out = Iso::new(&dir).verb(["ontology", "stats"]).build().output().unwrap();
+    let out = Iso::new(&dir)
+        .verb(["ontology", "stats"])
+        .build()
+        .output()
+        .unwrap();
     assert!(
         out.status.success(),
         "stderr: {}",
@@ -144,7 +155,11 @@ fn test_cli_stats_empty() {
 #[test]
 fn test_cli_clear() {
     let dir = tempfile::tempdir().unwrap();
-    let out = Iso::new(&dir).verb(["ontology", "clear"]).build().output().unwrap();
+    let out = Iso::new(&dir)
+        .verb(["ontology", "clear"])
+        .build()
+        .output()
+        .unwrap();
     assert!(
         out.status.success(),
         "stderr: {}",
@@ -155,7 +170,11 @@ fn test_cli_clear() {
 #[test]
 fn test_cli_status() {
     let dir = tempfile::tempdir().unwrap();
-    let out = Iso::new(&dir).verb(["ontology", "status"]).build().output().unwrap();
+    let out = Iso::new(&dir)
+        .verb(["ontology", "status"])
+        .build()
+        .output()
+        .unwrap();
     assert!(
         out.status.success(),
         "stderr: {}",
@@ -170,7 +189,11 @@ fn test_cli_status() {
 #[test]
 fn test_cli_history_empty() {
     let dir = tempfile::tempdir().unwrap();
-    let out = Iso::new(&dir).verb(["ontology", "history"]).build().output().unwrap();
+    let out = Iso::new(&dir)
+        .verb(["ontology", "history"])
+        .build()
+        .output()
+        .unwrap();
     assert!(
         out.status.success(),
         "stderr: {}",
@@ -330,7 +353,11 @@ fn test_cli_drift() {
 #[test]
 fn test_cli_lineage() {
     let dir = tempfile::tempdir().unwrap();
-    let out = Iso::new(&dir).verb(["governance", "lineage"]).build().output().unwrap();
+    let out = Iso::new(&dir)
+        .verb(["governance", "lineage"])
+        .build()
+        .output()
+        .unwrap();
     assert!(
         out.status.success(),
         "stderr: {}",
@@ -342,7 +369,11 @@ fn test_cli_lineage() {
 fn test_cli_monitor_clear() {
     let dir = tempfile::tempdir().unwrap();
     // Subcommand is `monitor_clear` (snake_case post-refactor), not `monitor-clear`.
-    let out = Iso::new(&dir).verb(["governance", "monitor_clear"]).build().output().unwrap();
+    let out = Iso::new(&dir)
+        .verb(["governance", "monitor_clear"])
+        .build()
+        .output()
+        .unwrap();
     assert!(
         out.status.success(),
         "stderr: {}",
@@ -515,7 +546,10 @@ fn test_cli_lint_suppression_end_to_end() {
     let issues = v["issues"].as_array().unwrap();
     let dog_issue = issues.iter().find(|i| {
         i["type"].as_str().unwrap_or("") == "missing_label"
-            && i["entity"].as_str().unwrap_or("").contains("example.org/Dog")
+            && i["entity"]
+                .as_str()
+                .unwrap_or("")
+                .contains("example.org/Dog")
     });
     assert!(dog_issue.is_some(), "Should have missing_label for Dog");
     let entity_str = dog_issue.unwrap()["entity"].as_str().unwrap();

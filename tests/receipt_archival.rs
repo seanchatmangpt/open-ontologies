@@ -9,7 +9,7 @@
 
 use open_ontologies::receipt_archive::{archive_receipts, lookup_archived};
 use open_ontologies::state::StateDb;
-use open_ontologies::verify::{verify_artifact, Verdict};
+use open_ontologies::verify::{Verdict, verify_artifact};
 use tempfile::tempdir;
 
 fn fresh_db() -> (StateDb, tempfile::TempDir) {
@@ -158,7 +158,10 @@ fn verify_falls_through_to_archive_on_hot_miss() {
             ..
         } => {
             assert_eq!(receipt_hash, &hash);
-            assert_eq!(source, "archive", "source must be \"archive\" on hot-miss + archive-hit");
+            assert_eq!(
+                source, "archive",
+                "source must be \"archive\" on hot-miss + archive-hit"
+            );
         }
         other => panic!("expected Admitted with source=archive, got {other:?}"),
     }

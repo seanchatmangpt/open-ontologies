@@ -67,12 +67,7 @@ impl Point for CosinePoint {
         // L2-normalised vectors -> cosine similarity = dot product.
         // Distance = 1 - similarity, so lower distance = closer match.
         // (instant-distance ranks ascending by distance, which matches.)
-        let dot: f32 = self
-            .0
-            .iter()
-            .zip(other.0.iter())
-            .map(|(a, b)| a * b)
-            .sum();
+        let dot: f32 = self.0.iter().zip(other.0.iter()).map(|(a, b)| a * b).sum();
         1.0 - dot
     }
 }
@@ -254,7 +249,11 @@ mod tests {
 
     fn norm(v: Vec<f32>) -> Vec<f32> {
         let n: f32 = v.iter().map(|x| x * x).sum::<f32>().sqrt();
-        if n > 0.0 { v.into_iter().map(|x| x / n).collect() } else { v }
+        if n > 0.0 {
+            v.into_iter().map(|x| x / n).collect()
+        } else {
+            v
+        }
     }
 
     #[test]
@@ -271,9 +270,9 @@ mod tests {
 
     #[test]
     fn build_and_search_returns_nearest_first() {
-        let cat_vec    = norm(vec![1.0, 0.0, 0.0]);
+        let cat_vec = norm(vec![1.0, 0.0, 0.0]);
         let kitten_vec = norm(vec![0.95, 0.05, 0.0]);
-        let car_vec    = norm(vec![0.0, 1.0, 0.0]);
+        let car_vec = norm(vec![0.0, 1.0, 0.0]);
 
         let mut index = CosineIndex::build(vec![
             ("http://ex.org/Cat".to_string(), cat_vec),
@@ -286,7 +285,10 @@ mod tests {
 
         assert_eq!(results.len(), 2);
         let iris: Vec<&str> = results.iter().map(|(i, _)| i.as_str()).collect();
-        assert!(iris.iter().any(|i| i.contains("Cat") || i.contains("Kitten")));
+        assert!(
+            iris.iter()
+                .any(|i| i.contains("Cat") || i.contains("Kitten"))
+        );
         assert!(
             !iris.iter().any(|i| i.contains("Car")),
             "Car should NOT be in top-2; got {:?}",
@@ -296,16 +298,22 @@ mod tests {
 
     #[test]
     fn top_k_respected_with_fewer_results_than_corpus() {
-        let vecs: Vec<_> = (0..10).map(|i| {
-            let v = norm(vec![1.0, i as f32 * 0.01, 0.0]);
-            (format!("iri-{}", i), v)
-        }).collect();
+        let vecs: Vec<_> = (0..10)
+            .map(|i| {
+                let v = norm(vec![1.0, i as f32 * 0.01, 0.0]);
+                (format!("iri-{}", i), v)
+            })
+            .collect();
         let mut index = CosineIndex::build(vecs);
         let query = norm(vec![1.0, 0.0, 0.0]);
         let results = index.search(&query, 3);
         assert_eq!(results.len(), 3);
         for w in results.windows(2) {
-            assert!(w[0].1 >= w[1].1, "results must be sorted by similarity desc; got {:?}", results);
+            assert!(
+                w[0].1 >= w[1].1,
+                "results must be sorted by similarity desc; got {:?}",
+                results
+            );
         }
     }
 }

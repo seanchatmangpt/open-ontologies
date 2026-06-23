@@ -110,7 +110,11 @@ pub fn record_verdict(db: &StateDb, v: &BorderlineVerdict) -> anyhow::Result<()>
 
 /// Return the most-recent verdict for a candidate id in the given namespace,
 /// or `None` if no verdict has been recorded.
-pub fn latest_verdict(db: &StateDb, namespace: &str, candidate_id: &str) -> anyhow::Result<Option<BorderlineVerdict>> {
+pub fn latest_verdict(
+    db: &StateDb,
+    namespace: &str,
+    candidate_id: &str,
+) -> anyhow::Result<Option<BorderlineVerdict>> {
     ensure(db)?;
     let conn = db.conn();
     let row: Option<(String, Option<String>)> = conn
@@ -139,7 +143,11 @@ mod tests {
     }
 
     fn cand(id: &str, score: f64) -> Candidate {
-        Candidate { id: id.to_string(), score, context: serde_json::Value::Null }
+        Candidate {
+            id: id.to_string(),
+            score,
+            context: serde_json::Value::Null,
+        }
     }
 
     #[test]
@@ -156,7 +164,12 @@ mod tests {
 
     #[test]
     fn summary_text_reflects_counts() {
-        let cs = vec![cand("a", 0.9), cand("b", 0.6), cand("c", 0.6), cand("d", 0.1)];
+        let cs = vec![
+            cand("a", 0.9),
+            cand("b", 0.6),
+            cand("c", 0.6),
+            cand("d", 0.1),
+        ];
         let r = partition(cs, 0.5, 0.85);
         assert!(r.summary_for_review.contains("2 borderline"));
         assert!(r.summary_for_review.contains("1 auto-accepted"));
@@ -176,7 +189,9 @@ mod tests {
             },
         )
         .unwrap();
-        let v = latest_verdict(&db, "alignment", "pair_42").unwrap().unwrap();
+        let v = latest_verdict(&db, "alignment", "pair_42")
+            .unwrap()
+            .unwrap();
         assert_eq!(v.verdict, "accept");
     }
 

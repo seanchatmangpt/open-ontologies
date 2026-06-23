@@ -122,22 +122,46 @@ async fn canary_key_never_appears_in_any_translator_evidence_surface() {
 
     // 2. Drive a translation. The mock returns a fixed candidate.
     let candidate: CandidateCtq = translator
-        .translate_candidate_ctq(&LlmInput::sanitize("Sales says committed; Finance says unbooked", LlmInputKind::SourceVoice).unwrap())
+        .translate_candidate_ctq(
+            &LlmInput::sanitize(
+                "Sales says committed; Finance says unbooked",
+                LlmInputKind::SourceVoice,
+            )
+            .unwrap(),
+        )
         .await
         .expect("translation should succeed against the mock");
 
     // 3. The translator MUST force provisional=true regardless of mock.
-    assert!(candidate.provisional, "translator must mark output provisional");
+    assert!(
+        candidate.provisional,
+        "translator must mark output provisional"
+    );
 
     // 4. Scan every translator-side evidence surface for the canary.
     let surfaces: Vec<(&str, String)> = vec![
-        ("CandidateCtq.source_voice_echo", candidate.source_voice_echo.clone()),
-        ("CandidateCtq.defect_class_hint", candidate.defect_class_hint.clone()),
+        (
+            "CandidateCtq.source_voice_echo",
+            candidate.source_voice_echo.clone(),
+        ),
+        (
+            "CandidateCtq.defect_class_hint",
+            candidate.defect_class_hint.clone(),
+        ),
         ("CandidateCtq.ctq_text", candidate.ctq_text.clone()),
         ("CandidateCtq.measure_text", candidate.measure_text.clone()),
-        ("CandidateCtq.verification_text", candidate.verification_text.clone()),
-        ("CandidateCtq.negative_case_text", candidate.negative_case_text.clone()),
-        ("CandidateCtq.control_plan_text", candidate.control_plan_text.clone()),
+        (
+            "CandidateCtq.verification_text",
+            candidate.verification_text.clone(),
+        ),
+        (
+            "CandidateCtq.negative_case_text",
+            candidate.negative_case_text.clone(),
+        ),
+        (
+            "CandidateCtq.control_plan_text",
+            candidate.control_plan_text.clone(),
+        ),
         (
             "serde_json::to_string(&candidate)",
             serde_json::to_string(&candidate).unwrap(),
@@ -185,7 +209,10 @@ async fn translator_debug_frame_redacts_canary() {
     .unwrap();
     let dbg = format!("{translator:?}");
     assert!(!dbg.contains(CANARY), "Debug leaked canary: {dbg}");
-    assert!(dbg.contains("<redacted>"), "Debug should mark redacted: {dbg}");
+    assert!(
+        dbg.contains("<redacted>"),
+        "Debug should mark redacted: {dbg}"
+    );
 }
 
 #[tokio::test]
@@ -211,9 +238,8 @@ async fn error_path_does_not_echo_bearer_token() {
                     break;
                 }
             }
-            let body = format!(
-                "{{\"error\":\"unauthorized — the Bearer {canary} you sent is invalid\"}}"
-            );
+            let body =
+                format!("{{\"error\":\"unauthorized — the Bearer {canary} you sent is invalid\"}}");
             let resp = format!(
                 "HTTP/1.1 401 Unauthorized\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
                 body.len(),

@@ -38,38 +38,49 @@ impl AutoReceiptPipeline<ArchitecturalReceiptParsed> {
     /// Initialize the state machine in the starting state.
     #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
-        Self { state: ArchitecturalReceiptParsed }
+        Self {
+            state: ArchitecturalReceiptParsed,
+        }
     }
 }
 
 impl AutoReceiptPipeline<ArchitecturalReceiptParsed> {
     /// Transition from ArchitecturalReceiptParsed to ExpectedOcelManufactured.
     pub fn transition(self) -> AutoReceiptPipeline<ExpectedOcelManufactured> {
-        AutoReceiptPipeline { state: ExpectedOcelManufactured }
+        AutoReceiptPipeline {
+            state: ExpectedOcelManufactured,
+        }
     }
 }
 impl AutoReceiptPipeline<ExpectedOcelManufactured> {
     /// Transition from ExpectedOcelManufactured to ExecutionRegistryBound.
     pub fn transition(self) -> AutoReceiptPipeline<ExecutionRegistryBound> {
-        AutoReceiptPipeline { state: ExecutionRegistryBound }
+        AutoReceiptPipeline {
+            state: ExecutionRegistryBound,
+        }
     }
 }
 impl AutoReceiptPipeline<ExecutionRegistryBound> {
     /// Transition from ExecutionRegistryBound to ObservedOcelCaptured.
     pub fn transition(self) -> AutoReceiptPipeline<ObservedOcelCaptured> {
-        AutoReceiptPipeline { state: ObservedOcelCaptured }
+        AutoReceiptPipeline {
+            state: ObservedOcelCaptured,
+        }
     }
 }
 impl AutoReceiptPipeline<ObservedOcelCaptured> {
     /// Transition from ObservedOcelCaptured to AlignmentVerified.
     pub fn transition(self) -> AutoReceiptPipeline<AlignmentVerified> {
-        AutoReceiptPipeline { state: AlignmentVerified }
+        AutoReceiptPipeline {
+            state: AlignmentVerified,
+        }
     }
 }
 impl AutoReceiptPipeline<AlignmentVerified> {
     /// Transition from AlignmentVerified to ReceiptEmitted.
     pub fn transition(self) -> AutoReceiptPipeline<ReceiptEmitted> {
-        AutoReceiptPipeline { state: ReceiptEmitted }
+        AutoReceiptPipeline {
+            state: ReceiptEmitted,
+        }
     }
 }
-

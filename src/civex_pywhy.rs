@@ -220,16 +220,17 @@ pub fn run_pywhy_backdoor(
         })?;
 
     {
-        let stdin = child.stdin.as_mut().ok_or_else(|| {
-            anyhow::anyhow!("python_io_failed: could not open subprocess stdin")
-        })?;
+        let stdin = child
+            .stdin
+            .as_mut()
+            .ok_or_else(|| anyhow::anyhow!("python_io_failed: could not open subprocess stdin"))?;
         let payload = serde_json::to_vec(input)?;
         stdin.write_all(&payload)?;
     }
 
-    let output = child.wait_with_output().map_err(|e| {
-        anyhow::anyhow!("python_io_failed: subprocess wait failed: {}", e)
-    })?;
+    let output = child
+        .wait_with_output()
+        .map_err(|e| anyhow::anyhow!("python_io_failed: subprocess wait failed: {}", e))?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
@@ -289,18 +290,25 @@ mod tests {
 
     #[test]
     fn resolve_python_prefers_explicit_override() {
-        assert_eq!(resolve_python(Some("/usr/local/bin/py3.13")), "/usr/local/bin/py3.13");
+        assert_eq!(
+            resolve_python(Some("/usr/local/bin/py3.13")),
+            "/usr/local/bin/py3.13"
+        );
     }
 
     #[test]
     fn resolve_python_defaults_to_python3_when_no_inputs() {
         let prior = std::env::var("PYTHON_BIN").ok();
         // SAFETY: test-only env mutation under cargo test's single-process runtime.
-        unsafe { std::env::remove_var("PYTHON_BIN"); }
+        unsafe {
+            std::env::remove_var("PYTHON_BIN");
+        }
         let resolved = resolve_python(None);
         assert_eq!(resolved, "python3");
         if let Some(p) = prior {
-            unsafe { std::env::set_var("PYTHON_BIN", p); }
+            unsafe {
+                std::env::set_var("PYTHON_BIN", p);
+            }
         }
     }
 
@@ -318,11 +326,8 @@ mod tests {
             treatment: "T",
             outcome: "Y",
         };
-        let err = run_pywhy_backdoor(
-            &input,
-            Some("/definitely/does/not/exist/python.xyz"),
-        )
-        .expect_err("should error");
+        let err = run_pywhy_backdoor(&input, Some("/definitely/does/not/exist/python.xyz"))
+            .expect_err("should error");
         let s = format!("{}", err);
         assert!(s.starts_with("python_unavailable"), "got: {}", s);
     }

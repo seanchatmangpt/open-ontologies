@@ -7,8 +7,8 @@
 //!
 //! All measurements use real `manufacture()` from `open_ontologies::manufacturing`.
 
-use criterion::{black_box, criterion_group, criterion_main, Criterion, Throughput};
-use open_ontologies::manufacturing::{self, validators, SolutionSpec};
+use criterion::{Criterion, Throughput, black_box, criterion_group, criterion_main};
+use open_ontologies::manufacturing::{self, SolutionSpec, validators};
 
 fn ok_spec() -> SolutionSpec {
     SolutionSpec {

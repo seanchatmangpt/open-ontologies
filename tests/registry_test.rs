@@ -96,10 +96,7 @@ fn first_load_writes_cache_file() {
     let h = setup(0);
     let res = h
         .registry
-        .load_file(
-            h.source_path.to_str().unwrap(),
-            LoadOptions::default(),
-        )
+        .load_file(h.source_path.to_str().unwrap(), LoadOptions::default())
         .unwrap();
     assert_eq!(res.origin, "source", "first load should be from source");
     assert!(res.triple_count > 0);
@@ -335,7 +332,10 @@ fn unload_with_delete_cache_removes_file() {
     let cache_path = std::path::PathBuf::from(&r.cache_path);
     assert!(cache_path.exists());
     h.registry.unload(true).unwrap();
-    assert!(!cache_path.exists(), "delete_cache should remove the .nt file");
+    assert!(
+        !cache_path.exists(),
+        "delete_cache should remove the .nt file"
+    );
 }
 
 // ────────────────────────────────────────────────────────────────────────────

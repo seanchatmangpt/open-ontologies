@@ -1,117 +1,10 @@
 State:
-DirtyTreeUnclassified
+AutoReceiptClosed
 
 Commit:
-24b3a82ed699b12b00aef20db893df4b4a020130
+3f228a030ad4dcdc30be791371dee243683060e4
 
 Tree:
- M .ggen/audit/p0-a/zoela-refusals.sql
- M .ggen/receipts/latest.json
- M .github/ISSUE_TEMPLATE/work-order.yml
- M .github/workflows/contribution-ledger.yml
- M .github/workflows/receipt-verify.yml
- M .specify/queries/cli/subcommands.rq
- M .specify/queries/zoela/extract-legacy-coverage.rq
- M .specify/queries/zoela/extract-ocel-schema.rq
- M .specify/queries/zoela/extract-odrl-policies.rq
- M .specify/queries/zoela/extract-public-materialization-columns.rq
- M .specify/queries/zoela/extract-public-materialization-refusals.rq
- M .specify/queries/zoela/extract-public-materializations.rq
- M .specify/queries/zoela/extract-receipt-models.rq
- M .specify/queries/zoela/extract-service-routes.rq
- M Cargo.lock
- M Cargo.toml
- M apps/mobile/App.tsx
- M apps/mobile/README.md
- M apps/mobile/app.json
- M apps/mobile/babel.config.js
- M apps/mobile/metro.config.js
- M apps/mobile/package.json
- M apps/mobile/scripts/verify-supabase.mjs
- M apps/mobile/src/lib/supabaseClient.ts
- M apps/mobile/tsconfig.json
- M artifacts/ghf/ocel/expected.ocel.jsonl
- M artifacts/ghf/terraform/branch-protection.tf
- M artifacts/ghf/terraform/environments.tf
- M artifacts/ghf/terraform/labels.tf
- M artifacts/ghf/terraform/repositories.tf
- M docs/ghf-proof-matrix.md
- M docs/truex-ecosystem.md
- M docs/weekly-ledger-template.md
- M ggen.toml
- M jest.config.js
- M package.json
- M packages/evidence/OcelEvents.ts
- M packages/evidence/ocelSchema.ts
- M packages/forms/zoela.tsx
- M packages/navigation/navigationStack.tsx
- M packages/navigation/zoela.tsx
- M packages/schemas/zoela.ts
- M packages/screens/adminDetailScreen.tsx
- M packages/screens/adminScreens.tsx
- M packages/screens/zoela.tsx
- M packages/truex/canonical/package.json
- M packages/truex/capture/package.json
- M packages/truex/cli/main.ts
- M packages/truex/cli/package.json
- M packages/truex/conformance/package.json
- M packages/truex/examples/package.json
- M packages/truex/ocel2/index.ts
- M packages/truex/ocel2/package.json
- M packages/truex/otel/package.json
- M packages/truex/receipt/index.ts
- M packages/truex/receipt/package.json
- M packages/truex/replay/index.ts
- M packages/truex/replay/package.json
- M packages/truex/verifier/index.ts
- M packages/truex/verifier/package.json
- M packages/truex/vkg/index.ts
- M packages/truex/vkg/package.json
- M packages/types/pushCards.ts
- M packages/types/zoela.ts
- M pnpm-workspace.yaml
- M receipts/manufacture-receipt.json
- M schemas/truex-boundary.v1.schema.json
- M schemas/truex-receipt.v1.schema.json
- M scripts/collect-github-evidence.sh
- M scripts/gh-create-issue.sh
- M scripts/gh-create-pr.sh
- M src/align.rs
- M src/autoreceipt_law.rs
- M src/cmds/generated.rs
- M src/cmds/generated_revops.rs
- M src/feedback/discovery.rs
- M src/inputs.rs
- M src/lineage.rs
- M src/marketplace.rs
- M src/ocel_store.rs
- M src/powl_bridge.rs
- M src/server.rs
- M src/swarm.rs
- M src/wasm4pm_algos_stub.rs
- M src/wasm4pm_cognition_stub.rs
- M src/wasm4pm_stub.rs
- M src/wasm4pm_types_stub.rs
- D studio/src-tauri/sidecars/agent/dist/index.js
- M supabase/migrations/20260519000001_zoela_governance.sql
- M supabase/migrations/20260519000002_zoela_admitted_tables.sql
- M supabase/migrations/20260519000003_zoela_admitted_columns.sql
- M supabase/migrations/20260519000004_zoela_admitted_rls.sql
- M supabase/migrations/20260519000005_zoela_legacy_coverage.sql
- M tests/aat_mcp_tools_comprehensive.rs
- M tests/no_bypass_audit.rs
- M tests/old_ai_station_dispatch.rs
- M tests/revops_old_ai_stations.rs
- M tests/round4_align_dry_run.rs
- M tests/round5_ast_red_team.rs
- M tests/saboteur_meta.rs
- M tests/truex-e2e-LaunderedHashTest.test.ts
- M tests/truex-e2e-MissingRawEvidenceTest.test.ts
- M tests/truex-e2e-NonDerivableExitCodeTest.test.ts
- M tests/truex-e2e-ValidCheckoutTest.test.ts
- M tests/truex-summary-only-refusal.test.ts
- M tests/zoela_route_conformance.rs
- M tsconfig.json
 ?? Justfile
 
 Commands:
@@ -146,7 +39,7 @@ Verifier Output:
 - command chain integrity: pass
 
 Remaining Blockers:
-- Uncommitted local workspace modifications to resolve upstream merge conflict and test failures (DirtyTreeUnclassified)
+- None
 
 Next Command:
-git commit -am "chore: resolve upstream doctest regressions and align audit allowlist"
+cargo test

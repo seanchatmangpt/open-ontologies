@@ -60,8 +60,16 @@ fn do_validate(input: &str) -> ValidateOutput {
         GraphStore::validate_file(input)
     };
     match result {
-        Ok(count) => ValidateOutput { ok: true, triples: count, error: None },
-        Err(e) => ValidateOutput { ok: false, triples: 0, error: Some(e.to_string()) },
+        Ok(count) => ValidateOutput {
+            ok: true,
+            triples: count,
+            error: None,
+        },
+        Err(e) => ValidateOutput {
+            ok: false,
+            triples: 0,
+            error: Some(e.to_string()),
+        },
     }
 }
 
@@ -101,7 +109,9 @@ fn do_sparql_query(query_str: &str, data_dir: &str) -> NounVerbResult<serde_json
     } else {
         query_str.to_string()
     };
-    let result = graph.sparql_select(&q).unwrap_or_else(|e| format!(r#"{{"error":"{}"}}"#, e));
+    let result = graph
+        .sparql_select(&q)
+        .unwrap_or_else(|e| format!(r#"{{"error":"{}"}}"#, e));
     serde_json::from_str::<serde_json::Value>(&result).map_err(to_verb_err)
 }
 
@@ -119,17 +129,29 @@ fn load(path: String, data_dir: Option<String>) -> NounVerbResult<LoadOutput> {
     let dir = data_dir.as_deref().unwrap_or(DEFAULT_DATA_DIR);
     let (_db, graph) = setup(dir).map_err(to_verb_err)?;
     let count = graph.load_file(&path).map_err(to_verb_err)?;
-    Ok(LoadOutput { ok: true, triples_loaded: count, path })
+    Ok(LoadOutput {
+        ok: true,
+        triples_loaded: count,
+        path,
+    })
 }
 
 /// Save ontology to file
 #[verb]
-fn save(path: String, format: Option<String>, data_dir: Option<String>) -> NounVerbResult<SaveOutput> {
+fn save(
+    path: String,
+    format: Option<String>,
+    data_dir: Option<String>,
+) -> NounVerbResult<SaveOutput> {
     let dir = data_dir.as_deref().unwrap_or(DEFAULT_DATA_DIR);
     let (_db, graph) = setup(dir).map_err(to_verb_err)?;
     let fmt = format.unwrap_or_else(|| "turtle".to_string());
     graph.save_file(&path, &fmt).map_err(to_verb_err)?;
-    Ok(SaveOutput { ok: true, path, format: fmt })
+    Ok(SaveOutput {
+        ok: true,
+        path,
+        format: fmt,
+    })
 }
 
 /// Clear in-memory store
@@ -138,7 +160,10 @@ fn clear(data_dir: Option<String>) -> NounVerbResult<ClearOutput> {
     let dir = data_dir.as_deref().unwrap_or(DEFAULT_DATA_DIR);
     let (_db, graph) = setup(dir).map_err(to_verb_err)?;
     graph.clear().map_err(to_verb_err)?;
-    Ok(ClearOutput { ok: true, message: "Store cleared".to_string() })
+    Ok(ClearOutput {
+        ok: true,
+        message: "Store cleared".to_string(),
+    })
 }
 
 /// Show triple count, classes, properties, individuals
@@ -146,7 +171,9 @@ fn clear(data_dir: Option<String>) -> NounVerbResult<ClearOutput> {
 fn stats(data_dir: Option<String>) -> NounVerbResult<serde_json::Value> {
     let dir = data_dir.as_deref().unwrap_or(DEFAULT_DATA_DIR);
     let (_db, graph) = setup(dir).map_err(to_verb_err)?;
-    let s = graph.get_stats().unwrap_or_else(|e| format!(r#"{{"error":"{}"}}"#, e));
+    let s = graph
+        .get_stats()
+        .unwrap_or_else(|e| format!(r#"{{"error":"{}"}}"#, e));
     serde_json::from_str::<serde_json::Value>(&s).map_err(to_verb_err)
 }
 
@@ -162,7 +189,8 @@ fn sparql(sparql_query: String, data_dir: Option<String>) -> NounVerbResult<serd
 fn diff(old_path: String, new_path: String) -> NounVerbResult<serde_json::Value> {
     let old = std::fs::read_to_string(&old_path).map_err(to_verb_err)?;
     let new = std::fs::read_to_string(&new_path).map_err(to_verb_err)?;
-    let result = OntologyService::diff(&old, &new).unwrap_or_else(|e| format!(r#"{{"error":"{}"}}"#, e));
+    let result =
+        OntologyService::diff(&old, &new).unwrap_or_else(|e| format!(r#"{{"error":"{}"}}"#, e));
     serde_json::from_str::<serde_json::Value>(&result).map_err(to_verb_err)
 }
 
@@ -206,8 +234,8 @@ fn version(label: String, data_dir: Option<String>) -> NounVerbResult<serde_json
 fn history(data_dir: Option<String>) -> NounVerbResult<serde_json::Value> {
     let dir = data_dir.as_deref().unwrap_or(DEFAULT_DATA_DIR);
     let (db, _graph) = setup(dir).map_err(to_verb_err)?;
-    let result = OntologyService::list_versions(&db)
-        .unwrap_or_else(|e| format!(r#"{{"error":"{}"}}"#, e));
+    let result =
+        OntologyService::list_versions(&db).unwrap_or_else(|e| format!(r#"{{"error":"{}"}}"#, e));
     serde_json::from_str::<serde_json::Value>(&result).map_err(to_verb_err)
 }
 
@@ -227,8 +255,8 @@ fn reason(profile: Option<String>, data_dir: Option<String>) -> NounVerbResult<s
     let dir = data_dir.as_deref().unwrap_or(DEFAULT_DATA_DIR);
     let (_db, graph) = setup(dir).map_err(to_verb_err)?;
     let p = profile.unwrap_or_else(|| "rdfs".to_string());
-    let result = Reasoner::run(&graph, &p, true)
-        .unwrap_or_else(|e| format!(r#"{{"error":"{}"}}"#, e));
+    let result =
+        Reasoner::run(&graph, &p, true).unwrap_or_else(|e| format!(r#"{{"error":"{}"}}"#, e));
     serde_json::from_str::<serde_json::Value>(&result).map_err(to_verb_err)
 }
 
@@ -238,8 +266,7 @@ fn shacl(shapes: String, data_dir: Option<String>) -> NounVerbResult<serde_json:
     let dir = data_dir.as_deref().unwrap_or(DEFAULT_DATA_DIR);
     let (_db, graph) = setup(dir).map_err(to_verb_err)?;
     let shapes_content = std::fs::read_to_string(&shapes).map_err(to_verb_err)?;
-    let result = ShaclValidator::validate(&graph, &shapes_content)
-        .unwrap_err_as_json();
+    let result = ShaclValidator::validate(&graph, &shapes_content).unwrap_err_as_json();
     serde_json::from_str::<serde_json::Value>(&result).map_err(to_verb_err)
 }
 

@@ -38,7 +38,9 @@ fn aggressive_cfg() -> RetentionConfig {
 }
 
 fn count(db: &StateDb, sql: &str) -> i64 {
-    db.conn().query_row(sql, [], |r| r.get::<_, i64>(0)).unwrap()
+    db.conn()
+        .query_row(sql, [], |r| r.get::<_, i64>(0))
+        .unwrap()
 }
 
 fn one_hour_ago() -> String {

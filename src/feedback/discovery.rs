@@ -73,10 +73,7 @@ pub struct DiscoveredWorkflow {
 /// let result = discover_for_domain("billing", &store).unwrap();
 /// assert!(result.is_none());
 /// ```
-pub fn discover_for_domain(
-    domain: &str,
-    store: &OcelStore,
-) -> Result<Option<DiscoveredWorkflow>> {
+pub fn discover_for_domain(domain: &str, store: &OcelStore) -> Result<Option<DiscoveredWorkflow>> {
     let db = store.db();
     let conn = db.conn();
 
@@ -108,7 +105,11 @@ pub fn discover_for_domain(
     )?;
     let event_rows: Vec<(String, String, String)> = stmt
         .query_map(rusqlite::params![domain], |r| {
-            Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?, r.get::<_, String>(2)?))
+            Ok((
+                r.get::<_, String>(0)?,
+                r.get::<_, String>(1)?,
+                r.get::<_, String>(2)?,
+            ))
         })?
         .collect::<std::result::Result<Vec<_>, _>>()?;
     drop(stmt);
@@ -129,8 +130,13 @@ pub fn discover_for_domain(
     let wasm4pm_log = wasm4pm::models::EventLog::from(log);
 
     // 4. wasm4pm discovery — alpha++ gives us a replayable Petri net.
-    let admitted = wasm4pm_types::admission::Admission::<_, ()>::new(wasm4pm_log.clone()).into_evidence();
-    let petri = match wasm4pm::algorithms::discover_alpha_plus_plus_from_log(&admitted, "concept:name", 0.5) {
+    let admitted =
+        wasm4pm_types::admission::Admission::<_, ()>::new(wasm4pm_log.clone()).into_evidence();
+    let petri = match wasm4pm::algorithms::discover_alpha_plus_plus_from_log(
+        &admitted,
+        "concept:name",
+        0.5,
+    ) {
         Ok(p) => p,
         Err(_) => return Ok(None),
     };
@@ -155,8 +161,11 @@ pub fn discover_for_domain(
     }
 
     // 7. Synthesize a POWL-shaped string from the DFG (best-effort serialization).
-    let powl_string = format!("DISCOVERED_DFG{{transitions={}, places={}}}",
-        petri.transitions.len(), petri.places.len());
+    let powl_string = format!(
+        "DISCOVERED_DFG{{transitions={}, places={}}}",
+        petri.transitions.len(),
+        petri.places.len()
+    );
     let id = format!("dw_{}_{}", domain, Utc::now().timestamp_millis());
     let now = Utc::now().to_rfc3339();
 
@@ -164,7 +173,14 @@ pub fn discover_for_domain(
         "INSERT INTO discovered_workflows
             (id, domain, powl_string, discovered_fitness, declared_fitness, status, suggested_at)
          VALUES (?1, ?2, ?3, ?4, ?5, 'pending', ?6)",
-        rusqlite::params![id, domain, powl_string, discovered_fitness, declared_fitness, now],
+        rusqlite::params![
+            id,
+            domain,
+            powl_string,
+            discovered_fitness,
+            declared_fitness,
+            now
+        ],
     )?;
 
     Ok(Some(DiscoveredWorkflow {

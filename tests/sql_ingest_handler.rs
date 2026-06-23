@@ -5,8 +5,8 @@
 
 #![cfg(feature = "duckdb")]
 
-use open_ontologies::server::OpenOntologiesServer;
 use open_ontologies::graph::GraphStore;
+use open_ontologies::server::OpenOntologiesServer;
 use open_ontologies::state::StateDb;
 use std::sync::Arc;
 

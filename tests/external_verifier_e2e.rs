@@ -5,11 +5,11 @@
 //! UnknownChain), plus chain walking and ASCII rendering.
 
 use open_ontologies::manufacturing::{self, SolutionSpec};
-use open_ontologies::production_record::{hex32_pub, ProductionRecord};
+use open_ontologies::production_record::{ProductionRecord, hex32_pub};
 use open_ontologies::receipts;
 use open_ontologies::state::StateDb;
 use open_ontologies::verify::{
-    render_chain_ascii, verify_artifact, verify_iac_bundle, walk_receipt_chain, Verdict,
+    Verdict, render_chain_ascii, verify_artifact, verify_iac_bundle, walk_receipt_chain,
 };
 use tempfile::tempdir;
 
@@ -27,10 +27,7 @@ fn ok_spec() -> SolutionSpec {
 
 /// Materialize the bundle to disk under `root` so we can hand the
 /// verifier a real Path.
-fn write_bundle_to_disk(
-    bundle: &manufacturing::SolutionBundle,
-    root: &std::path::Path,
-) {
+fn write_bundle_to_disk(bundle: &manufacturing::SolutionBundle, root: &std::path::Path) {
     for f in &bundle.files {
         let dst = root.join(&f.path);
         if let Some(parent) = dst.parent() {
@@ -141,7 +138,12 @@ fn detects_tampered_body_byte_in_rust_file() {
 
     let v = verify_artifact(&p, None);
     match v {
-        Verdict::Tampered { mismatch_at, expected, actual, reason: _ } => {
+        Verdict::Tampered {
+            mismatch_at,
+            expected,
+            actual,
+            reason: _,
+        } => {
             assert!(mismatch_at.contains("lib.rs"));
             assert_ne!(expected, actual);
             assert_eq!(expected.len(), 64);
@@ -188,11 +190,7 @@ fn detects_tampered_iac_sidecar_artifact_hash() {
     let mut json: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(&sidecar_path).unwrap()).unwrap();
     json["artifact_hash"] = serde_json::Value::String("0".repeat(64));
-    std::fs::write(
-        &sidecar_path,
-        serde_json::to_string_pretty(&json).unwrap(),
-    )
-    .unwrap();
+    std::fs::write(&sidecar_path, serde_json::to_string_pretty(&json).unwrap()).unwrap();
 
     let v = verify_iac_bundle(&dir.path().join("iac"), None);
     assert!(matches!(v, Verdict::Tampered { .. }), "got {v:?}");
@@ -224,8 +222,7 @@ fn walks_receipt_chain_in_correct_order_and_renders_ascii() {
         conformance_run_id: format!("run-{i}"),
         gate_config_hash: [0u8; 32],
         production_law_version: "ontostar-1.0.0".into(),
-        defects_taxonomy_version: open_ontologies::defects::DEFECTS_TAXONOMY_VERSION
-            .into(),
+        defects_taxonomy_version: open_ontologies::defects::DEFECTS_TAXONOMY_VERSION.into(),
         gates_passed: vec!["g".into()],
         gates_refused: vec![],
         prior_receipt: prior,
@@ -271,8 +268,7 @@ fn walks_chain_terminates_on_missing_link() {
         conformance_run_id: "run".into(),
         gate_config_hash: [0u8; 32],
         production_law_version: "ontostar-1.0.0".into(),
-        defects_taxonomy_version: open_ontologies::defects::DEFECTS_TAXONOMY_VERSION
-            .into(),
+        defects_taxonomy_version: open_ontologies::defects::DEFECTS_TAXONOMY_VERSION.into(),
         gates_passed: vec!["g".into()],
         gates_refused: vec![],
         prior_receipt: Some(phantom_prior),

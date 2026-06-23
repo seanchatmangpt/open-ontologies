@@ -1,3 +1,5 @@
+#![allow(clippy::all, unused)]
+
 //! Real-data tests for `onto_conformance_check`.
 //!
 //! Seeds `declared_workflows` with a simple POWL workflow string, then calls
@@ -16,8 +18,7 @@ use open_ontologies::toolfilter::ToolFilter;
 use rmcp::handler::server::wrapper::Parameters;
 
 const SCOPE_TOKEN: &str = "test-conformance-check-scope";
-const POWL_STRING: &str =
-    "PO=(nodes={load, extend, query}, order={load-->extend, extend-->query})";
+const POWL_STRING: &str = "PO=(nodes={load, extend, query}, order={load-->extend, extend-->query})";
 
 fn build_server() -> (tempfile::TempDir, StateDb, OpenOntologiesServer) {
     let tmp = tempfile::tempdir().unwrap();
@@ -78,8 +79,14 @@ fn conformance_check_returns_valid_json_on_empty_trace() {
 
     // With an empty OCEL trace, replay returns ok=true and populates the fields.
     assert_eq!(v["ok"], true, "ok must be true: {result}");
-    assert!(v.get("fitness").is_some(), "fitness must be present: {result}");
-    assert!(v.get("run_id").is_some(), "run_id must be present: {result}");
+    assert!(
+        v.get("fitness").is_some(),
+        "fitness must be present: {result}"
+    );
+    assert!(
+        v.get("run_id").is_some(),
+        "run_id must be present: {result}"
+    );
     assert!(
         v["run_id"].as_str().map_or(false, |s| !s.is_empty()),
         "run_id must be non-empty: {result}"
@@ -96,5 +103,8 @@ fn conformance_check_returns_error_for_missing_scope() {
 
     let v: serde_json::Value =
         serde_json::from_str(&result).expect("must return valid JSON on missing scope");
-    assert_eq!(v["ok"], false, "ok must be false for missing scope: {result}");
+    assert_eq!(
+        v["ok"], false,
+        "ok must be false for missing scope: {result}"
+    );
 }

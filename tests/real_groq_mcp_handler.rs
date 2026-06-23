@@ -1,3 +1,5 @@
+#![allow(clippy::all, unused)]
+
 //! Phase 8 — REAL Groq MCP-handler integration test.
 //!
 //! Constructs an `OpenOntologiesServer` directly (no transport) and calls
@@ -116,8 +118,7 @@ async fn translate_candidate_groq_pm4py_engine_returns_real_groq_response() {
     let raw = server.onto_translate_candidate(Parameters(input)).await;
     eprintln!("REAL GROQ MCP HANDLER raw: {raw}");
 
-    let resp: serde_json::Value =
-        serde_json::from_str(&raw).expect("handler returned non-JSON");
+    let resp: serde_json::Value = serde_json::from_str(&raw).expect("handler returned non-JSON");
 
     assert_eq!(
         resp.get("ok").and_then(|v| v.as_bool()),
@@ -130,10 +131,7 @@ async fn translate_candidate_groq_pm4py_engine_returns_real_groq_response() {
         "engine field missing or wrong"
     );
 
-    let ctq_text = resp
-        .get("ctq_text")
-        .and_then(|v| v.as_str())
-        .unwrap_or("");
+    let ctq_text = resp.get("ctq_text").and_then(|v| v.as_str()).unwrap_or("");
     assert!(
         !ctq_text.trim().is_empty(),
         "ctq_text must be non-empty real-Groq response: {resp}"
@@ -152,10 +150,7 @@ async fn translate_candidate_groq_pm4py_engine_returns_real_groq_response() {
     // CRITICAL — the API key must NEVER appear anywhere in the response,
     // even base64-encoded. The handler scrubs subprocess stderr but we
     // double-check at the boundary.
-    assert!(
-        !raw.contains(&key),
-        "API KEY LEAKED INTO RESPONSE BODY"
-    );
+    assert!(!raw.contains(&key), "API KEY LEAKED INTO RESPONSE BODY");
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -189,7 +184,10 @@ async fn groq_status_returns_truthful_state_when_key_present() {
     );
 
     let model = resp.get("model").and_then(|v| v.as_str()).unwrap_or("");
-    assert!(!model.is_empty(), "model must be a non-empty string: {resp}");
+    assert!(
+        !model.is_empty(),
+        "model must be a non-empty string: {resp}"
+    );
 
     // Defence-in-depth: status response must never carry the key.
     assert!(

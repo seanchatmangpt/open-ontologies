@@ -394,8 +394,7 @@ pub fn classify_replay(
     replay: &TraceReplayResult,
 ) -> ConformanceResult {
     let alphabet = bridge.alphabet(root);
-    let observed: std::collections::BTreeSet<String> =
-        observed_trace.iter().cloned().collect();
+    let observed: std::collections::BTreeSet<String> = observed_trace.iter().cloned().collect();
     let extra: Vec<String> = observed.difference(&alphabet).cloned().collect();
     let missing: Vec<String> = alphabet.difference(&observed).cloned().collect();
 
@@ -546,7 +545,9 @@ mod tests {
     #[test]
     fn parse_seq_and_perfect_replay() {
         let mut b = PowlBridge::new();
-        let root = b.parse("PO=(nodes={a, b, c}, order={a-->b, b-->c})").expect("parse SEQ(a,b,c)");
+        let root = b
+            .parse("PO=(nodes={a, b, c}, order={a-->b, b-->c})")
+            .expect("parse SEQ(a,b,c)");
         let trace = vec!["a".to_string(), "b".to_string(), "c".to_string()];
         let res = b.replay_trace(root, &trace).expect("replay");
         assert!(res.fitness >= 0.999, "fitness={}", res.fitness);
@@ -558,7 +559,9 @@ mod tests {
     #[test]
     fn skipped_task_yields_typed_defect() {
         let mut b = PowlBridge::new();
-        let root = b.parse("PO=(nodes={a, b, c}, order={a-->b, b-->c})").expect("parse");
+        let root = b
+            .parse("PO=(nodes={a, b, c}, order={a-->b, b-->c})")
+            .expect("parse");
         let trace = vec!["a".to_string(), "c".to_string()];
         let res = b.replay_trace(root, &trace).expect("replay");
         let cls = classify_replay(&b, root, &trace, &res);

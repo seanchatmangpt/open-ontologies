@@ -15,7 +15,7 @@
 //! path returns a typed `(DefectClass, Vec<Deviation>)`.
 
 use crate::attestation::{ArcSwap, Signer, TrustedKeys};
-use crate::cell_ready::{cell_ready, CellReadyInputs, PowlOpRef};
+use crate::cell_ready::{CellReadyInputs, PowlOpRef, cell_ready};
 use crate::defects::{DefectClass, Deviation};
 use crate::ocel_store::OcelStore;
 use crate::production_record::hex32_pub;
@@ -45,8 +45,7 @@ use crate::state::StateDb;
 // inside the closure they install.
 #[cfg(debug_assertions)]
 #[doc(hidden)]
-pub type A13BetweenSnapshotFn =
-    Box<dyn Fn(&OcelStore, &str, &str) + Send + 'static>;
+pub type A13BetweenSnapshotFn = Box<dyn Fn(&OcelStore, &str, &str) + Send + 'static>;
 
 #[cfg(debug_assertions)]
 thread_local! {
@@ -73,8 +72,7 @@ thread_local! {
 // `cargo build --release`.
 #[cfg(debug_assertions)]
 #[doc(hidden)]
-pub type A9ProvenanceRereadFn =
-    Box<dyn Fn(&OcelStore, &str, &str) + Send + 'static>;
+pub type A9ProvenanceRereadFn = Box<dyn Fn(&OcelStore, &str, &str) + Send + 'static>;
 
 #[cfg(debug_assertions)]
 thread_local! {
@@ -95,8 +93,7 @@ thread_local! {
 // Gated on `debug_assertions`; same envelope as A9/A13 hooks.
 #[cfg(debug_assertions)]
 #[doc(hidden)]
-pub type A11GrantedAtRereadFn =
-    Box<dyn Fn(&OcelStore, &str, &str) + Send + 'static>;
+pub type A11GrantedAtRereadFn = Box<dyn Fn(&OcelStore, &str, &str) + Send + 'static>;
 
 #[cfg(debug_assertions)]
 thread_local! {
@@ -117,8 +114,7 @@ thread_local! {
 // Gated on `debug_assertions`; same envelope as A9/A13 hooks.
 #[cfg(debug_assertions)]
 #[doc(hidden)]
-pub type A12AdmittedReceiptsRereadFn =
-    Box<dyn Fn(&OcelStore, &str, &str) + Send + 'static>;
+pub type A12AdmittedReceiptsRereadFn = Box<dyn Fn(&OcelStore, &str, &str) + Send + 'static>;
 
 #[cfg(debug_assertions)]
 thread_local! {
@@ -158,14 +154,14 @@ pub enum AdmissionOp {
     Codegen,
     Save,
     Push,
-    Ingest,        // CSV/JSON/SQL ingest, pipeline extend
-    ImportSchema,  // DB schema → OWL
-    Align,         // auto-applied equivalentClass / subClassOf
-    Rollback,      // restore from snapshot
-    Version,       // create snapshot
+    Ingest,       // CSV/JSON/SQL ingest, pipeline extend
+    ImportSchema, // DB schema → OWL
+    Align,        // auto-applied equivalentClass / subClassOf
+    Rollback,     // restore from snapshot
+    Version,      // create snapshot
     // Audit-only ops (operator-tier maintenance; logged but never denied).
-    Clear,         // clear / unload / cache-remove
-    Feedback,      // align_feedback / monitor_clear
+    Clear,    // clear / unload / cache-remove
+    Feedback, // align_feedback / monitor_clear
     // Requirements-Andon / CTQ-Forge ops (full admission).
     RequirementProposed, // capture source signal + voice
     CtqAdmitted,         // deterministic CTQ admission gate
@@ -956,7 +952,10 @@ impl<'a> PowlReplay for PowlBridgeReplay<'a> {
                 };
             }
         };
-        match self.store.replay_against_powl(scope_token, &bridge, root, tenant_id) {
+        match self
+            .store
+            .replay_against_powl(scope_token, &bridge, root, tenant_id)
+        {
             Ok(r) => ConformanceResult {
                 fitness: r.fitness,
                 precision: r.precision.unwrap_or(0.0),
@@ -1111,10 +1110,7 @@ impl OntoStarAdmissionGate {
     /// let swap = open_ontologies::attestation::into_swap(trust);
     /// gate = gate.with_trusted_keys(swap);
     /// ```
-    pub fn with_trusted_keys(
-        mut self,
-        trust: std::sync::Arc<ArcSwap<TrustedKeys>>,
-    ) -> Self {
+    pub fn with_trusted_keys(mut self, trust: std::sync::Arc<ArcSwap<TrustedKeys>>) -> Self {
         self.trusted_keys = Some(trust);
         self
     }
@@ -1365,7 +1361,10 @@ impl OntoStarAdmissionGate {
                 (OCEL_KEY_POWL_HASH, &powl_hash_hex),
                 ("powl_string", powl_string),
                 (OCEL_KEY_PRODUCTION_LAW_VERSION, PRODUCTION_LAW_VERSION),
-                (OCEL_KEY_DEFECTS_TAXONOMY_VERSION, crate::defects::DEFECTS_TAXONOMY_VERSION),
+                (
+                    OCEL_KEY_DEFECTS_TAXONOMY_VERSION,
+                    crate::defects::DEFECTS_TAXONOMY_VERSION,
+                ),
             ],
             &[],
             Some(scope_token),
@@ -1399,8 +1398,11 @@ impl OntoStarAdmissionGate {
         // so a primary-emit failure still leaves a trail (helper falls
         // closed if no row is found, gate denies with
         // `ProvenanceMissing`).
-        let artifact_event_id =
-            format!("artifact_generated:{}:{}", scope_token, &artifact_hash_hex[..16]);
+        let artifact_event_id = format!(
+            "artifact_generated:{}:{}",
+            scope_token,
+            &artifact_hash_hex[..16]
+        );
         emit_with_fallback(
             store,
             &artifact_event_id,
@@ -1531,8 +1533,7 @@ impl OntoStarAdmissionGate {
                 conformance_run_id: conf.run_id.clone(),
                 gate_config_hash: self.gate_config_hash,
                 production_law_version: PRODUCTION_LAW_VERSION.into(),
-                defects_taxonomy_version: crate::defects::DEFECTS_TAXONOMY_VERSION
-                    .to_string(),
+                defects_taxonomy_version: crate::defects::DEFECTS_TAXONOMY_VERSION.to_string(),
                 gates_passed: vec![
                     "A1_WorkflowDeclared".into(),
                     "A2_ScopeClosed".into(),
@@ -1635,12 +1636,7 @@ impl OntoStarAdmissionGate {
                 let atomic_result: Result<(), anyhow::Error> = (|| {
                     let mut conn = store.db().conn();
                     let tx = conn.transaction()?;
-                    receipts::persist_with_tenant_in_tx(
-                        &tx,
-                        &receipt,
-                        session_id,
-                        &scope_tenant,
-                    )?;
+                    receipts::persist_with_tenant_in_tx(&tx, &receipt, session_id, &scope_tenant)?;
                     let event_id = format!(
                         "{}:admission_granted:{}",
                         session_id,
@@ -1659,8 +1655,14 @@ impl OntoStarAdmissionGate {
                             ("op_class", op.op_class()),
                             (OCEL_KEY_RECEIPT_HASH, &receipt_hex),
                             (OCEL_KEY_SCOPE_TOKEN, &receipt.record.scope_token),
-                            (OCEL_KEY_PRODUCTION_LAW_VERSION, &receipt.record.production_law_version),
-                            (OCEL_KEY_DEFECTS_TAXONOMY_VERSION, &receipt.record.defects_taxonomy_version),
+                            (
+                                OCEL_KEY_PRODUCTION_LAW_VERSION,
+                                &receipt.record.production_law_version,
+                            ),
+                            (
+                                OCEL_KEY_DEFECTS_TAXONOMY_VERSION,
+                                &receipt.record.defects_taxonomy_version,
+                            ),
                             (OCEL_KEY_POWL_HASH, &powl_hash_hex),
                         ],
                         &[],
@@ -1684,10 +1686,14 @@ impl OntoStarAdmissionGate {
                             taxonomy_v,
                         );
                         let _ = store.db().record_workflow_outcome(
-                            scope_token, false,
-                            conf.fitness, conf.precision,
-                            "[\"receipt_missing\"]", "[]",
-                            "[]", "[\"ReceiptValid\"]",
+                            scope_token,
+                            false,
+                            conf.fitness,
+                            conf.precision,
+                            "[\"receipt_missing\"]",
+                            "[]",
+                            "[]",
+                            "[\"ReceiptValid\"]",
                             "{}",
                         );
                     }
@@ -1709,10 +1715,14 @@ impl OntoStarAdmissionGate {
                     })
                     .to_string();
                     let _ = store.db().record_workflow_outcome(
-                        scope_token, true,
-                        conf.fitness, conf.precision,
-                        "[]", "[]",
-                        &gates_fired_json, "[]",
+                        scope_token,
+                        true,
+                        conf.fitness,
+                        conf.precision,
+                        "[]",
+                        "[]",
+                        &gates_fired_json,
+                        "[]",
                         &manufacturing_delta_json,
                     );
                 }
@@ -1729,15 +1739,19 @@ impl OntoStarAdmissionGate {
                         taxonomy_v,
                     );
                     let denied_tag = defect.tag();
-                    let defects_json = serde_json::to_string(&vec![&defect])
-                        .unwrap_or_else(|_| "[]".into());
-                    let gates_denied_json = serde_json::to_string(&vec![denied_tag])
-                        .unwrap_or_else(|_| "[]".into());
+                    let defects_json =
+                        serde_json::to_string(&vec![&defect]).unwrap_or_else(|_| "[]".into());
+                    let gates_denied_json =
+                        serde_json::to_string(&vec![denied_tag]).unwrap_or_else(|_| "[]".into());
                     let _ = store.db().record_workflow_outcome(
-                        scope_token, false,
-                        conf.fitness, conf.precision,
-                        &defects_json, "[]",
-                        "[]", &gates_denied_json,
+                        scope_token,
+                        false,
+                        conf.fitness,
+                        conf.precision,
+                        &defects_json,
+                        "[]",
+                        "[]",
+                        &gates_denied_json,
                         "{}",
                     );
                 }
@@ -1793,7 +1807,10 @@ impl OntoStarAdmissionGate {
                 ("op_class", op.op_class()),
                 ("defect", defect.tag()),
                 (OCEL_KEY_PRODUCTION_LAW_VERSION, PRODUCTION_LAW_VERSION),
-                (OCEL_KEY_DEFECTS_TAXONOMY_VERSION, crate::defects::DEFECTS_TAXONOMY_VERSION),
+                (
+                    OCEL_KEY_DEFECTS_TAXONOMY_VERSION,
+                    crate::defects::DEFECTS_TAXONOMY_VERSION,
+                ),
             ],
             &[],
             scope_token,
@@ -2030,10 +2047,9 @@ fn re_read_provenance_evidence(
             return Vec::new();
         }
     };
-    let rows = stmt
-        .query_map(rusqlite::params![session_id, artifact_hash_hex], |r| {
-            r.get::<_, String>(0)
-        });
+    let rows = stmt.query_map(rusqlite::params![session_id, artifact_hash_hex], |r| {
+        r.get::<_, String>(0)
+    });
     let evidence: Vec<String> = match rows {
         Ok(it) => it.filter_map(|r| r.ok()).collect(),
         Err(_) => Vec::new(),
@@ -2176,10 +2192,9 @@ fn re_read_admitted_receipts(
             return Vec::new();
         }
     };
-    let admitted: Vec<String> = match stmt.query_map(
-        rusqlite::params![prior_hex, tenant_id],
-        |r| r.get::<_, String>(0),
-    ) {
+    let admitted: Vec<String> = match stmt.query_map(rusqlite::params![prior_hex, tenant_id], |r| {
+        r.get::<_, String>(0)
+    }) {
         Ok(it) => it.filter_map(|r| r.ok()).collect(),
         Err(_) => Vec::new(),
     };
@@ -2233,10 +2248,7 @@ fn persist_conformance_run(
 
     // Build the OCEL witness payload up front. Strings live for the tx
     // duration so `&str` slices into them are valid through commit.
-    let event_id = format!(
-        "conformance_recorded:{}:{}",
-        scope_token, conf.run_id,
-    );
+    let event_id = format!("conformance_recorded:{}:{}", scope_token, conf.run_id,);
     let now = chrono::Utc::now().to_rfc3339();
     let fitness_s = format!("{}", conf.fitness);
     let precision_s = format!("{}", conf.precision);
@@ -2289,7 +2301,10 @@ fn persist_conformance_run(
                 // stub-path conformance runs as production evidence.
                 (OCEL_KEY_POWL_STUB, powl_stub_s),
                 (OCEL_KEY_PRODUCTION_LAW_VERSION, PRODUCTION_LAW_VERSION),
-                (OCEL_KEY_DEFECTS_TAXONOMY_VERSION, crate::defects::DEFECTS_TAXONOMY_VERSION),
+                (
+                    OCEL_KEY_DEFECTS_TAXONOMY_VERSION,
+                    crate::defects::DEFECTS_TAXONOMY_VERSION,
+                ),
             ],
             &[],
             Some(scope_token),

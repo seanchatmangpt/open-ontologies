@@ -1,7 +1,7 @@
 //! T2-7 A2A protocol handler and task store tests.
 
-use open_ontologies::state::StateDb;
 use open_ontologies::a2a::task_store::{A2aTaskStore, AsyncTaskManager, TaskState};
+use open_ontologies::state::StateDb;
 use std::sync::Arc;
 use tempfile::TempDir;
 

@@ -4,9 +4,9 @@
 //!   - `receipts/persist_with_tenant_in_tx` — atomic INSERT under a transaction
 //!   - `receipts/chain_walk_depth_100`      — `walk_receipt_chain` over a 100-deep chain
 
-use criterion::{black_box, criterion_group, criterion_main, Criterion, Throughput};
+use criterion::{Criterion, Throughput, black_box, criterion_group, criterion_main};
 use open_ontologies::production_record::ProductionRecord;
-use open_ontologies::receipts::{self, persist_with_tenant_in_tx, Receipt};
+use open_ontologies::receipts::{self, Receipt, persist_with_tenant_in_tx};
 use open_ontologies::state::StateDb;
 use open_ontologies::verify::walk_receipt_chain;
 use tempfile::tempdir;

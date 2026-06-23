@@ -297,9 +297,7 @@ impl ShaclValidator {
 
                 // sh:minCount
                 if let Some(min_count_str) = prop.get("minCount") {
-                    let min_count = strip_quotes(min_count_str)
-                        .parse::<u64>()
-                        .unwrap_or(0);
+                    let min_count = strip_quotes(min_count_str).parse::<u64>().unwrap_or(0);
                     if min_count > 0 {
                         let query = format!(
                             r#"SELECT ?focus (COUNT(?val) AS ?cnt) WHERE {{
@@ -345,10 +343,7 @@ impl ShaclValidator {
                     for row in &results {
                         if let Some(focus) = row.get("focus") {
                             let msg = if message.is_empty() {
-                                format!(
-                                    "Property <{}> has more than {} values",
-                                    path, max_count
-                                )
+                                format!("Property <{}> has more than {} values", path, max_count)
                             } else {
                                 message.clone()
                             };
@@ -377,10 +372,7 @@ impl ShaclValidator {
                     for row in &results {
                         if let Some(focus) = row.get("focus") {
                             let msg = if message.is_empty() {
-                                format!(
-                                    "Value does not have datatype <{}>",
-                                    dt
-                                )
+                                format!("Value does not have datatype <{}>", dt)
                             } else {
                                 message.clone()
                             };
@@ -581,10 +573,7 @@ impl ShaclValidator {
 
 /// Run a SPARQL SELECT against a temporary shapes `Store` and return results
 /// as a vec of maps (variable name -> string value).
-fn query_solutions(
-    store: &Store,
-    query: &str,
-) -> anyhow::Result<Vec<HashMap<String, String>>> {
+fn query_solutions(store: &Store, query: &str) -> anyhow::Result<Vec<HashMap<String, String>>> {
     match SparqlEvaluator::new()
         .parse_query(query)?
         .on_store(store)

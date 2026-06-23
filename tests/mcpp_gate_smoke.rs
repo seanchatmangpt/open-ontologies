@@ -51,9 +51,9 @@ fn gated_server_registry_does_not_panic() {
     let (dir, db) = fresh_db();
     let inner = OpenOntologiesServer::new(db.clone());
     let key = SigningKey::generate(&mut OsRng);
-    let server = MaybeGatedServer::Gated(
-        open_ontologies::mcpp_gate::ProofGatedServer::new(inner, db, key),
-    );
+    let server = MaybeGatedServer::Gated(open_ontologies::mcpp_gate::ProofGatedServer::new(
+        inner, db, key,
+    ));
     let _reg = server.registry();
     drop(dir);
 }
@@ -72,9 +72,9 @@ fn gated_server_get_info_matches_bare() {
 
     let key = SigningKey::generate(&mut OsRng);
     let inner = OpenOntologiesServer::new(db_gated.clone());
-    let gated = MaybeGatedServer::Gated(
-        open_ontologies::mcpp_gate::ProofGatedServer::new(inner, db_gated, key),
-    );
+    let gated = MaybeGatedServer::Gated(open_ontologies::mcpp_gate::ProofGatedServer::new(
+        inner, db_gated, key,
+    ));
 
     assert_eq!(
         bare.get_info().server_info.name,
@@ -102,8 +102,12 @@ fn augment_with_proof_adds_mcpp_envelope() {
     let scope = "mcpp-test-scope";
     let hash = "abcdef1234567890";
 
-    let text = result.content.first().and_then(|c| c.as_text())
-        .map(|t| t.text.clone()).unwrap_or_default();
+    let text = result
+        .content
+        .first()
+        .and_then(|c| c.as_text())
+        .map(|t| t.text.clone())
+        .unwrap_or_default();
     let mut v: serde_json::Value = serde_json::from_str(&text).unwrap();
     v["mcpp"] = serde_json::json!({
         "verdict":      "accepted",

@@ -278,22 +278,37 @@ impl Enforcer {
     ///     assert_eq!(va["passed_rules"], vb["passed_rules"]);
     /// }
     /// ```
-    pub fn enforce_with_feedback(&self, rule_pack: &str, feedback_db: Option<&StateDb>) -> anyhow::Result<String> {
+    pub fn enforce_with_feedback(
+        &self,
+        rule_pack: &str,
+        feedback_db: Option<&StateDb>,
+    ) -> anyhow::Result<String> {
         let mut violations = Vec::new();
         let mut total_rules = 0u32;
         let mut passed_rules = 0u32;
 
         match rule_pack {
-            "generic" => self.run_generic_rules(&mut violations, &mut total_rules, &mut passed_rules),
+            "generic" => {
+                self.run_generic_rules(&mut violations, &mut total_rules, &mut passed_rules)
+            }
             "boro" => self.run_boro_rules(&mut violations, &mut total_rules, &mut passed_rules),
-            "value_partition" => self.run_value_partition_rules(&mut violations, &mut total_rules, &mut passed_rules),
-            "hierarchy" => self.run_hierarchy_rules(&mut violations, &mut total_rules, &mut passed_rules),
+            "value_partition" => {
+                self.run_value_partition_rules(&mut violations, &mut total_rules, &mut passed_rules)
+            }
+            "hierarchy" => {
+                self.run_hierarchy_rules(&mut violations, &mut total_rules, &mut passed_rules)
+            }
             "ies4" => self.run_ies4_rules(&mut violations, &mut total_rules, &mut passed_rules),
             _ => {}
         }
 
         // Also run custom rules for this pack
-        self.run_custom_rules(rule_pack, &mut violations, &mut total_rules, &mut passed_rules);
+        self.run_custom_rules(
+            rule_pack,
+            &mut violations,
+            &mut total_rules,
+            &mut passed_rules,
+        );
 
         // Apply feedback adjustments
         let mut filtered_violations: Vec<serde_json::Value> = Vec::new();
@@ -409,7 +424,14 @@ impl Enforcer {
     /// assert_eq!(va["violations"].as_array().unwrap().len(), 0);
     /// assert_eq!(vb["violations"].as_array().unwrap().len(), 0);
     /// ```
-    pub fn add_custom_rule(&self, id: &str, rule_pack: &str, query: &str, severity: &str, message: &str) {
+    pub fn add_custom_rule(
+        &self,
+        id: &str,
+        rule_pack: &str,
+        query: &str,
+        severity: &str,
+        message: &str,
+    ) {
         let conn = self.db.conn();
         let _ = conn.execute(
             "INSERT OR REPLACE INTO enforce_rules (id, rule_pack, query, severity, message, enabled) \
@@ -418,7 +440,12 @@ impl Enforcer {
         );
     }
 
-    fn run_generic_rules(&self, violations: &mut Vec<serde_json::Value>, total: &mut u32, passed: &mut u32) {
+    fn run_generic_rules(
+        &self,
+        violations: &mut Vec<serde_json::Value>,
+        total: &mut u32,
+        passed: &mut u32,
+    ) {
         // Rule: orphan classes (no subclass parent, not used as domain/range)
         self.check_orphan_classes(violations, total, passed);
         // Rule: missing domain
@@ -429,7 +456,12 @@ impl Enforcer {
         self.check_missing_label(violations, total, passed);
     }
 
-    fn check_orphan_classes(&self, violations: &mut Vec<serde_json::Value>, total: &mut u32, passed: &mut u32) {
+    fn check_orphan_classes(
+        &self,
+        violations: &mut Vec<serde_json::Value>,
+        total: &mut u32,
+        passed: &mut u32,
+    ) {
         *total += 1;
         let query = "SELECT DISTINCT ?c WHERE { \
             ?c a <http://www.w3.org/2002/07/owl#Class> . \
@@ -454,7 +486,12 @@ impl Enforcer {
         }
     }
 
-    fn check_missing_domain(&self, violations: &mut Vec<serde_json::Value>, total: &mut u32, passed: &mut u32) {
+    fn check_missing_domain(
+        &self,
+        violations: &mut Vec<serde_json::Value>,
+        total: &mut u32,
+        passed: &mut u32,
+    ) {
         *total += 1;
         let query = "SELECT DISTINCT ?p WHERE { \
             { ?p a <http://www.w3.org/2002/07/owl#ObjectProperty> } UNION \
@@ -477,7 +514,12 @@ impl Enforcer {
         }
     }
 
-    fn check_missing_range(&self, violations: &mut Vec<serde_json::Value>, total: &mut u32, passed: &mut u32) {
+    fn check_missing_range(
+        &self,
+        violations: &mut Vec<serde_json::Value>,
+        total: &mut u32,
+        passed: &mut u32,
+    ) {
         *total += 1;
         let query = "SELECT DISTINCT ?p WHERE { \
             { ?p a <http://www.w3.org/2002/07/owl#ObjectProperty> } UNION \
@@ -500,7 +542,12 @@ impl Enforcer {
         }
     }
 
-    fn check_missing_label(&self, violations: &mut Vec<serde_json::Value>, total: &mut u32, passed: &mut u32) {
+    fn check_missing_label(
+        &self,
+        violations: &mut Vec<serde_json::Value>,
+        total: &mut u32,
+        passed: &mut u32,
+    ) {
         *total += 1;
         let query = "SELECT DISTINCT ?c WHERE { \
             ?c a <http://www.w3.org/2002/07/owl#Class> . \
@@ -541,7 +588,12 @@ impl Enforcer {
     ///
     /// Academic grounding: FOUST 7 paper "Comparing IES and BORO"
     /// (CEUR Vol-4176, JOWO 2024). Closes #24.
-    fn run_ies4_rules(&self, violations: &mut Vec<serde_json::Value>, total: &mut u32, passed: &mut u32) {
+    fn run_ies4_rules(
+        &self,
+        violations: &mut Vec<serde_json::Value>,
+        total: &mut u32,
+        passed: &mut u32,
+    ) {
         const IES_NS: &str = "http://ies.data.gov.uk/ontology/ies4#";
 
         // Rule 1: 4D identity uniqueness — class is BOTH Particular and ClassOfEntity.
@@ -631,7 +683,12 @@ impl Enforcer {
         }
     }
 
-    fn run_boro_rules(&self, violations: &mut Vec<serde_json::Value>, total: &mut u32, passed: &mut u32) {
+    fn run_boro_rules(
+        &self,
+        violations: &mut Vec<serde_json::Value>,
+        total: &mut u32,
+        passed: &mut u32,
+    ) {
         // BORO rule: entities that subclass ies:Entity must have a corresponding State class
         *total += 1;
         let query = "SELECT DISTINCT ?entity WHERE { \
@@ -657,7 +714,12 @@ impl Enforcer {
         }
     }
 
-    fn run_value_partition_rules(&self, violations: &mut Vec<serde_json::Value>, total: &mut u32, passed: &mut u32) {
+    fn run_value_partition_rules(
+        &self,
+        violations: &mut Vec<serde_json::Value>,
+        total: &mut u32,
+        passed: &mut u32,
+    ) {
         // Find classes that have multiple subclasses (partition candidates)
         let parent_query = "SELECT DISTINCT ?parent WHERE { \
             ?child1 <http://www.w3.org/2000/01/rdf-schema#subClassOf> ?parent . \
@@ -690,10 +752,11 @@ impl Enforcer {
                         children[i], children[j]
                     );
                     if let Ok(result) = self.graph.sparql_select(&disjoint_query)
-                        && !result.contains("true") {
-                            all_disjoint = false;
-                            break;
-                        }
+                        && !result.contains("true")
+                    {
+                        all_disjoint = false;
+                        break;
+                    }
                 }
                 if !all_disjoint {
                     break;
@@ -713,7 +776,12 @@ impl Enforcer {
         }
     }
 
-    fn run_hierarchy_rules(&self, violations: &mut Vec<serde_json::Value>, total: &mut u32, passed: &mut u32) {
+    fn run_hierarchy_rules(
+        &self,
+        violations: &mut Vec<serde_json::Value>,
+        total: &mut u32,
+        passed: &mut u32,
+    ) {
         // Rule 1: Flat hierarchy — classes with too many direct children (>5)
         // These are candidates for intermediate grouping classes.
         *total += 1;
@@ -881,7 +949,12 @@ impl Enforcer {
                 let children = self.query_iris(&children_query, "child");
                 let short_children: Vec<String> = children
                     .iter()
-                    .map(|c| c.rsplit_once('#').or(c.rsplit_once('/')).map(|(_, n)| n.to_string()).unwrap_or(c.clone()))
+                    .map(|c| {
+                        c.rsplit_once('#')
+                            .or(c.rsplit_once('/'))
+                            .map(|(_, n)| n.to_string())
+                            .unwrap_or(c.clone())
+                    })
                     .collect();
 
                 results.push((parent, count, short_children));
@@ -908,7 +981,13 @@ impl Enforcer {
         }
     }
 
-    fn run_custom_rules(&self, rule_pack: &str, violations: &mut Vec<serde_json::Value>, total: &mut u32, passed: &mut u32) {
+    fn run_custom_rules(
+        &self,
+        rule_pack: &str,
+        violations: &mut Vec<serde_json::Value>,
+        total: &mut u32,
+        passed: &mut u32,
+    ) {
         let conn = self.db.conn();
         let mut stmt = conn
             .prepare("SELECT id, query, severity, message FROM enforce_rules WHERE rule_pack = ?1 AND enabled = 1")
@@ -948,14 +1027,17 @@ impl Enforcer {
     fn query_iris(&self, query: &str, var: &str) -> Vec<String> {
         if let Ok(json) = self.graph.sparql_select(query)
             && let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&json)
-                && let Some(results) = parsed["results"].as_array() {
-                    return results
-                        .iter()
-                        .filter_map(|r| {
-                            r[var].as_str().map(|s| s.trim_matches(|c| c == '<' || c == '>').to_string())
-                        })
-                        .collect();
-                }
+            && let Some(results) = parsed["results"].as_array()
+        {
+            return results
+                .iter()
+                .filter_map(|r| {
+                    r[var]
+                        .as_str()
+                        .map(|s| s.trim_matches(|c| c == '<' || c == '>').to_string())
+                })
+                .collect();
+        }
         Vec::new()
     }
 }

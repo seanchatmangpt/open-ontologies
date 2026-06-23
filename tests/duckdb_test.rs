@@ -23,9 +23,18 @@ fn seed_inmemory_db() -> duckdb::Connection {
 
 #[test]
 fn detect_driver_classifies_duckdb_strings() {
-    assert_eq!(sqlsource::detect_driver("duckdb:///tmp/x.db").unwrap(), SqlDriver::DuckDb);
-    assert_eq!(sqlsource::detect_driver(":memory:").unwrap(), SqlDriver::DuckDb);
-    assert_eq!(sqlsource::detect_driver("/data/foo.duckdb").unwrap(), SqlDriver::DuckDb);
+    assert_eq!(
+        sqlsource::detect_driver("duckdb:///tmp/x.db").unwrap(),
+        SqlDriver::DuckDb
+    );
+    assert_eq!(
+        sqlsource::detect_driver(":memory:").unwrap(),
+        SqlDriver::DuckDb
+    );
+    assert_eq!(
+        sqlsource::detect_driver("/data/foo.duckdb").unwrap(),
+        SqlDriver::DuckDb
+    );
 }
 
 #[test]
@@ -108,7 +117,13 @@ fn query_rows_returns_tabular_data_from_duckdb() {
     assert_eq!(rows.len(), 2);
     assert_eq!(rows[0].get("name").map(String::as_str), Some("Margherita"));
     assert_eq!(rows[0].get("base").map(String::as_str), Some("Thin"));
-    assert!(rows[0].get("price").map(String::as_str).unwrap().starts_with("9.5"));
+    assert!(
+        rows[0]
+            .get("price")
+            .map(String::as_str)
+            .unwrap()
+            .starts_with("9.5")
+    );
     assert_eq!(rows[1].get("name").map(String::as_str), Some("Pepperoni"));
 }
 

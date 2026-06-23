@@ -1,3 +1,5 @@
+#![allow(clippy::all, unused)]
+
 //! REAL Groq LLM end-to-end test for `onto_executive_projection`.
 //!
 //! Spawns scripts/executive_projection.py against the chatmangpt/ostar venv
@@ -22,8 +24,7 @@ const VENV_PYTHON: &str = "/Users/sac/chatmangpt/ostar/.venv/bin/python";
 fn read_groq_key() -> Option<String> {
     // Prefer the project .env so the test runs against the pinned key
     // even when a stale GROQ_API_KEY is exported in the developer's shell.
-    let env_path =
-        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(".env");
+    let env_path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(".env");
     if let Ok(content) = std::fs::read_to_string(&env_path) {
         for line in content.lines() {
             if let Some(rest) = line.trim().strip_prefix("GROQ_API_KEY=") {
@@ -55,17 +56,11 @@ fn skip_unless_available() -> Option<String> {
     Some(key)
 }
 
-fn run_projection(
-    evidence: &str,
-    key: &str,
-    extra_env: &[(&str, &str)],
-) -> serde_json::Value {
+fn run_projection(evidence: &str, key: &str, extra_env: &[(&str, &str)]) -> serde_json::Value {
     let script = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("scripts/executive_projection.py");
     let mut cmd = Command::new(VENV_PYTHON);
-    cmd.arg(&script)
-        .arg(evidence)
-        .env("GROQ_API_KEY", key);
+    cmd.arg(&script).arg(evidence).env("GROQ_API_KEY", key);
     for (k, v) in extra_env {
         cmd.env(k, v);
     }
@@ -83,16 +78,9 @@ fn run_projection(
         .lines()
         .rev()
         .find(|l| l.trim_start().starts_with('{'))
-        .unwrap_or_else(|| {
-            panic!(
-                "no JSON line in stdout:\nstdout:\n{stdout}\nstderr:\n{stderr}"
-            )
-        });
-    serde_json::from_str(json_line.trim()).unwrap_or_else(|e| {
-        panic!(
-            "JSON parse failed: {e}\nline: {json_line}\nstderr: {stderr}"
-        )
-    })
+        .unwrap_or_else(|| panic!("no JSON line in stdout:\nstdout:\n{stdout}\nstderr:\n{stderr}"));
+    serde_json::from_str(json_line.trim())
+        .unwrap_or_else(|e| panic!("JSON parse failed: {e}\nline: {json_line}\nstderr: {stderr}"))
 }
 
 #[test]
@@ -126,7 +114,10 @@ fn real_groq_projection_grounded_in_admitted_evidence() {
     );
 
     let verdict = result["verdict"].as_bool().unwrap_or(false);
-    let invented = result["tokens_invented"].as_array().cloned().unwrap_or_default();
+    let invented = result["tokens_invented"]
+        .as_array()
+        .cloned()
+        .unwrap_or_default();
     eprintln!(
         "REAL GROQ EXEC PROJECTION:\n  summary: {summary}\n  verdict: {verdict}\n  refinements: {}\n  tokens_used: {}\n  tokens_invented: {}",
         result["refinements"], result["tokens_used"], result["tokens_invented"]
@@ -177,16 +168,18 @@ fn real_groq_projection_audits_invented_tokens() {
     // happens to stay grounded, verdict=true is also acceptable as long as
     // tokens_invented is consistent (empty iff verdict=true).
     let evidence = "alpha beta gamma delta";
-    let result = run_projection(
-        evidence,
-        &key,
-        &[("POWL_MAX_REFINEMENTS", "0")],
-    );
+    let result = run_projection(evidence, &key, &[("POWL_MAX_REFINEMENTS", "0")]);
 
     let summary = result["summary"].as_str().unwrap_or("");
     let verdict = result["verdict"].as_bool().unwrap_or(false);
-    let invented = result["tokens_invented"].as_array().cloned().unwrap_or_default();
-    let used = result["tokens_used"].as_array().cloned().unwrap_or_default();
+    let invented = result["tokens_invented"]
+        .as_array()
+        .cloned()
+        .unwrap_or_default();
+    let used = result["tokens_used"]
+        .as_array()
+        .cloned()
+        .unwrap_or_default();
     let refinements = result["refinements"].as_i64().unwrap_or(-1);
 
     eprintln!(

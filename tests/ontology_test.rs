@@ -71,9 +71,9 @@ fn test_lint_ontology() {
 
 #[test]
 fn test_lint_with_feedback_suppression() {
+    use open_ontologies::feedback::record_tool_feedback;
     use open_ontologies::ontology::OntologyService;
     use open_ontologies::state::StateDb;
-    use open_ontologies::feedback::record_tool_feedback;
 
     let tmp = tempfile::NamedTempFile::new().unwrap();
     let path = tmp.path().to_path_buf();
@@ -95,8 +95,11 @@ fn test_lint_with_feedback_suppression() {
     // Find the entity string used in the lint output for Dog
     let issues = v["issues"].as_array().unwrap();
     let dog_issue = issues.iter().find(|i| {
-        i["type"].as_str().unwrap_or("") == "missing_label" &&
-        i["entity"].as_str().unwrap_or("").contains("example.org/Dog")
+        i["type"].as_str().unwrap_or("") == "missing_label"
+            && i["entity"]
+                .as_str()
+                .unwrap_or("")
+                .contains("example.org/Dog")
     });
     assert!(dog_issue.is_some(), "Should have missing_label for Dog");
     let entity_str = dog_issue.unwrap()["entity"].as_str().unwrap();

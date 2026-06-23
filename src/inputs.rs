@@ -287,7 +287,8 @@ pub struct OntoPushInput {
     /// Bypass admission gate. Requires `bypass_reason`. Revokes the session.
     pub bypass_admission: Option<bool>,
     /// Required when `bypass_admission` is true.
-    pub bypass_reason: Option<String>,    /// HTTP Basic username for authenticated endpoints (Stardog, GraphDB)
+    pub bypass_reason: Option<String>,
+    /// HTTP Basic username for authenticated endpoints (Stardog, GraphDB)
     pub username: Option<String>,
     /// HTTP Basic password for authenticated endpoints
     pub password: Option<String>,
@@ -680,7 +681,8 @@ pub struct OntoSqlIngestInput {
     /// Bypass admission gate. Requires `bypass_reason`. Revokes the session.
     pub bypass_admission: Option<bool>,
     /// Required when `bypass_admission` is true.
-    pub bypass_reason: Option<String>,    /// CDC sync key — when set together with `watermark_column`, the server
+    pub bypass_reason: Option<String>,
+    /// CDC sync key — when set together with `watermark_column`, the server
     /// records max(watermark_column) from this result set under this key,
     /// so the next call can fetch via `onto_sql_sync_state` and filter only
     /// new rows. Caller is responsible for writing the WHERE clause; the
@@ -753,7 +755,8 @@ pub struct OntoAlignInput {
     /// Bypass admission gate. Requires `bypass_reason`. Revokes the session.
     pub bypass_admission: Option<bool>,
     /// Required when `bypass_admission` is true.
-    pub bypass_reason: Option<String>,    /// Fusion strategy for combining the per-signal scores into a confidence score.
+    pub bypass_reason: Option<String>,
+    /// Fusion strategy for combining the per-signal scores into a confidence score.
     /// One of "weighted_sum" (default — learned weights over the 7 signals, cold-start
     /// equal-weighted) or "rrf" (Reciprocal Rank Fusion at k=60, validated by Agent-OM
     /// at VLDB 2025). RRF doesn't need learned weights so it's a sensible cold-start

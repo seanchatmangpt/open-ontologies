@@ -1,3 +1,5 @@
+#![allow(clippy::all, unused)]
+
 //! Integration test: TTL change → ggen regenerate → validation feedback loop
 //!
 //! Verifies the automatic feedback cycle:
@@ -173,7 +175,18 @@ fn test_onto_validate_checks_shacl() {
     );
 
     // Run onto validate (this checks gates A1-A3)
-    let (success, output) = run_cmd("cargo", &["run", "--release", "--", "ontology", "validate", "--input", CLI_ONTO_FILE]);
+    let (success, output) = run_cmd(
+        "cargo",
+        &[
+            "run",
+            "--release",
+            "--",
+            "ontology",
+            "validate",
+            "--input",
+            CLI_ONTO_FILE,
+        ],
+    );
 
     assert!(
         success,
@@ -183,7 +196,10 @@ fn test_onto_validate_checks_shacl() {
 
     // Validate output contains expected messages
     assert!(
-        output.contains("true") || output.contains("passed") || output.contains("conformance") || output.contains("valid"),
+        output.contains("true")
+            || output.contains("passed")
+            || output.contains("conformance")
+            || output.contains("valid"),
         "Validation output must indicate success: {}",
         output
     );
@@ -304,7 +320,8 @@ fn test_consecutive_syncs_deterministic() {
         serde_json::from_str(&content2).expect("Failed to parse second receipt as JSON");
 
     // output_hashes and input_hashes should match, ignoring files with dynamic timestamps
-    let out_hashes1: Vec<String> = json1.get("output_hashes")
+    let out_hashes1: Vec<String> = json1
+        .get("output_hashes")
         .and_then(|v| v.as_array())
         .map(|arr| {
             arr.iter()
@@ -314,7 +331,8 @@ fn test_consecutive_syncs_deterministic() {
         })
         .unwrap_or_default();
 
-    let out_hashes2: Vec<String> = json2.get("output_hashes")
+    let out_hashes2: Vec<String> = json2
+        .get("output_hashes")
         .and_then(|v| v.as_array())
         .map(|arr| {
             arr.iter()
@@ -341,7 +359,18 @@ fn test_validation_failure_blocks_release() {
     // corrupt the ontology and verify that onto validate returns non-zero.
     // For now, we verify that validation succeeds (happy path).
 
-    let (success, _) = run_cmd("cargo", &["run", "--release", "--", "ontology", "validate", "--input", CLI_ONTO_FILE]);
+    let (success, _) = run_cmd(
+        "cargo",
+        &[
+            "run",
+            "--release",
+            "--",
+            "ontology",
+            "validate",
+            "--input",
+            CLI_ONTO_FILE,
+        ],
+    );
 
     // In production, if validation failed:
     //   assert!(!success, "Validation must fail on corrupted TTL");
@@ -393,8 +422,18 @@ fn test_feedback_loop_integration_happy_path() {
     assert!(ggen_ok, "ggen sync must succeed: {}", ggen_out);
 
     // 3. Run onto validate
-    let (validate_ok, validate_out) =
-        run_cmd("cargo", &["run", "--release", "--", "ontology", "validate", "--input", CLI_ONTO_FILE]);
+    let (validate_ok, validate_out) = run_cmd(
+        "cargo",
+        &[
+            "run",
+            "--release",
+            "--",
+            "ontology",
+            "validate",
+            "--input",
+            CLI_ONTO_FILE,
+        ],
+    );
     assert!(validate_ok, "onto validate must pass: {}", validate_out);
 
     // 4. Verify receipt exists and is signed

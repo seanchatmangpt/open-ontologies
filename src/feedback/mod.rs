@@ -1,10 +1,10 @@
 use crate::state::StateDb;
 
 // ─── OntoStar autonomic feedback loops (Stream 4) ──
-pub mod exemplars;
-pub mod thresholds;
 pub mod discovery;
+pub mod exemplars;
 pub mod regression;
+pub mod thresholds;
 
 /// What to do with an issue based on feedback history.
 ///
@@ -72,7 +72,12 @@ pub enum FeedbackAction {
 /// let action = get_feedback_adjustment(&db, "lint", "missing_label", "http://ex.org/A");
 /// assert_eq!(action, FeedbackAction::Keep);
 /// ```
-pub fn get_feedback_adjustment(db: &StateDb, tool: &str, rule_id: &str, entity: &str) -> FeedbackAction {
+pub fn get_feedback_adjustment(
+    db: &StateDb,
+    tool: &str,
+    rule_id: &str,
+    entity: &str,
+) -> FeedbackAction {
     let conn = db.conn();
     let dismiss_count: i64 = conn
         .query_row(
@@ -121,7 +126,13 @@ pub fn get_feedback_adjustment(db: &StateDb, tool: &str, rule_id: &str, entity: 
 /// assert_eq!(v["tool"], "enforce");
 /// assert_eq!(v["accepted"], true);
 /// ```
-pub fn record_tool_feedback(db: &StateDb, tool: &str, rule_id: &str, entity: &str, accepted: bool) -> anyhow::Result<String> {
+pub fn record_tool_feedback(
+    db: &StateDb,
+    tool: &str,
+    rule_id: &str,
+    entity: &str,
+    accepted: bool,
+) -> anyhow::Result<String> {
     let conn = db.conn();
     conn.execute(
         "INSERT INTO tool_feedback (tool, rule_id, entity, accepted) VALUES (?1, ?2, ?3, ?4)",
@@ -238,7 +249,9 @@ mod tests {
     #[test]
     fn test_record_feedback() {
         let db = test_db();
-        let result = record_tool_feedback(&db, "enforce", "orphan_class", "http://ex.org/Thing", true).unwrap();
+        let result =
+            record_tool_feedback(&db, "enforce", "orphan_class", "http://ex.org/Thing", true)
+                .unwrap();
         let v: serde_json::Value = serde_json::from_str(&result).unwrap();
         assert_eq!(v["ok"], true);
         assert_eq!(v["tool"], "enforce");

@@ -11,9 +11,12 @@
 /// parse the file without requiring the MCP server to be running.
 #[test]
 fn revops_ttl_is_valid_turtle() {
-    let ttl_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("ontology/revops-manufacturing.ttl");
-    assert!(ttl_path.exists(), "ontology/revops-manufacturing.ttl must exist");
+    let ttl_path =
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("ontology/revops-manufacturing.ttl");
+    assert!(
+        ttl_path.exists(),
+        "ontology/revops-manufacturing.ttl must exist"
+    );
     let contents = std::fs::read_to_string(&ttl_path).expect("read TTL file");
     assert!(!contents.is_empty(), "TTL file must not be empty");
     // Verify the docstring claim appears in the file.
@@ -37,8 +40,8 @@ fn revops_ttl_is_valid_turtle() {
 /// the ggen pipeline produced a populated file rather than an empty stub.
 #[test]
 fn generated_revops_stages_non_empty() {
-    let gen_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("src/cmds/generated_revops.rs");
+    let gen_path =
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/cmds/generated_revops.rs");
     assert!(gen_path.exists(), "src/cmds/generated_revops.rs must exist");
 
     let contents = std::fs::read_to_string(&gen_path).expect("read generated_revops.rs");
@@ -52,11 +55,32 @@ fn generated_revops_stages_non_empty() {
         "REVOPS_STAGES must not be empty — rerun: ggen sync --manifest ggen-revops.toml"
     );
     // Verify expected stage names appear.
-    assert!(contents.contains("\"seed\""), "REVOPS_STAGES must contain 'seed'");
-    assert!(contents.contains("\"certify\""), "REVOPS_STAGES must contain 'certify'");
+    assert!(
+        contents.contains("\"seed\""),
+        "REVOPS_STAGES must contain 'seed'"
+    );
+    assert!(
+        contents.contains("\"certify\""),
+        "REVOPS_STAGES must contain 'certify'"
+    );
     // Count 4 stage entries.
-    let stage_count = contents.lines()
-        .filter(|l| l.trim().starts_with('"') && l.trim().ends_with("\","))
+    let start_str = "REVOPS_STAGES: &[&str] = &[";
+    let start_idx = contents
+        .find(start_str)
+        .map(|i| i + start_str.len())
+        .unwrap_or(0);
+    let end_idx = contents[start_idx..]
+        .find("];")
+        .map(|i| start_idx + i)
+        .unwrap_or(contents.len());
+    let array_content = &contents[start_idx..end_idx];
+    let stage_count = array_content
+        .split(',')
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty())
         .count();
-    assert_eq!(stage_count, 4, "RevOps profile must have exactly 4 stages; found {stage_count}");
+    assert_eq!(
+        stage_count, 4,
+        "RevOps profile must have exactly 4 stages; found {stage_count}"
+    );
 }

@@ -14,7 +14,7 @@
 //!   4. `ensure_loaded()` — called by every read tool *before* using the graph;
 //!      if the store was evicted, it reloads from the cache (or from source if
 //!      `auto_refresh` detected a change).
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
@@ -109,7 +109,8 @@ impl ExecutionRegistry<Unbound> {
     }
 
     pub fn bind(mut self, component: &str, target: &str) -> Self {
-        self.bindings.insert(component.to_string(), target.to_string());
+        self.bindings
+            .insert(component.to_string(), target.to_string());
         self
     }
 
@@ -190,7 +191,10 @@ impl OntologyRegistry {
         if !path_obj.exists() {
             return Err(anyhow!("file not found: {}", path));
         }
-        let name = opts.name.clone().unwrap_or_else(|| crate::cache::derive_name(path));
+        let name = opts
+            .name
+            .clone()
+            .unwrap_or_else(|| crate::cache::derive_name(path));
         let fp = SourceFingerprint::from_path(path_obj)?;
 
         // Decide load strategy: cache vs source.
@@ -351,7 +355,8 @@ impl OntologyRegistry {
                 let new_cache = self.cache.cache_path_for(&name, &cur.sha_prefix);
                 let nt = self.graph.serialize(NTRIPLES_FORMAT)?;
                 CacheManager::atomic_write(&new_cache, &nt)?;
-                self.cache.upsert(&name, &source_path, &cur, &new_cache, count)?;
+                self.cache
+                    .upsert(&name, &source_path, &cur, &new_cache, count)?;
 
                 let mut active_guard = self.active.lock().unwrap();
                 if let Some(entry) = active_guard.as_mut() {
@@ -376,7 +381,9 @@ impl OntologyRegistry {
             } else {
                 return Err(anyhow!(
                     "ontology '{}' was evicted but neither cache file '{}' nor source '{}' exists",
-                    name, cache_path.display(), source_path
+                    name,
+                    cache_path.display(),
+                    source_path
                 ));
             }
             let active_guard = self.active.lock().unwrap();
@@ -423,7 +430,9 @@ impl OntologyRegistry {
         }
         let ttl = Duration::from_secs(self.config.idle_ttl_secs);
         let active = self.active.lock().unwrap();
-        let Some(entry) = active.as_ref() else { return Ok(false) };
+        let Some(entry) = active.as_ref() else {
+            return Ok(false);
+        };
         let already = *entry.evicted.lock().unwrap();
         if already {
             return Ok(false);
@@ -466,7 +475,9 @@ impl OntologyRegistry {
     /// ```
     pub fn unload(&self, delete_cache: bool) -> Result<Option<String>> {
         let mut active = self.active.lock().unwrap();
-        let Some(entry) = active.take() else { return Ok(None) };
+        let Some(entry) = active.take() else {
+            return Ok(None);
+        };
         self.graph.clear()?;
         if delete_cache {
             self.cache.remove(&entry.name)?;
@@ -510,7 +521,11 @@ impl OntologyRegistry {
             let entry = active
                 .as_ref()
                 .ok_or_else(|| anyhow!("no active ontology to recompile"))?;
-            (entry.source_path.clone(), entry.name.clone(), entry.auto_refresh)
+            (
+                entry.source_path.clone(),
+                entry.name.clone(),
+                entry.auto_refresh,
+            )
         };
         self.load_file(
             &path,
@@ -544,7 +559,8 @@ impl OntologyRegistry {
         if !path.exists() {
             return Err(anyhow!(
                 "source file '{}' for cached ontology '{}' is missing",
-                entry.source_path, name
+                entry.source_path,
+                name
             ));
         }
         // Parse into an isolated graph so we don't disturb the active slot.
@@ -561,7 +577,8 @@ impl OntologyRegistry {
         if entry.cache_path != cache_path.to_string_lossy() {
             let _ = std::fs::remove_file(&entry.cache_path);
         }
-        self.cache.upsert(name, &entry.source_path, &fp, &cache_path, count)?;
+        self.cache
+            .upsert(name, &entry.source_path, &fp, &cache_path, count)?;
         Ok(LoadResult {
             name: name.to_string(),
             source_path: entry.source_path,
@@ -728,8 +745,7 @@ impl OntologyRegistry {
 pub fn spawn_evictor(registry: Arc<OntologyRegistry>) -> tokio::task::JoinHandle<()> {
     let interval_secs = registry.config().evictor_interval_secs.max(1);
     tokio::spawn(async move {
-        let mut ticker =
-            tokio::time::interval(Duration::from_secs(interval_secs));
+        let mut ticker = tokio::time::interval(Duration::from_secs(interval_secs));
         // Skip the immediate tick so we don't evict before any access happens.
         ticker.tick().await;
         loop {

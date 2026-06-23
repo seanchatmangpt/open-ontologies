@@ -114,9 +114,7 @@ async fn evaluate_admission_denies_cross_tenant_in_production_path() {
     let load_resp = server_alpha
         .onto_load(Parameters(OntoLoadInput {
             path: None,
-            turtle: Some(
-                "@prefix ex: <https://example.org/> . ex:A a ex:Thing .".to_string(),
-            ),
+            turtle: Some("@prefix ex: <https://example.org/> . ex:A a ex:Thing .".to_string()),
             name: None,
             auto_refresh: None,
             force_recompile: None,
@@ -169,10 +167,10 @@ async fn evaluate_admission_denies_cross_tenant_in_production_path() {
 
 #[tokio::test]
 async fn http_middleware_extracts_x_ontostar_tenant_header() {
+    use axum::Router;
     use axum::body::Body;
     use axum::http::{Request, StatusCode};
     use axum::routing::get;
-    use axum::Router;
     use tower::ServiceExt;
 
     // Probe handler reads TENANT_OVERRIDE and echoes it.
@@ -232,7 +230,10 @@ async fn http_middleware_extracts_x_ontostar_tenant_header() {
     let resp = app.clone().oneshot(req).await.unwrap();
     let body_bytes = axum::body::to_bytes(resp.into_body(), 1024).await.unwrap();
     let body = String::from_utf8(body_bytes.to_vec()).unwrap();
-    assert_eq!(body, "default", "invalid tenant header must collapse to default");
+    assert_eq!(
+        body, "default",
+        "invalid tenant header must collapse to default"
+    );
 
     // Request 4: no header → default.
     let req = Request::builder()
@@ -242,7 +243,10 @@ async fn http_middleware_extracts_x_ontostar_tenant_header() {
     let resp = app.oneshot(req).await.unwrap();
     let body_bytes = axum::body::to_bytes(resp.into_body(), 1024).await.unwrap();
     let body = String::from_utf8(body_bytes.to_vec()).unwrap();
-    assert_eq!(body, "default", "absent tenant header must collapse to default");
+    assert_eq!(
+        body, "default",
+        "absent tenant header must collapse to default"
+    );
 }
 
 /// Mirrors `cmds::server::tenant_extract_layer` byte-for-byte. Kept as a

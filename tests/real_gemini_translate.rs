@@ -1,3 +1,5 @@
+#![allow(clippy::all, unused)]
+
 //! Mocked gemini CLI/API integration test for `onto_translate_candidate`.
 use std::sync::Arc;
 
@@ -8,8 +10,8 @@ use open_ontologies::server::OpenOntologiesServer;
 use open_ontologies::state::StateDb;
 use open_ontologies::toolfilter::ToolFilter;
 use rmcp::handler::server::wrapper::Parameters;
-use wiremock::{MockServer, Mock, ResponseTemplate};
 use wiremock::matchers::{method, path};
+use wiremock::{Mock, MockServer, ResponseTemplate};
 
 static TEST_MUTEX: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
@@ -82,7 +84,10 @@ async fn translate_candidate_gemini_engine_returns_candidate_ctq() {
     assert_eq!(v["ok"], true, "ok must be true: {resp}");
     assert_eq!(v["engine"], "gemini", "engine must be gemini: {resp}");
     assert_eq!(v["provisional"], true, "must be provisional: {resp}");
-    assert_eq!(v["_projection_only"], true, "must be projection_only: {resp}");
+    assert_eq!(
+        v["_projection_only"], true,
+        "must be projection_only: {resp}"
+    );
 
     let candidate = &v["candidate"];
     assert!(
@@ -126,8 +131,10 @@ async fn translate_candidate_gemini_engine_spawn_failure_returns_error_json() {
         std::env::remove_var("OPEN_ONTOLOGIES_LLM_API_KEY");
     }
 
-    let v: serde_json::Value =
-        serde_json::from_str(&resp).expect(&format!("must return valid JSON even on failure. got: {}", resp));
+    let v: serde_json::Value = serde_json::from_str(&resp).expect(&format!(
+        "must return valid JSON even on failure. got: {}",
+        resp
+    ));
     assert_eq!(v["ok"], false, "ok must be false on spawn failure: {resp}");
     assert!(
         v["error"].as_str().is_some(),

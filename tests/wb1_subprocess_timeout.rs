@@ -25,7 +25,7 @@
 use std::process::Command;
 use std::time::{Duration, Instant};
 
-use open_ontologies::subprocess::{run_with_timeout, SubprocessContext, SubprocessError};
+use open_ontologies::subprocess::{SubprocessContext, SubprocessError, run_with_timeout};
 
 const CTX: SubprocessContext<'static> = SubprocessContext {
     model: "wb1-test",
@@ -87,7 +87,10 @@ fn no_zombie_after_kill() {
         cmd.arg("5");
         let err = run_with_timeout(&mut cmd, Duration::from_millis(80), CTX)
             .expect_err("iteration {i} must time out");
-        assert!(matches!(err, SubprocessError::LlmTimeout { .. }), "iter {i}");
+        assert!(
+            matches!(err, SubprocessError::LlmTimeout { .. }),
+            "iter {i}"
+        );
     }
     // Best-effort: query /bin/ps for our PID's children. On macOS the
     // shell script below counts processes whose parent PID is the
@@ -97,7 +100,9 @@ fn no_zombie_after_kill() {
     let pid = std::process::id();
     if let Ok(out) = Command::new("/bin/sh")
         .arg("-c")
-        .arg(format!("ps -o pid,ppid,state -A | awk '$2 == {pid} {{print}}'"))
+        .arg(format!(
+            "ps -o pid,ppid,state -A | awk '$2 == {pid} {{print}}'"
+        ))
         .output()
     {
         let stdout = String::from_utf8_lossy(&out.stdout);

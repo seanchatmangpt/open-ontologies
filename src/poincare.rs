@@ -273,7 +273,10 @@ mod tests {
         let p = vec![0.3, 0.4, 0.0];
         let result = mobius_add(&origin, &p);
         for (a, b) in result.iter().zip(p.iter()) {
-            assert!((a - b).abs() < 1e-5, "Origin should be identity for Mobius addition");
+            assert!(
+                (a - b).abs() < 1e-5,
+                "Origin should be identity for Mobius addition"
+            );
         }
     }
 
@@ -281,7 +284,11 @@ mod tests {
     fn conformal_factor_at_origin() {
         let origin = vec![0.0, 0.0];
         let lambda = conformal_factor(&origin);
-        assert!((lambda - 2.0).abs() < 1e-5, "Conformal factor at origin should be 2.0, got {}", lambda);
+        assert!(
+            (lambda - 2.0).abs() < 1e-5,
+            "Conformal factor at origin should be 2.0, got {}",
+            lambda
+        );
     }
 
     #[test]

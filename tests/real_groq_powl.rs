@@ -1,3 +1,5 @@
+#![allow(clippy::all, unused)]
+
 //! REAL Groq LLM end-to-end test.
 //!
 //! Spawns scripts/powl_from_text.py against the chatmangpt/pm4py fork
@@ -88,14 +90,9 @@ fn run_powl(description: &str, key: &str) -> serde_json::Value {
         .lines()
         .rev()
         .find(|l| l.trim_start().starts_with('{'))
-        .unwrap_or_else(|| panic!(
-            "no JSON line in stdout:\nstdout:\n{stdout}\nstderr:\n{stderr}"
-        ));
-    serde_json::from_str(json_line.trim()).unwrap_or_else(|e| {
-        panic!(
-            "JSON parse failed: {e}\nline: {json_line}\nstderr: {stderr}"
-        )
-    })
+        .unwrap_or_else(|| panic!("no JSON line in stdout:\nstdout:\n{stdout}\nstderr:\n{stderr}"));
+    serde_json::from_str(json_line.trim())
+        .unwrap_or_else(|e| panic!("JSON parse failed: {e}\nline: {json_line}\nstderr: {stderr}"))
 }
 
 #[test]
@@ -158,8 +155,8 @@ fn real_groq_call_returns_typed_failure_on_empty_input() {
     // validation BEFORE any Groq call is made — this proves the
     // contract surface and keeps API quota off the floor for
     // pathological inputs.
-    let script = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("scripts/powl_from_text.py");
+    let script =
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("scripts/powl_from_text.py");
     let output = Command::new(VENV_PYTHON)
         .arg(&script)
         .arg("")
@@ -168,7 +165,11 @@ fn real_groq_call_returns_typed_failure_on_empty_input() {
         .output()
         .expect("spawn python");
     assert!(!output.status.success(), "empty input should fail");
-    assert_eq!(output.status.code(), Some(2), "expected exit 2 for usage error");
+    assert_eq!(
+        output.status.code(),
+        Some(2),
+        "expected exit 2 for usage error"
+    );
     let err = String::from_utf8_lossy(&output.stderr);
     assert!(
         err.contains("empty process description") || err.contains("usage:"),

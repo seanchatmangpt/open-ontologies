@@ -43,23 +43,17 @@ pub fn run_doctor_checks(graph: &crate::graph::GraphStore) -> Vec<(String, bool,
                 format!("Groq API key is present. Base URL: {}", api_base),
             )
         } else {
-            (
-                false,
-                "Groq API key is empty".to_string(),
-            )
+            (false, "Groq API key is empty".to_string())
         }
     } else {
         (
             false,
-            "Groq API key (GROQ_API_KEY or OPEN_ONTOLOGIES_LLM_API_KEY) not found in environment".to_string(),
+            "Groq API key (GROQ_API_KEY or OPEN_ONTOLOGIES_LLM_API_KEY) not found in environment"
+                .to_string(),
         )
     };
 
-    checks.push((
-        "Groq Connectivity".to_string(),
-        groq_ok,
-        groq_msg,
-    ));
+    checks.push(("Groq Connectivity".to_string(), groq_ok, groq_msg));
 
     checks
 }
@@ -79,4 +73,3 @@ mod tests {
         assert_eq!(checks[2].0, "Groq Connectivity");
     }
 }
-

@@ -22,6 +22,7 @@
 //! stable order, the second projection legitimately produces a different
 //! byte vector → different BLAKE3 → different hex → A13 ReplayDivergence
 //! with `expected != observed`.
+#![allow(clippy::type_complexity)]
 
 use open_ontologies::admission::{
     self, AdmissionOp, ArtifactRef, NoopPowlReplay, OntoStarAdmissionGate,
@@ -29,7 +30,7 @@ use open_ontologies::admission::{
 use open_ontologies::defects::DefectClass;
 use open_ontologies::ocel_store::OcelStore;
 use open_ontologies::state::StateDb;
-use open_ontologies::workflows::{by_name, WorkflowScope};
+use open_ontologies::workflows::{WorkflowScope, by_name};
 use tempfile::tempdir;
 
 fn fresh_db() -> StateDb {
@@ -119,9 +120,7 @@ fn a13_replay_divergence_under_concurrent_mutation() {
             let event_id = format!(
                 "{}:a13_concurrent_mutation:{}",
                 session,
-                chrono::Utc::now()
-                    .timestamp_nanos_opt()
-                    .unwrap_or(0)
+                chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0)
             );
             // event_type is a NEW string — guarantees the projection
             // changes (DISTINCT semantics on event_type).

@@ -49,7 +49,10 @@ fn r4_red_team_depth1_helper_writes_db_caught() {
     "#;
     let handlers = nba::extract_handlers_for_test(synthetic);
     let fn_map = nba::build_fn_map_for_test(synthetic);
-    let (_, body) = handlers.iter().find(|(n, _)| n == "onto_naked_insert").expect("handler");
+    let (_, body) = handlers
+        .iter()
+        .find(|(n, _)| n == "onto_naked_insert")
+        .expect("handler");
     let live = nba::strip_dead_code_blocks(body);
     assert!(
         nba::handler_reaches_db_write_bypassing_gate(&live, &fn_map),
@@ -80,7 +83,10 @@ fn r4_red_team_depth1_helper_gated_passes() {
     "#;
     let handlers = nba::extract_handlers_for_test(synthetic);
     let fn_map = nba::build_fn_map_for_test(synthetic);
-    let (_, body) = handlers.iter().find(|(n, _)| n == "onto_safe").expect("handler");
+    let (_, body) = handlers
+        .iter()
+        .find(|(n, _)| n == "onto_safe")
+        .expect("handler");
     let live = nba::strip_dead_code_blocks(body);
     assert!(
         !nba::handler_reaches_db_write_bypassing_gate(&live, &fn_map),
@@ -96,8 +102,10 @@ fn r4_red_team_conditionally_gated_path_caught() {
     // catches it. The synthetic source string is built at runtime to avoid
     // the dead-param gate's literal scan flagging this fixture as a real
     // gate-result discard.
-    let dead_gate_call =
-        format!("{}{}", "let _ = self.", "evaluate_admission(op, None, \"k\", b\"v\", None, None);");
+    let dead_gate_call = format!(
+        "{}{}",
+        "let _ = self.", "evaluate_admission(op, None, \"k\", b\"v\", None, None);"
+    );
     let synthetic = format!(
         r#"
         impl OpenOntologiesServer {{
@@ -116,7 +124,10 @@ fn r4_red_team_conditionally_gated_path_caught() {
     );
     let fn_map: HashMap<String, String> = HashMap::new();
     let handlers = nba::extract_handlers_for_test(&synthetic);
-    let (_, body) = handlers.iter().find(|(n, _)| n == "onto_conditional").expect("handler");
+    let (_, body) = handlers
+        .iter()
+        .find(|(n, _)| n == "onto_conditional")
+        .expect("handler");
     let live = nba::strip_dead_code_blocks(body);
     assert!(
         nba::handler_reaches_db_write_bypassing_gate(&live, &fn_map),
@@ -126,16 +137,14 @@ fn r4_red_team_conditionally_gated_path_caught() {
 
 #[test]
 fn r4_red_team_weak_justification_graph_without_rdf_graph_rejected() {
-    let res = nba::validate_allowlist_justification(
-        "READ-ONLY: queries the graph but does not write",
-    );
+    let res =
+        nba::validate_allowlist_justification("READ-ONLY: queries the graph but does not write");
     assert!(
         res.is_err(),
         "justification using bare 'graph' (could mean SQLite) must be rejected"
     );
 
-    let res_ok =
-        nba::validate_allowlist_justification("READ-ONLY: queries the RDF graph only");
+    let res_ok = nba::validate_allowlist_justification("READ-ONLY: queries the RDF graph only");
     assert!(
         res_ok.is_ok(),
         "justification with explicit 'RDF graph' must pass"
@@ -144,9 +153,7 @@ fn r4_red_team_weak_justification_graph_without_rdf_graph_rejected() {
 
 #[test]
 fn r4_red_team_missing_read_only_prefix_rejected() {
-    let bad = nba::validate_allowlist_justification(
-        "this handler does not write the SQLite store",
-    );
+    let bad = nba::validate_allowlist_justification("this handler does not write the SQLite store");
     assert!(
         bad.is_err(),
         "justification without 'READ-ONLY: ' prefix must be rejected"
@@ -169,7 +176,10 @@ fn r4_red_team_direct_db_write_in_handler_body_caught() {
     "#;
     let handlers = nba::extract_handlers_for_test(synthetic);
     let fn_map: HashMap<String, String> = HashMap::new();
-    let (_, body) = handlers.iter().find(|(n, _)| n == "onto_direct_write").expect("handler");
+    let (_, body) = handlers
+        .iter()
+        .find(|(n, _)| n == "onto_direct_write")
+        .expect("handler");
     let live = nba::strip_dead_code_blocks(body);
     assert!(
         nba::body_writes_db(&live),

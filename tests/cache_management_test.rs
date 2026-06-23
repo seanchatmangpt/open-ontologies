@@ -70,7 +70,13 @@ fn setup() -> TestHarness {
         hash_prefix_bytes: 64 * 1024,
     };
     let registry = Arc::new(OntologyRegistry::new(graph.clone(), db, cfg).unwrap());
-    TestHarness { _tmp: tmp, path_a, path_b, registry, graph }
+    TestHarness {
+        _tmp: tmp,
+        path_a,
+        path_b,
+        registry,
+        graph,
+    }
 }
 
 /// Load A then B so B is active, A is cached but not active.
@@ -100,10 +106,7 @@ fn list_cached_includes_all_loaded_ontologies() {
     populate_two(&h);
     let list = h.registry.list_cached().unwrap();
     assert_eq!(list.len(), 2, "both A and B should be cached");
-    let names: Vec<&str> = list
-        .iter()
-        .map(|e| e["name"].as_str().unwrap())
-        .collect();
+    let names: Vec<&str> = list.iter().map(|e| e["name"].as_str().unwrap()).collect();
     assert!(names.contains(&"a"));
     assert!(names.contains(&"b"));
 }
@@ -115,7 +118,10 @@ fn list_cached_flags_active_and_in_memory() {
     let list = h.registry.list_cached().unwrap();
     let b = list.iter().find(|e| e["name"] == "b").unwrap();
     let a = list.iter().find(|e| e["name"] == "a").unwrap();
-    assert_eq!(b["is_active"], true, "B is the most-recently-loaded -> active");
+    assert_eq!(
+        b["is_active"], true,
+        "B is the most-recently-loaded -> active"
+    );
     assert_eq!(b["in_memory"], true);
     assert_eq!(a["is_active"], false, "A is cached but not active");
     assert_eq!(a["in_memory"], false);
@@ -137,7 +143,8 @@ fn list_cached_marks_in_memory_false_after_eviction() {
         hash_prefix_bytes: 64 * 1024,
     };
     let reg = OntologyRegistry::new(graph, db, cfg).unwrap();
-    reg.load_file(path.to_str().unwrap(), LoadOptions::default()).unwrap();
+    reg.load_file(path.to_str().unwrap(), LoadOptions::default())
+        .unwrap();
     sleep(Duration::from_millis(1100));
     assert!(reg.evictor_tick().unwrap());
     let list = reg.list_cached().unwrap();
@@ -154,7 +161,10 @@ fn list_cached_marks_in_memory_false_after_eviction() {
 fn unload_named_unknown_returns_error() {
     let h = setup();
     populate_two(&h);
-    let err = h.registry.unload_named("does-not-exist", false).unwrap_err();
+    let err = h
+        .registry
+        .unload_named("does-not-exist", false)
+        .unwrap_err();
     assert!(
         err.to_string().contains("does-not-exist"),
         "error message should mention the name; got: {}",
@@ -230,7 +240,10 @@ fn unload_named_active_with_delete_removes_db_row_and_file() {
 
     h.registry.unload_named("b", true).unwrap();
     assert_eq!(h.graph.triple_count(), 0);
-    assert!(!std::path::Path::new(&b_cache).exists(), "cache file deleted");
+    assert!(
+        !std::path::Path::new(&b_cache).exists(),
+        "cache file deleted"
+    );
 
     let list = h.registry.list_cached().unwrap();
     assert_eq!(list.len(), 1);
@@ -342,7 +355,9 @@ fn recompile_named_garbage_collects_old_cache_file_when_sha_changes() {
         .unwrap()
         .to_string();
     assert_ne!(new_a_cache, old_a_cache, "new cache file path expected");
-    assert!(!std::path::Path::new(&old_a_cache).exists(),
-        "old cache file should be cleaned up");
+    assert!(
+        !std::path::Path::new(&old_a_cache).exists(),
+        "old cache file should be cleaned up"
+    );
     assert!(std::path::Path::new(&new_a_cache).exists());
 }

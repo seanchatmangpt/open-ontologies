@@ -95,6 +95,7 @@
 //! - `src/admission.rs::re_snapshot_ocel_for_replay_proof` — the fix.
 //! - `src/cell_ready.rs:378` — the A13 equality check.
 //! - `src/defects.rs::DefectClass::ReplayDivergence` — the typed defect.
+#![allow(clippy::type_complexity, clippy::doc_overindented_list_items)]
 
 use open_ontologies::admission::{
     self, AdmissionOp, ArtifactRef, NoopPowlReplay, OntoStarAdmissionGate,
@@ -102,7 +103,7 @@ use open_ontologies::admission::{
 use open_ontologies::defects::DefectClass;
 use open_ontologies::ocel_store::OcelStore;
 use open_ontologies::state::StateDb;
-use open_ontologies::workflows::{by_name, WorkflowScope};
+use open_ontologies::workflows::{WorkflowScope, by_name};
 use tempfile::tempdir;
 
 #[test]
@@ -155,9 +156,7 @@ fn a13_replay_proof_is_load_bearing_under_concurrent_mutation() {
             let event_id = format!(
                 "{}:a13_saboteur:{}",
                 session,
-                chrono::Utc::now()
-                    .timestamp_nanos_opt()
-                    .unwrap_or(0)
+                chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0)
             );
             store
                 .emit_event(

@@ -335,39 +335,31 @@ impl StateDb {
         // Safe migration: add webhook columns if upgrading from older schema
         let _ = conn.execute_batch(
             "ALTER TABLE monitor_watchers ADD COLUMN webhook_url TEXT;
-             ALTER TABLE monitor_watchers ADD COLUMN webhook_headers TEXT;"
+             ALTER TABLE monitor_watchers ADD COLUMN webhook_headers TEXT;",
         );
         // Safe migration: add signals_json column for feedback-based weight learning
-        let _ = conn.execute_batch(
-            "ALTER TABLE align_feedback ADD COLUMN signals_json TEXT;"
-        );
+        let _ = conn.execute_batch("ALTER TABLE align_feedback ADD COLUMN signals_json TEXT;");
         // OntoStar Stream 4: defensive ALTERs for older databases that may
         // have created `conformance_runs` / `mined_exemplars` before Stream 4
         // landed. Wrapped in `let _ =` because re-applying is idempotent.
-        let _ = conn.execute_batch(
-            "ALTER TABLE conformance_runs ADD COLUMN workflow_class TEXT;"
-        );
-        let _ = conn.execute_batch(
-            "ALTER TABLE mined_exemplars ADD COLUMN build_order TEXT;"
-        );
+        let _ = conn.execute_batch("ALTER TABLE conformance_runs ADD COLUMN workflow_class TEXT;");
+        let _ = conn.execute_batch("ALTER TABLE mined_exemplars ADD COLUMN build_order TEXT;");
         let _ = conn.execute_batch(
             "CREATE INDEX IF NOT EXISTS idx_conformance_runs_workflow
-                 ON conformance_runs(workflow_class, ran_at);"
+                 ON conformance_runs(workflow_class, ran_at);",
         );
         // OntoStar Stream 3: receipts.session_id for per-session chaining.
         // Stream 1's `receipts` table has no session_id column; we ALTER it in
         // additively so cell_ready/admission can chain per session.
-        let _ = conn.execute_batch(
-            "ALTER TABLE receipts ADD COLUMN session_id TEXT NOT NULL DEFAULT '';"
-        );
+        let _ = conn
+            .execute_batch("ALTER TABLE receipts ADD COLUMN session_id TEXT NOT NULL DEFAULT '';");
         // Task C: per-session monotonic sequence column for deterministic chain
         // ordering. The ALTER is wrapped in `let _` so it is idempotent on
         // databases that already have the column (SQLite returns
         // "duplicate column name"). The UPDATE backfill is run unconditionally
         // but is safe — it only touches rows where sequence = 0 (the default).
-        let _ = conn.execute_batch(
-            "ALTER TABLE receipts ADD COLUMN sequence INTEGER NOT NULL DEFAULT 0;"
-        );
+        let _ = conn
+            .execute_batch("ALTER TABLE receipts ADD COLUMN sequence INTEGER NOT NULL DEFAULT 0;");
         // Backfill BEFORE creating the unique index so legacy rows (all
         // defaulted to sequence=0) get distinct values per session first.
         let _ = conn.execute_batch(
@@ -375,20 +367,18 @@ impl StateDb {
                SELECT COUNT(*) FROM receipts r2
                 WHERE r2.session_id = receipts.session_id
                   AND r2.granted_at < receipts.granted_at
-             ) + 1 WHERE sequence = 0;"
+             ) + 1 WHERE sequence = 0;",
         );
         let _ = conn.execute_batch(
             "CREATE UNIQUE INDEX IF NOT EXISTS receipts_session_sequence_uniq
                  ON receipts(session_id, sequence);
              CREATE INDEX IF NOT EXISTS receipts_session_seq_desc
-                 ON receipts(session_id, sequence DESC);"
+                 ON receipts(session_id, sequence DESC);",
         );
         // OntoStar Stream 1: workflow scope, OCEL scope tagging, revoked sessions.
         // Run as separate batches so additive ALTER on an existing DB does not
         // poison sibling CREATEs.
-        let _ = conn.execute_batch(
-            "ALTER TABLE ocel_events ADD COLUMN scope_token TEXT;"
-        );
+        let _ = conn.execute_batch("ALTER TABLE ocel_events ADD COLUMN scope_token TEXT;");
         conn.execute_batch(
             "CREATE INDEX IF NOT EXISTS idx_ocel_scope ON ocel_events(scope_token);
 
@@ -412,7 +402,7 @@ impl StateDb {
              );
 
              CREATE INDEX IF NOT EXISTS idx_declared_workflows_session
-                 ON declared_workflows(session_id, status);"
+                 ON declared_workflows(session_id, status);",
         )?;
 
         // OntoStar Level 5 — capability evidence + per-scope outcome columns.
@@ -465,7 +455,7 @@ impl StateDb {
                  first_admitted_at         TEXT,
                  last_admitted_at          TEXT,
                  defects_taxonomy_version  TEXT NOT NULL
-             );"
+             );",
         )?;
 
         // ─── Phase 11: multi-tenant ALTERs (after all CREATEs) ─────────
@@ -508,7 +498,7 @@ impl StateDb {
              CREATE UNIQUE INDEX IF NOT EXISTS receipts_session_tenant_seq_uniq \
                  ON receipts(session_id, tenant_id, sequence);\
              CREATE INDEX IF NOT EXISTS receipts_session_tenant_seq_desc \
-                 ON receipts(session_id, tenant_id, sequence DESC);"
+                 ON receipts(session_id, tenant_id, sequence DESC);",
         );
 
         // ─── Round 4 WD — §29 Cell8 retirement closure ────────────────────
@@ -519,7 +509,7 @@ impl StateDb {
         //    pass A10 without window check (with a tracing::warn from the
         //    verifier). Plan D Option 1.
         let _ = conn.execute_batch(
-            "ALTER TABLE receipts ADD COLUMN key_valid_at TEXT NOT NULL DEFAULT '';"
+            "ALTER TABLE receipts ADD COLUMN key_valid_at TEXT NOT NULL DEFAULT '';",
         );
 
         // 2) `trusted_keys_history` — every key the gate ever accepted.
@@ -536,7 +526,7 @@ impl StateDb {
              CREATE INDEX IF NOT EXISTS idx_trusted_keys_history_status
                  ON trusted_keys_history(status);
              CREATE INDEX IF NOT EXISTS idx_trusted_keys_history_added_at
-                 ON trusted_keys_history(added_at);"
+                 ON trusted_keys_history(added_at);",
         )?;
 
         // 3) Retention pruning indexes. Each (tenant_id, time/created) DESC
@@ -655,7 +645,15 @@ impl StateDb {
                  sum_precision   = sum_precision + excluded.sum_precision,
                  last_admitted_at = excluded.last_admitted_at,
                  defects_taxonomy_version = excluded.defects_taxonomy_version",
-            rusqlite::params![workflow_name, success, failure, fitness, precision, now, taxonomy_version],
+            rusqlite::params![
+                workflow_name,
+                success,
+                failure,
+                fitness,
+                precision,
+                now,
+                taxonomy_version
+            ],
         )?;
         Ok(())
     }
@@ -733,10 +731,16 @@ impl StateDb {
                 admission_decided_at = ?9
              WHERE scope_token = ?10",
             rusqlite::params![
-                admitted_i, fitness, precision,
-                defects_json, deviations_json,
-                gates_fired_json, gates_denied_json,
-                manufacturing_delta_json, now, scope_token,
+                admitted_i,
+                fitness,
+                precision,
+                defects_json,
+                deviations_json,
+                gates_fired_json,
+                gates_denied_json,
+                manufacturing_delta_json,
+                now,
+                scope_token,
             ],
         )?;
         Ok(())
@@ -801,7 +805,8 @@ impl StateDb {
     /// ```
     pub fn get_last_active_path(&self) -> Result<Option<String>> {
         let conn = self.conn();
-        let mut stmt = conn.prepare("SELECT value FROM monitor_state WHERE key = 'last_active_ontology_path'")?;
+        let mut stmt = conn
+            .prepare("SELECT value FROM monitor_state WHERE key = 'last_active_ontology_path'")?;
         let mut rows = stmt.query([])?;
         Ok(rows.next()?.map(|r| r.get(0)).transpose()?)
     }
@@ -910,9 +915,12 @@ impl StateDb {
     pub fn last_cache_entry(&self) -> Result<Option<(String, i64)>> {
         let conn = self.conn();
         let mut stmt = conn.prepare(
-            "SELECT name, triple_count FROM ontology_cache ORDER BY last_access_at DESC LIMIT 1"
+            "SELECT name, triple_count FROM ontology_cache ORDER BY last_access_at DESC LIMIT 1",
         )?;
         let mut rows = stmt.query([])?;
-        Ok(rows.next()?.map(|r| Ok::<_, rusqlite::Error>((r.get(0)?, r.get(1)?))).transpose()?)
+        Ok(rows
+            .next()?
+            .map(|r| Ok::<_, rusqlite::Error>((r.get(0)?, r.get(1)?)))
+            .transpose()?)
     }
 }

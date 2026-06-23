@@ -1,3 +1,5 @@
+#![allow(clippy::all, unused)]
+
 //! R5 WC-2 — HTTP header allowlist counterfactual tests.
 //!
 //! Two new HTTP middleware paths are exercised here:
@@ -24,11 +26,11 @@
 
 use std::sync::{Arc, Mutex, MutexGuard, OnceLock};
 
+use axum::Router;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use axum::routing::get;
-use axum::Router;
-use open_ontologies::config::{resolve_known_tenants, AuthorityConfig};
+use open_ontologies::config::{AuthorityConfig, resolve_known_tenants};
 use tower::ServiceExt;
 
 const TENANT_ENV_KEY: &str = "OPEN_ONTOLOGIES_KNOWN_TENANTS";
@@ -213,12 +215,13 @@ async fn run_through_tenant_layer(
 
 #[tokio::test]
 async fn tenant_header_in_allowlist_admits() {
-    let (status, body) = run_through_tenant_layer(
-        vec!["acme".to_string(), "beta".to_string()],
-        Some("acme"),
-    )
-    .await;
-    assert_eq!(status, StatusCode::OK, "tenant in allowlist must pass: {body}");
+    let (status, body) =
+        run_through_tenant_layer(vec!["acme".to_string(), "beta".to_string()], Some("acme")).await;
+    assert_eq!(
+        status,
+        StatusCode::OK,
+        "tenant in allowlist must pass: {body}"
+    );
     assert_eq!(body, "ok");
 }
 
@@ -256,8 +259,7 @@ async fn tenant_header_unset_uses_default_under_open_allowlist() {
     );
 
     // Even with an unknown header value, empty allowlist is permissive.
-    let (status2, _body2) =
-        run_through_tenant_layer(Vec::new(), Some("anything-goes")).await;
+    let (status2, _body2) = run_through_tenant_layer(Vec::new(), Some("anything-goes")).await;
     assert_eq!(
         status2,
         StatusCode::OK,
@@ -271,8 +273,7 @@ async fn tenant_header_unset_under_strict_allowlist_uses_default() {
     // we fall back to "default" — single-tenant operators that
     // configured the allowlist for HTTP callers still get default
     // behaviour for stdio / health probes.
-    let (status, _body) =
-        run_through_tenant_layer(vec!["only-acme".to_string()], None).await;
+    let (status, _body) = run_through_tenant_layer(vec!["only-acme".to_string()], None).await;
     assert_eq!(
         status,
         StatusCode::OK,
@@ -397,12 +398,9 @@ async fn principal_header_non_admin_returns_403() {
 
 #[tokio::test]
 async fn principal_header_unset_passes_through() {
-    let (status, _body) = run_through_principal_layer(
-        vec!["ops-admin".to_string()],
-        Some("regular-tenant"),
-        None,
-    )
-    .await;
+    let (status, _body) =
+        run_through_principal_layer(vec!["ops-admin".to_string()], Some("regular-tenant"), None)
+            .await;
     assert_eq!(
         status,
         StatusCode::OK,
@@ -415,12 +413,9 @@ async fn principal_header_with_empty_admin_allowlist_rejects_all() {
     // Closed-by-default: when no admins are configured, ANY caller
     // presenting X-Ontostar-Principal is rejected — not just non-admins
     // — because the allowlist that would let them through is empty.
-    let (status, _body) = run_through_principal_layer(
-        Vec::new(),
-        Some("anyone"),
-        Some("attempt-impersonation"),
-    )
-    .await;
+    let (status, _body) =
+        run_through_principal_layer(Vec::new(), Some("anyone"), Some("attempt-impersonation"))
+            .await;
     assert_eq!(
         status,
         StatusCode::FORBIDDEN,

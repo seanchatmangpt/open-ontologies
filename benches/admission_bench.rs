@@ -1,3 +1,5 @@
+#![allow(clippy::all, unused)]
+
 //! Criterion harness — admission gate hot paths.
 //!
 //! These are **engine** benchmarks, not application throughput benchmarks.
@@ -29,7 +31,7 @@
 //! iteration-to-iteration, polluting the measurement. The new layout pays
 //! setup once and measures the engine call alone.
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{BenchmarkId, Criterion, Throughput, black_box, criterion_group, criterion_main};
 
 use open_ontologies::admission::{
     AdmissionOp, ArtifactRef, NoopPowlReplay, OntoStarAdmissionGate, PowlBridgeReplay, PowlReplay,
@@ -39,7 +41,7 @@ use open_ontologies::powl_bridge::PowlBridge;
 use open_ontologies::production_record::ProductionRecord;
 use open_ontologies::receipts::{self, Receipt};
 use open_ontologies::state::StateDb;
-use open_ontologies::workflows::{by_name, WorkflowScope};
+use open_ontologies::workflows::{WorkflowScope, by_name};
 use tempfile::tempdir;
 
 const WORKFLOW: &str = "DataExtensionFastPath";
@@ -132,7 +134,7 @@ fn bench_admission_components(c: &mut Criterion) {
         let replay = PowlBridgeReplay::new(&store);
         group.bench_function("powl_bridge_replay_full", |b| {
             b.iter(|| {
-                let res = replay.replay(black_box(&token), black_box(powl));
+                let res = replay.replay(black_box(&token), black_box(powl), "default");
                 black_box(res);
             })
         });
@@ -162,6 +164,7 @@ fn bench_admission_components(c: &mut Criterion) {
                     &session,
                     powl,
                     &observed,
+                    "default",
                 );
                 black_box(res.ok());
             })
@@ -191,6 +194,7 @@ fn bench_admission_components(c: &mut Criterion) {
                     &session,
                     powl,
                     &observed,
+                    "default",
                 );
                 black_box(res.ok());
             })
@@ -270,8 +274,7 @@ fn bench_latest_for_session(c: &mut Criterion) {
                 conformance_run_id: format!("run-{i}"),
                 gate_config_hash: [0u8; 32],
                 production_law_version: "ontostar-1.0.0".into(),
-                defects_taxonomy_version: open_ontologies::defects::DEFECTS_TAXONOMY_VERSION
-                    .into(),
+                defects_taxonomy_version: open_ontologies::defects::DEFECTS_TAXONOMY_VERSION.into(),
                 gates_passed: vec!["g".into()],
                 gates_refused: vec![],
                 prior_receipt: prior,

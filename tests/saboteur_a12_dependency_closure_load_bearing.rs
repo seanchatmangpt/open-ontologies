@@ -1,3 +1,5 @@
+#![allow(clippy::all, unused)]
+
 //! R6 WA-3 — Saboteur matrix for §15 A12 DependencyClosure load-bearingness.
 //!
 //! This is a documentation-test marked `#[ignore]`. It is NOT part of the
@@ -59,16 +61,12 @@ use open_ontologies::admission::{
 use open_ontologies::defects::DefectClass;
 use open_ontologies::ocel_store::OcelStore;
 use open_ontologies::state::StateDb;
-use open_ontologies::workflows::{by_name, WorkflowScope};
+use open_ontologies::workflows::{WorkflowScope, by_name};
 use tempfile::tempdir;
 
 /// Performs a complete admission run and returns the session's tenant +
 /// receipt hash that was written, so the caller can reference it.
-fn run_first_admission(
-    db: &StateDb,
-    store: &OcelStore,
-    session: &str,
-) -> String {
+fn run_first_admission(db: &StateDb, store: &OcelStore, session: &str) -> String {
     let scope = WorkflowScope::new(db, session);
     let token = scope
         .open(Some("DataExtensionFastPath"), None, None)
@@ -88,9 +86,16 @@ fn run_first_admission(
     }
     let observed = store.observed_event_types_for_session(session).unwrap();
     let workflow = by_name("DataExtensionFastPath").expect("workflow lookup");
-    let required: Vec<String> = workflow.required_stages.iter().map(|s| s.to_string()).collect();
+    let required: Vec<String> = workflow
+        .required_stages
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
     let gate = OntoStarAdmissionGate::new(0.95, 0.85, required, "ontostar-1.0.0");
-    let artifact = ArtifactRef { kind: "test", bytes: b"a12-first-admission" };
+    let artifact = ArtifactRef {
+        kind: "test",
+        bytes: b"a12-first-admission",
+    };
     let _receipt = gate
         .evaluate(
             &token,
@@ -126,7 +131,10 @@ fn a12_dependency_closure_is_load_bearing_under_deleted_prior_receipt() {
 
     // Land first admission to populate the receipts table.
     let prior_hash = run_first_admission(&db, &store, "a12-saboteur-session-1");
-    assert!(!prior_hash.is_empty(), "first admission must produce a receipt");
+    assert!(
+        !prior_hash.is_empty(),
+        "first admission must produce a receipt"
+    );
 
     // Now open a second scope on the SAME session so `prior_receipt` is Some.
     let session = "a12-saboteur-session-1"; // same session → same chain
@@ -149,9 +157,16 @@ fn a12_dependency_closure_is_load_bearing_under_deleted_prior_receipt() {
     }
     let observed = store.observed_event_types_for_session(session).unwrap();
     let workflow = by_name("DataExtensionFastPath").expect("workflow lookup");
-    let required: Vec<String> = workflow.required_stages.iter().map(|s| s.to_string()).collect();
+    let required: Vec<String> = workflow
+        .required_stages
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
     let gate = OntoStarAdmissionGate::new(0.95, 0.85, required, "ontostar-1.0.0");
-    let artifact = ArtifactRef { kind: "test", bytes: b"a12-second-admission" };
+    let artifact = ArtifactRef {
+        kind: "test",
+        bytes: b"a12-second-admission",
+    };
 
     // ---- saboteur hook: DELETE the prior receipt row ----
     let hook: Box<dyn Fn(&OcelStore, &str, &str) + Send + 'static> =

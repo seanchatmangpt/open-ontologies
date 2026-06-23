@@ -1,3 +1,5 @@
+#![allow(clippy::all, unused)]
+
 //! R6 WA-1 — Saboteur matrix for §15 A9 ProvenanceChain load-bearingness.
 //!
 //! This is a documentation-test marked `#[ignore]`. It is NOT part of the
@@ -105,7 +107,7 @@ use open_ontologies::admission::{
 use open_ontologies::defects::DefectClass;
 use open_ontologies::ocel_store::OcelStore;
 use open_ontologies::state::StateDb;
-use open_ontologies::workflows::{by_name, WorkflowScope};
+use open_ontologies::workflows::{WorkflowScope, by_name};
 use tempfile::tempdir;
 
 #[test]
@@ -164,8 +166,8 @@ fn a9_provenance_chain_is_load_bearing_under_witness_deletion() {
     // event_attrs row(s) and the parent event row are removed so the
     // helper's INNER JOIN returns zero rows.
     let saboteur_db = db.clone();
-    let hook: Box<dyn Fn(&OcelStore, &str, &str) + Send + 'static> =
-        Box::new(move |_store: &OcelStore, session: &str, artifact_hash_hex: &str| {
+    let hook: Box<dyn Fn(&OcelStore, &str, &str) + Send + 'static> = Box::new(
+        move |_store: &OcelStore, session: &str, artifact_hash_hex: &str| {
             let conn = saboteur_db.conn();
             // Delete the attrs first (foreign-key safety).
             conn.execute(
@@ -189,7 +191,8 @@ fn a9_provenance_chain_is_load_bearing_under_witness_deletion() {
                 rusqlite::params![session],
             )
             .expect("saboteur DELETE events");
-        });
+        },
+    );
 
     admission::A9_PROVENANCE_REREAD_HOOK.with(|cell| {
         *cell.borrow_mut() = Some(hook);

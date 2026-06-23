@@ -187,25 +187,59 @@ pub fn verify_receipt(receipt: &ContributionReceipt) -> ValidationResult {
             // For now, we will serialize the core error into the missing array or a string representation,
             // or we could map them directly if we unify the enums. Let's map it roughly.
             let mapped_refusal = match e {
-                crate::autoreceipt::OpenOntologyRefusalState8::ExpectedOCELMissing => RefusalState8::EvidenceIncomplete,
-                crate::autoreceipt::OpenOntologyRefusalState8::ObservedOCELMissing => RefusalState8::BoundaryEvidenceMissing,
-                crate::autoreceipt::OpenOntologyRefusalState8::ObservedOCELSynthetic => RefusalState8::SyntheticClosureLie,
-                crate::autoreceipt::OpenOntologyRefusalState8::OCELAlignmentFailed => RefusalState8::OCELAlignmentFailed,
-                crate::autoreceipt::OpenOntologyRefusalState8::BoundaryEvidenceMissing => RefusalState8::BoundaryEvidenceMissing,
-                crate::autoreceipt::OpenOntologyRefusalState8::ArtifactHashMismatch => RefusalState8::HashBindingFailed,
-                crate::autoreceipt::OpenOntologyRefusalState8::ReceiptHashMismatch => RefusalState8::HashBindingFailed,
-                crate::autoreceipt::OpenOntologyRefusalState8::ClosureOverclaimed => RefusalState8::CommandFailureUnresolved,
-                crate::autoreceipt::OpenOntologyRefusalState8::FleetDriftDetected => RefusalState8::FleetDriftDetected,
-                crate::autoreceipt::OpenOntologyRefusalState8::RulesetObservedMismatch => RefusalState8::PolicyConformanceFailed,
-                crate::autoreceipt::OpenOntologyRefusalState8::OutOfMembraneMutation => RefusalState8::ExternalVerificationFailed,
-                crate::autoreceipt::OpenOntologyRefusalState8::RawBoundaryEvidenceMissing => RefusalState8::BoundaryEvidenceMissing,
-                crate::autoreceipt::OpenOntologyRefusalState8::ObservedOCELNotBoundaryDerived => RefusalState8::SyntheticClosureLie,
-                crate::autoreceipt::OpenOntologyRefusalState8::ObservedOCELFormattedFromSummary => RefusalState8::SyntheticClosureLie,
-                crate::autoreceipt::OpenOntologyRefusalState8::BoundaryEvidenceHashOnly => RefusalState8::BoundaryEvidenceMissing,
-                crate::autoreceipt::OpenOntologyRefusalState8::AlignmentReceiptSelfAuthored => RefusalState8::SyntheticClosureLie,
-                crate::autoreceipt::OpenOntologyRefusalState8::ExpectedObservedCloneDetected => RefusalState8::SyntheticClosureLie,
+                crate::autoreceipt::OpenOntologyRefusalState8::ExpectedOCELMissing => {
+                    RefusalState8::EvidenceIncomplete
+                }
+                crate::autoreceipt::OpenOntologyRefusalState8::ObservedOCELMissing => {
+                    RefusalState8::BoundaryEvidenceMissing
+                }
+                crate::autoreceipt::OpenOntologyRefusalState8::ObservedOCELSynthetic => {
+                    RefusalState8::SyntheticClosureLie
+                }
+                crate::autoreceipt::OpenOntologyRefusalState8::OCELAlignmentFailed => {
+                    RefusalState8::OCELAlignmentFailed
+                }
+                crate::autoreceipt::OpenOntologyRefusalState8::BoundaryEvidenceMissing => {
+                    RefusalState8::BoundaryEvidenceMissing
+                }
+                crate::autoreceipt::OpenOntologyRefusalState8::ArtifactHashMismatch => {
+                    RefusalState8::HashBindingFailed
+                }
+                crate::autoreceipt::OpenOntologyRefusalState8::ReceiptHashMismatch => {
+                    RefusalState8::HashBindingFailed
+                }
+                crate::autoreceipt::OpenOntologyRefusalState8::ClosureOverclaimed => {
+                    RefusalState8::CommandFailureUnresolved
+                }
+                crate::autoreceipt::OpenOntologyRefusalState8::FleetDriftDetected => {
+                    RefusalState8::FleetDriftDetected
+                }
+                crate::autoreceipt::OpenOntologyRefusalState8::RulesetObservedMismatch => {
+                    RefusalState8::PolicyConformanceFailed
+                }
+                crate::autoreceipt::OpenOntologyRefusalState8::OutOfMembraneMutation => {
+                    RefusalState8::ExternalVerificationFailed
+                }
+                crate::autoreceipt::OpenOntologyRefusalState8::RawBoundaryEvidenceMissing => {
+                    RefusalState8::BoundaryEvidenceMissing
+                }
+                crate::autoreceipt::OpenOntologyRefusalState8::ObservedOCELNotBoundaryDerived => {
+                    RefusalState8::SyntheticClosureLie
+                }
+                crate::autoreceipt::OpenOntologyRefusalState8::ObservedOCELFormattedFromSummary => {
+                    RefusalState8::SyntheticClosureLie
+                }
+                crate::autoreceipt::OpenOntologyRefusalState8::BoundaryEvidenceHashOnly => {
+                    RefusalState8::BoundaryEvidenceMissing
+                }
+                crate::autoreceipt::OpenOntologyRefusalState8::AlignmentReceiptSelfAuthored => {
+                    RefusalState8::SyntheticClosureLie
+                }
+                crate::autoreceipt::OpenOntologyRefusalState8::ExpectedObservedCloneDetected => {
+                    RefusalState8::SyntheticClosureLie
+                }
             };
-            
+
             ValidationResult {
                 state: VerificationState::Refused,
                 refusal: Some(mapped_refusal),

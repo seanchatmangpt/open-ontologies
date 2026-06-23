@@ -36,9 +36,11 @@ fn test_shacl_mincount_violation() {
     assert!(parsed["violation_count"].as_u64().unwrap() >= 1);
     // b2 has no label
     let violations = parsed["violations"].as_array().unwrap();
-    assert!(violations.iter().any(|v| {
-        v["focus_node"].as_str().unwrap().contains("b2")
-    }));
+    assert!(
+        violations
+            .iter()
+            .any(|v| { v["focus_node"].as_str().unwrap().contains("b2") })
+    );
 }
 
 #[test]

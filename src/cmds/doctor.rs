@@ -252,7 +252,10 @@ impl StoreCheckOutput {
             DoctorCheck {
                 name: "active_ontology".to_string(),
                 ok: true,
-                detail: self.active_ontology.clone().unwrap_or_else(|| "No ontology cached".to_string()),
+                detail: self
+                    .active_ontology
+                    .clone()
+                    .unwrap_or_else(|| "No ontology cached".to_string()),
             },
             DoctorCheck {
                 name: "cache_dir".to_string(),
@@ -330,32 +333,57 @@ pub struct EnvOutput {
 
 fn expand_tilde(path: &str) -> String {
     if path.starts_with('~')
-        && let Ok(home) = std::env::var("HOME") {
-            return home + &path[1..];
-        }
+        && let Ok(home) = std::env::var("HOME")
+    {
+        return home + &path[1..];
+    }
     path.to_string()
 }
 
 fn check_config_domain() -> ConfigCheckOutput {
-    let config_path = format!("{}/.open-ontologies/config.toml", std::env::var("HOME").unwrap_or_default());
+    let config_path = format!(
+        "{}/.open-ontologies/config.toml",
+        std::env::var("HOME").unwrap_or_default()
+    );
     let expanded = expand_tilde(&config_path);
     let exists = Path::new(&expanded).exists();
     let parseable = exists && std::fs::read_to_string(&expanded).ok().is_some();
 
-    let ggen_path = std::env::var("OPEN_ONTOLOGIES_CODEGEN_GGEN_PATH").unwrap_or_else(|_| "ggen".to_string());
+    let ggen_path =
+        std::env::var("OPEN_ONTOLOGIES_CODEGEN_GGEN_PATH").unwrap_or_else(|_| "ggen".to_string());
     let ggen_path_resolves = Command::new(&ggen_path).arg("--version").output().is_ok();
 
-    ConfigCheckOutput { config_path, exists, parseable, ggen_path, ggen_path_resolves }
+    ConfigCheckOutput {
+        config_path,
+        exists,
+        parseable,
+        ggen_path,
+        ggen_path_resolves,
+    }
 }
 
 fn check_data_domain() -> DataCheckOutput {
-    let data_dir = format!("{}/.open-ontologies", std::env::var("HOME").unwrap_or_default());
+    let data_dir = format!(
+        "{}/.open-ontologies",
+        std::env::var("HOME").unwrap_or_default()
+    );
     let exists = Path::new(&data_dir).is_dir();
-    let writable = exists && std::fs::metadata(&data_dir).map(|m| !m.permissions().readonly()).unwrap_or(false);
-    let db_path = format!("{}/.open-ontologies/state.db", std::env::var("HOME").unwrap_or_default());
+    let writable = exists
+        && std::fs::metadata(&data_dir)
+            .map(|m| !m.permissions().readonly())
+            .unwrap_or(false);
+    let db_path = format!(
+        "{}/.open-ontologies/state.db",
+        std::env::var("HOME").unwrap_or_default()
+    );
     let db_accessible = exists && (Path::new(&db_path).exists() || writable);
 
-    DataCheckOutput { data_dir, exists, writable, db_accessible }
+    DataCheckOutput {
+        data_dir,
+        exists,
+        writable,
+        db_accessible,
+    }
 }
 
 fn check_store_domain() -> StoreCheckOutput {
@@ -371,32 +399,66 @@ fn check_store_domain() -> StoreCheckOutput {
             .map(|(name, count)| (count as usize, Some(name)))
             .unwrap_or((0, None));
 
-    StoreCheckOutput { triple_count, active_ontology, cache_dir, cache_dir_exists }
+    StoreCheckOutput {
+        triple_count,
+        active_ontology,
+        cache_dir,
+        cache_dir_exists,
+    }
 }
 
 fn check_ggen_domain() -> GgenCheckOutput {
-    let ggen_path = std::env::var("OPEN_ONTOLOGIES_CODEGEN_GGEN_PATH").unwrap_or_else(|_| "ggen".to_string());
+    let ggen_path =
+        std::env::var("OPEN_ONTOLOGIES_CODEGEN_GGEN_PATH").unwrap_or_else(|_| "ggen".to_string());
     let output = Command::new(&ggen_path).arg("--version").output().ok();
     let found = output.is_some();
     let version = output
         .as_ref()
-        .and_then(|o| String::from_utf8(o.stdout.clone()).ok().map(|s| s.trim().to_string()).filter(|s| !s.is_empty()))
-        .or_else(|| output.as_ref().and_then(|o| String::from_utf8(o.stderr.clone()).ok().map(|s| s.trim().to_string())).filter(|s| !s.is_empty()));
+        .and_then(|o| {
+            String::from_utf8(o.stdout.clone())
+                .ok()
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty())
+        })
+        .or_else(|| {
+            output
+                .as_ref()
+                .and_then(|o| {
+                    String::from_utf8(o.stderr.clone())
+                        .ok()
+                        .map(|s| s.trim().to_string())
+                })
+                .filter(|s| !s.is_empty())
+        });
 
-    GgenCheckOutput { ggen_path, found, version }
+    GgenCheckOutput {
+        ggen_path,
+        found,
+        version,
+    }
 }
 
 fn check_mcp_domain() -> McpCheckOutput {
     let binary_path = "open-ontologies".to_string();
     let binary_exists = Command::new(&binary_path).arg("--help").output().is_ok();
 
-    McpCheckOutput { binary_path, binary_exists }
+    McpCheckOutput {
+        binary_path,
+        binary_exists,
+    }
 }
 
 fn env_domain() -> EnvOutput {
-    let config_path = format!("{}/.open-ontologies/config.toml", std::env::var("HOME").unwrap_or_default());
-    let data_dir = format!("{}/.open-ontologies", std::env::var("HOME").unwrap_or_default());
-    let ggen_path = std::env::var("OPEN_ONTOLOGIES_CODEGEN_GGEN_PATH").unwrap_or_else(|_| "ggen".to_string());
+    let config_path = format!(
+        "{}/.open-ontologies/config.toml",
+        std::env::var("HOME").unwrap_or_default()
+    );
+    let data_dir = format!(
+        "{}/.open-ontologies",
+        std::env::var("HOME").unwrap_or_default()
+    );
+    let ggen_path =
+        std::env::var("OPEN_ONTOLOGIES_CODEGEN_GGEN_PATH").unwrap_or_else(|_| "ggen".to_string());
     let mut env_overrides = Vec::new();
 
     for (key, value) in std::env::vars() {
@@ -405,7 +467,12 @@ fn env_domain() -> EnvOutput {
         }
     }
 
-    EnvOutput { config_path, data_dir, ggen_path, env_overrides }
+    EnvOutput {
+        config_path,
+        data_dir,
+        ggen_path,
+        env_overrides,
+    }
 }
 
 fn run_checks_for_target(target: &str) -> Vec<DoctorCheck> {
@@ -447,15 +514,34 @@ fn full() -> NounVerbResult<FullOutput> {
     let failed = checks.iter().filter(|c| !c.ok).count();
     let passed = checks.len() - failed;
 
-    Ok(FullOutput { checks, config, data, store, ggen, mcp, env, all_ok: failed == 0, passed, failed })
+    Ok(FullOutput {
+        checks,
+        config,
+        data,
+        store,
+        ggen,
+        mcp,
+        env,
+        all_ok: failed == 0,
+        passed,
+        failed,
+    })
 }
 
 #[verb]
 fn run() -> NounVerbResult<RunOutput> {
-    let all_checks = ["config", "data", "ggen", "mcp"].iter().flat_map(|t| run_checks_for_target(t)).collect::<Vec<_>>();
+    let all_checks = ["config", "data", "ggen", "mcp"]
+        .iter()
+        .flat_map(|t| run_checks_for_target(t))
+        .collect::<Vec<_>>();
     let failed = all_checks.iter().filter(|c| !c.ok).count();
     let passed = all_checks.len() - failed;
-    Ok(RunOutput { checks: all_checks, all_ok: failed == 0, passed, failed })
+    Ok(RunOutput {
+        checks: all_checks,
+        all_ok: failed == 0,
+        passed,
+        failed,
+    })
 }
 
 #[verb]
@@ -463,7 +549,11 @@ fn check(target: Option<String>) -> NounVerbResult<DoctorOutput> {
     let t = target.unwrap_or_else(|| "all".to_string());
     let checks = run_checks_for_target(&t);
     let all_ok = checks.iter().all(|c| c.ok);
-    Ok(DoctorOutput { target: t, checks, all_ok })
+    Ok(DoctorOutput {
+        target: t,
+        checks,
+        all_ok,
+    })
 }
 
 #[verb]

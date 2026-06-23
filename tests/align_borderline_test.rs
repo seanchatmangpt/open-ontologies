@@ -100,10 +100,22 @@ fn borderline_bucket_collects_mid_confidence_candidates() {
             "borderline candidate missing `context` field: {}",
             cand
         );
-        assert!(ctx["source_labels"].is_array(), "context.source_labels missing");
-        assert!(ctx["target_labels"].is_array(), "context.target_labels missing");
-        assert!(ctx["source_parents"].is_array(), "context.source_parents missing");
-        assert!(ctx["target_parents"].is_array(), "context.target_parents missing");
+        assert!(
+            ctx["source_labels"].is_array(),
+            "context.source_labels missing"
+        );
+        assert!(
+            ctx["target_labels"].is_array(),
+            "context.target_labels missing"
+        );
+        assert!(
+            ctx["source_parents"].is_array(),
+            "context.source_parents missing"
+        );
+        assert!(
+            ctx["target_parents"].is_array(),
+            "context.target_parents missing"
+        );
     }
 }
 

@@ -12,7 +12,7 @@ use open_ontologies::admission::{
 };
 use open_ontologies::ocel_store::OcelStore;
 use open_ontologies::state::StateDb;
-use open_ontologies::workflows::{by_name, WorkflowScope};
+use open_ontologies::workflows::{WorkflowScope, by_name};
 use tempfile::tempdir;
 
 fn fresh_db() -> StateDb {
@@ -39,7 +39,16 @@ fn emit_stage(store: &OcelStore, session: &str, scope: &str, stage: &str) {
 fn read_capability(
     db: &StateDb,
     workflow_name: &str,
-) -> (i64, i64, i64, f64, f64, Option<String>, Option<String>, String) {
+) -> (
+    i64,
+    i64,
+    i64,
+    f64,
+    f64,
+    Option<String>,
+    Option<String>,
+    String,
+) {
     let conn = db.conn();
     conn.query_row(
         "SELECT admission_count, success_count, failure_count,
@@ -125,7 +134,10 @@ fn admission_count_accumulates_across_three_successful_admissions() {
 
     assert_eq!(admission_count, 3, "admission_count must accumulate to 3");
     assert_eq!(success_count, 3, "success_count must be 3");
-    assert_eq!(failure_count, 0, "failure_count must remain 0 on all-success");
+    assert_eq!(
+        failure_count, 0,
+        "failure_count must remain 0 on all-success"
+    );
     assert!(
         sum_fitness >= 2.85,
         "sum_fitness should be ≥ 3 × 0.95 = 2.85, got {}",
@@ -140,7 +152,8 @@ fn admission_count_accumulates_across_three_successful_admissions() {
         first
     );
     assert_eq!(
-        taxonomy, open_ontologies::defects::DEFECTS_TAXONOMY_VERSION,
+        taxonomy,
+        open_ontologies::defects::DEFECTS_TAXONOMY_VERSION,
         "defects_taxonomy_version must match canonical taxonomy"
     );
 }
@@ -203,7 +216,8 @@ fn failure_count_increments_on_denial() {
         failure_count
     );
     assert_eq!(
-        taxonomy, open_ontologies::defects::DEFECTS_TAXONOMY_VERSION,
+        taxonomy,
+        open_ontologies::defects::DEFECTS_TAXONOMY_VERSION,
         "defects_taxonomy_version must be canonical"
     );
 }

@@ -23,11 +23,11 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
+use axum::Router;
 use axum::body::Bytes;
 use axum::extract::State;
 use axum::http::HeaderMap;
 use axum::routing::post;
-use axum::Router;
 use tokio::net::TcpListener;
 
 #[derive(Default, Clone)]

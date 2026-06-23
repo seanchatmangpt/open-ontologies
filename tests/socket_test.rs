@@ -25,11 +25,7 @@ static COUNTER: AtomicU32 = AtomicU32::new(0);
 /// Helper: start the socket server in the background and return the path.
 async fn start_server(graph: Arc<GraphStore>) -> String {
     let id = COUNTER.fetch_add(1, Ordering::SeqCst);
-    let sock_path = format!(
-        "/tmp/oo-test-{}-{}.sock",
-        std::process::id(),
-        id
-    );
+    let sock_path = format!("/tmp/oo-test-{}-{}.sock", std::process::id(), id);
     let _ = std::fs::remove_file(&sock_path);
     let path_clone = sock_path.clone();
     tokio::spawn(async move {
@@ -139,11 +135,7 @@ async fn unknown_action_returns_error() {
     let graph = Arc::new(GraphStore::new());
     let sock = start_server(graph).await;
 
-    let resp = roundtrip(
-        &sock,
-        r#"{"action":"bogus","triples":[]}"#,
-    )
-    .await;
+    let resp = roundtrip(&sock, r#"{"action":"bogus","triples":[]}"#).await;
 
     assert!(resp["error"].as_str().unwrap().contains("unknown action"));
 

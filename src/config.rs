@@ -367,8 +367,12 @@ pub struct LlmConfig {
     pub persist_full_io: Option<bool>,
 }
 
-fn default_grace_period_pct() -> f64 { 0.10 }
-fn default_true_bool() -> bool { true }
+fn default_grace_period_pct() -> f64 {
+    0.10
+}
+fn default_true_bool() -> bool {
+    true
+}
 
 /// R7 WD-4 — resolve `[llm] persist_full_io`. Precedence:
 /// `OPEN_ONTOLOGIES_LLM_PERSIST_FULL_IO` env > config > `false`.
@@ -585,7 +589,11 @@ pub fn resolve_llm_python(cfg: &LlmConfig) -> String {
     std::env::var("OPEN_ONTOLOGIES_LLM_PYTHON")
         .ok()
         .filter(|v| !v.trim().is_empty())
-        .or_else(|| cfg.python_interpreter.clone().filter(|v| !v.trim().is_empty()))
+        .or_else(|| {
+            cfg.python_interpreter
+                .clone()
+                .filter(|v| !v.trim().is_empty())
+        })
         .unwrap_or_else(|| "python3".to_string())
 }
 
@@ -1081,7 +1089,9 @@ pub struct CodegenConfig {
 
 impl Default for CodegenConfig {
     fn default() -> Self {
-        Self { ggen_path: "ggen".to_string() }
+        Self {
+            ggen_path: "ggen".to_string(),
+        }
     }
 }
 
@@ -1270,7 +1280,12 @@ pub fn resolve_cors_origins(cfg: &HttpConfig) -> Vec<String> {
     std::env::var("OPEN_ONTOLOGIES_HTTP_CORS_ORIGINS")
         .ok()
         .filter(|v| !v.trim().is_empty())
-        .map(|v| v.split(':').map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect())
+        .map(|v| {
+            v.split(':')
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty())
+                .collect()
+        })
         .unwrap_or_else(|| cfg.cors_origins.clone())
 }
 
@@ -1388,10 +1403,8 @@ mod tests {
         }
 
         // Alias `preferred_languages` also populates the field.
-        let aliased: Config = toml::from_str(
-            "[language]\npreferred_languages = [\"fr\"]\n",
-        )
-        .expect("parse alias");
+        let aliased: Config =
+            toml::from_str("[language]\npreferred_languages = [\"fr\"]\n").expect("parse alias");
         assert_eq!(aliased.language.preferred, vec!["fr"]);
     }
 

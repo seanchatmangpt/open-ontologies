@@ -34,9 +34,9 @@
 use crate::config::VerifierConfig;
 use crate::ocel_store::OcelStore;
 use crate::state::StateDb;
-use crate::verify::{crypto_verify, VerifierError, VerifierReceiptRow};
-use std::sync::atomic::{AtomicI64, Ordering};
+use crate::verify::{VerifierError, VerifierReceiptRow, crypto_verify};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicI64, Ordering};
 use std::time::Duration;
 
 /// Outcome of a single verifier pass. All counts are best-effort — they
@@ -447,7 +447,8 @@ impl VerifierWorker {
             "verifier_tick_started",
             &now_iso,
             &[("cursor", &cursor_before.to_string())],
-        ).ok();
+        )
+        .ok();
 
         // Single SELECT batch — no `.await` between the conn() acquire
         // and conn drop (rusqlite::MutexGuard is !Send).
@@ -475,8 +476,7 @@ impl VerifierWorker {
                     removed_at,
                 }) => {
                     report.warnings += 1;
-                    let event_id =
-                        format!("verifier_warning::{}", row.receipt_hash);
+                    let event_id = format!("verifier_warning::{}", row.receipt_hash);
                     self.emit_idempotent(
                         &event_id,
                         "verifier_warning",
@@ -488,13 +488,13 @@ impl VerifierWorker {
                             ("removed_at", removed_at.as_str()),
                             ("session_id", row.session_id.as_str()),
                         ],
-                    ).ok();
+                    )
+                    .ok();
                 }
                 Err(err) => {
                     report.failures += 1;
                     let kind = err.kind();
-                    let event_id =
-                        format!("verifier_failure::{}", row.receipt_hash);
+                    let event_id = format!("verifier_failure::{}", row.receipt_hash);
                     let mut attrs: Vec<(&str, &str)> = vec![
                         ("receipt_hash", row.receipt_hash.as_str()),
                         ("kind", kind),
@@ -503,27 +503,18 @@ impl VerifierWorker {
                         ("session_id", row.session_id.as_str()),
                     ];
                     let removed_at_owned: Option<String> = match &err {
-                        VerifierError::SignatureCorrupted {
-                            removed_at, ..
-                        } => removed_at.clone(),
+                        VerifierError::SignatureCorrupted { removed_at, .. } => removed_at.clone(),
                         _ => None,
                     };
                     if let Some(ref ra) = removed_at_owned {
                         attrs.push(("removed_at", ra.as_str()));
                     }
-                    self.emit_idempotent(
-                        &event_id,
-                        "verifier_failure",
-                        &now_iso,
-                        &attrs,
-                    ).ok();
+                    self.emit_idempotent(&event_id, "verifier_failure", &now_iso, &attrs)
+                        .ok();
                     if self.cfg.pause_retention_on_failure {
-                        let pause_until = chrono::Utc::now().timestamp()
-                            .saturating_add(
-                                (self.cfg.pause_minutes_on_failure
-                                    .saturating_mul(60))
-                                    as i64,
-                            );
+                        let pause_until = chrono::Utc::now().timestamp().saturating_add(
+                            (self.cfg.pause_minutes_on_failure.saturating_mul(60)) as i64,
+                        );
                         // Monotone — fetch_max never shortens an
                         // already-set pause.
                         self.retention_paused_until
@@ -569,7 +560,8 @@ impl VerifierWorker {
                 ("failures", &report.failures.to_string()),
                 ("cursor", &report.cursor_after.to_string()),
             ],
-        ).ok();
+        )
+        .ok();
 
         span.record("verifier.cursor", report.cursor_after);
         span.record("verifier.scanned", report.scanned);
@@ -580,11 +572,7 @@ impl VerifierWorker {
     }
 
     /// Fetch one batch of receipts past the cursor.
-    fn fetch_batch(
-        &self,
-        cursor: i64,
-        limit: i64,
-    ) -> anyhow::Result<Vec<VerifierReceiptRow>> {
+    fn fetch_batch(&self, cursor: i64, limit: i64) -> anyhow::Result<Vec<VerifierReceiptRow>> {
         let conn = self.db.conn();
         let mut stmt = conn.prepare(
             "SELECT receipt_hash, sequence, session_id, scope_token,

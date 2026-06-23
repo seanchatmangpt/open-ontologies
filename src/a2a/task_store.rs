@@ -88,9 +88,7 @@ impl AsyncTaskManager for A2aTaskStore {
         let conn = self.db.conn();
 
         let mut stmt = conn
-            .prepare(
-                "SELECT state, messages FROM a2a_tasks WHERE task_id = ?1 AND tenant_id = ?2",
-            )
+            .prepare("SELECT state, messages FROM a2a_tasks WHERE task_id = ?1 AND tenant_id = ?2")
             .map_err(|e| e.to_string())?;
 
         let mut rows = stmt
@@ -124,9 +122,7 @@ impl AsyncTaskManager for A2aTaskStore {
             .prepare("SELECT 1 FROM a2a_tasks WHERE task_id = ?1 LIMIT 1")
             .map_err(|e| e.to_string())?;
 
-        Ok(stmt
-            .exists([task_id])
-            .map_err(|e| e.to_string())?)
+        Ok(stmt.exists([task_id]).map_err(|e| e.to_string())?)
     }
 
     async fn update_task_state(
@@ -204,7 +200,8 @@ mod tests {
     #[tokio::test]
     async fn task_store_basic_operations() {
         let tmp = TempDir::new().expect("create temp dir");
-        let db = Arc::new(StateDb::open(tmp.path().join("test.db").as_path()).expect("open StateDb"));
+        let db =
+            Arc::new(StateDb::open(tmp.path().join("test.db").as_path()).expect("open StateDb"));
         let store = A2aTaskStore::new(db);
 
         // Create task

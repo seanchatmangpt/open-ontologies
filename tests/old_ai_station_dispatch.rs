@@ -14,13 +14,12 @@
 //! in the wasm4pm-cognition crate. We just verify the integration.
 
 use wasm4pm_cognition::breeds::{
-    dispatch_breed_test, BreedInput, Candidate, Case, Fact, Goal, Rule, StateAtom,
+    BreedInput, Candidate, Case, Fact, Goal, Rule, StateAtom, dispatch_breed_test,
 };
 
 fn fixture_input() -> BreedInput {
     BreedInput {
-        intent: "RevOps revenue leakage detection on a Fortune-5 booking pipeline"
-            .to_string(),
+        intent: "RevOps revenue leakage detection on a Fortune-5 booking pipeline".to_string(),
         candidates: vec![
             Candidate {
                 id: "centralized-cloud".into(),
@@ -36,16 +35,28 @@ fn fixture_input() -> BreedInput {
             },
         ],
         facts: vec![
-            Fact { key: "scale".into(), value: "billion".into() },
-            Fact { key: "latency".into(), value: "low".into() },
-            Fact { key: "compliance".into(), value: "strict".into() },
+            Fact {
+                key: "scale".into(),
+                value: "billion".into(),
+            },
+            Fact {
+                key: "latency".into(),
+                value: "low".into(),
+            },
+            Fact {
+                key: "compliance".into(),
+                value: "strict".into(),
+            },
         ],
         cases: vec![Case {
             id: "case-001".into(),
             intent: "Booking reconciliation gap".into(),
             architecture: "centralized-cloud".into(),
             outcome_score: 0.9,
-            facts: vec![Fact { key: "scale".into(), value: "billion".into() }],
+            facts: vec![Fact {
+                key: "scale".into(),
+                value: "billion".into(),
+            }],
         }],
         rules: vec![
             // For MYCIN / Prolog: premise atoms in MYCIN-rule form.

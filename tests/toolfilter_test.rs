@@ -104,10 +104,7 @@ fn allow_filter_with_unknown_name_yields_empty_set() {
 
 #[test]
 fn deny_filter_blocks_listed_tools() {
-    let filter = ToolFilter::deny(vec![
-        "onto_clear".to_string(),
-        "onto_load".to_string(),
-    ]);
+    let filter = ToolFilter::deny(vec!["onto_clear".to_string(), "onto_load".to_string()]);
     let (_tmp, server) = build_server(filter);
     let names = tool_names(&server);
     assert!(!names.contains(&"onto_clear".to_string()));

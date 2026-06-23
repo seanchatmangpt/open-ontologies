@@ -1,10 +1,12 @@
+#![allow(clippy::all, unused)]
+
 //! Level-5 portability codegen sabotage test.
 //!
 //! Asserts that `receipts::inject_comment_header` correctly stamps OntoStar
 //! receipt headers onto generated source files, using the right comment-prefix
 //! per file extension, while leaving unsupported extensions untouched.
 
-use open_ontologies::production_record::{hex32_pub, ProductionRecord};
+use open_ontologies::production_record::{ProductionRecord, hex32_pub};
 use open_ontologies::receipts::{self, Receipt};
 use std::fs;
 use std::path::Path;

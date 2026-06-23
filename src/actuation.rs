@@ -1,7 +1,7 @@
-use serde::{Deserialize, Serialize};
-use std::time::{SystemTime, UNIX_EPOCH};
-use std::process::Command;
 use crate::subprocess::SubprocessError;
+use serde::{Deserialize, Serialize};
+use std::process::Command;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 /// Gemini CLI Actuation Plan. Governs the execution of an action.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -41,9 +41,12 @@ pub fn capture_git_state(dir: &str) -> String {
 
 pub fn run_real_boundary(command: &str, args: &[&str], dir: &str) -> serde_json::Value {
     let git_before = capture_git_state(dir);
-    
-    let started_at = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis();
-    
+
+    let started_at = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_millis();
+
     let mut cmd = Command::new(command);
     cmd.args(args).current_dir(dir);
     let output = cmd.output().unwrap_or_else(|_| std::process::Output {
@@ -51,19 +54,22 @@ pub fn run_real_boundary(command: &str, args: &[&str], dir: &str) -> serde_json:
         stdout: b"command failed to start".to_vec(),
         stderr: Vec::new(),
     });
-    
-    let finished_at = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis();
-    
+
+    let finished_at = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_millis();
+
     let git_after = capture_git_state(dir);
     let files_changed = git_before != git_after;
 
     let _stdout_str = String::from_utf8_lossy(&output.stdout).to_string();
     let _stderr_str = String::from_utf8_lossy(&output.stderr).to_string();
     let exit_code = output.status.code().unwrap_or(-1);
-    
+
     let stdout_hash = blake3::hash(&output.stdout).to_hex().to_string();
     let stderr_hash = blake3::hash(&output.stderr).to_hex().to_string();
-    
+
     let mut execution_hasher = blake3::Hasher::new();
     execution_hasher.update(command.as_bytes());
     execution_hasher.update(&output.stdout);
@@ -129,13 +135,20 @@ pub fn capture_observed_ocel(
             .build()
             .map_err(|e| std::io::Error::other(e.to_string()))?;
         rt.block_on(async move {
-            let response = command_to_run.send().await.map_err(|e| std::io::Error::other(e.to_string()))?;
+            let response = command_to_run
+                .send()
+                .await
+                .map_err(|e| std::io::Error::other(e.to_string()))?;
             let status = response.status();
-            let text = response.text().await.map_err(|e| std::io::Error::other(e.to_string()))?;
+            let text = response
+                .text()
+                .await
+                .map_err(|e| std::io::Error::other(e.to_string()))?;
             Ok::<_, std::io::Error>((status, text))
         })
-    }).join()
-      .map_err(|_| SubprocessError::SpawnFailed(std::io::Error::other("Thread join failed")))??;
+    })
+    .join()
+    .map_err(|_| SubprocessError::SpawnFailed(std::io::Error::other("Thread join failed")))??;
 
     if !status.is_success() {
         return Err(SubprocessError::SpawnFailed(std::io::Error::other(
@@ -177,7 +190,11 @@ fn extract_ocel_events(stdout: &str) -> Vec<serde_json::Value> {
     for line in stdout.lines() {
         if let Ok(v) = serde_json::from_str::<serde_json::Value>(line) {
             // Check if it's an OCEL event (has event_id or ocel:id)
-            if v.get("ocel:id").is_some() || v.get("event_id").is_some() || v.get("ocel:activity").is_some() || v.get("activity").is_some() {
+            if v.get("ocel:id").is_some()
+                || v.get("event_id").is_some()
+                || v.get("ocel:activity").is_some()
+                || v.get("activity").is_some()
+            {
                 events.push(v);
             }
         }
@@ -206,8 +223,8 @@ More random text
 
     #[tokio::test]
     async fn test_capture_observed_ocel_with_mock_binary() {
-        use wiremock::{MockServer, Mock, ResponseTemplate};
         use wiremock::matchers::{method, path};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
 
         let mock_server = MockServer::start().await;
         let response_body = serde_json::json!({
@@ -249,7 +266,11 @@ More random text
 
         let res = result.expect("should run mock api successfully");
         assert_eq!(res.action_id, "act-123");
-        assert!(res.stdout.contains("mock_act"), "stdout was: {}", res.stdout);
+        assert!(
+            res.stdout.contains("mock_act"),
+            "stdout was: {}",
+            res.stdout
+        );
         assert_eq!(res.ocel_events.len(), 1);
         assert_eq!(res.ocel_events[0]["event_id"], "e_mock");
     }

@@ -42,11 +42,13 @@ fn threshold_status_returns_valid_json_on_empty_db() {
     let (_tmp, _db, server) = build_server();
     let rt = tokio::runtime::Runtime::new().unwrap();
     let result = rt.block_on(server.onto_threshold_status());
-    let v: serde_json::Value = serde_json::from_str(&result)
-        .expect("onto_threshold_status must return valid JSON");
+    let v: serde_json::Value =
+        serde_json::from_str(&result).expect("onto_threshold_status must return valid JSON");
     assert_eq!(v["ok"], true, "ok must be true on empty DB: {result}");
     assert_eq!(v["count"], 0, "count must be 0 on empty DB: {result}");
-    let thresholds = v["thresholds"].as_array().expect("thresholds must be an array");
+    let thresholds = v["thresholds"]
+        .as_array()
+        .expect("thresholds must be an array");
     assert!(thresholds.is_empty(), "thresholds must be empty: {result}");
 }
 
@@ -61,18 +63,26 @@ fn threshold_status_reflects_seeded_row() {
             "INSERT INTO workflow_thresholds
              (workflow_class, precision_threshold, fitness_threshold, sample_count, updated_at)
              VALUES (?1, ?2, ?3, ?4, ?5)",
-            rusqlite::params!["DataExtensionFastPath", 0.85, 0.90, 42, "2026-01-01T00:00:00Z"],
+            rusqlite::params![
+                "DataExtensionFastPath",
+                0.85,
+                0.90,
+                42,
+                "2026-01-01T00:00:00Z"
+            ],
         )
         .expect("insert workflow_thresholds");
     }
 
     let rt = tokio::runtime::Runtime::new().unwrap();
     let result = rt.block_on(server.onto_threshold_status());
-    let v: serde_json::Value = serde_json::from_str(&result)
-        .expect("onto_threshold_status must return valid JSON");
+    let v: serde_json::Value =
+        serde_json::from_str(&result).expect("onto_threshold_status must return valid JSON");
     assert_eq!(v["ok"], true, "ok must be true: {result}");
     assert_eq!(v["count"], 1, "count must be 1 after seeding: {result}");
-    let thresholds = v["thresholds"].as_array().expect("thresholds must be an array");
+    let thresholds = v["thresholds"]
+        .as_array()
+        .expect("thresholds must be an array");
     assert_eq!(thresholds.len(), 1);
     assert_eq!(thresholds[0]["workflow_class"], "DataExtensionFastPath");
     assert!(
@@ -87,7 +97,7 @@ fn threshold_sweep_runs_without_error() {
     // With an empty DB, sweep should complete cleanly (no bypass events to sweep).
     let rt = tokio::runtime::Runtime::new().unwrap();
     let result = rt.block_on(server.onto_threshold_sweep());
-    let v: serde_json::Value = serde_json::from_str(&result)
-        .expect("onto_threshold_sweep must return valid JSON");
+    let v: serde_json::Value =
+        serde_json::from_str(&result).expect("onto_threshold_sweep must return valid JSON");
     assert_eq!(v["ok"], true, "sweep must succeed on empty DB: {result}");
 }

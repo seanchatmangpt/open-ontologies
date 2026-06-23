@@ -1,3 +1,5 @@
+#![allow(clippy::all, unused)]
+
 //! Shared RevOps test fixtures — Phase 3.
 //!
 //! Synthetic Fortune-5 object-centric event log builder. Used by every
@@ -38,19 +40,13 @@ pub const REQUIREMENTS_WORKFLOW: &str = "RequirementsManufacturing";
 /// separate concern, owned by the real-Groq path.
 pub fn fixture_candidate_ctq() -> CandidateCtq {
     CandidateCtq {
-        source_voice_echo:
-            "Sales committed; Finance not booked".to_string(),
+        source_voice_echo: "Sales committed; Finance not booked".to_string(),
         defect_class_hint: "incomplete".to_string(),
-        ctq_text:
-            "Forecast must be supported by complete chain evidence".to_string(),
-        measure_text:
-            "Percentage forecasted revenue with chain support".to_string(),
-        verification_text:
-            "Run reconciliation report nightly".to_string(),
-        negative_case_text:
-            "Refuse trusted classification when contract chain missing".to_string(),
-        control_plan_text:
-            "Block forecast trust claim without contract executed".to_string(),
+        ctq_text: "Forecast must be supported by complete chain evidence".to_string(),
+        measure_text: "Percentage forecasted revenue with chain support".to_string(),
+        verification_text: "Run reconciliation report nightly".to_string(),
+        negative_case_text: "Refuse trusted classification when contract chain missing".to_string(),
+        control_plan_text: "Block forecast trust claim without contract executed".to_string(),
         provisional: true,
     }
 }
@@ -120,7 +116,15 @@ pub fn emit(
     let now = bumped.to_rfc3339();
     let event_id = format!("{session}:{n:012}:{event_type}");
     store
-        .emit_event(event_id.as_str(), event_type, &now, session, attrs, objects, Some(scope))
+        .emit_event(
+            event_id.as_str(),
+            event_type,
+            &now,
+            session,
+            attrs,
+            objects,
+            Some(scope),
+        )
         .unwrap();
 }
 
@@ -139,19 +143,25 @@ pub fn build_scenario(store: &OcelStore, session: &str, scope: &str, scenario: S
 
     // Common origin events — every scenario starts here.
     emit(
-        store, session, scope,
+        store,
+        session,
+        scope,
         "account_created",
         &[("account_id", &acct)],
         &[(&acct, "Account")],
     );
     emit(
-        store, session, scope,
+        store,
+        session,
+        scope,
         "opportunity_created",
         &[("opportunity_id", &opp), ("account_id", &acct)],
         &[(&opp, "Opportunity"), (&acct, "Account")],
     );
     emit(
-        store, session, scope,
+        store,
+        session,
+        scope,
         "forecast_submitted",
         &[("opportunity_id", &opp), ("commitment", "committed")],
         &[(&opp, "Opportunity")],
@@ -160,107 +170,250 @@ pub fn build_scenario(store: &OcelStore, session: &str, scope: &str, scenario: S
     match scenario {
         Scenario::HappyPath => {
             // Full reconciled chain.
-            emit(store, session, scope, "partner_registered",
+            emit(
+                store,
+                session,
+                scope,
+                "partner_registered",
                 &[("partner_id", &partner), ("opportunity_id", &opp)],
-                &[(&partner, "PartnerRegistration"), (&opp, "Opportunity")]);
-            emit(store, session, scope, "quote_created",
+                &[(&partner, "PartnerRegistration"), (&opp, "Opportunity")],
+            );
+            emit(
+                store,
+                session,
+                scope,
+                "quote_created",
                 &[("opportunity_id", &opp), ("amount", "1000000")],
-                &[(&opp, "Opportunity")]);
-            emit(store, session, scope, "discount_approved",
-                &[("opportunity_id", &opp), ("discount", "0.10"), ("approver", "VP_Sales")],
-                &[(&opp, "Opportunity")]);
-            emit(store, session, scope, "contract_executed",
+                &[(&opp, "Opportunity")],
+            );
+            emit(
+                store,
+                session,
+                scope,
+                "discount_approved",
+                &[
+                    ("opportunity_id", &opp),
+                    ("discount", "0.10"),
+                    ("approver", "VP_Sales"),
+                ],
+                &[(&opp, "Opportunity")],
+            );
+            emit(
+                store,
+                session,
+                scope,
+                "contract_executed",
                 &[("contract_id", &contract), ("opportunity_id", &opp)],
-                &[(&contract, "Contract"), (&opp, "Opportunity")]);
-            emit(store, session, scope, "partner_attributed",
+                &[(&contract, "Contract"), (&opp, "Opportunity")],
+            );
+            emit(
+                store,
+                session,
+                scope,
+                "partner_attributed",
                 &[("partner_id", &partner), ("contract_id", &contract)],
-                &[(&partner, "PartnerRegistration"), (&contract, "Contract")]);
-            emit(store, session, scope, "order_created",
+                &[(&partner, "PartnerRegistration"), (&contract, "Contract")],
+            );
+            emit(
+                store,
+                session,
+                scope,
+                "order_created",
                 &[("contract_id", &contract), ("order_amount", "900000")],
-                &[(&contract, "Contract")]);
-            emit(store, session, scope, "invoice_issued",
-                &[("invoice_id", &invoice), ("contract_id", &contract), ("amount", "900000")],
-                &[(&invoice, "Invoice"), (&contract, "Contract")]);
-            emit(store, session, scope, "payment_received",
+                &[(&contract, "Contract")],
+            );
+            emit(
+                store,
+                session,
+                scope,
+                "invoice_issued",
+                &[
+                    ("invoice_id", &invoice),
+                    ("contract_id", &contract),
+                    ("amount", "900000"),
+                ],
+                &[(&invoice, "Invoice"), (&contract, "Contract")],
+            );
+            emit(
+                store,
+                session,
+                scope,
+                "payment_received",
                 &[("invoice_id", &invoice), ("amount", "900000")],
-                &[(&invoice, "Invoice")]);
-            emit(store, session, scope, "revenue_milestone_completed",
+                &[(&invoice, "Invoice")],
+            );
+            emit(
+                store,
+                session,
+                scope,
+                "revenue_milestone_completed",
                 &[("contract_id", &contract), ("milestone", "go_live")],
-                &[(&contract, "Contract")]);
-            emit(store, session, scope, "renewal_touchpoint_completed",
+                &[(&contract, "Contract")],
+            );
+            emit(
+                store,
+                session,
+                scope,
+                "renewal_touchpoint_completed",
                 &[("contract_id", &contract), ("touchpoint", "qbr")],
-                &[(&contract, "Contract")]);
+                &[(&contract, "Contract")],
+            );
         }
         Scenario::UnsupportedForecast => {
             // Forecast committed, but contract_executed never happens.
-            emit(store, session, scope, "quote_created",
+            emit(
+                store,
+                session,
+                scope,
+                "quote_created",
                 &[("opportunity_id", &opp), ("amount", "1000000")],
-                &[(&opp, "Opportunity")]);
+                &[(&opp, "Opportunity")],
+            );
             // No contract_executed → forecast cannot be classified
             // as supported revenue.
         }
         Scenario::LatePartnerAttribution => {
             // contract_executed BEFORE partner_registered.
-            emit(store, session, scope, "quote_created",
+            emit(
+                store,
+                session,
+                scope,
+                "quote_created",
                 &[("opportunity_id", &opp), ("amount", "1000000")],
-                &[(&opp, "Opportunity")]);
-            emit(store, session, scope, "contract_executed",
+                &[(&opp, "Opportunity")],
+            );
+            emit(
+                store,
+                session,
+                scope,
+                "contract_executed",
                 &[("contract_id", &contract), ("opportunity_id", &opp)],
-                &[(&contract, "Contract"), (&opp, "Opportunity")]);
-            emit(store, session, scope, "partner_registered",
+                &[(&contract, "Contract"), (&opp, "Opportunity")],
+            );
+            emit(
+                store,
+                session,
+                scope,
+                "partner_registered",
                 &[("partner_id", &partner), ("opportunity_id", &opp)],
-                &[(&partner, "PartnerRegistration"), (&opp, "Opportunity")]);
-            emit(store, session, scope, "partner_attributed",
+                &[(&partner, "PartnerRegistration"), (&opp, "Opportunity")],
+            );
+            emit(
+                store,
+                session,
+                scope,
+                "partner_attributed",
                 &[("partner_id", &partner), ("contract_id", &contract)],
-                &[(&partner, "PartnerRegistration"), (&contract, "Contract")]);
+                &[(&partner, "PartnerRegistration"), (&contract, "Contract")],
+            );
         }
         Scenario::DiscountWithoutApproval => {
             // Discount applied via quote, but no discount_approved.
-            emit(store, session, scope, "quote_created",
-                &[("opportunity_id", &opp), ("amount", "1000000"), ("discount", "0.30")],
-                &[(&opp, "Opportunity")]);
+            emit(
+                store,
+                session,
+                scope,
+                "quote_created",
+                &[
+                    ("opportunity_id", &opp),
+                    ("amount", "1000000"),
+                    ("discount", "0.30"),
+                ],
+                &[(&opp, "Opportunity")],
+            );
             // No discount_approved.
-            emit(store, session, scope, "contract_executed",
-                &[("contract_id", &contract), ("opportunity_id", &opp), ("discount_applied", "0.30")],
-                &[(&contract, "Contract"), (&opp, "Opportunity")]);
+            emit(
+                store,
+                session,
+                scope,
+                "contract_executed",
+                &[
+                    ("contract_id", &contract),
+                    ("opportunity_id", &opp),
+                    ("discount_applied", "0.30"),
+                ],
+                &[(&contract, "Contract"), (&opp, "Opportunity")],
+            );
         }
         Scenario::UnreconciledBooking => {
             // Invoice issued but no order_created in chain.
-            emit(store, session, scope, "contract_executed",
+            emit(
+                store,
+                session,
+                scope,
+                "contract_executed",
                 &[("contract_id", &contract), ("opportunity_id", &opp)],
-                &[(&contract, "Contract"), (&opp, "Opportunity")]);
+                &[(&contract, "Contract"), (&opp, "Opportunity")],
+            );
             // Skip order_created.
-            emit(store, session, scope, "invoice_issued",
-                &[("invoice_id", &invoice), ("contract_id", &contract), ("amount", "900000")],
-                &[(&invoice, "Invoice"), (&contract, "Contract")]);
-            emit(store, session, scope, "payment_received",
+            emit(
+                store,
+                session,
+                scope,
+                "invoice_issued",
+                &[
+                    ("invoice_id", &invoice),
+                    ("contract_id", &contract),
+                    ("amount", "900000"),
+                ],
+                &[(&invoice, "Invoice"), (&contract, "Contract")],
+            );
+            emit(
+                store,
+                session,
+                scope,
+                "payment_received",
                 &[("invoice_id", &invoice), ("amount", "900000")],
-                &[(&invoice, "Invoice")]);
+                &[(&invoice, "Invoice")],
+            );
         }
         Scenario::RenewalRiskUndetected => {
             // Contract executed, renewal due, but no touchpoints.
-            emit(store, session, scope, "contract_executed",
+            emit(
+                store,
+                session,
+                scope,
+                "contract_executed",
                 &[("contract_id", &contract), ("opportunity_id", &opp)],
-                &[(&contract, "Contract"), (&opp, "Opportunity")]);
-            emit(store, session, scope, "renewal_due",
+                &[(&contract, "Contract"), (&opp, "Opportunity")],
+            );
+            emit(
+                store,
+                session,
+                scope,
+                "renewal_due",
                 &[("contract_id", &contract), ("days_until_renewal", "30")],
-                &[(&contract, "Contract")]);
+                &[(&contract, "Contract")],
+            );
             // No renewal_touchpoint_completed.
         }
         Scenario::RawDataLeak => {
             // A scenario that smuggles a raw-email-shaped attribute into
             // the projection request. The classification refused step
             // is what the test asserts.
-            emit(store, session, scope, "quote_created",
-                &[("opportunity_id", &opp), ("amount", "1000000"),
-                  ("contact_email", "real-customer@fortune5.example.com")],
-                &[(&opp, "Opportunity")]);
+            emit(
+                store,
+                session,
+                scope,
+                "quote_created",
+                &[
+                    ("opportunity_id", &opp),
+                    ("amount", "1000000"),
+                    ("contact_email", "real-customer@fortune5.example.com"),
+                ],
+                &[(&opp, "Opportunity")],
+            );
         }
         Scenario::OcelTruncated => {
             // Trace cut mid-flow: quote starts but no further events.
-            emit(store, session, scope, "quote_created",
+            emit(
+                store,
+                session,
+                scope,
+                "quote_created",
                 &[("opportunity_id", &opp), ("amount", "1000000")],
-                &[(&opp, "Opportunity")]);
+                &[(&opp, "Opportunity")],
+            );
             // Truncated.
         }
     }
@@ -269,7 +422,9 @@ pub fn build_scenario(store: &OcelStore, session: &str, scope: &str, scenario: S
 /// True if the trace satisfies the "every booked amount has a complete
 /// supporting chain" invariant: any `invoice_issued` is preceded by an
 /// `order_created` AND a `contract_executed` for the same contract.
-pub fn booking_chain_is_reconciled(events: &[(String, std::collections::HashMap<String, String>)]) -> bool {
+pub fn booking_chain_is_reconciled(
+    events: &[(String, std::collections::HashMap<String, String>)],
+) -> bool {
     let mut have_contract = std::collections::HashSet::new();
     let mut have_order = std::collections::HashSet::new();
     for (etype, attrs) in events {

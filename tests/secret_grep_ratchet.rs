@@ -1,3 +1,5 @@
+#![allow(clippy::collapsible_if, clippy::manual_strip, clippy::manual_contains)]
+
 //! Level-5 secret-hygiene textual ratchet.
 //!
 //! Invariant: no source line in `src/` may interpolate an API-key-like
@@ -207,7 +209,8 @@ fn scan_braces_for_forbidden(s: &str, extra_forbidden: &[String]) -> bool {
             if j > i + 1 {
                 let ident = &s[i + 1..j];
                 // Followed by ':' or '}'.
-                if j < bytes.len() && (bytes[j] == b':' || bytes[j] == b'}')
+                if j < bytes.len()
+                    && (bytes[j] == b':' || bytes[j] == b'}')
                     && is_forbidden_ident(ident, extra_forbidden)
                 {
                     return true;

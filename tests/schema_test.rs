@@ -1,15 +1,30 @@
 #![cfg(feature = "postgres")]
 
-use open_ontologies::schema::{TableInfo, ColumnInfo, ForeignKey, SchemaIntrospector};
+use open_ontologies::schema::{ColumnInfo, ForeignKey, SchemaIntrospector, TableInfo};
 
 #[test]
 fn test_generate_turtle_single_table() {
     let tables = vec![TableInfo {
         name: "users".into(),
         columns: vec![
-            ColumnInfo { name: "id".into(), data_type: "integer".into(), is_nullable: false, is_primary_key: true },
-            ColumnInfo { name: "name".into(), data_type: "varchar".into(), is_nullable: false, is_primary_key: false },
-            ColumnInfo { name: "email".into(), data_type: "varchar".into(), is_nullable: true, is_primary_key: false },
+            ColumnInfo {
+                name: "id".into(),
+                data_type: "integer".into(),
+                is_nullable: false,
+                is_primary_key: true,
+            },
+            ColumnInfo {
+                name: "name".into(),
+                data_type: "varchar".into(),
+                is_nullable: false,
+                is_primary_key: false,
+            },
+            ColumnInfo {
+                name: "email".into(),
+                data_type: "varchar".into(),
+                is_nullable: true,
+                is_primary_key: false,
+            },
         ],
         foreign_keys: vec![],
     }];
@@ -18,8 +33,8 @@ fn test_generate_turtle_single_table() {
     assert!(turtle.contains("db:Users a owl:Class"));
     assert!(turtle.contains("db:users_name a owl:DatatypeProperty"));
     assert!(turtle.contains("xsd:string"));
-    assert!(turtle.contains("owl:minCardinality"));  // NOT NULL → minCard 1
-    assert!(turtle.contains("owl:FunctionalProperty"));  // PK
+    assert!(turtle.contains("owl:minCardinality")); // NOT NULL → minCard 1
+    assert!(turtle.contains("owl:FunctionalProperty")); // PK
 }
 
 #[test]
@@ -27,16 +42,29 @@ fn test_generate_turtle_foreign_key() {
     let tables = vec![
         TableInfo {
             name: "users".into(),
-            columns: vec![
-                ColumnInfo { name: "id".into(), data_type: "integer".into(), is_nullable: false, is_primary_key: true },
-            ],
+            columns: vec![ColumnInfo {
+                name: "id".into(),
+                data_type: "integer".into(),
+                is_nullable: false,
+                is_primary_key: true,
+            }],
             foreign_keys: vec![],
         },
         TableInfo {
             name: "orders".into(),
             columns: vec![
-                ColumnInfo { name: "id".into(), data_type: "integer".into(), is_nullable: false, is_primary_key: true },
-                ColumnInfo { name: "user_id".into(), data_type: "integer".into(), is_nullable: false, is_primary_key: false },
+                ColumnInfo {
+                    name: "id".into(),
+                    data_type: "integer".into(),
+                    is_nullable: false,
+                    is_primary_key: true,
+                },
+                ColumnInfo {
+                    name: "user_id".into(),
+                    data_type: "integer".into(),
+                    is_nullable: false,
+                    is_primary_key: false,
+                },
             ],
             foreign_keys: vec![ForeignKey {
                 column: "user_id".into(),
@@ -68,8 +96,18 @@ fn test_generate_turtle_not_null_cardinality() {
     let tables = vec![TableInfo {
         name: "users".into(),
         columns: vec![
-            ColumnInfo { name: "id".into(), data_type: "integer".into(), is_nullable: false, is_primary_key: true },
-            ColumnInfo { name: "email".into(), data_type: "varchar".into(), is_nullable: false, is_primary_key: false },
+            ColumnInfo {
+                name: "id".into(),
+                data_type: "integer".into(),
+                is_nullable: false,
+                is_primary_key: true,
+            },
+            ColumnInfo {
+                name: "email".into(),
+                data_type: "varchar".into(),
+                is_nullable: false,
+                is_primary_key: false,
+            },
         ],
         foreign_keys: vec![],
     }];
@@ -81,6 +119,9 @@ fn test_generate_turtle_not_null_cardinality() {
 #[test]
 fn test_table_name_to_class() {
     assert_eq!(SchemaIntrospector::table_to_class("users"), "Users");
-    assert_eq!(SchemaIntrospector::table_to_class("order_items"), "OrderItems");
+    assert_eq!(
+        SchemaIntrospector::table_to_class("order_items"),
+        "OrderItems"
+    );
     assert_eq!(SchemaIntrospector::table_to_class("product"), "Product");
 }

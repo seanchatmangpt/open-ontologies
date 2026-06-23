@@ -56,8 +56,14 @@ pub fn classify(graph: &Arc<GraphStore>) -> anyhow::Result<ClassificationReport>
     let mut subs: Vec<(String, String)> = rows
         .iter()
         .filter_map(|r| {
-            let s = r["sub"].as_str()?.trim_matches(|c| c == '<' || c == '>').to_string();
-            let o = r["sup"].as_str()?.trim_matches(|c| c == '<' || c == '>').to_string();
+            let s = r["sub"]
+                .as_str()?
+                .trim_matches(|c| c == '<' || c == '>')
+                .to_string();
+            let o = r["sup"]
+                .as_str()?
+                .trim_matches(|c| c == '<' || c == '>')
+                .to_string();
             // Skip trivial X ⊑ X and X ⊑ owl:Thing.
             if s == o || o == "http://www.w3.org/2002/07/owl#Thing" {
                 return None;
@@ -104,10 +110,15 @@ mod tests {
         .unwrap();
         let r = classify(&g).unwrap();
         // Transitive: C ⊑ A must be derived.
-        let has_c_a = r.subsumptions.iter().any(|(s, o)| {
-            s == "http://ex.org/C" && o == "http://ex.org/A"
-        });
-        assert!(has_c_a, "transitive subsumption not derived; got: {:?}", r.subsumptions);
+        let has_c_a = r
+            .subsumptions
+            .iter()
+            .any(|(s, o)| s == "http://ex.org/C" && o == "http://ex.org/A");
+        assert!(
+            has_c_a,
+            "transitive subsumption not derived; got: {:?}",
+            r.subsumptions
+        );
         assert!(r.subsumption_count >= 3);
     }
 

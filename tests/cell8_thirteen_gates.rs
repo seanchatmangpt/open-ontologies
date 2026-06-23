@@ -10,10 +10,10 @@
 //!      (`shacl_validates_canonical_earl_report` /
 //!      `shacl_rejects_twelve_gate_report`).
 
+use open_ontologies::cell_ready::{CellReadyInputs, PowlOpRef, cell_ready};
 use open_ontologies::cell8::{
-    count_failed, count_passed, emit_earl_report, GateOutcome, GATE_NAMES,
+    GATE_NAMES, GateOutcome, count_failed, count_passed, emit_earl_report,
 };
-use open_ontologies::cell_ready::{cell_ready, CellReadyInputs, PowlOpRef};
 use open_ontologies::defects::DefectClass;
 use open_ontologies::graph::GraphStore;
 use open_ontologies::ocel_store::OcelStore;
@@ -24,8 +24,7 @@ use std::sync::Arc;
 use tempfile::tempdir;
 
 const HEX32: &str = "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789";
-const HEX32_OTHER: &str =
-    "1111111111111111111111111111111111111111111111111111111111111111";
+const HEX32_OTHER: &str = "1111111111111111111111111111111111111111111111111111111111111111";
 
 fn fresh_db() -> StateDb {
     let dir = tempdir().unwrap();
@@ -395,7 +394,11 @@ fn a5_threshold_below_required_denies() {
     bag.fitness_observed = 0.50;
 
     match cell_ready(inputs_from(&bag), &store) {
-        Err(DefectClass::ThresholdFailed { metric, observed, required }) => {
+        Err(DefectClass::ThresholdFailed {
+            metric,
+            observed,
+            required,
+        }) => {
             assert_eq!(metric, "fitness");
             assert!((observed - 0.50).abs() < 1e-9);
             assert!((required - 0.95).abs() < 1e-9);
@@ -671,8 +674,7 @@ fn shacl_validates_canonical_earl_report() {
 
     let shapes = load_shapes_ttl();
     let report_json = ShaclValidator::validate(&g, &shapes).expect("validate");
-    let parsed: serde_json::Value =
-        serde_json::from_str(&report_json).expect("parse SHACL report");
+    let parsed: serde_json::Value = serde_json::from_str(&report_json).expect("parse SHACL report");
     assert_eq!(
         parsed["conforms"], true,
         "SHACL should accept canonical 13-gate report; got {parsed}"
@@ -702,8 +704,7 @@ fn shacl_rejects_twelve_gate_report() {
 
     let shapes = load_shapes_ttl();
     let report_json = ShaclValidator::validate(&g, &shapes).expect("validate");
-    let parsed: serde_json::Value =
-        serde_json::from_str(&report_json).expect("parse SHACL report");
+    let parsed: serde_json::Value = serde_json::from_str(&report_json).expect("parse SHACL report");
     assert_eq!(
         parsed["conforms"], false,
         "SHACL must reject a 12-gate report; got {parsed}"

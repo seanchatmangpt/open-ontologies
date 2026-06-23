@@ -26,7 +26,7 @@
 //!
 //! Companion: `tests/saboteur_a11_temporal_validity_load_bearing.rs`
 
-use open_ontologies::cell_ready::{cell_ready, CellReadyInputs, PowlOpRef};
+use open_ontologies::cell_ready::{CellReadyInputs, PowlOpRef, cell_ready};
 use open_ontologies::defects::DefectClass;
 use open_ontologies::ocel_store::OcelStore;
 use open_ontologies::state::StateDb;
@@ -139,8 +139,14 @@ fn a11_deny_on_out_of_order_granted_at_chain() {
     ];
 
     let inputs = build_inputs(
-        &token, session, powl_string, powl_hash,
-        &artifact_hash, &evidence, &granted, &admitted,
+        &token,
+        session,
+        powl_string,
+        powl_hash,
+        &artifact_hash,
+        &evidence,
+        &granted,
+        &admitted,
     );
     match cell_ready(inputs, &store) {
         Err(DefectClass::TemporalSkew { observed_skew_ms }) => {
@@ -171,13 +177,20 @@ fn a11_deny_on_empty_granted_at_chain() {
     let granted: Vec<String> = Vec::new();
 
     let inputs = build_inputs(
-        &token, session, powl_string, powl_hash,
-        &artifact_hash, &evidence, &granted, &admitted,
+        &token,
+        session,
+        powl_string,
+        powl_hash,
+        &artifact_hash,
+        &evidence,
+        &granted,
+        &admitted,
     );
     match cell_ready(inputs, &store) {
         Err(DefectClass::TemporalSkew { .. }) => {}
         other => panic!(
-            "expected TemporalSkew on empty granted_at_chain; got {:?}", other
+            "expected TemporalSkew on empty granted_at_chain; got {:?}",
+            other
         ),
     }
 }
@@ -202,13 +215,20 @@ fn a11_pass_on_monotonic_granted_at_chain() {
     ];
 
     let inputs = build_inputs(
-        &token, session, powl_string, powl_hash,
-        &artifact_hash, &evidence, &granted, &admitted,
+        &token,
+        session,
+        powl_string,
+        powl_hash,
+        &artifact_hash,
+        &evidence,
+        &granted,
+        &admitted,
     );
     let result = cell_ready(inputs, &store);
     if let Err(DefectClass::TemporalSkew { .. }) = result {
         panic!(
-            "A11 must NOT fail with TemporalSkew on a monotonic chain; got {:?}", result
+            "A11 must NOT fail with TemporalSkew on a monotonic chain; got {:?}",
+            result
         );
     }
 }

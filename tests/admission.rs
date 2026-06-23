@@ -13,7 +13,7 @@ use open_ontologies::admission::{
 use open_ontologies::defects::DefectClass;
 use open_ontologies::ocel_store::OcelStore;
 use open_ontologies::state::StateDb;
-use open_ontologies::workflows::{by_name, WorkflowScope};
+use open_ontologies::workflows::{WorkflowScope, by_name};
 use tempfile::tempdir;
 
 fn fresh_db() -> StateDb {
@@ -25,7 +25,12 @@ fn fresh_db() -> StateDb {
 
 fn emit_stage(store: &OcelStore, session: &str, scope: &str, stage: &str) {
     let now = chrono::Utc::now().to_rfc3339();
-    let event_id = format!("{}:{}:{}", session, stage, chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0));
+    let event_id = format!(
+        "{}:{}:{}",
+        session,
+        stage,
+        chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0)
+    );
     store
         .emit_event(&event_id, stage, &now, session, &[], &[], Some(scope))
         .unwrap();
@@ -56,9 +61,7 @@ fn skipped_stage_denial() {
     for stage in &["load", "validate", "reason", "save"] {
         emit_stage(&store, session, &token, stage);
     }
-    let observed: Vec<String> = store
-        .observed_event_types_for_session(session)
-        .unwrap();
+    let observed: Vec<String> = store.observed_event_types_for_session(session).unwrap();
 
     let gate = build_gate("OntologyAuthoring");
     let powl = by_name("OntologyAuthoring").unwrap().powl_string;
@@ -131,7 +134,10 @@ fn wrong_order_denial() {
         // short-circuits to CapabilityZero — the typed defect emitted in lieu
         // of free-text "wrong order" denials. See plan §"CellReady predicate".
         Err((DefectClass::CapabilityZero, _)) => {}
-        other => panic!("expected CapabilityZero (wrong-order projection), got {:?}", other),
+        other => panic!(
+            "expected CapabilityZero (wrong-order projection), got {:?}",
+            other
+        ),
     }
 }
 
@@ -197,11 +203,13 @@ fn happy_path_admission_persists_receipt() {
     assert_eq!(n, 1, "receipt row must be persisted");
     // PowlBridgeReplay produces real fitness ≥ 0.95 on perfect trace.
     // Phase-10 renamed gate labels to `A<n>_<Name>` form.
-    assert!(receipt
-        .record
-        .gates_passed
-        .iter()
-        .any(|g| g == "ThresholdPass" || g == "A5_ThresholdPass"));
+    assert!(
+        receipt
+            .record
+            .gates_passed
+            .iter()
+            .any(|g| g == "ThresholdPass" || g == "A5_ThresholdPass")
+    );
 }
 
 /// (d) Replay enforcement: corrupt the ocel_canonical_hash by deleting the
@@ -224,7 +232,10 @@ fn replay_enforcement_after_corruption() {
 
     let gate = build_gate("LifecycleApply");
     let powl = by_name("LifecycleApply").unwrap().powl_string;
-    let artifact = ArtifactRef { kind: "t", bytes: b"x" };
+    let artifact = ArtifactRef {
+        kind: "t",
+        bytes: b"x",
+    };
     // INTENTIONAL: gate-semantics test, see plan §A — POWLReplayPass conjunct #4 fires before RequiredStagesPresent #6
     gate.evaluate(
         &token,
@@ -306,7 +317,10 @@ fn bypass_revokes_subsequent_operations() {
 
     let gate = build_gate("LifecycleApply");
     let powl = by_name("LifecycleApply").unwrap().powl_string;
-    let artifact = ArtifactRef { kind: "t", bytes: b"y" };
+    let artifact = ArtifactRef {
+        kind: "t",
+        bytes: b"y",
+    };
     // INTENTIONAL: gate-semantics test, see plan §A — POWLReplayPass conjunct #4 fires before RequiredStagesPresent #6
     let result = gate.evaluate(
         &token,

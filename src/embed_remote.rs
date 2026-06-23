@@ -340,11 +340,7 @@ impl OpenAIEmbedder {
             return d;
         }
         let observed = self.detected_dim.load(Ordering::Relaxed);
-        if observed > 0 {
-            observed
-        } else {
-            FALLBACK_DIM
-        }
+        if observed > 0 { observed } else { FALLBACK_DIM }
     }
 
     /// Configured model name (for diagnostics).

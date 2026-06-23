@@ -52,8 +52,20 @@ fn test_drift_detects_addition_and_removal() {
     let result = detector.detect(v1, v2).unwrap();
     let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
 
-    assert!(parsed["removed"].as_array().unwrap().iter().any(|v| v.as_str().unwrap().contains("Cat")));
-    assert!(parsed["added"].as_array().unwrap().iter().any(|v| v.as_str().unwrap().contains("Bird")));
+    assert!(
+        parsed["removed"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|v| v.as_str().unwrap().contains("Cat"))
+    );
+    assert!(
+        parsed["added"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|v| v.as_str().unwrap().contains("Bird"))
+    );
 }
 
 #[test]
@@ -151,10 +163,20 @@ fn test_drift_feedback_improves_confidence() {
     let db = setup();
     let detector = DriftDetector::new(db);
 
-    detector.record_feedback("ex:a", "ex:b", "rename", 0.8, "rename",
-        true, 0.9, false, true);
-    detector.record_feedback("ex:c", "ex:d", "rename", 0.6, "different_concept",
-        false, 0.3, false, false);
+    detector.record_feedback(
+        "ex:a", "ex:b", "rename", 0.8, "rename", true, 0.9, false, true,
+    );
+    detector.record_feedback(
+        "ex:c",
+        "ex:d",
+        "rename",
+        0.6,
+        "different_concept",
+        false,
+        0.3,
+        false,
+        false,
+    );
 
     let weights = detector.get_learned_weights();
     assert_eq!(weights.len(), 4);

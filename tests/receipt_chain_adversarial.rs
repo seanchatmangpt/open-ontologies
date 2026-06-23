@@ -23,7 +23,7 @@ use open_ontologies::admission::{
 use open_ontologies::ocel_store::OcelStore;
 use open_ontologies::receipts;
 use open_ontologies::state::StateDb;
-use open_ontologies::workflows::{by_name, WorkflowScope};
+use open_ontologies::workflows::{WorkflowScope, by_name};
 use std::sync::Arc;
 use std::thread;
 use tempfile::tempdir;
@@ -44,7 +44,16 @@ fn emit_stage(store: &OcelStore, session: &str, scope: &str, stage: &str, tenant
         chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0)
     );
     store
-        .emit_event_in_tenant(&event_id, stage, &now, session, &[], &[], Some(scope), tenant)
+        .emit_event_in_tenant(
+            &event_id,
+            stage,
+            &now,
+            session,
+            &[],
+            &[],
+            Some(scope),
+            tenant,
+        )
         .unwrap();
 }
 
@@ -132,8 +141,7 @@ fn granted_at_tie_resolves_by_sequence() {
         insert_raw_receipt(&db, session, &hash_b, same_ts, 2);
         insert_raw_receipt(&db, session, &hash_a, same_ts, 1);
 
-        let latest = receipts::latest_for_session(&db, session)
-            .expect("latest must exist");
+        let latest = receipts::latest_for_session(&db, session).expect("latest must exist");
         let latest_hex = hash_to_hex(&latest);
         assert_eq!(
             latest_hex, hash_b,
@@ -148,11 +156,7 @@ fn concurrent_sessions_do_not_cross_chain() {
     let db = Arc::new(fresh_db());
     let store = Arc::new(OcelStore::new((*db).clone()));
 
-    fn drive_session(
-        db: Arc<StateDb>,
-        store: Arc<OcelStore>,
-        session: String,
-    ) {
+    fn drive_session(db: Arc<StateDb>, store: Arc<OcelStore>, session: String) {
         // One scope per session; drive 5 distinct AdmissionOps on it (matches
         // the upstream pattern in recursive_admission_e2e.rs). Using
         // RequirementsManufacturing because PowlBridgeReplay classifies its
@@ -186,15 +190,7 @@ fn concurrent_sessions_do_not_cross_chain() {
                 bytes: payload.as_bytes(),
             };
             gate.evaluate(
-                &token,
-                *op,
-                &artifact,
-                &store,
-                &replay,
-                &session,
-                powl,
-                &observed,
-                &tenant,
+                &token, *op, &artifact, &store, &replay, &session, powl, &observed, &tenant,
             )
             .expect("admission must grant");
         }
@@ -202,14 +198,10 @@ fn concurrent_sessions_do_not_cross_chain() {
 
     let db_a = Arc::clone(&db);
     let store_a = Arc::clone(&store);
-    let h1 = thread::spawn(move || {
-        drive_session(db_a, store_a, "session-A".to_string())
-    });
+    let h1 = thread::spawn(move || drive_session(db_a, store_a, "session-A".to_string()));
     let db_b = Arc::clone(&db);
     let store_b = Arc::clone(&store);
-    let h2 = thread::spawn(move || {
-        drive_session(db_b, store_b, "session-B".to_string())
-    });
+    let h2 = thread::spawn(move || drive_session(db_b, store_b, "session-B".to_string()));
     h1.join().unwrap();
     h2.join().unwrap();
 
@@ -226,7 +218,11 @@ fn concurrent_sessions_do_not_cross_chain() {
             .unwrap();
         let rows: Vec<(i64, String, Option<String>)> = stmt
             .query_map(rusqlite::params![session], |r| {
-                Ok((r.get::<_, i64>(0)?, r.get::<_, String>(1)?, r.get::<_, Option<String>>(2)?))
+                Ok((
+                    r.get::<_, i64>(0)?,
+                    r.get::<_, String>(1)?,
+                    r.get::<_, Option<String>>(2)?,
+                ))
             })
             .unwrap()
             .map(|r| r.unwrap())

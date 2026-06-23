@@ -11,7 +11,7 @@ use open_ontologies::admission::{
 };
 use open_ontologies::ocel_store::OcelStore;
 use open_ontologies::state::StateDb;
-use open_ontologies::workflows::{by_name, WorkflowScope};
+use open_ontologies::workflows::{WorkflowScope, by_name};
 use tempfile::tempdir;
 
 fn fresh_db() -> StateDb {
@@ -56,7 +56,10 @@ fn replay_from_ocel_alone_matches_canonical_replay() {
     // Run the gate so `evaluate()` emits the workflow_declared anchor event
     // (the thing that makes the OCEL stream self-sufficient).
     let gate = OntoStarAdmissionGate::new(0.0, 0.0, vec![], "ontostar-1.0.0");
-    let artifact = ArtifactRef { kind: "test", bytes: b"a" };
+    let artifact = ArtifactRef {
+        kind: "test",
+        bytes: b"a",
+    };
     let observed: Vec<String> = store
         .observed_event_types_for_session(session)
         .unwrap_or_default();

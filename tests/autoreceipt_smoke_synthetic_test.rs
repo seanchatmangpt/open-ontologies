@@ -1,9 +1,9 @@
-use open_ontologies::graph::GraphStore;
-use open_ontologies::state::StateDb;
-use open_ontologies::plan::{Planner, autoreceipt};
-use open_ontologies::ocel_manufacturer::OcelManufacturer;
-use open_ontologies::registry::ExecutionRegistry;
 use open_ontologies::align::AlignmentEngine;
+use open_ontologies::graph::GraphStore;
+use open_ontologies::ocel_manufacturer::OcelManufacturer;
+use open_ontologies::plan::{Planner, autoreceipt};
+use open_ontologies::registry::ExecutionRegistry;
+use open_ontologies::state::StateDb;
 use std::sync::Arc;
 use tempfile::tempdir;
 
@@ -37,25 +37,27 @@ C4Container
         .bind("AutoReceipt Compiler", "open-ontologies plan")
         .bind("OCEL Aligner", "open-ontologies align")
         .transition();
-    assert_eq!(registry.resolve("OCEL Aligner").unwrap(), "open-ontologies align");
+    assert_eq!(
+        registry.resolve("OCEL Aligner").unwrap(),
+        "open-ontologies align"
+    );
 
     // 4. Capture Observed OCEL (ObservedOcelCaptured)
     // Simulate observed events matching the expected ones by cloning
-    let observed_events = expected_events.clone(); 
+    let observed_events = expected_events.clone();
     let _execution_hash = blake3::hash(b"simulated execution").to_hex().to_string();
 
     // 5. Verify Alignment (AlignmentVerified)
     let engine = AlignmentEngine::new(db.clone(), store.clone());
     let (fitness, precision, verdict) = engine.verify_alignment(&expected_events, &observed_events);
-    
+
     // Assert the system blocks synthetic closure
     assert_eq!(fitness, 0.0);
     assert_eq!(precision, 0.0);
     assert_eq!(verdict, "SyntheticObservedOcelRejected");
-    
+
     // The test explicitly marks itself as synthetic and invalid for AutoReceipt
     println!("execution_mode = synthetic");
     println!("valid_for_autoreceipt_closure = false");
     println!("state = SyntheticObservedOcelRejected");
 }
-

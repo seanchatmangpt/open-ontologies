@@ -73,14 +73,14 @@ pub struct Receipt {
     pub receipt_schema: String, // "oo.receipt.v1"
     pub version: String,        // "26.5.21"
     pub hash_algorithm: String, // "BLAKE3"
-    
+
     pub claim: Claim,
-    
+
     pub expected_ocel: Option<OcelReference>,
     pub observed_ocel: Option<OcelReference>,
     pub alignment: AlignmentProof,
     pub boundary_evidence: Option<BoundaryEvidence>,
-    
+
     pub previous_receipt_hash: Option<String>,
     pub receipt_hash: Option<String>,
 }
@@ -156,7 +156,11 @@ impl BoundaryReceiptBuilder {
 
 impl Receipt {
     /// Convenience builder for constructing from boundary evidence.
-    pub fn boundary_builder(artifact_id: String, operator_id: String, route_id: String) -> BoundaryReceiptBuilder {
+    pub fn boundary_builder(
+        artifact_id: String,
+        operator_id: String,
+        route_id: String,
+    ) -> BoundaryReceiptBuilder {
         BoundaryReceiptBuilder::new(artifact_id, operator_id, route_id)
     }
 
@@ -184,8 +188,14 @@ impl Receipt {
                 closure_id: format!("closure_{}", uuid::Uuid::new_v4()),
                 route_id,
             },
-            expected_ocel: expected_ocel_hash.map(|h| OcelReference { schema: "oo.expected_ocel.v1".to_string(), canonical_hash: h }),
-            observed_ocel: observed_ocel_hash.map(|h| OcelReference { schema: "oo.observed_ocel.v1".to_string(), canonical_hash: h }),
+            expected_ocel: expected_ocel_hash.map(|h| OcelReference {
+                schema: "oo.expected_ocel.v1".to_string(),
+                canonical_hash: h,
+            }),
+            observed_ocel: observed_ocel_hash.map(|h| OcelReference {
+                schema: "oo.observed_ocel.v1".to_string(),
+                canonical_hash: h,
+            }),
             alignment: AlignmentProof {
                 state: AlignmentState::Incomplete,
                 missing_events: vec![],
@@ -214,19 +224,28 @@ impl Receipt {
 /// Core Validation Law: No embedded OCEL path -> no receipt closure.
 pub fn validate_core_receipt(receipt: &Receipt) -> Result<(), OpenOntologyRefusalState8> {
     // 1. Missing Expected OCEL
-    let exp = receipt.expected_ocel.as_ref().ok_or(OpenOntologyRefusalState8::ExpectedOCELMissing)?;
-    
+    let exp = receipt
+        .expected_ocel
+        .as_ref()
+        .ok_or(OpenOntologyRefusalState8::ExpectedOCELMissing)?;
+
     // 2. Missing Observed OCEL (No world evidence)
-    let obs = receipt.observed_ocel.as_ref().ok_or(OpenOntologyRefusalState8::ObservedOCELMissing)?;
-    
+    let obs = receipt
+        .observed_ocel
+        .as_ref()
+        .ok_or(OpenOntologyRefusalState8::ObservedOCELMissing)?;
+
     // 3. Expected/Observed Clone Detected (Expected hash cannot equal Observed hash)
     if exp.canonical_hash == obs.canonical_hash {
         return Err(OpenOntologyRefusalState8::ExpectedObservedCloneDetected);
     }
-    
+
     // 4. Missing Boundary Evidence
-    let bounds = receipt.boundary_evidence.as_ref().ok_or(OpenOntologyRefusalState8::BoundaryEvidenceMissing)?;
-    
+    let bounds = receipt
+        .boundary_evidence
+        .as_ref()
+        .ok_or(OpenOntologyRefusalState8::BoundaryEvidenceMissing)?;
+
     // 5. Raw Boundary Evidence Missing (Hash-only proofs are forbidden)
     if bounds.raw_evidence_hash.is_none() {
         if bounds.stdout_hash.is_some() || bounds.stderr_hash.is_some() {
@@ -236,16 +255,20 @@ pub fn validate_core_receipt(receipt: &Receipt) -> Result<(), OpenOntologyRefusa
         }
         return Err(OpenOntologyRefusalState8::BoundaryEvidenceMissing);
     }
-    
+
     // 6. Alignment Receipt Self-Authored Check
     if !receipt.alignment.verifier_derived {
         return Err(OpenOntologyRefusalState8::AlignmentReceiptSelfAuthored);
     }
-    
+
     // 7. Alignment State
     match receipt.alignment.state {
         AlignmentState::Pass => Ok(()),
-        AlignmentState::Refused => Err(receipt.alignment.refusal_state.clone().unwrap_or(OpenOntologyRefusalState8::OCELAlignmentFailed)),
+        AlignmentState::Refused => Err(receipt
+            .alignment
+            .refusal_state
+            .clone()
+            .unwrap_or(OpenOntologyRefusalState8::OCELAlignmentFailed)),
         AlignmentState::Incomplete => Err(OpenOntologyRefusalState8::ClosureOverclaimed),
     }
 }

@@ -29,7 +29,7 @@
 //!   stable-model enumeration; deferred until #48 PyWhy ships the causal
 //!   estimation that would consume those distributions.
 
-use crate::dynamics::{lookup, ActionSchema, EffectSpec};
+use crate::dynamics::{ActionSchema, EffectSpec, lookup};
 use crate::graph::GraphStore;
 use crate::state::StateDb;
 use serde::{Deserialize, Serialize};
@@ -82,7 +82,8 @@ pub fn apply_concurrent(
     steps: &[ConcurrentStep],
 ) -> anyhow::Result<ConcurrentApplyResult> {
     let mut planned_adds: Vec<BTreeSet<(String, String, String)>> = Vec::with_capacity(steps.len());
-    let mut planned_removes: Vec<BTreeSet<(String, String, String)>> = Vec::with_capacity(steps.len());
+    let mut planned_removes: Vec<BTreeSet<(String, String, String)>> =
+        Vec::with_capacity(steps.len());
 
     // ── Step 1: compute each action's effects against the pre-tick state.
     for step in steps {
@@ -107,14 +108,22 @@ pub fn apply_concurrent(
         let mut removes = BTreeSet::new();
         for effect in &schema.effects {
             let triple = match effect {
-                EffectSpec::AddTriple { subject, predicate, object } => {
+                EffectSpec::AddTriple {
+                    subject,
+                    predicate,
+                    object,
+                } => {
                     let s = schema.substitute(subject, &bindings);
                     let p = schema.substitute(predicate, &bindings);
                     let o = schema.substitute(object, &bindings);
                     adds.insert((s, p, o));
                     continue;
                 }
-                EffectSpec::RemoveTriple { subject, predicate, object } => {
+                EffectSpec::RemoveTriple {
+                    subject,
+                    predicate,
+                    object,
+                } => {
                     let s = schema.substitute(subject, &bindings);
                     let p = schema.substitute(predicate, &bindings);
                     let o = schema.substitute(object, &bindings);
@@ -165,8 +174,10 @@ pub fn apply_concurrent(
     }
 
     // ── Step 3: commit. Union of all adds, union of all removes.
-    let all_adds: BTreeSet<(String, String, String)> = planned_adds.iter().flatten().cloned().collect();
-    let all_removes: BTreeSet<(String, String, String)> = planned_removes.iter().flatten().cloned().collect();
+    let all_adds: BTreeSet<(String, String, String)> =
+        planned_adds.iter().flatten().cloned().collect();
+    let all_removes: BTreeSet<(String, String, String)> =
+        planned_removes.iter().flatten().cloned().collect();
 
     if !all_adds.is_empty() {
         let mut ttl = String::new();
@@ -256,9 +267,8 @@ pub fn register_invariant(db: &StateDb, law: &StaticCausalLaw) -> anyhow::Result
 pub fn list_invariants(db: &StateDb) -> anyhow::Result<Vec<StaticCausalLaw>> {
     ensure_laws_table(db)?;
     let conn = db.conn();
-    let mut stmt = conn.prepare(
-        "SELECT name, ask_query, description FROM bcplus_static_laws ORDER BY name",
-    )?;
+    let mut stmt =
+        conn.prepare("SELECT name, ask_query, description FROM bcplus_static_laws ORDER BY name")?;
     let rows: Vec<StaticCausalLaw> = stmt
         .query_map([], |r| {
             Ok(StaticCausalLaw {
@@ -352,9 +362,7 @@ pub fn register_default(db: &StateDb, law: &DefaultLaw) -> anyhow::Result<()> {
 pub fn list_defaults(db: &StateDb) -> anyhow::Result<Vec<DefaultLaw>> {
     ensure_defaults_table(db)?;
     let conn = db.conn();
-    let mut stmt = conn.prepare(
-        "SELECT law_json FROM bcplus_default_laws ORDER BY name",
-    )?;
+    let mut stmt = conn.prepare("SELECT law_json FROM bcplus_default_laws ORDER BY name")?;
     let rows: Vec<DefaultLaw> = stmt
         .query_map([], |r| r.get::<_, String>(0))?
         .filter_map(|r| r.ok().and_then(|s| serde_json::from_str(&s).ok()))
@@ -401,7 +409,10 @@ pub fn apply_defaults(
             }
         }
     }
-    Ok(DefaultsApplyResult { laws_fired: fired, triples_added: added })
+    Ok(DefaultsApplyResult {
+        laws_fired: fired,
+        triples_added: added,
+    })
 }
 
 /// Outcome of [`apply_defaults`].
@@ -419,7 +430,7 @@ fn in_memory_db() -> anyhow::Result<StateDb> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::dynamics::{register, ActionSchema, EffectSpec, Parameter};
+    use crate::dynamics::{ActionSchema, EffectSpec, Parameter, register};
 
     fn fresh_db() -> StateDb {
         StateDb::open(Path::new(":memory:")).unwrap()
@@ -444,9 +455,14 @@ mod tests {
     fn add_class_schema() -> ActionSchema {
         ActionSchema {
             name: "add_class".to_string(),
-            parameters: vec![Parameter { name: "iri".to_string(), type_iri: None }],
+            parameters: vec![Parameter {
+                name: "iri".to_string(),
+                type_iri: None,
+            }],
             preconditions: vec![],
-            effects: vec![EffectSpec::AddClass { iri: "{iri}".to_string() }],
+            effects: vec![EffectSpec::AddClass {
+                iri: "{iri}".to_string(),
+            }],
             reversible: true,
             description: None,
             outcomes: vec![],
@@ -467,8 +483,14 @@ mod tests {
             &db,
             &graph,
             &[
-                ConcurrentStep { action_name: "add_class".to_string(), bindings: b1 },
-                ConcurrentStep { action_name: "add_class".to_string(), bindings: b2 },
+                ConcurrentStep {
+                    action_name: "add_class".to_string(),
+                    bindings: b1,
+                },
+                ConcurrentStep {
+                    action_name: "add_class".to_string(),
+                    bindings: b2,
+                },
             ],
         )
         .unwrap();
@@ -477,7 +499,10 @@ mod tests {
         assert!(result.triples_added >= 2);
         // Both classes must now be declared.
         for iri in ["http://ex.org/Fish", "http://ex.org/Reptile"] {
-            let q = format!("ASK {{ <{}> a <http://www.w3.org/2002/07/owl#Class> }}", iri);
+            let q = format!(
+                "ASK {{ <{}> a <http://www.w3.org/2002/07/owl#Class> }}",
+                iri
+            );
             let r = graph.sparql_select(&q).unwrap();
             assert!(r.contains("\"result\":true"), "missing: {}", iri);
         }
@@ -522,8 +547,14 @@ mod tests {
             &db,
             &graph,
             &[
-                ConcurrentStep { action_name: "add_t".to_string(), bindings: BTreeMap::new() },
-                ConcurrentStep { action_name: "remove_t".to_string(), bindings: BTreeMap::new() },
+                ConcurrentStep {
+                    action_name: "add_t".to_string(),
+                    bindings: BTreeMap::new(),
+                },
+                ConcurrentStep {
+                    action_name: "remove_t".to_string(),
+                    bindings: BTreeMap::new(),
+                },
             ],
         )
         .unwrap();
@@ -548,12 +579,16 @@ mod tests {
             outcomes: vec![
                 crate::dynamics::Outcome {
                     probability: 0.5,
-                    effects: vec![EffectSpec::AddClass { iri: "http://ex.org/A".to_string() }],
+                    effects: vec![EffectSpec::AddClass {
+                        iri: "http://ex.org/A".to_string(),
+                    }],
                     label: Some("a".to_string()),
                 },
                 crate::dynamics::Outcome {
                     probability: 0.5,
-                    effects: vec![EffectSpec::AddClass { iri: "http://ex.org/B".to_string() }],
+                    effects: vec![EffectSpec::AddClass {
+                        iri: "http://ex.org/B".to_string(),
+                    }],
                     label: Some("b".to_string()),
                 },
             ],
@@ -562,7 +597,10 @@ mod tests {
         let err = apply_concurrent(
             &db,
             &graph,
-            &[ConcurrentStep { action_name: "noisy".to_string(), bindings: BTreeMap::new() }],
+            &[ConcurrentStep {
+                action_name: "noisy".to_string(),
+                bindings: BTreeMap::new(),
+            }],
         )
         .expect_err("should reject");
         assert!(format!("{}", err).contains("non_deterministic_in_concurrent_tick"));
@@ -599,7 +637,8 @@ mod tests {
             &db,
             &StaticCausalLaw {
                 name: "cat_must_exist".to_string(),
-                ask_query: "ASK { <http://ex.org/Cat> a <http://www.w3.org/2002/07/owl#Class> }".into(),
+                ask_query: "ASK { <http://ex.org/Cat> a <http://www.w3.org/2002/07/owl#Class> }"
+                    .into(),
                 description: None,
             },
         )
@@ -624,7 +663,10 @@ mod tests {
         let result = apply_concurrent(
             &db,
             &graph,
-            &[ConcurrentStep { action_name: "remove_cat".to_string(), bindings: BTreeMap::new() }],
+            &[ConcurrentStep {
+                action_name: "remove_cat".to_string(),
+                bindings: BTreeMap::new(),
+            }],
         )
         .unwrap();
         assert_eq!(result.steps_applied, 0);
@@ -640,8 +682,8 @@ mod tests {
         // Default: when ex:Cat is a class, assert that Cat has a default label.
         let law = DefaultLaw {
             name: "cat_default_label".to_string(),
-            condition_ask:
-                "ASK { <http://ex.org/Cat> a <http://www.w3.org/2002/07/owl#Class> }".into(),
+            condition_ask: "ASK { <http://ex.org/Cat> a <http://www.w3.org/2002/07/owl#Class> }"
+                .into(),
             defaults: vec![(
                 "http://ex.org/Cat".into(),
                 "http://www.w3.org/2000/01/rdf-schema#label".into(),
@@ -666,8 +708,8 @@ mod tests {
         let law = DefaultLaw {
             name: "fish_default_label".to_string(),
             // ex:Fish is NOT in the seed graph.
-            condition_ask:
-                "ASK { <http://ex.org/Fish> a <http://www.w3.org/2002/07/owl#Class> }".into(),
+            condition_ask: "ASK { <http://ex.org/Fish> a <http://www.w3.org/2002/07/owl#Class> }"
+                .into(),
             defaults: vec![(
                 "http://ex.org/Fish".into(),
                 "http://www.w3.org/2000/01/rdf-schema#label".into(),

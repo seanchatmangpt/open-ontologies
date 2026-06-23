@@ -3,8 +3,8 @@
 use clap_noun_verb::Result as NounVerbResult;
 use clap_noun_verb_macros::verb;
 use serde::Serialize;
-use std::path::PathBuf;
 use std::fs;
+use std::path::PathBuf;
 
 use super::helpers::to_verb_err;
 use open_ontologies::ghf::{ContributionReceipt, verify_receipt};
@@ -28,13 +28,13 @@ fn verify(target_type: String, target: Option<String>) -> NounVerbResult<()> {
         let receipt_path = PathBuf::from(&target_val);
         let receipt_json = fs::read_to_string(&receipt_path)
             .map_err(|e| to_verb_err(format!("Failed to read receipt file: {}", e)))?;
-        
+
         let receipt: ContributionReceipt = serde_json::from_str(&receipt_json)
             .map_err(|e| to_verb_err(format!("Failed to parse receipt JSON: {}", e)))?;
 
         let result = verify_receipt(&receipt);
         println!("{}", serde_json::to_string_pretty(&result).unwrap());
-        
+
         if result.state == open_ontologies::ghf::VerificationState::Admitted {
             Ok(())
         } else {
@@ -46,19 +46,22 @@ fn verify(target_type: String, target: Option<String>) -> NounVerbResult<()> {
             .arg("scripts/ghf/fleet_sentinel.py")
             .status()
             .map_err(|e| to_verb_err(format!("Failed to run fleet sentinel: {}", e)))?;
-            
+
         if !status.success() {
             return Err(to_verb_err("Fleet Sentinel execution failed".to_string()));
         }
 
         let receipt_json = fs::read_to_string("artifacts/ghf/fleet/fleet-health.receipt.json")
             .unwrap_or_else(|_| "{}".to_string());
-        
+
         println!("Fleet Sentinel Report:");
         println!("{}", receipt_json);
 
         Ok(())
     } else {
-        Err(to_verb_err(format!("Unsupported target type: {}", target_type)))
+        Err(to_verb_err(format!(
+            "Unsupported target type: {}",
+            target_type
+        )))
     }
 }

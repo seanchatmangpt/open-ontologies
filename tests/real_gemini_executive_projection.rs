@@ -1,3 +1,5 @@
+#![allow(clippy::all, unused)]
+
 //! Mocked gemini CLI/API integration test for `onto_executive_projection`.
 use std::sync::Arc;
 
@@ -8,8 +10,8 @@ use open_ontologies::server::OpenOntologiesServer;
 use open_ontologies::state::StateDb;
 use open_ontologies::toolfilter::ToolFilter;
 use rmcp::handler::server::wrapper::Parameters;
-use wiremock::{MockServer, Mock, ResponseTemplate};
 use wiremock::matchers::{method, path};
+use wiremock::{Mock, MockServer, ResponseTemplate};
 
 static TEST_MUTEX: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
@@ -67,7 +69,8 @@ async fn executive_projection_gemini_engine_returns_summary() {
             scope_token: "test-gemini-exec-proj".to_string(),
             admitted_evidence: "The system response time exceeds 4 hours for critical tickets. \
                                Escalation rate is 23 percent. Customer satisfaction score dropped \
-                               from 87 to 71 in Q3. Root cause is insufficient triage staffing.".to_string(),
+                               from 87 to 71 in Q3. Root cause is insufficient triage staffing."
+                .to_string(),
             engine: Some("gemini".to_string()),
             python: None,
         }))

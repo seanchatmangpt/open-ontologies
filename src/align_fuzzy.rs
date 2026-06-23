@@ -69,23 +69,35 @@ pub struct RuleFiring {
 
 /// Membership in the "low" fuzzy set: peak 0.0, falls to 0 at 0.4.
 fn mu_low(x: f64) -> f64 {
-    if x <= 0.0 { 1.0 }
-    else if x >= 0.4 { 0.0 }
-    else { 1.0 - x / 0.4 }
+    if x <= 0.0 {
+        1.0
+    } else if x >= 0.4 {
+        0.0
+    } else {
+        1.0 - x / 0.4
+    }
 }
 
 /// Membership in the "medium" fuzzy set: peak at 0.5, supports [0.2, 0.8].
 fn mu_medium(x: f64) -> f64 {
-    if x <= 0.2 || x >= 0.8 { 0.0 }
-    else if x <= 0.5 { (x - 0.2) / 0.3 }
-    else { (0.8 - x) / 0.3 }
+    if x <= 0.2 || x >= 0.8 {
+        0.0
+    } else if x <= 0.5 {
+        (x - 0.2) / 0.3
+    } else {
+        (0.8 - x) / 0.3
+    }
 }
 
 /// Membership in the "high" fuzzy set: rises from 0 at 0.6, peaks at 1.0.
 fn mu_high(x: f64) -> f64 {
-    if x <= 0.6 { 0.0 }
-    else if x >= 1.0 { 1.0 }
-    else { (x - 0.6) / 0.4 }
+    if x <= 0.6 {
+        0.0
+    } else if x >= 1.0 {
+        1.0
+    } else {
+        (x - 0.6) / 0.4
+    }
 }
 
 // ─── Output fuzzy sets (verdict) ────────────────────────────────────────────
@@ -228,9 +240,10 @@ pub fn adjudicate(
             consequent: lbl.name().to_string(),
         })
         .collect();
-    let mut trace: Vec<String> = vec![
-        format!("inference: 10-rule Mamdani over signals {:?}, t-norm: {:?}", signals, tnorm),
-    ];
+    let mut trace: Vec<String> = vec![format!(
+        "inference: 10-rule Mamdani over signals {:?}, t-norm: {:?}",
+        signals, tnorm
+    )];
     for f in &rule_activations {
         trace.push(format!(
             "R{} fired @ {:.3} → {}",
@@ -291,7 +304,11 @@ mod tests {
         assert_eq!(d.verdict, "reject");
         assert!(d.fuzzy_score <= 0.4);
         // R8 or R9 must have fired.
-        assert!(d.rule_activations.iter().any(|r| r.rule_id == 8 || r.rule_id == 9));
+        assert!(
+            d.rule_activations
+                .iter()
+                .any(|r| r.rule_id == 8 || r.rule_id == 9)
+        );
     }
 
     #[test]
@@ -312,8 +329,11 @@ mod tests {
     fn datatype_only_penalises_under_r10() {
         // Medium label + extreme datatype mismatch should fire R10 → reject leaning.
         let d = adjudicate(&s(0.5, 0.1, 0.1, 0.0), TNorm::Min, 0.4, 0.7);
-        assert!(d.rule_activations.iter().any(|r| r.rule_id == 10),
-            "R10 should fire on low-datatype + medium-label; got: {:?}", d.rule_activations);
+        assert!(
+            d.rule_activations.iter().any(|r| r.rule_id == 10),
+            "R10 should fire on low-datatype + medium-label; got: {:?}",
+            d.rule_activations
+        );
     }
 
     #[test]
@@ -322,8 +342,10 @@ mod tests {
         let d_min = adjudicate(&signals, TNorm::Min, 0.4, 0.7);
         let d_prod = adjudicate(&signals, TNorm::Product, 0.4, 0.7);
         // Product reduces firing strengths; centroid leans more toward 0.5.
-        assert!(d_prod.fuzzy_score != d_min.fuzzy_score,
-            "product and min should produce different scores");
+        assert!(
+            d_prod.fuzzy_score != d_min.fuzzy_score,
+            "product and min should produce different scores"
+        );
     }
 
     #[test]
@@ -340,9 +362,11 @@ mod tests {
         let d = adjudicate(&s(0.1, 0.9, 0.9, 0.9), TNorm::Min, 0.4, 0.7);
         // R4 fires, but R9 (low label → reject) also fires strongly.
         // Net score should be in the borderline-to-reject region, not accept.
-        assert!(d.fuzzy_score < 0.7,
+        assert!(
+            d.fuzzy_score < 0.7,
             "low-label should not yield strong accept even with structure; got {}",
-            d.fuzzy_score);
+            d.fuzzy_score
+        );
     }
 
     #[test]

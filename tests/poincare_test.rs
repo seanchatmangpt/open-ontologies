@@ -25,14 +25,20 @@ fn test_poincare_distance_origin_farther() {
     let far = vec![0.9, 0.0];
     let d_near = poincare_distance(&origin, &near);
     let d_far = poincare_distance(&origin, &far);
-    assert!(d_far > d_near, "Boundary point should be farther: {d_far} > {d_near}");
+    assert!(
+        d_far > d_near,
+        "Boundary point should be farther: {d_far} > {d_near}"
+    );
 }
 
 #[test]
 fn test_cosine_similarity_identical() {
     let a = vec![1.0, 2.0, 3.0];
     let s = cosine_similarity(&a, &a);
-    assert!((s - 1.0).abs() < 1e-6, "Cosine of identical vectors should be 1.0");
+    assert!(
+        (s - 1.0).abs() < 1e-6,
+        "Cosine of identical vectors should be 1.0"
+    );
 }
 
 #[test]
@@ -49,7 +55,10 @@ fn test_exp_map_origin() {
     let result = exp_map(&[0.0, 0.0], &v);
     assert_eq!(result.len(), 2);
     let norm: f32 = result.iter().map(|x| x * x).sum::<f32>().sqrt();
-    assert!(norm < 1.0, "exp_map result should stay inside ball, norm={norm}");
+    assert!(
+        norm < 1.0,
+        "exp_map result should stay inside ball, norm={norm}"
+    );
 }
 
 #[test]
@@ -57,7 +66,10 @@ fn test_project_to_ball() {
     let p = vec![0.99, 0.99];
     let projected = project_to_ball(&p, 1e-5);
     let norm: f32 = projected.iter().map(|x| x * x).sum::<f32>().sqrt();
-    assert!(norm < 1.0, "Projected point should be inside ball, norm={norm}");
+    assert!(
+        norm < 1.0,
+        "Projected point should be inside ball, norm={norm}"
+    );
 }
 
 #[test]
@@ -66,5 +78,8 @@ fn test_rsgd_step_stays_in_ball() {
     let grad = vec![0.1, -0.2];
     let updated = rsgd_step(&point, &grad, 0.01);
     let norm: f32 = updated.iter().map(|x| x * x).sum::<f32>().sqrt();
-    assert!(norm < 1.0, "RSGD step should keep point inside ball, norm={norm}");
+    assert!(
+        norm < 1.0,
+        "RSGD step should keep point inside ball, norm={norm}"
+    );
 }

@@ -110,8 +110,7 @@ pub fn init_from_env() -> Result<bool> {
         Ok(d) if !d.trim().is_empty() => PathBuf::from(d.trim()),
         _ => return Ok(false),
     };
-    std::fs::create_dir_all(&dir)
-        .with_context(|| format!("creating chain directory {dir:?}"))?;
+    std::fs::create_dir_all(&dir).with_context(|| format!("creating chain directory {dir:?}"))?;
     let chain_path = dir.join("chain.jsonl");
     let head_path = dir.join("CHAIN_HEAD");
     let store = ChainStore {
@@ -195,7 +194,7 @@ impl ChainStore {
                     links_walked: 0,
                     is_contiguous: true,
                     first_gap_at: None,
-                })
+                });
             }
             Err(e) => return Err(e).context("opening chain log for verify"),
         };
@@ -242,7 +241,9 @@ impl ChainStore {
     fn write_head(&self, hash_hex: &str) -> Result<()> {
         // Atomic write via temp-file + rename (POSIX rename is atomic).
         let ulid = Ulid::new().to_string();
-        let tmp_path = self.head_path.with_file_name(format!("CHAIN_HEAD_{ulid}.tmp"));
+        let tmp_path = self
+            .head_path
+            .with_file_name(format!("CHAIN_HEAD_{ulid}.tmp"));
         std::fs::write(&tmp_path, format!("{hash_hex}\n"))
             .context("writing CHAIN_HEAD temp file")?;
         std::fs::rename(&tmp_path, &self.head_path)

@@ -140,12 +140,14 @@ pub fn build_dependency_graph(shapes_ttl: &str) -> anyhow::Result<DependencyGrap
             continue;
         };
         let shape = shape.trim_matches(|c| c == '<' || c == '>').to_string();
-        let entry = map.entry(shape.clone()).or_insert_with(|| ShapeDependencies {
-            shape_iri: shape.clone(),
-            target_classes: BTreeSet::new(),
-            path_properties: BTreeSet::new(),
-            class_constraints: BTreeSet::new(),
-        });
+        let entry = map
+            .entry(shape.clone())
+            .or_insert_with(|| ShapeDependencies {
+                shape_iri: shape.clone(),
+                target_classes: BTreeSet::new(),
+                path_properties: BTreeSet::new(),
+                class_constraints: BTreeSet::new(),
+            });
         if let Some(t) = row["target"].as_str() {
             entry
                 .target_classes
@@ -174,9 +176,18 @@ pub fn affected_shapes(graph: &DependencyGraph, changed_iris: &[String]) -> Affe
     let mut affected: Vec<String> = Vec::new();
     let mut skipped: Vec<String> = Vec::new();
     for sd in &graph.shapes {
-        let touched = sd.target_classes.iter().any(|c| changed.contains(c.as_str()))
-            || sd.path_properties.iter().any(|p| changed.contains(p.as_str()))
-            || sd.class_constraints.iter().any(|c| changed.contains(c.as_str()));
+        let touched = sd
+            .target_classes
+            .iter()
+            .any(|c| changed.contains(c.as_str()))
+            || sd
+                .path_properties
+                .iter()
+                .any(|p| changed.contains(p.as_str()))
+            || sd
+                .class_constraints
+                .iter()
+                .any(|c| changed.contains(c.as_str()));
         if touched {
             affected.push(sd.shape_iri.clone());
         } else {

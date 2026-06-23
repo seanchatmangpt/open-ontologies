@@ -1,6 +1,6 @@
 use open_ontologies::autoreceipt::{
-    validate_core_receipt, AlignmentProof, AlignmentState, BoundaryEvidence, Claim, OcelReference,
-    OpenOntologyRefusalState8, Receipt,
+    AlignmentProof, AlignmentState, BoundaryEvidence, Claim, OcelReference,
+    OpenOntologyRefusalState8, Receipt, validate_core_receipt,
 };
 
 fn dummy_receipt() -> Receipt {

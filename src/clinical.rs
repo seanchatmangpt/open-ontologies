@@ -73,24 +73,37 @@ impl ClinicalCrosswalks {
         let mut rows = Vec::new();
         for batch in reader {
             let batch = batch?;
-            let source_code = batch.column_by_name(COL_SOURCE_CODE)
+            let source_code = batch
+                .column_by_name(COL_SOURCE_CODE)
                 .and_then(|c| c.as_any().downcast_ref::<StringArray>());
-            let source_system = batch.column_by_name(COL_SOURCE_SYSTEM)
+            let source_system = batch
+                .column_by_name(COL_SOURCE_SYSTEM)
                 .and_then(|c| c.as_any().downcast_ref::<StringArray>());
-            let target_code = batch.column_by_name(COL_TARGET_CODE)
+            let target_code = batch
+                .column_by_name(COL_TARGET_CODE)
                 .and_then(|c| c.as_any().downcast_ref::<StringArray>());
-            let target_system = batch.column_by_name(COL_TARGET_SYSTEM)
+            let target_system = batch
+                .column_by_name(COL_TARGET_SYSTEM)
                 .and_then(|c| c.as_any().downcast_ref::<StringArray>());
-            let relation = batch.column_by_name(COL_RELATION)
+            let relation = batch
+                .column_by_name(COL_RELATION)
                 .and_then(|c| c.as_any().downcast_ref::<StringArray>());
-            let source_label = batch.column_by_name(COL_SOURCE_LABEL)
+            let source_label = batch
+                .column_by_name(COL_SOURCE_LABEL)
                 .and_then(|c| c.as_any().downcast_ref::<StringArray>());
-            let target_label = batch.column_by_name(COL_TARGET_LABEL)
+            let target_label = batch
+                .column_by_name(COL_TARGET_LABEL)
                 .and_then(|c| c.as_any().downcast_ref::<StringArray>());
 
-            if let (Some(sc), Some(ss), Some(tc), Some(ts), Some(rel), Some(sl), Some(tl)) =
-                (source_code, source_system, target_code, target_system, relation, source_label, target_label)
-            {
+            if let (Some(sc), Some(ss), Some(tc), Some(ts), Some(rel), Some(sl), Some(tl)) = (
+                source_code,
+                source_system,
+                target_code,
+                target_system,
+                relation,
+                source_label,
+                target_label,
+            ) {
                 for i in 0..batch.num_rows() {
                     rows.push(CrosswalkRow {
                         source_code: sc.value(i).to_string(),
@@ -282,9 +295,7 @@ impl ClinicalCrosswalks {
             && let Some(results) = parsed["results"].as_array()
         {
             for row in results {
-                if let (Some(class_iri), Some(label)) =
-                    (row["c"].as_str(), row["l"].as_str())
-                {
+                if let (Some(class_iri), Some(label)) = (row["c"].as_str(), row["l"].as_str()) {
                     let label_clean = label
                         .trim_matches('"')
                         .split("^^")
@@ -370,8 +381,10 @@ impl ClinicalCrosswalks {
             "INSERT DATA {{ <{}> <http://www.w3.org/2004/02/skos/core#exactMatch> <urn:{}:{}> . \
              <urn:{}:{}> <http://www.w3.org/2000/01/rdf-schema#label> \"{}\" . }}",
             class_iri,
-            target.target_system, target.target_code,
-            target.target_system, target.target_code,
+            target.target_system,
+            target.target_code,
+            target.target_system,
+            target.target_code,
             target.target_label,
         );
 

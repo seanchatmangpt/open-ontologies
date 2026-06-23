@@ -183,10 +183,9 @@ use crate::config::TelemetryConfig;
 /// assert!(cfg.otlp_endpoint.is_none());
 /// ```
 pub fn init_telemetry(cfg: &TelemetryConfig) {
-    use tracing_subscriber::{fmt, EnvFilter};
+    use tracing_subscriber::{EnvFilter, fmt};
 
-    let filter = EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| EnvFilter::new("info"));
+    let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
 
     let subscriber = fmt::Subscriber::builder()
         .with_env_filter(filter)

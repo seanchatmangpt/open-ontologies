@@ -183,15 +183,18 @@ impl SchemaIntrospector {
             None => lower.trim().to_string(),
         };
         match base.as_str() {
-            "integer" | "int" | "bigint" | "smallint" | "tinyint" | "hugeint"
-            | "int4" | "int8" | "int2" | "int1" | "serial" | "bigserial"
-            | "smallserial" | "ubigint" | "uinteger" | "usmallint" | "utinyint" => XSD_INTEGER,
-            "numeric" | "decimal" | "real" | "double precision" | "double"
-            | "float" | "float4" | "float8" => "xsd:decimal",
+            "integer" | "int" | "bigint" | "smallint" | "tinyint" | "hugeint" | "int4" | "int8"
+            | "int2" | "int1" | "serial" | "bigserial" | "smallserial" | "ubigint" | "uinteger"
+            | "usmallint" | "utinyint" => XSD_INTEGER,
+            "numeric" | "decimal" | "real" | "double precision" | "double" | "float" | "float4"
+            | "float8" => "xsd:decimal",
             "boolean" | "bool" => "xsd:boolean",
             "date" => "xsd:date",
-            "timestamp" | "timestamptz" | "timestamp without time zone"
-            | "timestamp with time zone" | "datetime" => XSD_DATETIME,
+            "timestamp"
+            | "timestamptz"
+            | "timestamp without time zone"
+            | "timestamp with time zone"
+            | "datetime" => XSD_DATETIME,
             "time" | "time without time zone" | "time with time zone" => "xsd:time",
             "bytea" | "blob" => "xsd:hexBinary",
             "uuid" => XSD_STRING,
@@ -292,13 +295,21 @@ impl SchemaIntrospector {
         ttl.push_str(&format!("@prefix db: <{}> .\n\n", base_iri));
 
         // Build FK lookup: (table, column) → parent_table
-        let fk_map: std::collections::HashMap<(String, String), &ForeignKey> = tables.iter()
-            .flat_map(|t| t.foreign_keys.iter().map(move |fk| ((t.name.clone(), fk.column.clone()), fk)))
+        let fk_map: std::collections::HashMap<(String, String), &ForeignKey> = tables
+            .iter()
+            .flat_map(|t| {
+                t.foreign_keys
+                    .iter()
+                    .map(move |fk| ((t.name.clone(), fk.column.clone()), fk))
+            })
             .collect();
 
         for table in tables {
             let class = Self::table_to_class(&table.name);
-            ttl.push_str(&format!("db:{} a owl:Class ;\n    rdfs:label \"{}\" .\n\n", class, class));
+            ttl.push_str(&format!(
+                "db:{} a owl:Class ;\n    rdfs:label \"{}\" .\n\n",
+                class, class
+            ));
 
             for col in &table.columns {
                 let prop_name = format!("{}_{}", table.name, col.name);
@@ -314,7 +325,10 @@ impl SchemaIntrospector {
                     // Regular column → DatatypeProperty
                     let xsd = Self::sql_to_xsd(&col.data_type);
                     if col.is_primary_key {
-                        ttl.push_str(&format!("db:{} a owl:DatatypeProperty , owl:FunctionalProperty ;\n", prop_name));
+                        ttl.push_str(&format!(
+                            "db:{} a owl:DatatypeProperty , owl:FunctionalProperty ;\n",
+                            prop_name
+                        ));
                     } else {
                         ttl.push_str(&format!("db:{} a owl:DatatypeProperty ;\n", prop_name));
                     }
@@ -340,8 +354,8 @@ impl SchemaIntrospector {
     /// Connect to postgres, introspect schema, return TableInfo vec.
     #[cfg(feature = "postgres")]
     pub async fn introspect_postgres(connection_string: &str) -> anyhow::Result<Vec<TableInfo>> {
-        use sqlx::postgres::PgPoolOptions;
         use sqlx::Row;
+        use sqlx::postgres::PgPoolOptions;
 
         let pool = PgPoolOptions::new()
             .max_connections(1)
@@ -370,30 +384,40 @@ impl SchemaIntrospector {
 
             let pk_cols: Vec<String> = pk_rows.iter().map(|r| r.get("column_name")).collect();
 
-            let columns: Vec<ColumnInfo> = col_rows.iter().map(|r| {
-                let name: String = r.get("column_name");
-                let data_type: String = r.get("data_type");
-                let nullable: String = r.get("is_nullable");
-                ColumnInfo {
-                    is_primary_key: pk_cols.contains(&name),
-                    name,
-                    data_type,
-                    is_nullable: nullable == "YES",
-                }
-            }).collect();
+            let columns: Vec<ColumnInfo> = col_rows
+                .iter()
+                .map(|r| {
+                    let name: String = r.get("column_name");
+                    let data_type: String = r.get("data_type");
+                    let nullable: String = r.get("is_nullable");
+                    ColumnInfo {
+                        is_primary_key: pk_cols.contains(&name),
+                        name,
+                        data_type,
+                        is_nullable: nullable == "YES",
+                    }
+                })
+                .collect();
 
             // Get foreign keys
             let fk_rows = sqlx::query(
                 "SELECT kcu.column_name AS child_column, ccu.table_name AS parent_table, ccu.column_name AS parent_column FROM information_schema.table_constraints tc JOIN information_schema.key_column_usage kcu ON tc.constraint_name = kcu.constraint_name AND tc.table_schema = kcu.table_schema JOIN information_schema.constraint_column_usage ccu ON tc.constraint_name = ccu.constraint_name WHERE tc.constraint_type = 'FOREIGN KEY' AND tc.table_name = $1"
             ).bind(&table_name).fetch_all(&pool).await?;
 
-            let foreign_keys: Vec<ForeignKey> = fk_rows.iter().map(|r| ForeignKey {
-                column: r.get("child_column"),
-                parent_table: r.get("parent_table"),
-                parent_column: r.get("parent_column"),
-            }).collect();
+            let foreign_keys: Vec<ForeignKey> = fk_rows
+                .iter()
+                .map(|r| ForeignKey {
+                    column: r.get("child_column"),
+                    parent_table: r.get("parent_table"),
+                    parent_column: r.get("parent_column"),
+                })
+                .collect();
 
-            tables.push(TableInfo { name: table_name, columns, foreign_keys });
+            tables.push(TableInfo {
+                name: table_name,
+                columns,
+                foreign_keys,
+            });
         }
 
         pool.close().await;
@@ -436,7 +460,11 @@ impl SchemaIntrospector {
             )?;
             let col_rows: Vec<(String, String, String)> = col_stmt
                 .query_map([table_name], |row| {
-                    Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?, row.get::<_, String>(2)?))
+                    Ok((
+                        row.get::<_, String>(0)?,
+                        row.get::<_, String>(1)?,
+                        row.get::<_, String>(2)?,
+                    ))
                 })?
                 .collect::<Result<Vec<_>, _>>()?;
             drop(col_stmt);
@@ -456,7 +484,11 @@ impl SchemaIntrospector {
             drop(pk_stmt);
             let pk_cols: Vec<String> = pk_strings
                 .into_iter()
-                .flat_map(|s| s.split(',').map(|p| p.trim().to_string()).collect::<Vec<_>>())
+                .flat_map(|s| {
+                    s.split(',')
+                        .map(|p| p.trim().to_string())
+                        .collect::<Vec<_>>()
+                })
                 .filter(|s| !s.is_empty())
                 .collect();
 
@@ -482,10 +514,16 @@ impl SchemaIntrospector {
 
             let mut foreign_keys = Vec::new();
             for (child_cols, parent_table, parent_cols) in fk_rows {
-                let children: Vec<&str> =
-                    child_cols.split(',').map(|s| s.trim()).filter(|s| !s.is_empty()).collect();
-                let parents: Vec<&str> =
-                    parent_cols.split(',').map(|s| s.trim()).filter(|s| !s.is_empty()).collect();
+                let children: Vec<&str> = child_cols
+                    .split(',')
+                    .map(|s| s.trim())
+                    .filter(|s| !s.is_empty())
+                    .collect();
+                let parents: Vec<&str> = parent_cols
+                    .split(',')
+                    .map(|s| s.trim())
+                    .filter(|s| !s.is_empty())
+                    .collect();
                 for (i, child) in children.iter().enumerate() {
                     if let Some(parent) = parents.get(i) {
                         foreign_keys.push(ForeignKey {

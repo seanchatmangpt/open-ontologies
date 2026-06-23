@@ -118,7 +118,10 @@ fn missing_path_property_is_flagged() {
     assert!(
         issues.iter().any(|i| {
             i["kind"].as_str() == Some("missing_path")
-                && i["value"].as_str().unwrap_or("").contains("undeclaredProperty")
+                && i["value"]
+                    .as_str()
+                    .unwrap_or("")
+                    .contains("undeclaredProperty")
         }),
         "expected a missing_path issue; got: {:?}",
         issues
@@ -177,7 +180,9 @@ fn unrecognised_datatype_is_flagged() {
 
     let issues = report["issues"].as_array().unwrap();
     assert!(
-        issues.iter().any(|i| i["kind"].as_str() == Some("unrecognised_datatype")),
+        issues
+            .iter()
+            .any(|i| i["kind"].as_str() == Some("unrecognised_datatype")),
         "expected an unrecognised_datatype issue; got: {:?}",
         issues
     );

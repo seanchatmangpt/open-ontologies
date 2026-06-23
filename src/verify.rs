@@ -254,10 +254,7 @@ impl VerifierError {
 /// let err = crypto_verify(&row, &db).unwrap_err();
 /// assert_eq!(err.kind(), "unknown_key");
 /// ```
-pub fn crypto_verify(
-    row: &VerifierReceiptRow,
-    db: &StateDb,
-) -> Result<(), VerifierError> {
+pub fn crypto_verify(row: &VerifierReceiptRow, db: &StateDb) -> Result<(), VerifierError> {
     // Stage 1: legacy unsigned — nothing to verify.
     if row.key_valid_at.trim().is_empty() {
         return Ok(());
@@ -305,7 +302,9 @@ pub fn crypto_verify(
     // Stage 4 + 5: examine `removed_at`.
     if let Some(removed_at) = removed_at_opt.as_ref() {
         // Stage 4: removed_at <= key_valid_at (self-contradictory history row).
-        if let Some(ord) = compare_rfc3339(removed_at, &added_at) && matches!(ord, std::cmp::Ordering::Less | std::cmp::Ordering::Equal) {
+        if let Some(ord) = compare_rfc3339(removed_at, &added_at)
+            && matches!(ord, std::cmp::Ordering::Less | std::cmp::Ordering::Equal)
+        {
             return Err(VerifierError::SignatureCorrupted {
                 reason: "removed_before_added",
                 granted_at: row.granted_at.clone(),
@@ -314,7 +313,9 @@ pub fn crypto_verify(
             });
         }
         // Stage 5: granted_at >= removed_at → expired-key warning.
-        if let Some(ord) = compare_rfc3339(&row.granted_at, removed_at) && matches!(ord, std::cmp::Ordering::Greater | std::cmp::Ordering::Equal) {
+        if let Some(ord) = compare_rfc3339(&row.granted_at, removed_at)
+            && matches!(ord, std::cmp::Ordering::Greater | std::cmp::Ordering::Equal)
+        {
             return Err(VerifierError::SignatureExpiredKey {
                 granted_at: row.granted_at.clone(),
                 removed_at: removed_at.clone(),
@@ -699,12 +700,7 @@ fn extract_header_field(contents: &str, prefix: &str, field: &str) -> Option<Str
     None
 }
 
-fn verify_inline_header(
-    path: &str,
-    contents: &str,
-    prefix: &str,
-    db: Option<&StateDb>,
-) -> Verdict {
+fn verify_inline_header(path: &str, contents: &str, prefix: &str, db: Option<&StateDb>) -> Verdict {
     let expected = match extract_header_field(contents, prefix, "artifact-hash") {
         Some(h) => h,
         None => {
@@ -730,8 +726,7 @@ fn verify_inline_header(
     let receipt_hash = extract_header_field(contents, prefix, "receipt-hash")
         .or_else(|| extract_header_field(contents, prefix, "work-order-receipt"))
         .unwrap_or_default();
-    let scope_token =
-        extract_header_field(contents, prefix, "scope-token").unwrap_or_default();
+    let scope_token = extract_header_field(contents, prefix, "scope-token").unwrap_or_default();
     finalize(receipt_hash, scope_token, db)
 }
 
@@ -748,7 +743,10 @@ fn verify_sidecar_against_siblings(
             };
         }
     };
-    let expected = match parsed.get(SIDECAR_KEY_ARTIFACT_HASH).and_then(|v| v.as_str()) {
+    let expected = match parsed
+        .get(SIDECAR_KEY_ARTIFACT_HASH)
+        .and_then(|v| v.as_str())
+    {
         Some(s) => s.to_string(),
         None => {
             return Verdict::UnknownChain {
@@ -820,9 +818,7 @@ fn finalize(receipt_hash: String, scope_token: String, db: Option<&StateDb>) -> 
         // the receipt is genuinely absent. We surface Orphaned only
         // when the hash looks well-formed (64 hex chars) AND the row
         // is missing AND it's not the test sentinel of all-zeroes.
-        if receipt_hash.len() == 64
-            && receipt_hash.chars().all(|c| c.is_ascii_hexdigit())
-        {
+        if receipt_hash.len() == 64 && receipt_hash.chars().all(|c| c.is_ascii_hexdigit()) {
             let exists: bool = {
                 let conn = db.conn();
                 conn.query_row(
@@ -838,15 +834,10 @@ fn finalize(receipt_hash: String, scope_token: String, db: Option<&StateDb>) -> 
                 // `OPEN_ONTOLOGIES_RECEIPT_ARCHIVE_DIR` env var; when
                 // unset, we emit the legacy `Orphaned` verdict (no
                 // archive configured = chain walker has no cold path).
-                if let Ok(dir) =
-                    std::env::var("OPEN_ONTOLOGIES_RECEIPT_ARCHIVE_DIR")
-                {
+                if let Ok(dir) = std::env::var("OPEN_ONTOLOGIES_RECEIPT_ARCHIVE_DIR") {
                     if !dir.trim().is_empty() {
                         let dir_path = std::path::PathBuf::from(dir);
-                        match crate::receipt_archive::lookup_archived(
-                            &dir_path,
-                            &receipt_hash,
-                        ) {
+                        match crate::receipt_archive::lookup_archived(&dir_path, &receipt_hash) {
                             Ok(Some(_archived)) => {
                                 source = SOURCE_ARCHIVE.to_string();
                             }
@@ -860,9 +851,7 @@ fn finalize(receipt_hash: String, scope_token: String, db: Option<&StateDb>) -> 
                         }
                     } else {
                         return Verdict::Orphaned {
-                            missing_event: format!(
-                                "receipt {receipt_hash} not in db"
-                            ),
+                            missing_event: format!("receipt {receipt_hash} not in db"),
                         };
                     }
                 } else {

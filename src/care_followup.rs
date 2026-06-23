@@ -31,12 +31,16 @@ pub struct CareFollowUp<S> {
 impl CareFollowUp<CareFollowUpPending> {
     /// Initialize the care follow-up state machine.
     pub fn new() -> Self {
-        Self { state: CareFollowUpPending }
+        Self {
+            state: CareFollowUpPending,
+        }
     }
 
     /// Transition to CareFollowUpActive (corresponds to zoe:InitiateCareFollowUp event)
     pub fn initiate(self) -> CareFollowUp<CareFollowUpActive> {
-        CareFollowUp { state: CareFollowUpActive }
+        CareFollowUp {
+            state: CareFollowUpActive,
+        }
     }
 }
 

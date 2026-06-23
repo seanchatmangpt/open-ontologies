@@ -286,7 +286,8 @@ impl HealthGuardian {
             "health_guardian_ok::{}",
             chrono::Utc::now().timestamp() / 60
         );
-        self.emit_idempotent(&hb_id, "health_guardian_ok", &now_iso, &[]).ok();
+        self.emit_idempotent(&hb_id, "health_guardian_ok", &now_iso, &[])
+            .ok();
 
         Ok(report)
     }
@@ -509,7 +510,10 @@ mod tests {
         }
         let guardian = HealthGuardian { db };
         let report = guardian.tick().expect("tick");
-        assert_eq!(report.scope_leaks, 0, "recent workflow should not be flagged");
+        assert_eq!(
+            report.scope_leaks, 0,
+            "recent workflow should not be flagged"
+        );
     }
 
     fn insert_test_receipt(db: &StateDb, seq: i64, session: &str) {
@@ -547,6 +551,9 @@ mod tests {
         }
         let guardian = HealthGuardian { db };
         let report = guardian.tick().expect("tick");
-        assert_eq!(report.receipt_gaps, 0, "contiguous receipts should not flag a gap");
+        assert_eq!(
+            report.receipt_gaps, 0,
+            "contiguous receipts should not flag a gap"
+        );
     }
 }

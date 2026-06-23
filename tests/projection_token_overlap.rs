@@ -33,7 +33,10 @@ fn faithful_summary_returns_no_invented_tokens() {
     let summary = "Forecast risk explainable Reconciliation completeness Nightly report \
                    Refuse missing contract Block partial chain incomplete";
     let inv = invented_tokens(summary, evidence);
-    assert!(inv.is_empty(), "faithful summary must produce no invented tokens; got: {inv:?}");
+    assert!(
+        inv.is_empty(),
+        "faithful summary must produce no invented tokens; got: {inv:?}"
+    );
 }
 
 #[test]

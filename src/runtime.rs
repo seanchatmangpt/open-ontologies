@@ -12,8 +12,8 @@
 //! before initialisation (e.g. CLI subcommands that don't load a config)
 //! observe the legacy behaviour.
 
-use std::sync::atomic::{AtomicBool, AtomicI64, AtomicU64, AtomicUsize, Ordering};
 use std::sync::RwLock;
+use std::sync::atomic::{AtomicBool, AtomicI64, AtomicU64, AtomicUsize, Ordering};
 
 use crate::config::{
     self, Config, FeedbackConfig, ImportsConfig, LanguageConfig, ReasonerConfig, RepoConfig,
@@ -172,16 +172,32 @@ fn apply_language(l: &LanguageConfig) {
 }
 
 fn apply_reasoner(r: &ReasonerConfig) {
-    let depth = if r.tableaux_max_depth == 0 { DEFAULT_TABLEAUX_MAX_DEPTH } else { r.tableaux_max_depth };
-    let nodes = if r.tableaux_max_nodes == 0 { DEFAULT_TABLEAUX_MAX_NODES } else { r.tableaux_max_nodes };
-    let iters = if r.max_iterations == 0 { DEFAULT_REASONER_MAX_ITER } else { r.max_iterations };
+    let depth = if r.tableaux_max_depth == 0 {
+        DEFAULT_TABLEAUX_MAX_DEPTH
+    } else {
+        r.tableaux_max_depth
+    };
+    let nodes = if r.tableaux_max_nodes == 0 {
+        DEFAULT_TABLEAUX_MAX_NODES
+    } else {
+        r.tableaux_max_nodes
+    };
+    let iters = if r.max_iterations == 0 {
+        DEFAULT_REASONER_MAX_ITER
+    } else {
+        r.max_iterations
+    };
     TABLEAUX_MAX_DEPTH.store(depth, Ordering::Relaxed);
     TABLEAUX_MAX_NODES.store(nodes, Ordering::Relaxed);
     REASONER_MAX_ITER.store(iters, Ordering::Relaxed);
 }
 
 fn apply_cache(hash_prefix: usize) {
-    let v = if hash_prefix == 0 { DEFAULT_CACHE_HASH_PREFIX } else { hash_prefix };
+    let v = if hash_prefix == 0 {
+        DEFAULT_CACHE_HASH_PREFIX
+    } else {
+        hash_prefix
+    };
     CACHE_HASH_PREFIX.store(v, Ordering::Relaxed);
 }
 
@@ -191,12 +207,20 @@ fn apply_feedback(f: &FeedbackConfig) {
 }
 
 fn apply_repo(r: &RepoConfig) {
-    let v = if r.default_list_limit == 0 { DEFAULT_REPO_LIST_LIMIT } else { r.default_list_limit };
+    let v = if r.default_list_limit == 0 {
+        DEFAULT_REPO_LIST_LIMIT
+    } else {
+        r.default_list_limit
+    };
     REPO_LIST_LIMIT.store(v, Ordering::Relaxed);
 }
 
 fn apply_imports(i: &ImportsConfig) {
-    let depth = if i.max_depth == 0 { DEFAULT_IMPORTS_MAX_DEPTH } else { i.max_depth };
+    let depth = if i.max_depth == 0 {
+        DEFAULT_IMPORTS_MAX_DEPTH
+    } else {
+        i.max_depth
+    };
     IMPORTS_MAX_DEPTH.store(depth, Ordering::Relaxed);
     IMPORTS_TIMEOUT.store(config::resolve_imports_timeout_secs(i), Ordering::Relaxed);
     IMPORTS_FOLLOW_REMOTE.store(i.follow_remote, Ordering::Relaxed);
@@ -218,7 +242,9 @@ fn apply_webhook(w: &WebhookConfig) {
 /// let v = open_ontologies::runtime::tableaux_max_depth();
 /// assert!(v > 0, "default must be positive");
 /// ```
-pub fn tableaux_max_depth() -> usize { TABLEAUX_MAX_DEPTH.load(Ordering::Relaxed) }
+pub fn tableaux_max_depth() -> usize {
+    TABLEAUX_MAX_DEPTH.load(Ordering::Relaxed)
+}
 
 /// Returns the maximum number of nodes the tableaux reasoner may allocate.
 ///
@@ -229,7 +255,9 @@ pub fn tableaux_max_depth() -> usize { TABLEAUX_MAX_DEPTH.load(Ordering::Relaxed
 /// let v = open_ontologies::runtime::tableaux_max_nodes();
 /// assert!(v > 0, "default must be positive");
 /// ```
-pub fn tableaux_max_nodes() -> usize { TABLEAUX_MAX_NODES.load(Ordering::Relaxed) }
+pub fn tableaux_max_nodes() -> usize {
+    TABLEAUX_MAX_NODES.load(Ordering::Relaxed)
+}
 
 /// Returns the maximum number of fixpoint iterations the reasoner performs.
 ///
@@ -240,7 +268,9 @@ pub fn tableaux_max_nodes() -> usize { TABLEAUX_MAX_NODES.load(Ordering::Relaxed
 /// let v = open_ontologies::runtime::reasoner_max_iterations();
 /// assert!(v > 0, "default must be positive");
 /// ```
-pub fn reasoner_max_iterations() -> usize { REASONER_MAX_ITER.load(Ordering::Relaxed) }
+pub fn reasoner_max_iterations() -> usize {
+    REASONER_MAX_ITER.load(Ordering::Relaxed)
+}
 
 /// Returns the byte length used as the cache hash prefix.
 ///
@@ -251,7 +281,9 @@ pub fn reasoner_max_iterations() -> usize { REASONER_MAX_ITER.load(Ordering::Rel
 /// let v = open_ontologies::runtime::cache_hash_prefix_bytes();
 /// assert!(v > 0, "default must be positive");
 /// ```
-pub fn cache_hash_prefix_bytes() -> usize { CACHE_HASH_PREFIX.load(Ordering::Relaxed) }
+pub fn cache_hash_prefix_bytes() -> usize {
+    CACHE_HASH_PREFIX.load(Ordering::Relaxed)
+}
 
 /// Returns the feedback vote count at which a lint/enforce finding is suppressed.
 ///
@@ -264,7 +296,9 @@ pub fn cache_hash_prefix_bytes() -> usize { CACHE_HASH_PREFIX.load(Ordering::Rel
 /// // representable — negative values are permitted by design.
 /// let _ = v;
 /// ```
-pub fn feedback_suppress_threshold() -> i64 { FB_SUPPRESS.load(Ordering::Relaxed) }
+pub fn feedback_suppress_threshold() -> i64 {
+    FB_SUPPRESS.load(Ordering::Relaxed)
+}
 
 /// Returns the feedback vote count at which a lint/enforce finding is
 /// downgraded from an error to a warning.
@@ -276,7 +310,9 @@ pub fn feedback_suppress_threshold() -> i64 { FB_SUPPRESS.load(Ordering::Relaxed
 /// let v: i64 = open_ontologies::runtime::feedback_downgrade_threshold();
 /// let _ = v;
 /// ```
-pub fn feedback_downgrade_threshold() -> i64 { FB_DOWNGRADE.load(Ordering::Relaxed) }
+pub fn feedback_downgrade_threshold() -> i64 {
+    FB_DOWNGRADE.load(Ordering::Relaxed)
+}
 
 /// Returns the default page size used by `onto_repo_list`.
 ///
@@ -287,7 +323,9 @@ pub fn feedback_downgrade_threshold() -> i64 { FB_DOWNGRADE.load(Ordering::Relax
 /// let v = open_ontologies::runtime::repo_default_list_limit();
 /// assert!(v > 0, "default must be positive");
 /// ```
-pub fn repo_default_list_limit() -> usize { REPO_LIST_LIMIT.load(Ordering::Relaxed) }
+pub fn repo_default_list_limit() -> usize {
+    REPO_LIST_LIMIT.load(Ordering::Relaxed)
+}
 
 /// Returns the maximum recursive depth followed when resolving `owl:imports`.
 ///
@@ -298,7 +336,9 @@ pub fn repo_default_list_limit() -> usize { REPO_LIST_LIMIT.load(Ordering::Relax
 /// let v = open_ontologies::runtime::imports_max_depth();
 /// assert!(v > 0, "default must be positive");
 /// ```
-pub fn imports_max_depth() -> usize { IMPORTS_MAX_DEPTH.load(Ordering::Relaxed) }
+pub fn imports_max_depth() -> usize {
+    IMPORTS_MAX_DEPTH.load(Ordering::Relaxed)
+}
 
 /// Returns the per-request timeout (in seconds) used when fetching remote
 /// `owl:imports` via HTTP.
@@ -310,7 +350,9 @@ pub fn imports_max_depth() -> usize { IMPORTS_MAX_DEPTH.load(Ordering::Relaxed) 
 /// let v = open_ontologies::runtime::imports_request_timeout_secs();
 /// assert!(v > 0, "default must be positive");
 /// ```
-pub fn imports_request_timeout_secs() -> u64 { IMPORTS_TIMEOUT.load(Ordering::Relaxed) }
+pub fn imports_request_timeout_secs() -> u64 {
+    IMPORTS_TIMEOUT.load(Ordering::Relaxed)
+}
 
 /// Returns whether the imports resolver is permitted to follow HTTP/HTTPS
 /// `owl:imports` URIs.
@@ -322,7 +364,9 @@ pub fn imports_request_timeout_secs() -> u64 { IMPORTS_TIMEOUT.load(Ordering::Re
 /// // Accepts either true or false — just assert the type compiles.
 /// let _ = v;
 /// ```
-pub fn imports_follow_remote() -> bool { IMPORTS_FOLLOW_REMOTE.load(Ordering::Relaxed) }
+pub fn imports_follow_remote() -> bool {
+    IMPORTS_FOLLOW_REMOTE.load(Ordering::Relaxed)
+}
 
 /// Returns the per-request timeout (in seconds) used when delivering webhook
 /// notifications.
@@ -334,7 +378,9 @@ pub fn imports_follow_remote() -> bool { IMPORTS_FOLLOW_REMOTE.load(Ordering::Re
 /// let v = open_ontologies::runtime::webhook_request_timeout_secs();
 /// assert!(v > 0, "default must be positive");
 /// ```
-pub fn webhook_request_timeout_secs() -> u64 { WEBHOOK_TIMEOUT.load(Ordering::Relaxed) }
+pub fn webhook_request_timeout_secs() -> u64 {
+    WEBHOOK_TIMEOUT.load(Ordering::Relaxed)
+}
 
 /// Preferred natural-language tags for label matching. An empty vector means
 /// "keep all languages" (multilingual mode). Cloned per call so callers hold no

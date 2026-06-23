@@ -291,7 +291,10 @@ pub fn run_with_timeout(
     let started = Instant::now();
     let mut child = cmd.spawn().map_err(SubprocessError::SpawnFailed)?;
 
-    match child.wait_timeout(dur).map_err(SubprocessError::SpawnFailed)? {
+    match child
+        .wait_timeout(dur)
+        .map_err(SubprocessError::SpawnFailed)?
+    {
         Some(status) => {
             // Child finished within the deadline. Drain stdout/stderr
             // explicitly because we set them to piped above.
@@ -305,7 +308,11 @@ pub fn run_with_timeout(
                 let _ = io::Read::read_to_end(&mut s, &mut stderr);
             }
             Ok(TimedOutput {
-                output: Output { status, stdout, stderr },
+                output: Output {
+                    status,
+                    stdout,
+                    stderr,
+                },
                 elapsed_ms,
             })
         }
@@ -379,7 +386,10 @@ pub fn run_with_timeout_stdin(
         // drop stdin closes the pipe
     }
 
-    match child.wait_timeout(dur).map_err(SubprocessError::SpawnFailed)? {
+    match child
+        .wait_timeout(dur)
+        .map_err(SubprocessError::SpawnFailed)?
+    {
         Some(status) => {
             let elapsed_ms = started.elapsed().as_millis() as u64;
             let mut stdout = Vec::new();
@@ -391,7 +401,11 @@ pub fn run_with_timeout_stdin(
                 let _ = io::Read::read_to_end(&mut s, &mut stderr);
             }
             Ok(TimedOutput {
-                output: Output { status, stdout, stderr },
+                output: Output {
+                    status,
+                    stdout,
+                    stderr,
+                },
                 elapsed_ms,
             })
         }
@@ -509,9 +523,16 @@ mod tests {
         )
         .expect_err("sleep 10 must time out at 200ms");
         match err {
-            SubprocessError::LlmTimeout { elapsed_ms, limit_ms, .. } => {
+            SubprocessError::LlmTimeout {
+                elapsed_ms,
+                limit_ms,
+                ..
+            } => {
                 assert!(elapsed_ms >= 150, "elapsed_ms={elapsed_ms}");
-                assert!(elapsed_ms < 5_000, "elapsed_ms={elapsed_ms} should be near 200, not 10000");
+                assert!(
+                    elapsed_ms < 5_000,
+                    "elapsed_ms={elapsed_ms} should be near 200, not 10000"
+                );
                 assert_eq!(limit_ms, 200);
             }
             other => panic!("expected LlmTimeout, got {other:?}"),

@@ -5,7 +5,7 @@
 //! supervision tree carries `supervisor_children` workers under a
 //! `one_for_one` strategy.
 
-use super::{with_header, ManufacturedFile, SolutionSpec};
+use super::{ManufacturedFile, SolutionSpec, with_header};
 
 /// Generate Erlang/OTP supervision-tree files for the given spec.
 ///

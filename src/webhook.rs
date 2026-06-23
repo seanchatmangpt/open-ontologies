@@ -124,10 +124,11 @@ pub async fn deliver_webhook(
         .build()?;
     let mut req = client.post(url).json(payload);
     if let Some(hdr_json) = headers_json
-        && let Ok(map) = serde_json::from_str::<std::collections::HashMap<String, String>>(hdr_json) {
-            for (k, v) in map {
-                req = req.header(&k, &v);
-            }
+        && let Ok(map) = serde_json::from_str::<std::collections::HashMap<String, String>>(hdr_json)
+    {
+        for (k, v) in map {
+            req = req.header(&k, &v);
+        }
     }
     let resp = req.send().await?;
     let status = resp.status();

@@ -86,10 +86,7 @@ pub struct RegressionVerdict {
 /// assert_eq!(verdict.workflow_class, "billing");
 /// assert!((verdict.delta - 0.0).abs() < f64::EPSILON);
 /// ```
-pub fn check_after_insert(
-    store: &OcelStore,
-    workflow_class: &str,
-) -> Result<RegressionVerdict> {
+pub fn check_after_insert(store: &OcelStore, workflow_class: &str) -> Result<RegressionVerdict> {
     check_after_insert_with(store, workflow_class, DEFAULT_WINDOW_K)
 }
 

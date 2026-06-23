@@ -7,9 +7,9 @@
 //! pulls it from the same store, and `apply()` actually modifies the graph
 //! the way the Causal-layer's structural-dependency hash claims it does.
 
-use open_ontologies::civex::{certify_action, ActionFrame, Verdict};
+use open_ontologies::civex::{ActionFrame, Verdict, certify_action};
 use open_ontologies::dynamics::{
-    list_names, lookup, register, ActionSchema, EffectSpec, Parameter,
+    ActionSchema, EffectSpec, Parameter, list_names, lookup, register,
 };
 use open_ontologies::graph::GraphStore;
 use open_ontologies::plan_pddl::{compile_domain, compile_problem};
@@ -72,10 +72,17 @@ fn dynamics_register_then_planner_compile_sees_the_schema() {
     assert!(compiled.domain.contains("?child - iri"));
     assert!(compiled.domain.contains("?parent - iri"));
     // Both ASK preconditions should translate.
-    assert!(compiled.domain.contains(":precondition (and (triple ?child"));
+    assert!(
+        compiled
+            .domain
+            .contains(":precondition (and (triple ?child")
+    );
     // No untranslated notes for fully ASK-shaped schemas.
-    assert!(compiled.translation_notes.is_empty(),
-        "unexpected translation notes: {:?}", compiled.translation_notes);
+    assert!(
+        compiled.translation_notes.is_empty(),
+        "unexpected translation notes: {:?}",
+        compiled.translation_notes
+    );
 }
 
 #[test]
@@ -83,12 +90,17 @@ fn dynamics_apply_actually_mutates_graph_visible_to_civex() {
     // Whole-stack smoke: load graph → register → apply → CIVeX sees the
     // post-state when computing structural dependencies on a follow-up frame.
     let (db, graph) = setup();
-    graph.load_turtle(r#"
+    graph
+        .load_turtle(
+            r#"
         @prefix owl: <http://www.w3.org/2002/07/owl#> .
         @prefix ex: <http://ex.org/> .
         ex:Animal a owl:Class .
         ex:Cat a owl:Class .
-    "#, None).unwrap();
+    "#,
+            None,
+        )
+        .unwrap();
 
     let schema = add_subclass_schema();
     register(&db, &schema).expect("register");
@@ -97,21 +109,32 @@ fn dynamics_apply_actually_mutates_graph_visible_to_civex() {
         ("child".to_string(), "http://ex.org/Cat".to_string()),
         ("parent".to_string(), "http://ex.org/Animal".to_string()),
     ];
-    assert!(schema.applicable(&graph, &bindings),
-        "both classes exist; preconditions should be satisfied");
+    assert!(
+        schema.applicable(&graph, &bindings),
+        "both classes exist; preconditions should be satisfied"
+    );
 
     let result = schema.apply(&graph, &db, &bindings).expect("apply");
     assert_eq!(result.triples_added, 1);
     assert_eq!(result.triples_removed, 0);
     assert!(result.event_iri.contains("add_subclass_edge"));
-    assert!(result.kgcl_patch_cnl.iter().any(|s| s.contains("subClassOf")
-        || s.contains("create edge")),
-        "expected KGCL CNL line; got {:?}", result.kgcl_patch_cnl);
+    assert!(
+        result
+            .kgcl_patch_cnl
+            .iter()
+            .any(|s| s.contains("subClassOf") || s.contains("create edge")),
+        "expected KGCL CNL line; got {:?}",
+        result.kgcl_patch_cnl
+    );
 
     // Verify the mutation landed in the graph.
     let q = "ASK { <http://ex.org/Cat> <http://www.w3.org/2000/01/rdf-schema#subClassOf> <http://ex.org/Animal> }";
     let r = graph.sparql_select(q).unwrap();
-    assert!(r.contains("\"result\":true"), "subClassOf triple not present after apply: {}", r);
+    assert!(
+        r.contains("\"result\":true"),
+        "subClassOf triple not present after apply: {}",
+        r
+    );
 }
 
 #[test]
@@ -120,12 +143,17 @@ fn civex_certifies_against_dynamics_action_and_records_schema_name() {
     // the certificate's assumptions, so an external auditor reading the
     // certificate can trace it back to the registered schema.
     let (db, graph) = setup();
-    graph.load_turtle(r#"
+    graph
+        .load_turtle(
+            r#"
         @prefix owl: <http://www.w3.org/2002/07/owl#> .
         @prefix ex: <http://ex.org/> .
         ex:Animal a owl:Class .
         ex:Cat a owl:Class .
-    "#, None).unwrap();
+    "#,
+            None,
+        )
+        .unwrap();
 
     register(&db, &add_subclass_schema()).expect("register");
 
@@ -137,11 +165,13 @@ fn civex_certifies_against_dynamics_action_and_records_schema_name() {
             @prefix ex: <http://ex.org/> .
             @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
             ex:Cat rdfs:subClassOf ex:Animal .
-        "#.to_string(),
+        "#
+        .to_string(),
         utility_metric: "dependent_query_pass_rate".to_string(),
         dependent_queries: vec![
             "SELECT ?x WHERE { ?x a <http://www.w3.org/2002/07/owl#Class> }".to_string(),
-            "SELECT ?x WHERE { ?x <http://www.w3.org/2000/01/rdf-schema#subClassOf> ?y }".to_string(),
+            "SELECT ?x WHERE { ?x <http://www.w3.org/2000/01/rdf-schema#subClassOf> ?y }"
+                .to_string(),
             "SELECT ?x WHERE { ?x ?p ?o } LIMIT 5".to_string(),
             "SELECT ?p WHERE { ?s ?p ?o } LIMIT 5".to_string(),
             "SELECT ?o WHERE { ?s ?p ?o } LIMIT 5".to_string(),
@@ -157,15 +187,28 @@ fn civex_certifies_against_dynamics_action_and_records_schema_name() {
     };
     let result = certify_action(&db, &graph, &frame).expect("certify");
 
-    assert_eq!(result.certificate.verdict, Verdict::Execute,
+    assert_eq!(
+        result.certificate.verdict,
+        Verdict::Execute,
         "benign subClassOf edge should execute; got rationale: {}",
-        result.certificate.rationale);
-    assert!(result.certificate.assumptions.iter()
-        .any(|a| a == "dynamics_action_schema:add_subclass_edge"),
+        result.certificate.rationale
+    );
+    assert!(
+        result
+            .certificate
+            .assumptions
+            .iter()
+            .any(|a| a == "dynamics_action_schema:add_subclass_edge"),
         "schema name must be in assumptions: {:?}",
-        result.certificate.assumptions);
+        result.certificate.assumptions
+    );
     // Sanity: the reversible flag also surfaces.
-    assert!(result.certificate.assumptions.contains(&"reversible".to_string()));
+    assert!(
+        result
+            .certificate
+            .assumptions
+            .contains(&"reversible".to_string())
+    );
 }
 
 #[test]
@@ -199,12 +242,17 @@ fn full_three_layer_pipeline_register_certify_apply() {
     //   3. Caller applies it.
     //   4. Graph reflects the change; lineage and event IRI captured.
     let (db, graph) = setup();
-    graph.load_turtle(r#"
+    graph
+        .load_turtle(
+            r#"
         @prefix owl: <http://www.w3.org/2002/07/owl#> .
         @prefix ex: <http://ex.org/> .
         ex:Animal a owl:Class .
         ex:Cat a owl:Class .
-    "#, None).unwrap();
+    "#,
+            None,
+        )
+        .unwrap();
 
     let schema = add_subclass_schema();
     register(&db, &schema).expect("register");

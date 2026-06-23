@@ -46,7 +46,10 @@ fn rrf_produces_normalised_confidence_in_unit_interval() {
     let result: serde_json::Value = serde_json::from_str(&result_str).expect("json");
 
     let candidates = result["candidates"].as_array().unwrap();
-    assert!(!candidates.is_empty(), "expected at least some candidates under RRF");
+    assert!(
+        !candidates.is_empty(),
+        "expected at least some candidates under RRF"
+    );
 
     for c in candidates {
         let conf = c["confidence"].as_f64().unwrap_or(-1.0);
@@ -74,7 +77,11 @@ fn rrf_preserves_per_signal_breakdown() {
 
     for c in result["candidates"].as_array().unwrap() {
         let signals = &c["signals"];
-        assert!(signals.is_object(), "missing signals on RRF candidate: {}", c);
+        assert!(
+            signals.is_object(),
+            "missing signals on RRF candidate: {}",
+            c
+        );
         assert!(signals["label_similarity"].is_number());
         assert!(signals["property_overlap"].is_number());
         assert!(signals["parent_overlap"].is_number());

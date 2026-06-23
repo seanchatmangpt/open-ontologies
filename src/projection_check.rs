@@ -85,7 +85,8 @@ pub fn check_projection_loss(
             .collect();
 
         let source_objs: BTreeSet<&str> = source_pairs.iter().map(|(_, o)| o.as_str()).collect();
-        let projected_objs: BTreeSet<&str> = projected_pairs.iter().map(|(_, o)| o.as_str()).collect();
+        let projected_objs: BTreeSet<&str> =
+            projected_pairs.iter().map(|(_, o)| o.as_str()).collect();
         let dropped_objs: Vec<String> = source_objs
             .difference(&projected_objs)
             .map(|s| s.to_string())
@@ -119,7 +120,9 @@ pub fn check_projection_loss(
 
     let n = seed_iris.len().max(1) as f64;
     let aggregate = sum_ratio / n;
-    let ok = per_seed.iter().all(|r| (r.coverage_ratio - 1.0).abs() < 1e-9);
+    let ok = per_seed
+        .iter()
+        .all(|r| (r.coverage_ratio - 1.0).abs() < 1e-9);
 
     Ok(ProjectionLossReport {
         projection_parses: true,
@@ -136,16 +139,22 @@ fn neighbourhood_pairs(
     graph: &Arc<GraphStore>,
     iri: &str,
 ) -> anyhow::Result<Vec<(String, String)>> {
-    let q = format!(
-        r#"SELECT DISTINCT ?p ?o WHERE {{ <{iri}> ?p ?o }} LIMIT 1000"#
-    );
+    let q = format!(r#"SELECT DISTINCT ?p ?o WHERE {{ <{iri}> ?p ?o }} LIMIT 1000"#);
     let mut out = Vec::new();
     let json_str = graph.sparql_select(&q)?;
     let parsed: serde_json::Value = serde_json::from_str(&json_str)?;
     if let Some(rows) = parsed["results"].as_array() {
         for row in rows {
-            let p = row["p"].as_str().unwrap_or("").trim_matches(|c| c == '<' || c == '>').to_string();
-            let o = row["o"].as_str().unwrap_or("").trim_matches(|c| c == '<' || c == '>').to_string();
+            let p = row["p"]
+                .as_str()
+                .unwrap_or("")
+                .trim_matches(|c| c == '<' || c == '>')
+                .to_string();
+            let o = row["o"]
+                .as_str()
+                .unwrap_or("")
+                .trim_matches(|c| c == '<' || c == '>')
+                .to_string();
             if !p.is_empty() {
                 out.push((p, o));
             }
@@ -190,7 +199,8 @@ mod tests {
         "#;
         let projection = source; // identical
         let g = loaded(source);
-        let report = check_projection_loss(&g, &["http://ex.org/Cat".to_string()], projection).unwrap();
+        let report =
+            check_projection_loss(&g, &["http://ex.org/Cat".to_string()], projection).unwrap();
         assert!(report.ok);
         assert_eq!(report.aggregate_coverage_ratio, 1.0);
         assert_eq!(report.total_dropped_predicates, 0);
@@ -208,18 +218,34 @@ mod tests {
             ex:Cat ex:hasColour ex:Black .
         "#;
         let g = loaded(source);
-        let report = check_projection_loss(&g, &["http://ex.org/Cat".to_string()], projection).unwrap();
+        let report =
+            check_projection_loss(&g, &["http://ex.org/Cat".to_string()], projection).unwrap();
         assert!(!report.ok);
         assert!(report.total_dropped_predicates >= 2);
         let cat_report = &report.per_seed[0];
-        assert!(cat_report.dropped_predicates.iter().any(|p| p.contains("age")));
-        assert!(cat_report.dropped_predicates.iter().any(|p| p.contains("species")));
+        assert!(
+            cat_report
+                .dropped_predicates
+                .iter()
+                .any(|p| p.contains("age"))
+        );
+        assert!(
+            cat_report
+                .dropped_predicates
+                .iter()
+                .any(|p| p.contains("species"))
+        );
     }
 
     #[test]
     fn invalid_projection_turtle_reports_parses_false() {
         let g = loaded(r#"@prefix ex: <http://ex.org/> . ex:X ex:p ex:Y ."#);
-        let report = check_projection_loss(&g, &["http://ex.org/X".to_string()], "this is not turtle: << >>").unwrap();
+        let report = check_projection_loss(
+            &g,
+            &["http://ex.org/X".to_string()],
+            "this is not turtle: << >>",
+        )
+        .unwrap();
         assert!(!report.projection_parses);
         assert!(!report.ok);
     }

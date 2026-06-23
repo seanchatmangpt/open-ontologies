@@ -162,12 +162,30 @@ pub struct ParsedFields {
 /// specific revision hint the refine loop feeds back to the LLM.
 #[derive(Debug, Clone, PartialEq)]
 pub enum ValidationFailure {
-    NonJsonResponse { snippet: String },
-    MissingField { field: String },
-    EmptyField { field: String },
-    TooShort { field: String, observed: usize, required: usize },
-    TooLong { field: String, observed: usize, max: usize },
-    NotInAllowedValues { field: String, observed: String, allowed: Vec<String> },
+    NonJsonResponse {
+        snippet: String,
+    },
+    MissingField {
+        field: String,
+    },
+    EmptyField {
+        field: String,
+    },
+    TooShort {
+        field: String,
+        observed: usize,
+        required: usize,
+    },
+    TooLong {
+        field: String,
+        observed: usize,
+        max: usize,
+    },
+    NotInAllowedValues {
+        field: String,
+        observed: String,
+        allowed: Vec<String>,
+    },
 }
 
 impl ValidationFailure {
@@ -184,18 +202,33 @@ impl ValidationFailure {
     /// ```
     pub fn revision_hint(&self) -> String {
         match self {
-            ValidationFailure::NonJsonResponse { .. } =>
-                "Reply with ONLY a JSON object, no prose, no code fences.".into(),
-            ValidationFailure::MissingField { field } =>
-                format!("The previous reply omitted required field `{field}`. Include it."),
-            ValidationFailure::EmptyField { field } =>
-                format!("Field `{field}` was empty. Provide a non-empty value."),
-            ValidationFailure::TooShort { field, observed, required } =>
-                format!("Field `{field}` had {observed} chars but needs at least {required}."),
-            ValidationFailure::TooLong { field, observed, max } =>
-                format!("Field `{field}` had {observed} chars; max is {max}."),
-            ValidationFailure::NotInAllowedValues { field, observed, allowed } =>
-                format!("Field `{field}`=`{observed}` is not allowed; pick one of: {}.", allowed.join(", ")),
+            ValidationFailure::NonJsonResponse { .. } => {
+                "Reply with ONLY a JSON object, no prose, no code fences.".into()
+            }
+            ValidationFailure::MissingField { field } => {
+                format!("The previous reply omitted required field `{field}`. Include it.")
+            }
+            ValidationFailure::EmptyField { field } => {
+                format!("Field `{field}` was empty. Provide a non-empty value.")
+            }
+            ValidationFailure::TooShort {
+                field,
+                observed,
+                required,
+            } => format!("Field `{field}` had {observed} chars but needs at least {required}."),
+            ValidationFailure::TooLong {
+                field,
+                observed,
+                max,
+            } => format!("Field `{field}` had {observed} chars; max is {max}."),
+            ValidationFailure::NotInAllowedValues {
+                field,
+                observed,
+                allowed,
+            } => format!(
+                "Field `{field}`=`{observed}` is not allowed; pick one of: {}.",
+                allowed.join(", ")
+            ),
         }
     }
 }
@@ -254,7 +287,10 @@ impl SignatureShape {
             } else {
                 format!(" [{}]", bits.join(", "))
             };
-            sys.push_str(&format!("- `{}`: {}{}\n", f.name, f.description, constraints));
+            sys.push_str(&format!(
+                "- `{}`: {}{}\n",
+                f.name, f.description, constraints
+            ));
         }
 
         if !self.demos.is_empty() {
@@ -262,21 +298,19 @@ impl SignatureShape {
             for (i, d) in self.demos.iter().enumerate() {
                 sys.push_str(&format!("### Demo {}\n", i + 1));
                 sys.push_str("Input:\n```json\n");
-                sys.push_str(
-                    &serde_json::to_string_pretty(&d.inputs).unwrap_or_default(),
-                );
+                sys.push_str(&serde_json::to_string_pretty(&d.inputs).unwrap_or_default());
                 sys.push_str("\n```\nOutput:\n```json\n");
-                sys.push_str(
-                    &serde_json::to_string_pretty(&d.outputs).unwrap_or_default(),
-                );
+                sys.push_str(&serde_json::to_string_pretty(&d.outputs).unwrap_or_default());
                 sys.push_str("\n```\n");
             }
         }
 
-        sys.push_str("\n## Authority\nYou are a proposer. The output is provisional. \
+        sys.push_str(
+            "\n## Authority\nYou are a proposer. The output is provisional. \
             A deterministic admission gate (not the LLM) decides whether the \
             output is admitted. Do NOT mark your output authoritative; do NOT \
-            invent facts beyond the input.\n");
+            invent facts beyond the input.\n",
+        );
 
         let user = format!(
             "Fill the signature for this input:\n```json\n{}\n```\nReturn ONLY a JSON object with the output fields.",
@@ -357,10 +391,7 @@ impl SignatureShape {
     /// let errs = shape.parse_and_validate("not json at all").unwrap_err();
     /// assert!(matches!(errs[0], ValidationFailure::NonJsonResponse { .. }));
     /// ```
-    pub fn parse_and_validate(
-        &self,
-        raw: &str,
-    ) -> Result<ParsedFields, Vec<ValidationFailure>> {
+    pub fn parse_and_validate(&self, raw: &str) -> Result<ParsedFields, Vec<ValidationFailure>> {
         // Pull a JSON object out of the response. LLMs sometimes wrap
         // JSON in ```json fences or prefix with prose; we extract the
         // first balanced `{...}` block.
@@ -436,14 +467,15 @@ impl SignatureShape {
                 continue;
             }
             if let Some(m) = f.max_len
-                && trimmed.chars().count() > m {
-                    failures.push(ValidationFailure::TooLong {
-                        field: f.name.clone(),
-                        observed: trimmed.chars().count(),
-                        max: m,
-                    });
-                    continue;
-                }
+                && trimmed.chars().count() > m
+            {
+                failures.push(ValidationFailure::TooLong {
+                    field: f.name.clone(),
+                    observed: trimmed.chars().count(),
+                    max: m,
+                });
+                continue;
+            }
             if let Some(av) = &f.allowed_values {
                 let lc = trimmed.to_lowercase();
                 if !av.iter().any(|a| a.to_lowercase() == lc) {
@@ -501,9 +533,10 @@ fn extract_first_json_object(s: &str) -> Option<String> {
         } else if b == b'}' {
             depth -= 1;
             if depth == 0
-                && let Some(st) = start {
-                    return Some(s[st..=i].to_string());
-                }
+                && let Some(st) = start
+            {
+                return Some(s[st..=i].to_string());
+            }
         }
     }
     None
@@ -530,29 +563,65 @@ pub fn ctq_signature() -> SignatureShape {
     let demos = vec![
         Demo {
             inputs: btree(&[
-                ("source_voice", "Sales says deals are real, Finance can't reconcile bookings"),
+                (
+                    "source_voice",
+                    "Sales says deals are real, Finance can't reconcile bookings",
+                ),
                 ("voice_kind", "operator"),
             ]),
             outputs: btree(&[
-                ("ctq_text", "Booking must reconcile to contract chain before classification"),
-                ("measure_text", "Reconciliation completeness rate (admitted bookings with chain / total bookings)"),
-                ("verification_text", "Run nightly reconciliation comparing booked amounts to invoice/order/contract chain"),
-                ("negative_case_text", "Refuse classification when invoice has no order_created or contract_executed"),
-                ("control_plan_text", "Block booking_complete event unless every prior chain stage is observed"),
+                (
+                    "ctq_text",
+                    "Booking must reconcile to contract chain before classification",
+                ),
+                (
+                    "measure_text",
+                    "Reconciliation completeness rate (admitted bookings with chain / total bookings)",
+                ),
+                (
+                    "verification_text",
+                    "Run nightly reconciliation comparing booked amounts to invoice/order/contract chain",
+                ),
+                (
+                    "negative_case_text",
+                    "Refuse classification when invoice has no order_created or contract_executed",
+                ),
+                (
+                    "control_plan_text",
+                    "Block booking_complete event unless every prior chain stage is observed",
+                ),
                 ("defect_class_hint", "ctq_incomplete"),
             ]),
         },
         Demo {
             inputs: btree(&[
-                ("source_voice", "Renewals are coming in late and CS doesn't see them in time"),
+                (
+                    "source_voice",
+                    "Renewals are coming in late and CS doesn't see them in time",
+                ),
                 ("voice_kind", "customer_success"),
             ]),
             outputs: btree(&[
-                ("ctq_text", "Renewal risk must be detected before deadline based on touchpoint evidence"),
-                ("measure_text", "Percentage of renewals with required pre-renewal touchpoints completed by threshold"),
-                ("verification_text", "Daily check that every renewal_due event has matching touchpoint events"),
-                ("negative_case_text", "A renewal cannot be marked healthy if required touchpoints are absent"),
-                ("control_plan_text", "Block renewal_healthy classification when touchpoint events absent at threshold"),
+                (
+                    "ctq_text",
+                    "Renewal risk must be detected before deadline based on touchpoint evidence",
+                ),
+                (
+                    "measure_text",
+                    "Percentage of renewals with required pre-renewal touchpoints completed by threshold",
+                ),
+                (
+                    "verification_text",
+                    "Daily check that every renewal_due event has matching touchpoint events",
+                ),
+                (
+                    "negative_case_text",
+                    "A renewal cannot be marked healthy if required touchpoints are absent",
+                ),
+                (
+                    "control_plan_text",
+                    "Block renewal_healthy classification when touchpoint events absent at threshold",
+                ),
                 ("defect_class_hint", "renewal_risk_undetected"),
             ]),
         },
@@ -566,21 +635,33 @@ pub fn ctq_signature() -> SignatureShape {
             source_voice_echo MUST be a faithful echo of the supplied source_voice."
             .into(),
         input_fields: vec![
-            FieldSpec::required("source_voice", "The verbatim stakeholder complaint or signal"),
-            FieldSpec::required("voice_kind", "Voice category")
-                .with_allowed_values(vec![
-                    "customer", "operator", "process", "defect",
-                    "control_plan", "counterfactual", "business",
-                    "policy", "customer_success",
-                ]),
+            FieldSpec::required(
+                "source_voice",
+                "The verbatim stakeholder complaint or signal",
+            ),
+            FieldSpec::required("voice_kind", "Voice category").with_allowed_values(vec![
+                "customer",
+                "operator",
+                "process",
+                "defect",
+                "control_plan",
+                "counterfactual",
+                "business",
+                "policy",
+                "customer_success",
+            ]),
         ],
         output_fields: vec![
             FieldSpec::required("ctq_text", "One-sentence CTQ statement").with_min_len(20),
             FieldSpec::required("measure_text", "Measurable indicator").with_min_len(8),
             FieldSpec::required("verification_text", "How to verify the CTQ holds").with_min_len(8),
             FieldSpec::required("negative_case_text", "What must be refused").with_min_len(12),
-            FieldSpec::required("control_plan_text", "How regression is prevented").with_min_len(12),
-            FieldSpec::required("defect_class_hint", "Best-guess defect class tag (free text)"),
+            FieldSpec::required("control_plan_text", "How regression is prevented")
+                .with_min_len(12),
+            FieldSpec::required(
+                "defect_class_hint",
+                "Best-guess defect class tag (free text)",
+            ),
         ],
         demos,
     }
@@ -639,8 +720,7 @@ Hope that helps."#;
             input_fields: vec![FieldSpec::required("voice", "the voice")],
             output_fields: vec![
                 FieldSpec::required("ctq", "ctq").with_min_len(5),
-                FieldSpec::required("kind", "kind")
-                    .with_allowed_values(vec!["a", "b"]),
+                FieldSpec::required("kind", "kind").with_allowed_values(vec!["a", "b"]),
             ],
             demos: vec![],
         }
@@ -664,16 +744,20 @@ Hope that helps."#;
         // observes the claim but does not trust it.
         let r = r#"{"ctq": "this is fine", "kind": "a", "provisional": false}"#;
         let parsed = ok_shape().parse_and_validate(r).expect("ok");
-        assert!(parsed.llm_claimed_authority,
-            "provisional=false must flip llm_claimed_authority");
+        assert!(
+            parsed.llm_claimed_authority,
+            "provisional=false must flip llm_claimed_authority"
+        );
     }
 
     #[test]
     fn parse_and_validate_detects_authoritative_true_claim() {
         let r = r#"{"ctq": "this is fine", "kind": "a", "authoritative": true}"#;
         let parsed = ok_shape().parse_and_validate(r).expect("ok");
-        assert!(parsed.llm_claimed_authority,
-            "authoritative=true must flip llm_claimed_authority");
+        assert!(
+            parsed.llm_claimed_authority,
+            "authoritative=true must flip llm_claimed_authority"
+        );
     }
 
     #[test]
@@ -786,6 +870,8 @@ Hope that helps."#;
             "defect_class_hint": "x"
         }"#;
         let err = ctq_signature().parse_and_validate(r).unwrap_err();
-        assert!(matches!(err[0], ValidationFailure::TooShort { ref field, .. } if field == "ctq_text"));
+        assert!(
+            matches!(err[0], ValidationFailure::TooShort { ref field, .. } if field == "ctq_text")
+        );
     }
 }

@@ -29,7 +29,13 @@ fn insert_admission_granted(store: &OcelStore, scope: &str, event_id: &str) {
     ).unwrap();
 }
 
-fn insert_conformance_run(store: &OcelStore, scope: &str, run_id: &str, fitness: f64, workflow_class: &str) {
+fn insert_conformance_run(
+    store: &OcelStore,
+    scope: &str,
+    run_id: &str,
+    fitness: f64,
+    workflow_class: &str,
+) {
     let conn = store.db().conn();
     let now = chrono::Utc::now().to_rfc3339();
     conn.execute(
@@ -38,7 +44,8 @@ fn insert_conformance_run(store: &OcelStore, scope: &str, run_id: &str, fitness:
              verdict, defects_json, trace_canonical_hash, ran_at)
          VALUES (?1, ?2, ?3, ?4, 1.0, 1.0, 1.0, 'conform', '[]', '', ?5)",
         rusqlite::params![run_id, scope, workflow_class, fitness, now],
-    ).unwrap();
+    )
+    .unwrap();
 }
 
 fn insert_receipt(store: &OcelStore, scope: &str, hash: &str) {
@@ -51,7 +58,8 @@ fn insert_receipt(store: &OcelStore, scope: &str, hash: &str) {
              production_law_version, granted_at)
          VALUES (?1, ?2, 'art', 'pwl', 'ocel', 'gate', NULL, 'ontostar-1.0.0', ?3)",
         rusqlite::params![hash, scope, now],
-    ).unwrap();
+    )
+    .unwrap();
 }
 
 fn insert_declared_workflow(store: &OcelStore, scope: &str, name: &str) {
@@ -79,7 +87,9 @@ fn loop1_force_apply_without_receipt_cannot_enter_registry() {
     let mined = exemplars::maybe_mine_exemplar(scope, &store).unwrap();
     assert!(mined.is_none(), "mining must be refused without a receipt");
 
-    let count: i64 = store.db().conn()
+    let count: i64 = store
+        .db()
+        .conn()
         .query_row("SELECT COUNT(*) FROM mined_exemplars", [], |r| r.get(0))
         .unwrap();
     assert_eq!(count, 0, "mined_exemplars table must remain empty");
@@ -87,7 +97,10 @@ fn loop1_force_apply_without_receipt_cannot_enter_registry() {
     // Now add receipt and retry — mining should succeed.
     insert_receipt(&store, scope, "rh1");
     let mined = exemplars::maybe_mine_exemplar(scope, &store).unwrap();
-    assert!(mined.is_some(), "mining should succeed once receipt is present");
+    assert!(
+        mined.is_some(),
+        "mining should succeed once receipt is present"
+    );
 }
 
 #[test]
@@ -117,14 +130,20 @@ fn loop4_join_filters_orphan_exemplars() {
     }
 
     // Sanity: both rows now exist in the table.
-    let total: i64 = store.db().conn()
+    let total: i64 = store
+        .db()
+        .conn()
         .query_row("SELECT COUNT(*) FROM mined_exemplars", [], |r| r.get(0))
         .unwrap();
     assert_eq!(total, 2, "fixture should have both rows in raw table");
 
     // The JOIN in exemplars_for_domain must drop the orphan.
     let rows = store.exemplars_for_domain("DomainX", 0.0, 100).unwrap();
-    assert_eq!(rows.len(), 1, "only the receipt-backed exemplar should be returned");
+    assert_eq!(
+        rows.len(),
+        1,
+        "only the receipt-backed exemplar should be returned"
+    );
     assert_eq!(rows[0].receipt_hash, "rh_a");
 }
 
@@ -149,13 +168,22 @@ fn loop5_declining_fitness_emits_one_regression_event() {
 
     // The final verdict should report emitted=true (or no-op due to already-emitted idempotency).
     let final_v = last_verdict.unwrap();
-    let emit_count: i64 = store.db().conn()
+    let emit_count: i64 = store
+        .db()
+        .conn()
         .query_row(
             "SELECT COUNT(*) FROM ocel_events WHERE event_type = 'conformance_regression_detected'",
-            [], |r| r.get(0)
+            [],
+            |r| r.get(0),
         )
         .unwrap();
-    assert_eq!(emit_count, 1, "exactly one regression event must be emitted");
-    assert!(final_v.delta >= 0.10 || !final_v.emitted,
-        "delta should clear regression threshold once both windows fill: {:?}", final_v);
+    assert_eq!(
+        emit_count, 1,
+        "exactly one regression event must be emitted"
+    );
+    assert!(
+        final_v.delta >= 0.10 || !final_v.emitted,
+        "delta should clear regression threshold once both windows fill: {:?}",
+        final_v
+    );
 }

@@ -1,3 +1,5 @@
+#![allow(clippy::all, unused)]
+
 //! Level-5 No-bypass invariant test.
 //!
 //! Static-grep invariant: every MCP tool handler in `src/server.rs` whose
@@ -192,14 +194,17 @@ fn extract_handlers_via_syn(file: &syn::File) -> Vec<(String, String)> {
     use syn::{ImplItem, Item};
     let mut out = Vec::new();
     for item in &file.items {
-        let Item::Impl(item_impl) = item else { continue };
-        let ty_text =
-            quote::ToTokens::to_token_stream(&*item_impl.self_ty).to_string();
+        let Item::Impl(item_impl) = item else {
+            continue;
+        };
+        let ty_text = quote::ToTokens::to_token_stream(&*item_impl.self_ty).to_string();
         if !ty_text.contains("OpenOntologiesServer") && !ty_text.contains("OntoStarServer") {
             continue;
         }
         for impl_item in &item_impl.items {
-            let ImplItem::Fn(method) = impl_item else { continue };
+            let ImplItem::Fn(method) = impl_item else {
+                continue;
+            };
             for attr in &method.attrs {
                 if !attr.path().is_ident("tool") {
                     continue;
@@ -226,8 +231,7 @@ fn extract_handlers_via_syn(file: &syn::File) -> Vec<(String, String)> {
                     // those checks. Strip ALL whitespace inside the
                     // body so the substring checks work both with
                     // syn-formatted output and with hand-written code.
-                    let body_tokens =
-                        quote::ToTokens::to_token_stream(&method.block).to_string();
+                    let body_tokens = quote::ToTokens::to_token_stream(&method.block).to_string();
                     let body_normalized = strip_space_before_paren(&body_tokens);
                     out.push((name, body_normalized));
                 }
@@ -599,7 +603,8 @@ pub fn strip_string_literals(s: &str) -> String {
     let mut i = 0usize;
     while i < bytes.len() {
         // Raw string: r#"..."#  (any number of #)
-        if bytes[i] == b'r' && i + 1 < bytes.len() && (bytes[i + 1] == b'"' || bytes[i + 1] == b'#') {
+        if bytes[i] == b'r' && i + 1 < bytes.len() && (bytes[i + 1] == b'"' || bytes[i + 1] == b'#')
+        {
             let mut hash_count = 0usize;
             let mut j = i + 1;
             while j < bytes.len() && bytes[j] == b'#' {
@@ -683,7 +688,11 @@ pub fn strip_string_literals(s: &str) -> String {
 /// `src/server.rs`. If a handler body invokes `self.<helper>(...)` and
 /// THAT helper's body calls `evaluate_admission` (real, not in-string),
 /// treat the handler as gated.
-pub fn handler_gated_via_helper(body: &str, fn_map: &std::collections::HashMap<String, String>) -> bool {
+#[allow(clippy::collapsible_if)]
+pub fn handler_gated_via_helper(
+    body: &str,
+    fn_map: &std::collections::HashMap<String, String>,
+) -> bool {
     // Find `self.<ident>(` invocations.
     let bytes = body.as_bytes();
     let mut i = 0usize;
@@ -691,19 +700,14 @@ pub fn handler_gated_via_helper(body: &str, fn_map: &std::collections::HashMap<S
         if &bytes[i..i + 5] == b"self." {
             // Read identifier.
             let mut j = i + 5;
-            while j < bytes.len()
-                && (bytes[j].is_ascii_alphanumeric() || bytes[j] == b'_')
-            {
+            while j < bytes.len() && (bytes[j].is_ascii_alphanumeric() || bytes[j] == b'_') {
                 j += 1;
             }
             if j < bytes.len() && bytes[j] == b'(' && j > i + 5 {
                 let name = &body[i + 5..j];
                 if let Some(helper_body) = fn_map.get(name) {
                     if body_calls_admission_real(helper_body, "evaluate_admission(")
-                        || body_calls_admission_real(
-                            helper_body,
-                            "evaluate_admission_audit(",
-                        )
+                        || body_calls_admission_real(helper_body, "evaluate_admission_audit(")
                     {
                         return true;
                     }
@@ -777,9 +781,7 @@ pub fn handler_reaches_db_write_bypassing_gate(
     while i + 5 < bytes.len() {
         if &bytes[i..i + 5] == b"self." {
             let mut j = i + 5;
-            while j < bytes.len()
-                && (bytes[j].is_ascii_alphanumeric() || bytes[j] == b'_')
-            {
+            while j < bytes.len() && (bytes[j].is_ascii_alphanumeric() || bytes[j] == b'_') {
                 j += 1;
             }
             if j < bytes.len() && bytes[j] == b'(' && j > i + 5 {
@@ -787,13 +789,9 @@ pub fn handler_reaches_db_write_bypassing_gate(
                 if let Some(helper_body) = fn_map.get(name) {
                     // If THIS helper is gated/audited, skip — admission
                     // crosses the gate inside the helper.
-                    let helper_gated = body_calls_admission_real(
-                        helper_body,
-                        "evaluate_admission(",
-                    ) || body_calls_admission_real(
-                        helper_body,
-                        "evaluate_admission_audit(",
-                    );
+                    let helper_gated =
+                        body_calls_admission_real(helper_body, "evaluate_admission(")
+                            || body_calls_admission_real(helper_body, "evaluate_admission_audit(");
                     if !helper_gated && body_writes_db(helper_body) {
                         return true;
                     }
@@ -884,8 +882,7 @@ pub fn build_fn_map(src: &str) -> std::collections::HashMap<String, String> {
 fn every_mcp_handler_is_gated_audited_or_explicitly_readonly() {
     let allowlist = read_only_allowlist();
     // Project to a name-only set for the gating check.
-    let allowed_names: HashSet<&'static str> =
-        allowlist.iter().map(|(n, _)| *n).collect();
+    let allowed_names: HashSet<&'static str> = allowlist.iter().map(|(n, _)| *n).collect();
     let handlers = extract_handlers(SERVER_RS);
     assert!(
         handlers.len() >= 40,
@@ -902,7 +899,10 @@ fn every_mcp_handler_is_gated_audited_or_explicitly_readonly() {
 
         // Sub-check 2: `let _ = ...evaluate_admission` is forbidden.
         if body_discards_admission(&live) {
-            violations.push(format!("{} — discards admission Result via `let _ =`", name));
+            violations.push(format!(
+                "{} — discards admission Result via `let _ =`",
+                name
+            ));
             continue;
         }
 
@@ -920,9 +920,7 @@ fn every_mcp_handler_is_gated_audited_or_explicitly_readonly() {
         // depth-1 helper it transitively reaches — contains a direct DB
         // write bypassing the gate, that's a fail-open hole disguised as
         // a read-only handler. Fail loudly.
-        if allowed
-            && handler_reaches_db_write_bypassing_gate(&live, &fn_map)
-        {
+        if allowed && handler_reaches_db_write_bypassing_gate(&live, &fn_map) {
             violations.push(format!(
                 "{} — allowlisted as READ-ONLY but reaches a direct DB write bypassing the gate",
                 name
@@ -968,8 +966,7 @@ fn full_admission_handlers_present() {
     // evaluate_admission. If someone removes the gate from any of these,
     // this test fails loudly.
     let handlers = extract_handlers(SERVER_RS);
-    let by_name: std::collections::HashMap<String, String> =
-        handlers.into_iter().collect();
+    let by_name: std::collections::HashMap<String, String> = handlers.into_iter().collect();
     for required in &[
         "onto_save",
         "onto_apply",
@@ -1003,8 +1000,7 @@ fn full_admission_handlers_present() {
 #[test]
 fn audit_only_handlers_present() {
     let handlers = extract_handlers(SERVER_RS);
-    let by_name: std::collections::HashMap<String, String> =
-        handlers.into_iter().collect();
+    let by_name: std::collections::HashMap<String, String> = handlers.into_iter().collect();
     for required in &[
         "onto_clear",
         "onto_unload",

@@ -19,7 +19,8 @@ fn test_parse_json_array() {
 
 #[test]
 fn test_parse_ndjson() {
-    let ndjson = "{\"id\":\"b1\",\"name\":\"Tower Bridge\"}\n{\"id\":\"b2\",\"name\":\"Big Ben\"}\n";
+    let ndjson =
+        "{\"id\":\"b1\",\"name\":\"Tower Bridge\"}\n{\"id\":\"b2\",\"name\":\"Big Ben\"}\n";
     let rows = DataIngester::parse_ndjson(ndjson).unwrap();
     assert_eq!(rows.len(), 2);
     assert_eq!(rows[1]["name"], "Big Ben");

@@ -38,8 +38,8 @@
 //! deliberately does NOT use `DefectClass::SubprocessMalformed`
 //! (§21 theatrical-taxonomy guard: one tag, one meaning).
 
+use serde_json::{Value, json};
 use std::sync::Arc;
-use serde_json::{json, Value};
 
 use crate::graph::GraphStore;
 use crate::state::StateDb;
@@ -416,8 +416,8 @@ impl BatchRunner {
             Ok(s) => s,
             Err(e) => return json!({"error": format!("reading {}: {}", args[1], e)}),
         };
-        let result = OntologyService::diff(&old, &new)
-            .unwrap_or_else(|e| format!(r#"{{"error":"{}"}}"#, e));
+        let result =
+            OntologyService::diff(&old, &new).unwrap_or_else(|e| format!(r#"{{"error":"{}"}}"#, e));
         parse_subprocess_json(&result).into_value()
     }
 
@@ -427,7 +427,11 @@ impl BatchRunner {
         }
         let path = &args[0];
         let to = Self::flag_value(args, "--to").unwrap_or_else(|| {
-            if args.len() > 1 { args[1].clone() } else { DEFAULT_FORMAT.to_string() }
+            if args.len() > 1 {
+                args[1].clone()
+            } else {
+                DEFAULT_FORMAT.to_string()
+            }
         });
         let output = Self::flag_value(args, "--output");
         let store = GraphStore::new();
@@ -452,7 +456,8 @@ impl BatchRunner {
     fn exec_enforce(&self, args: &[String]) -> Value {
         let pack = args.first().map(|s| s.as_str()).unwrap_or("generic");
         let enforcer = crate::enforce::Enforcer::new(self.db.clone(), self.graph.clone());
-        let result = enforcer.enforce_with_feedback(pack, Some(&self.db))
+        let result = enforcer
+            .enforce_with_feedback(pack, Some(&self.db))
             .unwrap_or_else(|e| format!(r#"{{"error":"{}"}}"#, e));
         parse_subprocess_json(&result).into_value()
     }
@@ -465,7 +470,8 @@ impl BatchRunner {
         match std::fs::read_to_string(file) {
             Ok(turtle) => {
                 let planner = crate::plan::Planner::new(self.db.clone(), self.graph.clone());
-                let result = planner.plan(&turtle)
+                let result = planner
+                    .plan(&turtle)
                     .unwrap_or_else(|e| format!(r#"{{"error":"{}"}}"#, e));
                 parse_subprocess_json(&result).into_value()
             }
@@ -476,7 +482,8 @@ impl BatchRunner {
     fn exec_apply(&self, args: &[String]) -> Value {
         let mode = args.first().map(|s| s.as_str()).unwrap_or("safe");
         let planner = crate::plan::Planner::new(self.db.clone(), self.graph.clone());
-        let result = planner.apply(mode)
+        let result = planner
+            .apply(mode)
             .unwrap_or_else(|e| format!(r#"{{"error":"{}"}}"#, e));
         parse_subprocess_json(&result).into_value()
     }
@@ -550,8 +557,8 @@ impl BatchRunner {
             Some(p) => p,
             None => return json!({"error": "ingest requires a data file path"}),
         };
-        let base = Self::flag_value(args, "--base-iri")
-            .unwrap_or("http://example.org/data/".to_string());
+        let base =
+            Self::flag_value(args, "--base-iri").unwrap_or("http://example.org/data/".to_string());
         let mapping_path = Self::flag_value(args, "--mapping");
 
         let rows = match DataIngester::parse_file(path) {
@@ -595,7 +602,8 @@ impl BatchRunner {
             Err(e) => return json!({"error": format!("reading {}: {}", args[1], e)}),
         };
         let detector = crate::drift::DriftDetector::new(self.db.clone());
-        let result = detector.detect(&v1, &v2)
+        let result = detector
+            .detect(&v1, &v2)
             .unwrap_or_else(|e| format!(r#"{{"error":"{}"}}"#, e));
         parse_subprocess_json(&result).into_value()
     }
@@ -606,7 +614,8 @@ impl BatchRunner {
         }
         let reason = Self::flag_value(args, "--reason").unwrap_or("locked".to_string());
         let planner = crate::plan::Planner::new(self.db.clone(), self.graph.clone());
-        let iris: Vec<&str> = args.iter()
+        let iris: Vec<&str> = args
+            .iter()
             .filter(|a| !a.starts_with("--") && *a != &reason)
             .map(|s| s.as_str())
             .collect();
@@ -692,11 +701,12 @@ fn parse_input(input: &str) -> Result<Vec<BatchCmd>, String> {
 }
 
 fn parse_json(input: &str) -> Result<Vec<BatchCmd>, String> {
-    let arr: Vec<Value> = serde_json::from_str(input)
-        .map_err(|e| format!("invalid JSON: {}", e))?;
+    let arr: Vec<Value> =
+        serde_json::from_str(input).map_err(|e| format!("invalid JSON: {}", e))?;
     let mut cmds = Vec::new();
     for item in arr {
-        let name = item[KEY_COMMAND].as_str()
+        let name = item[KEY_COMMAND]
+            .as_str()
             .ok_or_else(|| format!("each JSON object must have a \"{KEY_COMMAND}\" field"))?
             .to_string();
         let args = if let Some(obj) = item["args"].as_object() {
@@ -716,7 +726,9 @@ fn parse_json(input: &str) -> Result<Vec<BatchCmd>, String> {
             }
             flat
         } else if let Some(arr) = item["args"].as_array() {
-            arr.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect()
+            arr.iter()
+                .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                .collect()
         } else {
             Vec::new()
         };
@@ -767,7 +779,10 @@ query "SELECT (COUNT(*) AS ?c) WHERE { ?s ?p ?o }"
         assert_eq!(cmds[2].name, "reason");
         assert_eq!(cmds[2].args, vec!["--profile", "owl-rl"]);
         assert_eq!(cmds[3].name, "query");
-        assert_eq!(cmds[3].args[0], "SELECT (COUNT(*) AS ?c) WHERE { ?s ?p ?o }");
+        assert_eq!(
+            cmds[3].args[0],
+            "SELECT (COUNT(*) AS ?c) WHERE { ?s ?p ?o }"
+        );
     }
 
     #[test]
@@ -795,9 +810,17 @@ query "SELECT (COUNT(*) AS ?c) WHERE { ?s ?p ?o }"
     #[test]
     fn test_flag_value() {
         let args: Vec<String> = vec!["file.ttl", "--format", "ntriples", "--output", "out.nt"]
-            .into_iter().map(String::from).collect();
-        assert_eq!(BatchRunner::flag_value(&args, "--format"), Some("ntriples".to_string()));
-        assert_eq!(BatchRunner::flag_value(&args, "--output"), Some("out.nt".to_string()));
+            .into_iter()
+            .map(String::from)
+            .collect();
+        assert_eq!(
+            BatchRunner::flag_value(&args, "--format"),
+            Some("ntriples".to_string())
+        );
+        assert_eq!(
+            BatchRunner::flag_value(&args, "--output"),
+            Some("out.nt".to_string())
+        );
         assert_eq!(BatchRunner::flag_value(&args, "--missing"), None);
     }
 }

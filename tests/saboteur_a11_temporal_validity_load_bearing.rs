@@ -1,3 +1,5 @@
+#![allow(clippy::all, unused)]
+
 //! R6 WA-2 — Saboteur matrix for §15 A11 TemporalValidity load-bearingness.
 //!
 //! This is a documentation-test marked `#[ignore]`. It is NOT part of the
@@ -59,7 +61,7 @@ use open_ontologies::admission::{
 use open_ontologies::defects::DefectClass;
 use open_ontologies::ocel_store::OcelStore;
 use open_ontologies::state::StateDb;
-use open_ontologies::workflows::{by_name, WorkflowScope};
+use open_ontologies::workflows::{WorkflowScope, by_name};
 use tempfile::tempdir;
 
 fn run_first_admission(db: &StateDb, store: &OcelStore, session: &str) {
@@ -82,12 +84,25 @@ fn run_first_admission(db: &StateDb, store: &OcelStore, session: &str) {
     }
     let observed = store.observed_event_types_for_session(session).unwrap();
     let workflow = by_name("DataExtensionFastPath").expect("workflow lookup");
-    let required: Vec<String> = workflow.required_stages.iter().map(|s| s.to_string()).collect();
+    let required: Vec<String> = workflow
+        .required_stages
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
     let gate = OntoStarAdmissionGate::new(0.95, 0.85, required, "ontostar-1.0.0");
-    let artifact = ArtifactRef { kind: "test", bytes: b"a11-first-bytes" };
+    let artifact = ArtifactRef {
+        kind: "test",
+        bytes: b"a11-first-bytes",
+    };
     gate.evaluate(
-        &token, AdmissionOp::Apply, &artifact, store,
-        &NoopPowlReplay, session, workflow.powl_string, &observed,
+        &token,
+        AdmissionOp::Apply,
+        &artifact,
+        store,
+        &NoopPowlReplay,
+        session,
+        workflow.powl_string,
+        &observed,
         "default",
     )
     .expect("first admission must succeed to populate receipts table");
@@ -117,7 +132,10 @@ fn a11_temporal_validity_is_load_bearing_under_backdated_receipt() {
             |r| r.get(0),
         )
         .unwrap_or(0);
-    assert_eq!(first_count, 1, "first admission must write exactly one receipt row");
+    assert_eq!(
+        first_count, 1,
+        "first admission must write exactly one receipt row"
+    );
 
     // Open a second scope on the same session (same tenant chain).
     let scope = WorkflowScope::new(&db, session);
@@ -139,9 +157,16 @@ fn a11_temporal_validity_is_load_bearing_under_backdated_receipt() {
     }
     let observed = store.observed_event_types_for_session(session).unwrap();
     let workflow = by_name("DataExtensionFastPath").expect("workflow lookup");
-    let required: Vec<String> = workflow.required_stages.iter().map(|s| s.to_string()).collect();
+    let required: Vec<String> = workflow
+        .required_stages
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
     let gate = OntoStarAdmissionGate::new(0.95, 0.85, required, "ontostar-1.0.0");
-    let artifact = ArtifactRef { kind: "test", bytes: b"a11-second-bytes" };
+    let artifact = ArtifactRef {
+        kind: "test",
+        bytes: b"a11-second-bytes",
+    };
 
     // ---- saboteur hook: insert a backdated receipt with higher sequence ----
     //
@@ -175,12 +200,7 @@ fn a11_temporal_validity_is_load_bearing_under_backdated_receipt() {
                                'ontostar-1.0.0',
                                '2020-01-01T00:00:00Z',
                                ?2, ?3, ?4)",
-                    rusqlite::params![
-                        fake_hash,
-                        session_id,
-                        max_seq + 1,
-                        tenant_id
-                    ],
+                    rusqlite::params![fake_hash, session_id, max_seq + 1, tenant_id],
                 );
             }
         });
@@ -189,8 +209,14 @@ fn a11_temporal_validity_is_load_bearing_under_backdated_receipt() {
         *cell.borrow_mut() = Some(hook);
     });
     let result = gate.evaluate(
-        &token2, AdmissionOp::Apply, &artifact, &store,
-        &NoopPowlReplay, session, workflow.powl_string, &observed,
+        &token2,
+        AdmissionOp::Apply,
+        &artifact,
+        &store,
+        &NoopPowlReplay,
+        session,
+        workflow.powl_string,
+        &observed,
         "default",
     );
     admission::A11_GRANTED_AT_REREAD_HOOK.with(|cell| {

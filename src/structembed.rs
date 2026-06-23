@@ -133,8 +133,14 @@ impl StructuralTrainer {
             .unwrap_or(&Vec::new())
             .iter()
             .filter_map(|row| {
-                let child = row["child"].as_str()?.trim_matches(|c| c == '<' || c == '>').to_string();
-                let parent = row["parent"].as_str()?.trim_matches(|c| c == '<' || c == '>').to_string();
+                let child = row["child"]
+                    .as_str()?
+                    .trim_matches(|c| c == '<' || c == '>')
+                    .to_string();
+                let parent = row["parent"]
+                    .as_str()?
+                    .trim_matches(|c| c == '<' || c == '>')
+                    .to_string();
                 Some((parent, child))
             })
             .collect()
@@ -164,7 +170,12 @@ impl StructuralTrainer {
             .unwrap_or(&Vec::new())
             .iter()
             .filter_map(|row| {
-                Some(row["class"].as_str()?.trim_matches(|c| c == '<' || c == '>').to_string())
+                Some(
+                    row["class"]
+                        .as_str()?
+                        .trim_matches(|c| c == '<' || c == '>')
+                        .to_string(),
+                )
             })
             .collect()
     }
@@ -301,7 +312,8 @@ impl StructuralTrainer {
 
         // Identify root nodes (parents that are never children)
         let children: HashSet<&str> = edges.iter().map(|(_, c)| c.as_str()).collect();
-        let roots: Vec<String> = edges.iter()
+        let roots: Vec<String> = edges
+            .iter()
             .map(|(p, _)| p.clone())
             .filter(|p| !children.contains(p.as_str()))
             .collect::<HashSet<_>>()
@@ -320,10 +332,14 @@ impl StructuralTrainer {
                 let dist = poincare_distance(&parent_emb, &child_emb);
                 if dist > 0.0 {
                     // Gradient to pull them closer
-                    let grad_parent: Vec<f32> = parent_emb.iter().zip(child_emb.iter())
+                    let grad_parent: Vec<f32> = parent_emb
+                        .iter()
+                        .zip(child_emb.iter())
                         .map(|(p, c)| p - c)
                         .collect();
-                    let grad_child: Vec<f32> = child_emb.iter().zip(parent_emb.iter())
+                    let grad_child: Vec<f32> = child_emb
+                        .iter()
+                        .zip(parent_emb.iter())
                         .map(|(c, p)| c - p)
                         .collect();
 
@@ -341,9 +357,7 @@ impl StructuralTrainer {
 
                 if child_norm <= parent_norm + 0.01 {
                     // Push child away from origin along its direction
-                    let grad_outward: Vec<f32> = child_emb.iter()
-                        .map(|c| -c)
-                        .collect();
+                    let grad_outward: Vec<f32> = child_emb.iter().map(|c| -c).collect();
                     let new_child = rsgd_step(&child_emb, &grad_outward, lr * 0.5);
                     embeddings.insert(child.clone(), new_child);
                 }
@@ -358,7 +372,9 @@ impl StructuralTrainer {
                     let neg_dist = poincare_distance(&child_emb, &neg_emb);
                     let margin = 1.0;
                     if neg_dist < margin {
-                        let grad_neg: Vec<f32> = neg_emb.iter().zip(child_emb.iter())
+                        let grad_neg: Vec<f32> = neg_emb
+                            .iter()
+                            .zip(child_emb.iter())
                             .map(|(n, c)| c - n)
                             .collect();
                         let new_neg = rsgd_step(&neg_emb, &grad_neg, lr);

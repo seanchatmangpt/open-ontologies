@@ -333,10 +333,7 @@ pub struct CellReadyInputs<'a> {
 /// let result = cell_ready(inp, &store);
 /// assert!(result.is_err());
 /// ```
-pub fn cell_ready(
-    inp: CellReadyInputs<'_>,
-    store: &OcelStore,
-) -> Result<Receipt, DefectClass> {
+pub fn cell_ready(inp: CellReadyInputs<'_>, store: &OcelStore) -> Result<Receipt, DefectClass> {
     // 1. WorkflowDeclared — declared_workflows row exists for scope_token.
     if !workflow_declared(store, inp.scope_token) {
         return Err(DefectClass::ScopeUnclosed);
@@ -398,12 +395,14 @@ pub fn cell_ready(
     let artifact_hash = parse_hex32(inp.artifact_hash).ok_or(DefectClass::ReceiptMissing)?;
     let ocel_canonical_hash =
         parse_hex32(inp.ocel_trace_hash).ok_or(DefectClass::ReceiptMissing)?;
-    let gate_config_hash =
-        parse_hex32(inp.gate_config_hash).ok_or(DefectClass::ReceiptMissing)?;
+    let gate_config_hash = parse_hex32(inp.gate_config_hash).ok_or(DefectClass::ReceiptMissing)?;
 
     // 9. A9_provenance_chain — every artifact hash has prov:wasGeneratedBy.
     if inp.provenance_evidence.is_empty()
-        || !inp.provenance_evidence.iter().any(|p| p == inp.artifact_hash)
+        || !inp
+            .provenance_evidence
+            .iter()
+            .any(|p| p == inp.artifact_hash)
     {
         return Err(DefectClass::ProvenanceMissing {
             artifact_hash: inp.artifact_hash.to_string(),
@@ -477,9 +476,7 @@ pub fn cell_ready(
             // signed receipt. New deployments should populate history
             // via `TrustedKeys::from_dir_with_history` at startup.
             if let Some(db) = inp.trusted_keys_db {
-                if let Some(history) =
-                    attestation::TrustedKeys::lookup_history(db, fpr)
-                {
+                if let Some(history) = attestation::TrustedKeys::lookup_history(db, fpr) {
                     let signed_at = inp
                         .granted_at_chain
                         .last()
@@ -492,11 +489,12 @@ pub fn cell_ready(
                             });
                         }
                         if let Some(removed_at) = history.removed_at.as_ref()
-                            && signed_at >= removed_at.as_str() {
-                                return Err(DefectClass::AttestationInvalid {
-                                    reason: "key_not_trusted_at_signature_time".into(),
-                                });
-                            }
+                            && signed_at >= removed_at.as_str()
+                        {
+                            return Err(DefectClass::AttestationInvalid {
+                                reason: "key_not_trusted_at_signature_time".into(),
+                            });
+                        }
                     }
                 } else {
                     tracing::warn!(
@@ -517,8 +515,7 @@ pub fn cell_ready(
                 conformance_run_id: inp.conformance_run_id.to_string(),
                 gate_config_hash,
                 production_law_version: inp.production_law_version.to_string(),
-                defects_taxonomy_version: crate::defects::DEFECTS_TAXONOMY_VERSION
-                    .to_string(),
+                defects_taxonomy_version: crate::defects::DEFECTS_TAXONOMY_VERSION.to_string(),
                 gates_passed: vec![
                     "A1_WorkflowDeclared".into(),
                     "A2_ScopeClosed".into(),
@@ -567,14 +564,18 @@ pub fn cell_ready(
 
     // 11. A11_temporal_validity — granted_at chain monotonic.
     if inp.granted_at_chain.is_empty() {
-        return Err(DefectClass::TemporalSkew { observed_skew_ms: 0 });
+        return Err(DefectClass::TemporalSkew {
+            observed_skew_ms: 0,
+        });
     }
     for w in inp.granted_at_chain.windows(2) {
         if w[0] > w[1] {
             // Compute the negative skew in ms for evidence; tolerate parse
             // failures by reporting -1 (sentinel "unparseable but inverted").
             let skew_ms = parse_skew_ms(&w[0], &w[1]).unwrap_or(-1);
-            return Err(DefectClass::TemporalSkew { observed_skew_ms: skew_ms });
+            return Err(DefectClass::TemporalSkew {
+                observed_skew_ms: skew_ms,
+            });
         }
     }
 
@@ -586,10 +587,7 @@ pub fn cell_ready(
     // Exception: skip for genuinely new tenants (prior_tenant_receipt_count=0)
     // because the bootstrap lock is DB-wide; a new tenant entering an
     // already-locked DB must be allowed its first receipt.
-    if inp.post_bootstrap
-        && inp.granted_at_chain.len() < 2
-        && inp.prior_tenant_receipt_count > 0
-    {
+    if inp.post_bootstrap && inp.granted_at_chain.len() < 2 && inp.prior_tenant_receipt_count > 0 {
         return Err(DefectClass::BootstrapChainTooShort);
     }
 

@@ -4,12 +4,12 @@
 
 #[cfg(feature = "embeddings")]
 mod tests {
-    use open_ontologies::graph::GraphStore;
-    use open_ontologies::state::StateDb;
-    use open_ontologies::vecstore::VecStore;
     use open_ontologies::embed::TextEmbedder;
-    use open_ontologies::structembed::StructuralTrainer;
+    use open_ontologies::graph::GraphStore;
     use open_ontologies::poincare::cosine_similarity;
+    use open_ontologies::state::StateDb;
+    use open_ontologies::structembed::StructuralTrainer;
+    use open_ontologies::vecstore::VecStore;
     use std::sync::Arc;
 
     fn model_available() -> bool {
@@ -32,7 +32,9 @@ mod tests {
         let graph = Arc::new(GraphStore::new());
 
         // Load a small ontology
-        graph.load_turtle(r#"
+        graph
+            .load_turtle(
+                r#"
             @prefix owl: <http://www.w3.org/2002/07/owl#> .
             @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
             @prefix ex: <http://example.org/> .
@@ -43,14 +45,18 @@ mod tests {
             ex:Cat a owl:Class ; rdfs:label "Cat" ; rdfs:subClassOf ex:Mammal .
             ex:Vehicle a owl:Class ; rdfs:label "Vehicle" .
             ex:Car a owl:Class ; rdfs:label "Car" ; rdfs:subClassOf ex:Vehicle .
-        "#, None).unwrap();
+        "#,
+                None,
+            )
+            .unwrap();
 
         // Step 1: Load embedder
         let model_dir = dirs::home_dir().unwrap().join(".open-ontologies/models");
         let embedder = TextEmbedder::load(
             &model_dir.join("bge-small-en-v1.5.onnx"),
             &model_dir.join("tokenizer.json"),
-        ).unwrap();
+        )
+        .unwrap();
 
         // Step 2: Train structural embeddings
         let trainer = StructuralTrainer::new(32, 100, 0.01);
@@ -70,8 +76,11 @@ mod tests {
         let results = vecstore.search_cosine(&pet_vec, 6);
         let top3_iris: Vec<&str> = results.iter().take(3).map(|r| r.0.as_str()).collect();
         assert!(
-            top3_iris.iter().any(|iri| iri.contains("Dog") || iri.contains("Cat") || iri.contains("Animal")),
-            "Searching 'pet' should find Dog, Cat, or Animal in top 3: {:?}", top3_iris
+            top3_iris
+                .iter()
+                .any(|iri| iri.contains("Dog") || iri.contains("Cat") || iri.contains("Animal")),
+            "Searching 'pet' should find Dog, Cat, or Animal in top 3: {:?}",
+            top3_iris
         );
 
         // Step 5: Structural search — siblings should be close
@@ -81,7 +90,10 @@ mod tests {
         let cat_rank = struct_results.iter().position(|r| r.0.contains("Cat"));
         let vehicle_rank = struct_results.iter().position(|r| r.0.contains("Vehicle"));
         if let (Some(cat_r), Some(veh_r)) = (cat_rank, vehicle_rank) {
-            assert!(cat_r < veh_r, "Cat should rank closer to Dog than Vehicle structurally");
+            assert!(
+                cat_r < veh_r,
+                "Cat should rank closer to Dog than Vehicle structurally"
+            );
         }
 
         // Step 6: Similarity check
@@ -90,7 +102,10 @@ mod tests {
         let car_text = vecstore.get_text_vec("http://example.org/Car").unwrap();
         let dog_cat_sim = cosine_similarity(dog_text, cat_text);
         let dog_car_sim = cosine_similarity(dog_text, car_text);
-        assert!(dog_cat_sim > dog_car_sim, "Dog-Cat ({dog_cat_sim}) should be more similar than Dog-Car ({dog_car_sim})");
+        assert!(
+            dog_cat_sim > dog_car_sim,
+            "Dog-Cat ({dog_cat_sim}) should be more similar than Dog-Car ({dog_car_sim})"
+        );
 
         // Step 7: Persist and reload
         vecstore.persist().unwrap();
@@ -102,7 +117,10 @@ mod tests {
         // Verify reloaded embeddings match
         let reloaded_dog = vecstore2.get_text_vec("http://example.org/Dog").unwrap();
         let reload_sim = cosine_similarity(dog_text, reloaded_dog);
-        assert!((reload_sim - 1.0).abs() < 1e-5, "Reloaded embedding should match original");
+        assert!(
+            (reload_sim - 1.0).abs() < 1e-5,
+            "Reloaded embedding should match original"
+        );
 
         println!("E2E test passed: load → embed → search → persist → reload");
     }

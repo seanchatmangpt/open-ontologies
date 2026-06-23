@@ -18,7 +18,7 @@
 //! takes the function pointer so the type checker compares the
 //! declared signature against the actual one.
 
-use open_ontologies::swarm::{fuse_via_hearsay, SwarmConsensus};
+use open_ontologies::swarm::{SwarmConsensus, fuse_via_hearsay};
 use wasm4pm_cognition::breeds::{BreedInput, BreedOutput};
 
 #[test]

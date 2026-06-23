@@ -392,34 +392,45 @@ impl Monitor {
                     if let Some(label) = self.latest_version_label() {
                         match OntologyService::rollback_version(&self.db, &self.graph, &label) {
                             Ok(_) => {
-                                eprintln!("[watch] auto-rollback to '{}' triggered by watcher '{}'", label, w.id);
+                                eprintln!(
+                                    "[watch] auto-rollback to '{}' triggered by watcher '{}'",
+                                    label, w.id
+                                );
                                 rolled_back = true;
                             }
                             Err(e) => {
-                                eprintln!("[watch] auto-rollback failed for watcher '{}': {}", w.id, e);
+                                eprintln!(
+                                    "[watch] auto-rollback failed for watcher '{}': {}",
+                                    w.id, e
+                                );
                             }
                         }
                     } else {
-                        eprintln!("[watch] auto-rollback requested by watcher '{}' but no saved versions exist", w.id);
+                        eprintln!(
+                            "[watch] auto-rollback requested by watcher '{}' but no saved versions exist",
+                            w.id
+                        );
                     }
                 }
                 // Fire webhook for Notify actions
                 if matches!(w.action, WatcherAction::Notify)
-                    && let Some(ref url) = w.webhook_url {
-                        let url = url.clone();
-                        let headers = w.webhook_headers.clone();
-                        let payload = serde_json::json!({
-                            "source": "open-ontologies",
-                            "watcher_id": w.id,
-                            "severity": w.severity,
-                            "value": value,
-                            "threshold": w.threshold,
-                            "message": w.message.clone().unwrap_or_default(),
-                            "timestamp": chrono::Utc::now().to_rfc3339(),
-                        });
-                        tokio::spawn(async move {
-                            let _ = crate::webhook::deliver_webhook(&url, headers.as_deref(), &payload).await;
-                        });
+                    && let Some(ref url) = w.webhook_url
+                {
+                    let url = url.clone();
+                    let headers = w.webhook_headers.clone();
+                    let payload = serde_json::json!({
+                        "source": "open-ontologies",
+                        "watcher_id": w.id,
+                        "severity": w.severity,
+                        "value": value,
+                        "threshold": w.threshold,
+                        "message": w.message.clone().unwrap_or_default(),
+                        "timestamp": chrono::Utc::now().to_rfc3339(),
+                    });
+                    tokio::spawn(async move {
+                        let _ = crate::webhook::deliver_webhook(&url, headers.as_deref(), &payload)
+                            .await;
+                    });
                 }
                 alerts.push(Alert {
                     watcher: w.id.clone(),
@@ -444,7 +455,11 @@ impl Monitor {
             MONITOR_STATUS_OK.to_string()
         };
 
-        MonitorResult { status, alerts, passed }
+        MonitorResult {
+            status,
+            alerts,
+            passed,
+        }
     }
 
     /// Return `true` when a watcher action has raised the block flag, meaning
@@ -621,17 +636,18 @@ impl Monitor {
             Ok(json) => {
                 if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&json)
                     && let Some(results) = parsed["results"].as_array()
-                        && let Some(first) = results.first()
-                            && let Some(count_str) = first["count"].as_str() {
-                                // Oxigraph returns literal like "\"1\"^^<http://...>"
-                                let cleaned = count_str
-                                    .trim_matches('"')
-                                    .split("^^")
-                                    .next()
-                                    .unwrap_or("0")
-                                    .trim_matches('"');
-                                return cleaned.parse().unwrap_or(0.0);
-                            }
+                    && let Some(first) = results.first()
+                    && let Some(count_str) = first["count"].as_str()
+                {
+                    // Oxigraph returns literal like "\"1\"^^<http://...>"
+                    let cleaned = count_str
+                        .trim_matches('"')
+                        .split("^^")
+                        .next()
+                        .unwrap_or("0")
+                        .trim_matches('"');
+                    return cleaned.parse().unwrap_or(0.0);
+                }
                 0.0
             }
             Err(_) => 0.0,
@@ -663,7 +679,10 @@ pub fn start_background_loop(
         // The first tick fires immediately — skip it so we don't run before any ontology is loaded.
         tick.tick().await;
 
-        eprintln!("[watch] background monitor started (interval: {}s)", interval.as_secs());
+        eprintln!(
+            "[watch] background monitor started (interval: {}s)",
+            interval.as_secs()
+        );
 
         loop {
             tick.tick().await;
@@ -687,7 +706,11 @@ pub fn start_background_loop(
                     for alert in &result.alerts {
                         eprintln!(
                             "[watch]   {} ({}): value={} > threshold={} → {}",
-                            alert.watcher, alert.severity, alert.value, alert.threshold, alert.action,
+                            alert.watcher,
+                            alert.severity,
+                            alert.value,
+                            alert.threshold,
+                            alert.action,
                         );
                     }
                 }

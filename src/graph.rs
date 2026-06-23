@@ -107,7 +107,10 @@ impl SparqlAuth {
             (Some(u), None) => Some((u, String::new())),
             _ => None,
         };
-        SparqlAuth { basic, bearer: token }
+        SparqlAuth {
+            basic,
+            bearer: token,
+        }
     }
 
     /// Apply the configured auth to a request builder.
@@ -178,8 +181,9 @@ impl GraphStore {
     /// let store = GraphStore::open("/tmp/my_store").unwrap();
     /// ```
     pub fn open<P: AsRef<std::path::Path>>(path: P) -> anyhow::Result<Self> {
-        let store = Store::open(path.as_ref())
-            .map_err(|e| anyhow::anyhow!("Failed to open Oxigraph store at {:?}: {e}", path.as_ref()))?;
+        let store = Store::open(path.as_ref()).map_err(|e| {
+            anyhow::anyhow!("Failed to open Oxigraph store at {:?}: {e}", path.as_ref())
+        })?;
         Ok(Self {
             store: Mutex::new(store),
         })
@@ -296,7 +300,12 @@ impl GraphStore {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn load_content_with_base(&self, content: &str, format: RdfFormat, base_iri: Option<&str>) -> anyhow::Result<usize> {
+    pub fn load_content_with_base(
+        &self,
+        content: &str,
+        format: RdfFormat,
+        base_iri: Option<&str>,
+    ) -> anyhow::Result<usize> {
         let store = self.store.lock().unwrap();
         let reader = Cursor::new(content.as_bytes());
         let mut parser = RdfParser::from_format(format);
@@ -616,8 +625,8 @@ impl GraphStore {
     /// net result is more informative than the previous "filter and forget"
     /// approach (PR #14, @rustforrecess) that dropped bnode content entirely.
     pub fn canonicalize_blank_nodes(&self) -> anyhow::Result<GraphStore> {
-        use oxigraph::model::dataset::{CanonicalizationAlgorithm, CanonicalizationHashAlgorithm};
         use oxigraph::model::Dataset;
+        use oxigraph::model::dataset::{CanonicalizationAlgorithm, CanonicalizationHashAlgorithm};
 
         let store = self.store.lock().unwrap();
         let mut dataset = Dataset::new();
@@ -783,13 +792,18 @@ impl GraphStore {
         let individual_query = "SELECT (COUNT(DISTINCT ?i) AS ?count) WHERE { ?i a ?c . FILTER(?c != <http://www.w3.org/2002/07/owl#Class> && ?c != <http://www.w3.org/2000/01/rdf-schema#Class> && ?c != <http://www.w3.org/2002/07/owl#ObjectProperty> && ?c != <http://www.w3.org/2002/07/owl#DatatypeProperty> && ?c != <http://www.w3.org/2002/07/owl#Ontology>) }";
 
         let count_from_query = |q: &str| -> usize {
-            let Ok(prepared) = SparqlEvaluator::new().parse_query(q) else { return 0 };
-            let Ok(QueryResults::Solutions(solutions)) = prepared
-                .on_store(&store)
-                .execute()
-            else { return 0 };
-            let Some(Ok(row)) = solutions.into_iter().next() else { return 0 };
-            let Some(Term::Literal(lit)) = row.get("count") else { return 0 };
+            let Ok(prepared) = SparqlEvaluator::new().parse_query(q) else {
+                return 0;
+            };
+            let Ok(QueryResults::Solutions(solutions)) = prepared.on_store(&store).execute() else {
+                return 0;
+            };
+            let Some(Ok(row)) = solutions.into_iter().next() else {
+                return 0;
+            };
+            let Some(Term::Literal(lit)) = row.get("count") else {
+                return 0;
+            };
             lit.value().parse().unwrap_or(0)
         };
 
@@ -1017,7 +1031,14 @@ impl GraphStore {
         graph_iri: Option<&str>,
         extra_headers: &[(&str, &str)],
     ) -> anyhow::Result<String> {
-        Self::push_sparql_graph_auth(endpoint, content, graph_iri, extra_headers, &SparqlAuth::default()).await
+        Self::push_sparql_graph_auth(
+            endpoint,
+            content,
+            graph_iri,
+            extra_headers,
+            &SparqlAuth::default(),
+        )
+        .await
     }
 
     /// Unified SPARQL 1.1 Update push with optional named graph, extra headers, and HTTP auth.

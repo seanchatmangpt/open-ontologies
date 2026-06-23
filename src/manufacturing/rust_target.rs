@@ -5,7 +5,7 @@
 //! downstream Rust code can verify it's calling the right manufactured
 //! crate.
 
-use super::{with_header, ManufacturedFile, SolutionSpec};
+use super::{ManufacturedFile, SolutionSpec, with_header};
 
 /// Generate the Rust crate skeleton (`Cargo.toml`, `lib.rs`, `main.rs`).
 ///

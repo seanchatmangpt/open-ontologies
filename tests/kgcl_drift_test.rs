@@ -98,8 +98,7 @@ fn end_to_end_kgcl_high_confidence_rename_emits_replacement() {
         }
         _ => None,
     });
-    let (replacement, confidence) =
-        obs.expect("expected obsoletion of authoredBy to be present");
+    let (replacement, confidence) = obs.expect("expected obsoletion of authoredBy to be present");
     let repl = replacement.expect("expected has_direct_replacement on a confident rename");
     assert!(
         repl.contains("writtenBy"),

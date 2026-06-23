@@ -180,10 +180,10 @@ pub enum Concept {
     NegAtom(u32),
     And(Vec<Concept>),
     Or(Vec<Concept>),
-    Exists(u32, Box<Concept>),         // ∃R.C
-    ForAll(u32, Box<Concept>),         // ∀R.C
-    MinCard(u32, u32, Box<Concept>),   // ≥n R.C  (role, n, filler)
-    MaxCard(u32, u32, Box<Concept>),   // ≤n R.C  (role, n, filler)
+    Exists(u32, Box<Concept>),       // ∃R.C
+    ForAll(u32, Box<Concept>),       // ∀R.C
+    MinCard(u32, u32, Box<Concept>), // ≥n R.C  (role, n, filler)
+    MaxCard(u32, u32, Box<Concept>), // ≤n R.C  (role, n, filler)
 }
 
 impl Concept {
@@ -692,9 +692,10 @@ impl OwlParser {
 
         // Blank nodes: check for complex class expressions
         if node.starts_with("_:")
-            && let Some(c) = self.try_parse_complex(node) {
-                return c;
-            }
+            && let Some(c) = self.try_parse_complex(node)
+        {
+            return c;
+        }
 
         // Named class
         let id = self.interner.intern(node);
@@ -770,25 +771,28 @@ impl OwlParser {
             .index
             .object(node, OWL_MIN_QCARD)
             .or_else(|| self.index.object(node, OWL_MIN_CARD))
-            && let Some(n) = parse_card_value(&val) {
-                return RawConcept::MinCard(prop, n, Box::new(filler));
-            }
+            && let Some(n) = parse_card_value(&val)
+        {
+            return RawConcept::MinCard(prop, n, Box::new(filler));
+        }
         // maxQualifiedCardinality / maxCardinality → ≤n R.C
         if let Some(val) = self
             .index
             .object(node, OWL_MAX_QCARD)
             .or_else(|| self.index.object(node, OWL_MAX_CARD))
-            && let Some(n) = parse_card_value(&val) {
-                return RawConcept::MaxCard(prop, n, Box::new(filler));
-            }
+            && let Some(n) = parse_card_value(&val)
+        {
+            return RawConcept::MaxCard(prop, n, Box::new(filler));
+        }
         // exactCardinality → ≥n R.C ⊓ ≤n R.C
         if let Some(val) = self.index.object(node, OWL_EXACT_CARD)
-            && let Some(n) = parse_card_value(&val) {
-                return RawConcept::And(vec![
-                    RawConcept::MinCard(prop, n, Box::new(filler.clone())),
-                    RawConcept::MaxCard(prop, n, Box::new(filler)),
-                ]);
-            }
+            && let Some(n) = parse_card_value(&val)
+        {
+            return RawConcept::And(vec![
+                RawConcept::MinCard(prop, n, Box::new(filler.clone())),
+                RawConcept::MaxCard(prop, n, Box::new(filler)),
+            ]);
+        }
 
         RawConcept::Top
     }
@@ -927,27 +931,34 @@ impl TNode {
         }
         for label in &self.labels {
             if let Concept::Atom(a) = label
-                && self.labels.contains(&Concept::NegAtom(*a)) {
-                    return true;
-                }
+                && self.labels.contains(&Concept::NegAtom(*a))
+            {
+                return true;
+            }
         }
         // MinCard/MaxCard direct clash: ≥n1 R.C and ≤n2 R.C with n1 > n2
         for label in &self.labels {
             if let Concept::MinCard(r1, n1, f1) = label {
                 for other in &self.labels {
                     if let Concept::MaxCard(r2, n2, f2) = other
-                        && r1 == r2 && n1 > n2 && (f1 == f2 || **f2 == Concept::Top) {
-                            return true;
-                        }
+                        && r1 == r2
+                        && n1 > n2
+                        && (f1 == f2 || **f2 == Concept::Top)
+                    {
+                        return true;
+                    }
                 }
             }
             // Exists(R, C) = ≥1 R.C clashes with MaxCard(R, 0, C/Top)
             if let Concept::Exists(r1, f1) = label {
                 for other in &self.labels {
                     if let Concept::MaxCard(r2, n2, f2) = other
-                        && r1 == r2 && *n2 == 0 && (f1 == f2 || **f2 == Concept::Top) {
-                            return true;
-                        }
+                        && r1 == r2
+                        && *n2 == 0
+                        && (f1 == f2 || **f2 == Concept::Top)
+                    {
+                        return true;
+                    }
                 }
             }
         }
@@ -1035,11 +1046,12 @@ impl Tableau {
         }
         // Trigger concept definitions for atomic labels
         if let Concept::Atom(a) = &concept
-            && let Some(defs) = self.tbox.concept_defs.get(a).cloned() {
-                for d in defs {
-                    self.add_label(node_id, d);
-                }
+            && let Some(defs) = self.tbox.concept_defs.get(a).cloned()
+        {
+            for d in defs {
+                self.add_label(node_id, d);
             }
+        }
         true
     }
 
@@ -1065,10 +1077,11 @@ impl Tableau {
         // Inverse: if parent_role has inverse == role, parent is a role-successor
         if let Some(parent_id) = node.parent
             && let Some(parent_role) = node.parent_role
-                && let Some(&inv_of_parent) = self.tbox.inverse_roles.get(&parent_role)
-                    && role == inv_of_parent {
-                        result.insert(parent_id);
-                    }
+            && let Some(&inv_of_parent) = self.tbox.inverse_roles.get(&parent_role)
+            && role == inv_of_parent
+        {
+            result.insert(parent_id);
+        }
 
         result
     }
@@ -1110,9 +1123,10 @@ impl Tableau {
         for sup_role in super_roles {
             for label in &parent_labels {
                 if let Concept::ForAll(r, f) = label
-                    && *r == sup_role {
-                        self.add_label(succ, *f.clone());
-                    }
+                    && *r == sup_role
+                {
+                    self.add_label(succ, *f.clone());
+                }
             }
         }
 
@@ -1170,10 +1184,9 @@ impl Tableau {
             }
             let node = self.nodes.get_mut(&nid).unwrap();
             for targets in node.edges.values_mut() {
-                if targets.remove(&remove_id)
-                    && nid != keep_id {
-                        targets.insert(keep_id);
-                    }
+                if targets.remove(&remove_id) && nid != keep_id {
+                    targets.insert(keep_id);
+                }
             }
             // Update parent references
             if node.parent == Some(remove_id) {
@@ -1233,10 +1246,11 @@ impl Tableau {
                             let role = *role;
                             let filler = *filler.clone();
                             let succs = self.successors(nid, role);
-                            let has_matching =
-                                succs.iter().any(|&s| {
-                                    self.nodes.get(&s).is_some_and(|n| n.labels.contains(&filler))
-                                });
+                            let has_matching = succs.iter().any(|&s| {
+                                self.nodes
+                                    .get(&s)
+                                    .is_some_and(|n| n.labels.contains(&filler))
+                            });
                             if !has_matching {
                                 self.create_successor(nid, role, filler);
                                 changed = true;
@@ -1252,7 +1266,9 @@ impl Tableau {
                             let matching: usize = succs
                                 .iter()
                                 .filter(|&&s| {
-                                    self.nodes.get(&s).is_some_and(|n| n.labels.contains(&filler))
+                                    self.nodes
+                                        .get(&s)
+                                        .is_some_and(|n| n.labels.contains(&filler))
                                 })
                                 .count();
                             if matching < n {
@@ -1286,10 +1302,7 @@ impl Tableau {
                             self.nodes.get_mut(&nid).unwrap().processed.insert(label);
                         }
                         // Atomic labels: already handled by add_label
-                        Concept::Atom(_)
-                        | Concept::NegAtom(_)
-                        | Concept::Top
-                        | Concept::Bottom => {
+                        Concept::Atom(_) | Concept::NegAtom(_) | Concept::Top | Concept::Bottom => {
                             self.nodes.get_mut(&nid).unwrap().processed.insert(label);
                         }
                         // ⊔-rule and ≤-rule: handled below (non-deterministic)
@@ -1349,11 +1362,7 @@ impl Tableau {
 
                     // Non-deterministic merge: try each pair
                     let mc_label = Concept::MaxCard(role, n, Box::new(filler));
-                    self.nodes
-                        .get_mut(&nid)
-                        .unwrap()
-                        .processed
-                        .insert(mc_label);
+                    self.nodes.get_mut(&nid).unwrap().processed.insert(mc_label);
 
                     for i in 0..matching.len() {
                         for j in (i + 1)..matching.len() {
@@ -1369,11 +1378,7 @@ impl Tableau {
                 } else {
                     // No violation, mark as processed
                     let mc_label = Concept::MaxCard(role, n, Box::new(filler));
-                    self.nodes
-                        .get_mut(&nid)
-                        .unwrap()
-                        .processed
-                        .insert(mc_label);
+                    self.nodes.get_mut(&nid).unwrap().processed.insert(mc_label);
                 }
             }
         }
@@ -1539,11 +1544,7 @@ impl DlReasoner {
     }
 
     /// Check subsumption with explanation trace.
-    pub fn check_subsumption_explained(
-        &self,
-        sub: &Concept,
-        sup: &Concept,
-    ) -> (bool, Vec<String>) {
+    pub fn check_subsumption_explained(&self, sub: &Concept, sup: &Concept) -> (bool, Vec<String>) {
         let mut test = vec![sub.clone(), sup.negate()];
         test.sort();
         let test_concept = Concept::And(test);
@@ -1661,10 +1662,9 @@ impl DlReasoner {
         let mut equivalences: Vec<(u32, u32)> = Vec::new();
         for (&a, a_supers) in &hierarchy {
             for &b in a_supers {
-                if a < b
-                    && hierarchy.get(&b).is_some_and(|bs| bs.contains(&a)) {
-                        equivalences.push((a, b));
-                    }
+                if a < b && hierarchy.get(&b).is_some_and(|bs| bs.contains(&a)) {
+                    equivalences.push((a, b));
+                }
             }
         }
 
@@ -1741,9 +1741,10 @@ impl DlReasoner {
                 if let Some(node) = tableau.nodes.get(&node_id) {
                     for label in &node.labels {
                         if let Concept::Atom(cls) = label
-                            && !self.individual_types[&ind].contains(cls) {
-                                inferred.entry(ind).or_default().insert(*cls);
-                            }
+                            && !self.individual_types[&ind].contains(cls)
+                        {
+                            inferred.entry(ind).or_default().insert(*cls);
+                        }
                     }
                 }
             }
@@ -1938,10 +1939,8 @@ impl DlReasoner {
             .copied()
             .ok_or_else(|| anyhow::anyhow!("Unknown class: {}", sup_iri))?;
 
-        let (subsumed, trace) = reasoner.check_subsumption_explained(
-            &Concept::Atom(sub_id),
-            &Concept::Atom(sup_id),
-        );
+        let (subsumed, trace) =
+            reasoner.check_subsumption_explained(&Concept::Atom(sub_id), &Concept::Atom(sup_id));
 
         Ok(serde_json::json!({
             "sub_class": sub_iri,

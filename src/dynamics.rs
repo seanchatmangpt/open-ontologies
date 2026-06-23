@@ -227,29 +227,32 @@ impl ActionSchema {
         seed: u64,
     ) -> anyhow::Result<ApplyResult> {
         // Decide which effect list to use.
-        let (effects_to_apply, sampled_outcome, sampled_label): (&[EffectSpec], Option<usize>, Option<String>) =
-            if self.outcomes.is_empty() {
-                (self.effects.as_slice(), None, None)
-            } else {
-                // Validate probabilities sum to ~1.0.
-                let total: f64 = self.outcomes.iter().map(|o| o.probability).sum();
-                if (total - 1.0).abs() > 1e-6 {
-                    anyhow::bail!(
-                        "non-deterministic schema `{}` has outcome probabilities summing to {} (must equal 1.0 \u{00b1} 1e-6)",
-                        self.name,
-                        total
-                    );
-                }
-                if self.outcomes.iter().any(|o| o.probability < 0.0) {
-                    anyhow::bail!(
-                        "non-deterministic schema `{}` has a negative outcome probability",
-                        self.name
-                    );
-                }
-                let idx = sample_categorical(seed, &self.outcomes);
-                let outcome = &self.outcomes[idx];
-                (outcome.effects.as_slice(), Some(idx), outcome.label.clone())
-            };
+        let (effects_to_apply, sampled_outcome, sampled_label): (
+            &[EffectSpec],
+            Option<usize>,
+            Option<String>,
+        ) = if self.outcomes.is_empty() {
+            (self.effects.as_slice(), None, None)
+        } else {
+            // Validate probabilities sum to ~1.0.
+            let total: f64 = self.outcomes.iter().map(|o| o.probability).sum();
+            if (total - 1.0).abs() > 1e-6 {
+                anyhow::bail!(
+                    "non-deterministic schema `{}` has outcome probabilities summing to {} (must equal 1.0 \u{00b1} 1e-6)",
+                    self.name,
+                    total
+                );
+            }
+            if self.outcomes.iter().any(|o| o.probability < 0.0) {
+                anyhow::bail!(
+                    "non-deterministic schema `{}` has a negative outcome probability",
+                    self.name
+                );
+            }
+            let idx = sample_categorical(seed, &self.outcomes);
+            let outcome = &self.outcomes[idx];
+            (outcome.effects.as_slice(), Some(idx), outcome.label.clone())
+        };
 
         let mut to_add: Vec<(String, String, String)> = Vec::new();
         let mut to_remove: Vec<(String, String, String)> = Vec::new();
@@ -484,11 +487,11 @@ mod tests {
                     type_iri: None,
                 },
             ],
-            preconditions: vec![
-                "SELECT ?x WHERE { <{old}> ?p ?o }".to_string(),
-            ],
+            preconditions: vec!["SELECT ?x WHERE { <{old}> ?p ?o }".to_string()],
             effects: vec![
-                EffectSpec::AddClass { iri: "{new}".to_string() },
+                EffectSpec::AddClass {
+                    iri: "{new}".to_string(),
+                },
                 EffectSpec::RemoveTriple {
                     subject: "{old}".to_string(),
                     predicate: "http://www.w3.org/1999/02/22-rdf-syntax-ns#type".to_string(),
@@ -511,7 +514,13 @@ mod tests {
         assert_eq!(recovered.parameters.len(), 2);
         assert_eq!(recovered.effects.len(), 2);
         assert!(!recovered.reversible);
-        assert!(recovered.description.as_deref().unwrap().contains("Replace"));
+        assert!(
+            recovered
+                .description
+                .as_deref()
+                .unwrap()
+                .contains("Replace")
+        );
     }
 
     #[test]
@@ -625,8 +634,10 @@ mod tests {
         let r1 = schema.apply_with_seed(&g1, &db, &[], 42).expect("apply 1");
         let r2 = schema.apply_with_seed(&g2, &db, &[], 42).expect("apply 2");
 
-        assert_eq!(r1.sampled_outcome, r2.sampled_outcome,
-            "same seed must sample the same outcome");
+        assert_eq!(
+            r1.sampled_outcome, r2.sampled_outcome,
+            "same seed must sample the same outcome"
+        );
         assert_eq!(r1.sampled_outcome_label, r2.sampled_outcome_label);
     }
 
@@ -643,7 +654,9 @@ mod tests {
             let r = schema
                 .apply_with_seed(&g, &db, &[], seed.wrapping_mul(0x9E37_79B9_7F4A_7C15))
                 .expect("apply");
-            let idx = r.sampled_outcome.expect("nondet schema must record outcome");
+            let idx = r
+                .sampled_outcome
+                .expect("nondet schema must record outcome");
             counts[idx] += 1;
         }
         let p0 = counts[0] as f64 / 1000.0;
@@ -664,9 +677,15 @@ mod tests {
         // Break the invariant: sum to 0.9, not 1.0.
         schema.outcomes[0].probability = 0.6;
         schema.outcomes[1].probability = 0.3;
-        let err = schema.apply_with_seed(&g, &db, &[], 0).expect_err("should reject");
+        let err = schema
+            .apply_with_seed(&g, &db, &[], 0)
+            .expect_err("should reject");
         let s = format!("{}", err);
-        assert!(s.contains("summing to"), "expected probability sum error, got: {}", s);
+        assert!(
+            s.contains("summing to"),
+            "expected probability sum error, got: {}",
+            s
+        );
     }
 
     #[test]
@@ -680,7 +699,8 @@ mod tests {
                @prefix ex: <http://ex.org/> .
                ex:Cat a owl:Class ."#,
             None,
-        ).unwrap();
+        )
+        .unwrap();
 
         let schema = sample_schema();
         let r = schema
@@ -723,8 +743,14 @@ mod tests {
         let schema = ActionSchema {
             name: "add_subclass_edge".to_string(),
             parameters: vec![
-                Parameter { name: "child".to_string(), type_iri: None },
-                Parameter { name: "parent".to_string(), type_iri: None },
+                Parameter {
+                    name: "child".to_string(),
+                    type_iri: None,
+                },
+                Parameter {
+                    name: "parent".to_string(),
+                    type_iri: None,
+                },
             ],
             preconditions: vec![],
             effects: vec![EffectSpec::AddTriple {
@@ -745,7 +771,10 @@ mod tests {
             .apply_with_ramification(&graph, &db, &bindings, "owl-rl")
             .expect("apply+ramify");
 
-        assert_eq!(result.triples_added, 1, "literal effect: one subClassOf edge");
+        assert_eq!(
+            result.triples_added, 1,
+            "literal effect: one subClassOf edge"
+        );
         assert_eq!(result.ramification_profile.as_deref(), Some("owl-rl"));
         // The reasoner must have derived at least one new triple (tigger a Animal).
         assert!(
@@ -826,7 +855,12 @@ mod tests {
         assert_eq!(result.triples_added, 1, "AddClass effect");
         assert_eq!(result.triples_removed, 1, "RemoveTriple effect");
         assert!(result.kgcl_patch_cnl.iter().any(|s| s.contains("Feline")));
-        assert!(result.kgcl_patch_cnl.iter().any(|s| s.contains("delete edge")));
+        assert!(
+            result
+                .kgcl_patch_cnl
+                .iter()
+                .any(|s| s.contains("delete edge"))
+        );
         assert!(result.event_iri.contains("rename_class"));
 
         // Verify the graph actually reflects the change.

@@ -1,8 +1,8 @@
 use open_ontologies::graph::GraphStore;
 use open_ontologies::ingest::DataIngester;
-use open_ontologies::mapping::{MappingConfig, FieldMapping};
-use open_ontologies::shacl::ShaclValidator;
+use open_ontologies::mapping::{FieldMapping, MappingConfig};
 use open_ontologies::reason::Reasoner;
+use open_ontologies::shacl::ShaclValidator;
 use std::sync::Arc;
 
 /// Edge case: ingest succeeds but SHACL validation finds violations.
@@ -151,22 +151,34 @@ fn test_full_pipeline_csv_to_validated_rdf() {
     "#;
     let report = ShaclValidator::validate(&store, shapes).unwrap();
     let parsed: serde_json::Value = serde_json::from_str(&report).unwrap();
-    assert_eq!(parsed["conforms"], true, "SHACL should pass — both landmarks have labels");
+    assert_eq!(
+        parsed["conforms"], true,
+        "SHACL should pass — both landmarks have labels"
+    );
 
     // 6. Run RDFS reasoning — Landmarks should be inferred as Buildings
     let reason_report = Reasoner::run(&store, "rdfs", true).unwrap();
     let reason_parsed: serde_json::Value = serde_json::from_str(&reason_report).unwrap();
     let inferred = reason_parsed["inferred_count"].as_u64().unwrap();
-    assert!(inferred >= 2, "Should infer at least 2 triples (b1 and b2 are Buildings)");
+    assert!(
+        inferred >= 2,
+        "Should infer at least 2 triples (b1 and b2 are Buildings)"
+    );
 
     // 7. Verify inference worked via SPARQL
-    let check = store.sparql_select(
-        "ASK { <http://example.org/b1> a <http://example.org/Building> }"
-    ).unwrap();
-    assert!(check.contains("true"), "b1 should be inferred as a Building via subClassOf");
+    let check = store
+        .sparql_select("ASK { <http://example.org/b1> a <http://example.org/Building> }")
+        .unwrap();
+    assert!(
+        check.contains("true"),
+        "b1 should be inferred as a Building via subClassOf"
+    );
 
-    let check2 = store.sparql_select(
-        "ASK { <http://example.org/b2> a <http://example.org/Building> }"
-    ).unwrap();
-    assert!(check2.contains("true"), "b2 should be inferred as a Building via subClassOf");
+    let check2 = store
+        .sparql_select("ASK { <http://example.org/b2> a <http://example.org/Building> }")
+        .unwrap();
+    assert!(
+        check2.contains("true"),
+        "b2 should be inferred as a Building via subClassOf"
+    );
 }

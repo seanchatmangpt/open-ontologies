@@ -1,10 +1,10 @@
 //! T2-5 A2A message handler for onto_* tool dispatch.
 
-use crate::server::OpenOntologiesServer;
 use super::task_store::TaskState;
+use crate::server::OpenOntologiesServer;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::sync::Arc;
 
 /// A2A message from another agent.
@@ -69,11 +69,15 @@ impl AsyncMessageHandler for OntologiesMessageHandler {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     #[test]
     fn handler_recognizes_core_tools() {
-        let tools = vec!["onto_status", "onto_query", "onto_validate", "onto_load", "onto_stats"];
+        let tools = [
+            "onto_status",
+            "onto_query",
+            "onto_validate",
+            "onto_load",
+            "onto_stats",
+        ];
         assert_eq!(tools.len(), 5);
     }
 }

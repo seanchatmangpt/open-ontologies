@@ -4,7 +4,7 @@
 //! clap-noun-verb discovers `#[verb]` functions via linkme distributed slices.
 
 #![allow(non_upper_case_globals)] // linkme-generated statics
-#![allow(clippy::unused_unit)]    // #[verb] macro generates unit expressions
+#![allow(clippy::unused_unit)] // #[verb] macro generates unit expressions
 
 mod cmds;
 

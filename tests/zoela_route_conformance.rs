@@ -1,3 +1,5 @@
+#![allow(clippy::all, unused)]
+
 //! ZOE LA Mobile — OCEL/POWL Route Conformance Tests
 //!
 //! Validates that the declared POWL partial-order model for ServiceRoute stages
@@ -111,7 +113,8 @@ mod zoela_route_conformance {
             let trimmed = line.trim();
 
             // New subject block starts
-            if trimmed.starts_with("zoe:") && !trimmed.starts_with("zoe:stageCode")
+            if trimmed.starts_with("zoe:")
+                && !trimmed.starts_with("zoe:stageCode")
                 && !trimmed.starts_with("zoe:stageLabel")
                 && !trimmed.starts_with("zoe:stageOrder")
                 && !trimmed.starts_with("zoe:ocelEventType")
@@ -275,8 +278,8 @@ mod zoela_route_conformance {
             return;
         }
 
-        let ttl = std::fs::read_to_string(routes_path)
-            .expect("Failed to read ontology/zoela/routes.ttl");
+        let ttl =
+            std::fs::read_to_string(routes_path).expect("Failed to read ontology/zoela/routes.ttl");
 
         let edges = parse_predecessor_edges(&ttl);
         assert!(
@@ -288,7 +291,9 @@ mod zoela_route_conformance {
         // Filter to FoodRoute stages only (local names start with "FoodRoute")
         let food_edges: Vec<PowlEdge> = edges
             .into_iter()
-            .filter(|e| e.successor.starts_with("FoodRoute") || e.predecessor.starts_with("FoodRoute"))
+            .filter(|e| {
+                e.successor.starts_with("FoodRoute") || e.predecessor.starts_with("FoodRoute")
+            })
             .collect();
 
         assert!(
@@ -319,8 +324,8 @@ mod zoela_route_conformance {
             return;
         }
 
-        let ttl = std::fs::read_to_string(routes_path)
-            .expect("Failed to read ontology/zoela/routes.ttl");
+        let ttl =
+            std::fs::read_to_string(routes_path).expect("Failed to read ontology/zoela/routes.ttl");
 
         let stages = parse_food_route_stages(&ttl);
         assert!(
@@ -331,7 +336,9 @@ mod zoela_route_conformance {
         let edges = parse_predecessor_edges(&ttl);
         let food_edges: Vec<PowlEdge> = edges
             .into_iter()
-            .filter(|e| e.successor.starts_with("FoodRoute") || e.predecessor.starts_with("FoodRoute"))
+            .filter(|e| {
+                e.successor.starts_with("FoodRoute") || e.predecessor.starts_with("FoodRoute")
+            })
             .collect();
 
         // For every predecessor edge A --> B (B depends on A completing first),
@@ -410,8 +417,8 @@ mod zoela_route_conformance {
             return;
         }
 
-        let ttl = std::fs::read_to_string(routes_path)
-            .expect("Failed to read ontology/zoela/routes.ttl");
+        let ttl =
+            std::fs::read_to_string(routes_path).expect("Failed to read ontology/zoela/routes.ttl");
         let ocel_ts = std::fs::read_to_string(ocel_path)
             .expect("Failed to read packages/evidence/OCELEvents.ts");
 

@@ -13,9 +13,9 @@
 //! to `crate::manufacturing` (artifact generation) and
 //! `wasm4pm_cognition::breeds::dispatch_breed_test` (cognition).
 
-use crate::manufacturing::{manufacture, SolutionBundle, SolutionSpec};
+use crate::manufacturing::{SolutionBundle, SolutionSpec, manufacture};
 use serde::{Deserialize, Serialize};
-use wasm4pm_cognition::breeds::{dispatch_breed_test, BreedInput, BreedOutput};
+use wasm4pm_cognition::breeds::{BreedInput, BreedOutput, dispatch_breed_test};
 
 /// The Hearsay-II breed identifier — the swarm's consensus engine.
 /// Named separately so the fusion step can reference it without a bare
@@ -108,7 +108,15 @@ pub const HEARSAY_BREED: &str = "hearsay";
 /// assert_eq!(actual, expected, "SWARM_BREEDS must match BreedId enum variants");
 /// ```
 pub const SWARM_BREEDS: &[&str] = &[
-    "eliza", "cbr", "dendral", "strips", "prolog", "mycin", "gps", "soar", HEARSAY_BREED,
+    "eliza",
+    "cbr",
+    "dendral",
+    "strips",
+    "prolog",
+    "mycin",
+    "gps",
+    "soar",
+    HEARSAY_BREED,
 ];
 
 /// One node in the swarm: a breed name + its manufactured artifact bundle.
@@ -216,9 +224,7 @@ pub struct SwarmConsensus {
 pub fn node_spec(swarm_name: &str, breed: &str, work_order_hash: &str) -> SolutionSpec {
     SolutionSpec {
         name: format!("{swarm_name}_{breed}"),
-        description: format!(
-            "Swarm node {breed} for {swarm_name}: AtomVM-resident cognition unit"
-        ),
+        description: format!("Swarm node {breed} for {swarm_name}: AtomVM-resident cognition unit"),
         iac_target: "aws".into(),
         region: "us-east-1".into(),
         supervisor_children: 4,
@@ -473,16 +479,28 @@ mod tests {
                 },
             ],
             facts: vec![
-                Fact { key: "scale".into(), value: "billion".into() },
-                Fact { key: "leakage".into(), value: "detected".into() },
-                Fact { key: "current".into(), value: "no-architecture".into() },
+                Fact {
+                    key: "scale".into(),
+                    value: "billion".into(),
+                },
+                Fact {
+                    key: "leakage".into(),
+                    value: "detected".into(),
+                },
+                Fact {
+                    key: "current".into(),
+                    value: "no-architecture".into(),
+                },
             ],
             cases: vec![Case {
                 id: "case-001".into(),
                 intent: "Reconciliation gap".into(),
                 architecture: "centralized-revenue-engine".into(),
                 outcome_score: 0.92,
-                facts: vec![Fact { key: "scale".into(), value: "billion".into() }],
+                facts: vec![Fact {
+                    key: "scale".into(),
+                    value: "billion".into(),
+                }],
             }],
             rules: vec![
                 Rule {

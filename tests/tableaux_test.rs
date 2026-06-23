@@ -83,12 +83,7 @@ fn test_dl_told_subsumption() {
     let classification = parsed["classification"].as_array().unwrap();
     let cat_entry = classification
         .iter()
-        .find(|e| {
-            e["class"]
-                .as_str()
-                .unwrap()
-                .contains("Cat")
-        })
+        .find(|e| e["class"].as_str().unwrap().contains("Cat"))
         .expect("Cat should be in classification");
     let supers: Vec<&str> = cat_entry["superclasses"]
         .as_array()
@@ -253,10 +248,7 @@ fn test_dl_intersection_subsumption() {
             .iter()
             .map(|v| v.as_str().unwrap())
             .collect();
-        assert!(
-            supers.iter().any(|s| s.contains("Male")),
-            "Father ⊑ Male"
-        );
+        assert!(supers.iter().any(|s| s.contains("Male")), "Father ⊑ Male");
         assert!(
             supers.iter().any(|s| s.contains("Parent")),
             "Father ⊑ Parent"
@@ -368,7 +360,11 @@ fn test_dl_dry_run() {
     let result = Reasoner::run(&store, "owl-dl", false).unwrap();
     let _parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
     assert_eq!(_parsed["dry_run"], true);
-    assert_eq!(store.triple_count(), before, "Dry run should not modify store");
+    assert_eq!(
+        store.triple_count(),
+        before,
+        "Dry run should not modify store"
+    );
 }
 
 // ── Transitive roles ────────────────────────────────────────────────────
@@ -736,7 +732,10 @@ fn test_dl_abox_individual_types() {
 
     // ABox section should be present with individual checked
     let abox = &parsed["abox"];
-    assert!(!abox.is_null(), "ABox should be present when individuals exist");
+    assert!(
+        !abox.is_null(),
+        "ABox should be present when individuals exist"
+    );
     assert_eq!(abox["consistent"], true);
     assert!(
         abox["individuals_checked"].as_u64().unwrap() >= 1,
@@ -806,10 +805,7 @@ fn test_dl_agent_metadata() {
 
     // Verify agent metadata structure
     let agents = &parsed["agents"];
-    assert!(
-        !agents.is_null(),
-        "Output must contain 'agents' section"
-    );
+    assert!(!agents.is_null(), "Output must contain 'agents' section");
 
     // Satisfiability agent
     let sat_agent = &agents["satisfiability_agent"];
@@ -914,7 +910,10 @@ fn test_dl_pizza_classification() {
     let margherita = classification
         .iter()
         .find(|e| e["class"].as_str().unwrap().contains("MargheritaPizza"));
-    assert!(margherita.is_some(), "MargheritaPizza should be in classification");
+    assert!(
+        margherita.is_some(),
+        "MargheritaPizza should be in classification"
+    );
     if let Some(m) = margherita {
         let supers: Vec<&str> = m["superclasses"]
             .as_array()

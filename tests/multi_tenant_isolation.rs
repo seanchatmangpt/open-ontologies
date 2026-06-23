@@ -16,7 +16,7 @@ use open_ontologies::defects::DefectClass;
 use open_ontologies::ocel_store::OcelStore;
 use open_ontologies::receipts;
 use open_ontologies::state::StateDb;
-use open_ontologies::workflows::{by_name, WorkflowScope};
+use open_ontologies::workflows::{WorkflowScope, by_name};
 use tempfile::tempdir;
 
 const RM_WORKFLOW: &str = "RequirementsManufacturing";
@@ -48,7 +48,14 @@ fn emit_stage(store: &OcelStore, session: &str, scope: &str, stage: &str, tenant
     );
     store
         .emit_event_in_tenant(
-            &event_id, stage, &now, session, &[], &[], Some(scope), tenant,
+            &event_id,
+            stage,
+            &now,
+            session,
+            &[],
+            &[],
+            Some(scope),
+            tenant,
         )
         .expect("emit OCEL event");
 }
@@ -62,12 +69,7 @@ fn build_gate() -> OntoStarAdmissionGate {
 
 /// Open a tenant-tagged scope and emit a conforming RM trace under the same
 /// tenant. Returns the scope token.
-fn declare_and_run(
-    db: &StateDb,
-    store: &OcelStore,
-    session: &str,
-    tenant: &str,
-) -> String {
+fn declare_and_run(db: &StateDb, store: &OcelStore, session: &str, tenant: &str) -> String {
     let scope = WorkflowScope::new(db, session);
     let token = scope
         .open_in_tenant(Some(RM_WORKFLOW), None, None, tenant)
@@ -102,7 +104,10 @@ fn latest_for_session_isolates_receipts_per_tenant() {
         .evaluate_in_tenant(
             &token_alpha,
             AdmissionOp::RequirementProposed,
-            &ArtifactRef { kind: "test", bytes: b"alpha-bytes" },
+            &ArtifactRef {
+                kind: "test",
+                bytes: b"alpha-bytes",
+            },
             &store,
             &replay,
             session,
@@ -115,7 +120,10 @@ fn latest_for_session_isolates_receipts_per_tenant() {
         .evaluate_in_tenant(
             &token_beta,
             AdmissionOp::RequirementProposed,
-            &ArtifactRef { kind: "test", bytes: b"beta-bytes" },
+            &ArtifactRef {
+                kind: "test",
+                bytes: b"beta-bytes",
+            },
             &store,
             &replay,
             session,
@@ -143,10 +151,7 @@ fn latest_for_session_isolates_receipts_per_tenant() {
 
     let latest_beta = receipts::latest_for_session_in_tenant(&db, session, "beta")
         .expect("beta sees its own receipt");
-    assert_eq!(
-        latest_beta, r_beta.bytes,
-        "beta must see its own receipt"
-    );
+    assert_eq!(latest_beta, r_beta.bytes, "beta must see its own receipt");
     assert_ne!(
         latest_beta, r_alpha.bytes,
         "beta must NEVER see alpha's receipt"
@@ -178,7 +183,10 @@ fn cross_tenant_scope_token_yields_tenant_boundary_denial() {
     let result = gate.evaluate_in_tenant(
         &token_beta,
         AdmissionOp::RequirementProposed,
-        &ArtifactRef { kind: "test", bytes: b"alpha-tries-beta" },
+        &ArtifactRef {
+            kind: "test",
+            bytes: b"alpha-tries-beta",
+        },
         &store,
         &replay,
         session,
@@ -217,7 +225,10 @@ fn same_tenant_admission_unaffected() {
         .evaluate_in_tenant(
             &token,
             AdmissionOp::RequirementProposed,
-            &ArtifactRef { kind: "test", bytes: b"happy" },
+            &ArtifactRef {
+                kind: "test",
+                bytes: b"happy",
+            },
             &store,
             &replay,
             session,
@@ -314,7 +325,10 @@ fn default_tenant_admits_default_tagged_scope() {
         .evaluate_in_tenant(
             &token,
             AdmissionOp::RequirementProposed,
-            &ArtifactRef { kind: "test", bytes: b"default-bytes" },
+            &ArtifactRef {
+                kind: "test",
+                bytes: b"default-bytes",
+            },
             &store,
             &replay,
             session,
@@ -441,10 +455,10 @@ fn cross_tenant_receipts_share_session_id_but_never_chain() {
     assert_eq!(beta_count, 2);
 
     // latest_for_session_in_tenant returns alpha-only and beta-only chains.
-    let alpha_latest = receipts::latest_for_session_in_tenant(&db, session, "alpha")
-        .expect("alpha latest");
-    let beta_latest = receipts::latest_for_session_in_tenant(&db, session, "beta")
-        .expect("beta latest");
+    let alpha_latest =
+        receipts::latest_for_session_in_tenant(&db, session, "alpha").expect("alpha latest");
+    let beta_latest =
+        receipts::latest_for_session_in_tenant(&db, session, "beta").expect("beta latest");
     assert_ne!(alpha_latest, beta_latest);
 
     // Confirm at SQL level that each tenant's chain head row carries its own

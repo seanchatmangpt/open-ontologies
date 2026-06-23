@@ -112,7 +112,11 @@ fn bootstrap_unlock_admin_only() {
 
     let response2 = admin_server.onto_bootstrap_unlock();
     let parsed2: serde_json::Value = serde_json::from_str(&response2).unwrap();
-    assert_eq!(parsed2["ok"].as_bool(), Some(true), "admin must unlock; got: {response2}");
+    assert_eq!(
+        parsed2["ok"].as_bool(),
+        Some(true),
+        "admin must unlock; got: {response2}"
+    );
     assert_eq!(parsed2["rows_deleted"].as_u64(), Some(1));
     assert_eq!(count(&db2, "SELECT COUNT(*) FROM bootstrap_lock"), 0);
 }
@@ -162,23 +166,43 @@ fn receipts_revoke_batch_admin_only_emits_event() {
         reason: "regulatory-clawback".to_string(),
     }));
     let parsed2: serde_json::Value = serde_json::from_str(&resp2).unwrap();
-    assert_eq!(parsed2["ok"].as_bool(), Some(true), "admin must revoke; got: {resp2}");
-    assert_eq!(parsed2["count"].as_u64(), Some(3), "exactly 3 non-seed rows updated");
+    assert_eq!(
+        parsed2["ok"].as_bool(),
+        Some(true),
+        "admin must revoke; got: {resp2}"
+    );
+    assert_eq!(
+        parsed2["count"].as_u64(),
+        Some(3),
+        "exactly 3 non-seed rows updated"
+    );
     assert_eq!(parsed2["reason"].as_str(), Some("regulatory-clawback"));
     // Seed receipt unchanged.
-    let seed_lv: String = db2.conn().query_row(
-        "SELECT production_law_version FROM receipts WHERE scope_token = 'alpha-seed'",
-        [],
-        |r| r.get(0),
-    ).unwrap();
-    assert_eq!(seed_lv, "seed-v0", "seed-v0 must be excluded from soft-delete");
+    let seed_lv: String = db2
+        .conn()
+        .query_row(
+            "SELECT production_law_version FROM receipts WHERE scope_token = 'alpha-seed'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(
+        seed_lv, "seed-v0",
+        "seed-v0 must be excluded from soft-delete"
+    );
     // Audit OCEL event recorded under the dedicated AdmissionOp variant.
-    let audit_rows: i64 = db2.conn().query_row(
-        "SELECT COUNT(*) FROM ocel_events WHERE event_type = 'admission_audit'",
-        [],
-        |r| r.get(0),
-    ).unwrap();
-    assert!(audit_rows >= 1, "admission_audit OCEL event must be recorded");
+    let audit_rows: i64 = db2
+        .conn()
+        .query_row(
+            "SELECT COUNT(*) FROM ocel_events WHERE event_type = 'admission_audit'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert!(
+        audit_rows >= 1,
+        "admission_audit OCEL event must be recorded"
+    );
     // The dedicated op string lives on AdmissionOp::ReceiptsBatchRevoke.
     assert_eq!(
         AdmissionOp::ReceiptsBatchRevoke.as_str(),
@@ -211,13 +235,12 @@ fn session_revoke_by_principal_admin_only_inserts_revoked_sessions() {
         }
     }
     let pre: i64 = count(&db, "SELECT COUNT(*) FROM revoked_sessions");
-    let resp = server.onto_session_revoke_by_principal(Parameters(
-        OntoSessionRevokeByPrincipalInput {
+    let resp =
+        server.onto_session_revoke_by_principal(Parameters(OntoSessionRevokeByPrincipalInput {
             tenant_id: "target-tenant".to_string(),
             principal_id: "target-tenant".to_string(),
             reason: "operator-eviction".to_string(),
-        },
-    ));
+        }));
     let parsed: serde_json::Value = serde_json::from_str(&resp).unwrap();
     assert_eq!(parsed["ok"].as_bool(), Some(true), "admin path: {resp}");
     let post: i64 = count(&db, "SELECT COUNT(*) FROM revoked_sessions");
@@ -238,13 +261,12 @@ fn session_revoke_by_principal_admin_only_inserts_revoked_sessions() {
         )
         .unwrap();
     }
-    let resp_n = non_admin.onto_session_revoke_by_principal(Parameters(
-        OntoSessionRevokeByPrincipalInput {
+    let resp_n =
+        non_admin.onto_session_revoke_by_principal(Parameters(OntoSessionRevokeByPrincipalInput {
             tenant_id: "target-tenant".to_string(),
             principal_id: "target-tenant".to_string(),
             reason: "x".to_string(),
-        },
-    ));
+        }));
     let parsed_n: serde_json::Value = serde_json::from_str(&resp_n).unwrap();
     assert_eq!(parsed_n["ok"].as_bool(), Some(false));
     assert_eq!(
@@ -311,7 +333,10 @@ fn retention_pause_skips_tick() {
     let parsed: serde_json::Value = serde_json::from_str(&resp).unwrap();
     assert_eq!(parsed["ok"].as_bool(), Some(true), "{resp}");
     assert!(pause_handle.load(Ordering::Relaxed) > chrono::Utc::now().timestamp());
-    assert!(worker.is_paused(), "worker.is_paused() must agree with the atomic");
+    assert!(
+        worker.is_paused(),
+        "worker.is_paused() must agree with the atomic"
+    );
 
     // Seed a lineage event in the past — this is the row the pruner
     // would target if it were running. We track it by the unique
@@ -336,7 +361,10 @@ fn retention_pause_skips_tick() {
 
     // Tick — must skip work, our seeded past row preserved.
     let report = worker.tick().expect("tick must succeed");
-    assert_eq!(report.lineage_events_pruned, 0, "paused tick must not prune");
+    assert_eq!(
+        report.lineage_events_pruned, 0,
+        "paused tick must not prune"
+    );
     let past_after_pause: i64 = db
         .conn()
         .query_row(
@@ -359,7 +387,10 @@ fn retention_pause_skips_tick() {
 
     // Tick again — pruner runs and removes the seeded past row.
     let report2 = worker.tick().expect("post-resume tick");
-    assert!(report2.lineage_events_pruned >= 1, "post-resume must prune ≥1");
+    assert!(
+        report2.lineage_events_pruned >= 1,
+        "post-resume must prune ≥1"
+    );
     let past_after_resume: i64 = db
         .conn()
         .query_row(
@@ -368,7 +399,10 @@ fn retention_pause_skips_tick() {
             |r| r.get(0),
         )
         .unwrap();
-    assert_eq!(past_after_resume, 0, "seeded past row must be pruned post-resume");
+    assert_eq!(
+        past_after_resume, 0,
+        "seeded past row must be pruned post-resume"
+    );
 }
 
 #[test]
@@ -397,7 +431,8 @@ fn retention_resume_idempotent_and_non_admin_denied() {
     let bad = server.onto_retention_pause(Parameters(OntoRetentionPauseInput { minutes: 0 }));
     let pb: serde_json::Value = serde_json::from_str(&bad).unwrap();
     assert_eq!(pb["ok"].as_bool(), Some(false));
-    let huge = server.onto_retention_pause(Parameters(OntoRetentionPauseInput { minutes: 100_000 }));
+    let huge =
+        server.onto_retention_pause(Parameters(OntoRetentionPauseInput { minutes: 100_000 }));
     let ph: serde_json::Value = serde_json::from_str(&huge).unwrap();
     assert_eq!(ph["ok"].as_bool(), Some(false));
 }

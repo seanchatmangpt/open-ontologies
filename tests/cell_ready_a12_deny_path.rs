@@ -15,7 +15,7 @@
 //!
 //! Companion: `tests/saboteur_a12_dependency_closure_load_bearing.rs`
 
-use open_ontologies::cell_ready::{cell_ready, CellReadyInputs, PowlOpRef};
+use open_ontologies::cell_ready::{CellReadyInputs, PowlOpRef, cell_ready};
 use open_ontologies::defects::DefectClass;
 use open_ontologies::ocel_store::OcelStore;
 use open_ontologies::state::StateDb;
@@ -55,6 +55,7 @@ fn setup_scope(db: &StateDb, session: &str) -> String {
     token
 }
 
+#[allow(clippy::too_many_arguments)]
 fn build_inputs_with_prior<'a>(
     scope_token: &'a str,
     session_id: &'a str,
@@ -124,8 +125,15 @@ fn a12_deny_when_prior_receipt_not_in_admitted_set() {
     let prior: [u8; 32] = [0xaa; 32];
 
     let inputs = build_inputs_with_prior(
-        &token, session, powl_string, powl_hash,
-        &artifact_hash, &evidence, &granted, &admitted, Some(prior),
+        &token,
+        session,
+        powl_string,
+        powl_hash,
+        &artifact_hash,
+        &evidence,
+        &granted,
+        &admitted,
+        Some(prior),
     );
     match cell_ready(inputs, &store) {
         Err(DefectClass::DependencyClosureBroken { missing_hash }) => {
@@ -160,8 +168,15 @@ fn a12_pass_when_prior_receipt_in_admitted_set() {
     let admitted: Vec<String> = vec![prior_hex];
 
     let inputs = build_inputs_with_prior(
-        &token, session, powl_string, powl_hash,
-        &artifact_hash, &evidence, &granted, &admitted, Some(prior),
+        &token,
+        session,
+        powl_string,
+        powl_hash,
+        &artifact_hash,
+        &evidence,
+        &granted,
+        &admitted,
+        Some(prior),
     );
     let result = cell_ready(inputs, &store);
     if let Err(DefectClass::DependencyClosureBroken { .. }) = result {
@@ -187,8 +202,15 @@ fn a12_pass_on_none_prior_receipt() {
     let admitted: Vec<String> = Vec::new();
 
     let inputs = build_inputs_with_prior(
-        &token, session, powl_string, powl_hash,
-        &artifact_hash, &evidence, &granted, &admitted, None,
+        &token,
+        session,
+        powl_string,
+        powl_hash,
+        &artifact_hash,
+        &evidence,
+        &granted,
+        &admitted,
+        None,
     );
     let result = cell_ready(inputs, &store);
     if let Err(DefectClass::DependencyClosureBroken { .. }) = result {

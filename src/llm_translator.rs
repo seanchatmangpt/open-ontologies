@@ -195,7 +195,14 @@ impl std::fmt::Debug for GroqTranslator {
         // Redact api_key. The field never appears in any output of this impl.
         f.debug_struct("GroqTranslator")
             .field("endpoint", &self.endpoint)
-            .field("api_key", &if self.api_key.is_some() { "<redacted>" } else { "<unset>" })
+            .field(
+                "api_key",
+                &if self.api_key.is_some() {
+                    "<redacted>"
+                } else {
+                    "<unset>"
+                },
+            )
             .field("model", &self.model)
             .finish()
     }
@@ -278,7 +285,12 @@ impl GroqTranslator {
         // Reject obviously empty keys so they don't end up sending
         // `Authorization: Bearer `.
         let api_key = api_key.filter(|k| !k.trim().is_empty());
-        Ok(Self { client, endpoint, api_key, model: model.into() })
+        Ok(Self {
+            client,
+            endpoint,
+            api_key,
+            model: model.into(),
+        })
     }
 
     /// True if an API key is configured. Used by the gate to deny with
@@ -362,10 +374,18 @@ impl GroqTranslator {
         let body = ChatRequest {
             model: &self.model,
             messages: vec![
-                ChatMessage { role: "system", content: system_prompt },
-                ChatMessage { role: "user", content: &user_prompt },
+                ChatMessage {
+                    role: "system",
+                    content: system_prompt,
+                },
+                ChatMessage {
+                    role: "user",
+                    content: &user_prompt,
+                },
             ],
-            response_format: Some(ResponseFormat { kind: "json_object" }),
+            response_format: Some(ResponseFormat {
+                kind: "json_object",
+            }),
             temperature: 0.0,
         };
 
@@ -501,10 +521,18 @@ impl GroqTranslator {
             let body = ChatRequest {
                 model: &self.model,
                 messages: vec![
-                    ChatMessage { role: "system", content: &sys },
-                    ChatMessage { role: "user", content: &user },
+                    ChatMessage {
+                        role: "system",
+                        content: &sys,
+                    },
+                    ChatMessage {
+                        role: "user",
+                        content: &user,
+                    },
                 ],
-                response_format: Some(ResponseFormat { kind: "json_object" }),
+                response_format: Some(ResponseFormat {
+                    kind: "json_object",
+                }),
                 temperature: 0.0,
             };
 
@@ -689,7 +717,10 @@ mod tests {
             Duration::from_secs(1),
         )
         .unwrap();
-        assert_eq!(t.endpoint(), "https://api.groq.com/openai/v1/chat/completions");
+        assert_eq!(
+            t.endpoint(),
+            "https://api.groq.com/openai/v1/chat/completions"
+        );
     }
 
     #[tokio::test]
