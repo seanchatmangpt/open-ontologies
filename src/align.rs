@@ -1189,15 +1189,16 @@ fn jaccard_similarity(a: &[String], b: &[String]) -> f64 {
 ///
 /// ```
 /// use open_ontologies::align::ClassInfo;
+/// use open_ontologies::language::Label;
 ///
 /// let info = ClassInfo {
 ///     iri: "http://example.org/Dog".to_string(),
-///     labels: vec!["Dog".to_string(), "Domestic dog".to_string()],
+///     labels: vec![Label::new("Dog", None), Label::new("Domestic dog", None)],
 /// };
 ///
 /// assert_eq!(info.iri, "http://example.org/Dog");
 /// assert_eq!(info.labels.len(), 2);
-/// assert!(info.labels.contains(&"Dog".to_string()));
+/// assert!(info.labels.iter().any(|l| l.text == "Dog"));
 ///
 /// // ClassInfo implements Clone, so it can be duplicated cheaply.
 /// let cloned = info.clone();
@@ -1223,10 +1224,11 @@ fn jaccard_similarity(a: &[String], b: &[String]) -> f64 {
 ///
 /// ```
 /// use open_ontologies::align::ClassInfo;
+/// use open_ontologies::language::Label;
 ///
 /// let info = ClassInfo {
 ///     iri: "https://schema.org/Person".to_string(),
-///     labels: vec!["Person".to_string()],
+///     labels: vec![Label::new("Person", None)],
 /// };
 ///
 /// assert!(!info.iri.is_empty());

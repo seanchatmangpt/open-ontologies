@@ -79,4 +79,3 @@ export const contribution receipt InsertSchema =
 
 export type Contribution Receipt Insert =
   z.infer<typeof contribution receipt InsertSchema>;
-

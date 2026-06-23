@@ -140,3 +140,78 @@ export function emitCgRouteClosedEvent(
     eventType: 'cg.route.closed',
   };
 }
+
+// Food Route Received
+// OCEL event type: food_route.received
+// Food Route Received
+// Emitted by route: food-route
+export function emitFoodRouteReceivedEvent(
+  params: Omit<ZoeOcelEvent, 'eventId' | 'timestamp' | 'eventType'>
+): ZoeOcelEvent {
+  return {
+    ...params,
+    eventId: crypto.randomUUID(),
+    timestamp: new Date().toISOString(),
+    eventType: 'food_route.received',
+  };
+}
+
+// Food Route Verified
+// OCEL event type: food_route.verified
+// Verification stage: a volunteer confirms the details
+// Emitted by route: food-route
+export function emitFoodRouteVerifiedEvent(
+  params: Omit<ZoeOcelEvent, 'eventId' | 'timestamp' | 'eventType'>
+): ZoeOcelEvent {
+  return {
+    ...params,
+    eventId: crypto.randomUUID(),
+    timestamp: new Date().toISOString(),
+    eventType: 'food_route.verified',
+  };
+}
+
+// Food Route Assigned
+// OCEL event type: food_route.assigned
+// Assignment stage: a volunteer is matched to delivery
+// Emitted by route: food-route
+export function emitFoodRouteAssignedEvent(
+  params: Omit<ZoeOcelEvent, 'eventId' | 'timestamp' | 'eventType'>
+): ZoeOcelEvent {
+  return {
+    ...params,
+    eventId: crypto.randomUUID(),
+    timestamp: new Date().toISOString(),
+    eventType: 'food_route.assigned',
+  };
+}
+
+// Food Delivered
+// OCEL event type: food.delivered
+// A food resource was delivered to recipient
+// Emitted by route: food-route
+export function emitFoodDeliveredEvent(
+  params: Omit<ZoeOcelEvent, 'eventId' | 'timestamp' | 'eventType'>
+): ZoeOcelEvent {
+  return {
+    ...params,
+    eventId: crypto.randomUUID(),
+    timestamp: new Date().toISOString(),
+    eventType: 'food.delivered',
+  };
+}
+
+// Care Route Closed
+// OCEL event type: care_route.closed
+// A care route instance was closed after all stages
+// Emitted by route: care-route
+export function emitCareRouteClosedEvent(
+  params: Omit<ZoeOcelEvent, 'eventId' | 'timestamp' | 'eventType'>
+): ZoeOcelEvent {
+  return {
+    ...params,
+    eventId: crypto.randomUUID(),
+    timestamp: new Date().toISOString(),
+    eventType: 'care_route.closed',
+  };
+}

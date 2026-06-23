@@ -17,4 +17,3 @@ resource "github_branch_protection" "open_ontologies_main" {
     required_approving_review_count = 1
   }
 }
-

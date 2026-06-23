@@ -74,6 +74,13 @@ fn revops_input() -> BreedInput {
                 conclusion: "favor=centralized-revenue-engine".into(),
                 certainty: 0.9,
             },
+            // For ELIZA keyword engine: match 'revenue' in the intent.
+            Rule {
+                id: "eliza-keyword".into(),
+                premise: vec!["REVENUE".into(), "(0)".into()],
+                conclusion: "Why do you mention revenue?".into(),
+                certainty: 1.0,
+            },
             Rule {
                 id: "r2".into(),
                 premise: vec!["leakage=detected".into()],

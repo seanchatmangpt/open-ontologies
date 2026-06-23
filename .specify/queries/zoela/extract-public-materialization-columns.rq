@@ -54,13 +54,13 @@ WHERE {
         (SAMPLE(?_description) AS ?colDescription)
         (SAMPLE(?_classIri)    AS ?colClassIri)
     WHERE {
-      # ── Class identity ──────────────────────────────────────────────
+      # -- Class identity ----------------------------------------------
       ?class a owl:Class ;
              skos:notation ?_tableName .
       FILTER(STRSTARTS(STR(?class), "https://zoela.org/ontology/"))
       BIND(STR(?class) AS ?_classIri)
 
-      # ── Class-level admissibility (same gates as admission extractor) ──
+      # -- Class-level admissibility (same gates as admission extractor) --
       FILTER NOT EXISTS {
         ?_p2 rdfs:domain ?class ; skos:notation ?_c2 .
         FILTER NOT EXISTS { ?_p2 rdfs:range ?_r2 }
@@ -80,7 +80,7 @@ WHERE {
         FILTER(STR(?_nX) != STR(?_nY))
       }
 
-      # ── Public-anchor + admitted kind ────────────────────────────────
+      # -- Public-anchor + admitted kind --------------------------------
       ?class rdfs:subClassOf+ ?_anchor .
       FILTER(!STRSTARTS(STR(?_anchor), "https://zoela.org/ontology/"))
       FILTER(?_anchor != owl:Thing)
@@ -124,7 +124,7 @@ WHERE {
         )
       }
 
-      # ── Body property + SQL type derivation ───────────────────────────
+      # -- Body property + SQL type derivation ---------------------------
       ?prop rdfs:domain ?class ; skos:notation ?_colName .
       OPTIONAL { ?prop rdfs:range ?_range }
       OPTIONAL { ?prop rdfs:comment ?_descRaw }

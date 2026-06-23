@@ -57,7 +57,7 @@ WHERE {
         (SAMPLE(?_tableName)     AS ?rlsTargetTable)
         (SAMPLE(?_classIri)      AS ?rlsTargetClassIri)
     WHERE {
-      # ── ODRL policy + permission + action ────────────────────────────
+      # -- ODRL policy + permission + action ----------------------------
       ?policy a odrl:Policy ;
               skos:notation         ?_policyCode ;
               ggen:rlsAppliesToRole ?_role ;
@@ -71,7 +71,7 @@ WHERE {
 
       ?targetKind skos:notation ?_kindCode .
 
-      # ── Local class admissibility for THIS kind ──────────────────────
+      # -- Local class admissibility for THIS kind ----------------------
       ?class a owl:Class ;
              skos:notation ?_tableName .
       FILTER(STRSTARTS(STR(?class), "https://zoela.org/ontology/"))

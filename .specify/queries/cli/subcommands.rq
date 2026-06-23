@@ -49,7 +49,7 @@ WHERE {
        cli:summary     ?summary ;
        cli:description ?description .
 
-  # ── Options ──────────────────────────────────────────────────────────────
+  # -- Options --------------------------------------------------------------
   OPTIONAL {
     SELECT ?sub
            (GROUP_CONCAT(?oname;  separator=" | ") AS ?optionNames)
@@ -82,7 +82,7 @@ WHERE {
     ORDER BY ?oname
   }
 
-  # ── Positional arguments ────────────────────────────────────────────────
+  # -- Positional arguments ------------------------------------------------
   OPTIONAL {
     SELECT ?sub
            (GROUP_CONCAT(?pname;  separator=" | ") AS ?positionalNames)
@@ -99,7 +99,7 @@ WHERE {
     GROUP BY ?sub
   }
 
-  # ── Constraints ─────────────────────────────────────────────────────────
+  # -- Constraints ---------------------------------------------------------
   OPTIONAL {
     SELECT ?sub
            (GROUP_CONCAT(?ctype;  separator=" | ") AS ?constraintTypes)
@@ -125,7 +125,7 @@ WHERE {
     GROUP BY ?sub
   }
 
-  # ── Examples ────────────────────────────────────────────────────────────
+  # -- Examples ------------------------------------------------------------
   OPTIONAL {
     SELECT ?sub
            (GROUP_CONCAT(?etxt; separator=" | ") AS ?exampleTexts)

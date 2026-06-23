@@ -1889,8 +1889,6 @@ impl OpenOntologiesServer {
                     }
                 }
             }
-                }
-            }
             Err(e) => format!(r#"{{"ok":false,"error":"{}","hint":"Check the error details and retry. Consult the tool description for required parameters."}}"#, e.to_string().replace('"', "'")),
         }
     }
@@ -3488,7 +3486,6 @@ impl OpenOntologiesServer {
             }
             Err(e) => format!(r#"{{"ok":false,"error":"{}","hint":"Check the error details and retry. Consult the tool description for required parameters."}}"#, e),
         }
-        }
     }
 
     #[tool(name = "onto_enforce", description = "Enforce design patterns on the loaded ontology. Built-in packs: 'generic' (orphan classes, missing domain/range/label), 'boro' (BORO 4D patterns), 'value_partition' (disjoint/covering checks). Also runs any custom rules stored for the pack.")]
@@ -4200,8 +4197,6 @@ impl OpenOntologiesServer {
             Ok(states) => serde_json::to_string(&states)
                 .unwrap_or_else(|e| format!(r#"{{"error":"serialization: {}"}}"#, e)),
             Err(e) => format!(r#"{{"error":"{}"}}"#, e),
-        }
-    }
         }
     }
 

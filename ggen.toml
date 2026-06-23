@@ -21,8 +21,8 @@ license = "MIT"
 
 [ontology]
 source = "ontology/cli-open-ontologies.ttl"
-base_uri = "https://ggen.io/onto/cli/open-ontologies/"
-format = "turtle"
+base_iri = "https://ggen.io/onto/cli/open-ontologies/"
+# format = "turtle"
 imports = [
     # ZOE LA Mobile domain modules — loaded so zoela/* SPARQL queries have data
     "ontology/zoela/categories.ttl",
@@ -135,7 +135,7 @@ WHERE {
 """
 
 [generation]
-enabled = true
+# enabled = true
 
 # Generation rules — each rule = SPARQL query + Tera template → output file
 rules = [
@@ -198,7 +198,7 @@ rules = [
     #  comment removed as stale. supabase/migrations/20260518000003_zoela_rls.sql remains
     #  protected until the ggen-emitted zoela-rls.sql is reviewed for equivalence.)
     { name = "zoela-forms",         query = { file = ".specify/queries/zoela/extract-form-fields.rq" },   template = { file = ".specify/templates/zoela/react-hook-form.tera" },         output_file = "packages/forms/zoela.tsx",                                    mode = "Overwrite" },
-    { name = "zoela-ocel",          query = { inline = "PREFIX skos: <http://www.w3.org/2004/02/skos/core#>\nPREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\n\nSELECT\n  (GROUP_CONCAT(?code;   SEPARATOR=\"|\") AS ?eventCodes)\n  (GROUP_CONCAT(?label;  SEPARATOR=\"|\") AS ?eventLabels)\n  (GROUP_CONCAT(?def;    SEPARATOR=\"|\") AS ?eventDefs)\n  (GROUP_CONCAT(?route;  SEPARATOR=\"|\") AS ?eventRoutes)\nWHERE {\n  VALUES (?code ?label ?def ?route) {\n    (\"cg.interest.submitted\"   \"Interest Submitted\"   \"Member submits interest in joining a connect group\"   \"connect-group\")\n    (\"cg.groups.matched\"       \"Groups Matched\"       \"System matches member to eligible connect groups\"      \"connect-group\")\n    (\"cg.invite.sent\"          \"Invite Sent\"          \"Connect group leader sends invitation to member\"       \"connect-group\")\n    (\"cg.invite.accepted\"      \"Invite Accepted\"      \"Member accepts connect group invitation\"               \"connect-group\")\n    (\"cg.spot.reserved\"        \"Spot Reserved\"        \"Member spot reserved in connect group\"                 \"connect-group\")\n    (\"cg.attendance.recorded\"  \"Attendance Recorded\"  \"Attendance recorded for connect group session\"         \"connect-group\")\n    (\"cg.followup.created\"     \"Follow-up Created\"    \"Pastoral follow-up created for member engagement\"      \"connect-group\")\n    (\"cg.route.closed\"         \"Route Closed\"         \"Connect group route completed and closed\"              \"connect-group\")\n  }\n}\nORDER BY ?code" }, template = { file = ".specify/templates/zoela/ocel-event.tera" },              output_file = "packages/evidence/OcelEvents.ts",                            mode = "Overwrite" },
+    { name = "zoela-ocel",          query = { inline = "PREFIX skos: <http://www.w3.org/2004/02/skos/core#>\nPREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\n\nSELECT\n  (GROUP_CONCAT(?code;   SEPARATOR=\"|\") AS ?eventCodes)\n  (GROUP_CONCAT(?label;  SEPARATOR=\"|\") AS ?eventLabels)\n  (GROUP_CONCAT(?def;    SEPARATOR=\"|\") AS ?eventDefs)\n  (GROUP_CONCAT(?route;  SEPARATOR=\"|\") AS ?eventRoutes)\nWHERE {\n  VALUES (?code ?label ?def ?route) {\n    (\"cg.interest.submitted\"   \"Interest Submitted\"   \"Member submits interest in joining a connect group\"   \"connect-group\")\n    (\"cg.groups.matched\"       \"Groups Matched\"       \"System matches member to eligible connect groups\"      \"connect-group\")\n    (\"cg.invite.sent\"          \"Invite Sent\"          \"Connect group leader sends invitation to member\"       \"connect-group\")\n    (\"cg.invite.accepted\"      \"Invite Accepted\"      \"Member accepts connect group invitation\"               \"connect-group\")\n    (\"cg.spot.reserved\"        \"Spot Reserved\"        \"Member spot reserved in connect group\"                 \"connect-group\")\n    (\"cg.attendance.recorded\"  \"Attendance Recorded\"  \"Attendance recorded for connect group session\"         \"connect-group\")\n    (\"cg.followup.created\"     \"Follow-up Created\"    \"Pastoral follow-up created for member engagement\"      \"connect-group\")\n    (\"cg.route.closed\"         \"Route Closed\"         \"Connect group route completed and closed\"              \"connect-group\")\n    (\"food_route.received\"     \"Food Route Received\"  \"Food Route Received\"                                   \"food-route\")\n    (\"food_route.verified\"     \"Food Route Verified\"  \"Verification stage: a volunteer confirms the details\"  \"food-route\")\n    (\"food_route.assigned\"     \"Food Route Assigned\"  \"Assignment stage: a volunteer is matched to delivery\"  \"food-route\")\n    (\"food.delivered\"          \"Food Delivered\"       \"A food resource was delivered to recipient\"            \"food-route\")\n    (\"care_route.closed\"       \"Care Route Closed\"    \"A care route instance was closed after all stages\"    \"care-route\")\n  }\n}\nORDER BY ?code" }, template = { file = ".specify/templates/zoela/ocel-event.tera" },              output_file = "packages/evidence/OcelEvents.ts",                            mode = "Overwrite" },
     # TEMPORARILY DISABLED: zoela-service-routes has VALUES fallback that needs inlining
     # { name = "zoela-service-routes", query = { file = ".specify/queries/zoela/extract-service-routes.rq" }, template = { file = ".specify/templates/zoela/route-stage-gate.tera" }, output_file = "packages/routes/routeGates.ts",                               mode = "Overwrite" },
     # TEMPORARILY DISABLED: zoela-receipts has VALUES that needs inlining
@@ -294,113 +294,113 @@ rules = [
 
     # Wasm4PM (WebAssembly for Process Mining) — Stub generation for interop interfaces
     # Inline queries with VALUES clauses for deterministic stub module generation
-    { name = "wasm4pm-algos-stub", query = { inline = "SELECT (\"check_conformance_alignment|token_replay|alignment_stats|activity_coverage\" AS ?itemNames) (\"fn check_conformance_alignment(trace: &Trace, net: &PowlPetriNet) -> Result<f64, String>|fn token_replay(log: &EventLog, net: &PowlPetriNet) -> Result<TraceReplayResult, String>|fn alignment_stats(alignments: &[Alignment]) -> AlignmentStats|fn activity_coverage(log: &EventLog, net: &PowlPetriNet) -> f64\" AS ?methodSignatures) (\"Result<f64, String>|Result<TraceReplayResult, String>|AlignmentStats|f64\" AS ?returnTypes) (\"Check conformance|Execute replay|Alignment stats|Coverage metrics\" AS ?descriptions) (\"FITNESS|REPLAY|VALIDATE|FITNESS\" AS ?usagePatterns) (\"validate|ingest|convert|analyze\" AS ?stageNames) (\"CRITICAL|CRITICAL|HIGH|HIGH\" AS ?priorities) (\"pm4py.conformance_check|pm4py.token_replay|pm4py.alignment|pm4py.coverage\" AS ?otelSpanNames) WHERE { FILTER(true) }" }, template = { file = ".specify/templates/wasm4pm-algos-stub.rs.tera" }, output_file = "src/wasm4pm_algos_stub.rs", mode = "Overwrite", traceability_required = true, receipt_required = true },
-    { name = "wasm4pm-cognition-stub", query = { inline = "SELECT (\"breed_eliza|breed_cbr|breed_dendral|breed_strips|breed_prolog|breed_mycin|breed_gps|breed_soar|breed_hearsay\" AS ?itemNames) (\"fn breed_eliza(input: &BreedInput) -> Result<BreedOutput, String>|fn breed_cbr(input: &BreedInput) -> Result<BreedOutput, String>|fn breed_dendral(input: &BreedInput) -> Result<BreedOutput, String>|fn breed_strips(input: &BreedInput) -> Result<BreedOutput, String>|fn breed_prolog(input: &BreedInput) -> Result<BreedOutput, String>|fn breed_mycin(input: &BreedInput) -> Result<BreedOutput, String>|fn breed_gps(input: &BreedInput) -> Result<BreedOutput, String>|fn breed_soar(input: &BreedInput) -> Result<BreedOutput, String>|fn breed_hearsay(input: &BreedInput) -> Result<BreedOutput, String>\" AS ?methodSignatures) (\"Result<BreedOutput, String>|Result<BreedOutput, String>|Result<BreedOutput, String>|Result<BreedOutput, String>|Result<BreedOutput, String>|Result<BreedOutput, String>|Result<BreedOutput, String>|Result<BreedOutput, String>|Result<BreedOutput, String>\" AS ?returnTypes) (\"ELIZA|CBR|Dendral|STRIPS|Prolog|MYCIN|GPS|SOAR|HEARSAY\" AS ?descriptions) (\"COGNITION|COGNITION|COGNITION|COGNITION|COGNITION|COGNITION|COGNITION|COGNITION|COGNITION\" AS ?usagePatterns) (\"breed|infer|solve|reason\" AS ?stageNames) (\"HIGH|HIGH|HIGH|HIGH|HIGH|HIGH|HIGH|HIGH|HIGH\" AS ?priorities) (\"wasm4pm.breed_eliza|wasm4pm.breed_cbr|wasm4pm.breed_dendral|wasm4pm.breed_strips|wasm4pm.breed_prolog|wasm4pm.breed_mycin|wasm4pm.breed_gps|wasm4pm.breed_soar|wasm4pm.breed_hearsay\" AS ?otelSpanNames) WHERE { FILTER(true) }" }, template = { file = ".specify/templates/wasm4pm-cognition-stub.rs.tera" }, output_file = "src/wasm4pm_cognition_stub.rs", mode = "Overwrite", traceability_required = true, receipt_required = true },
-    { name = "wasm4pm-stub", query = { inline = "SELECT (\"powl_variant|powl_conformance|ocel_event|ocel_object|ocel_type|event_log|trace|event\" AS ?itemNames) (\"pub struct PowlVariant|pub struct PowlConformance|pub struct OcelEvent|pub struct OcelObject|pub struct OcelType|pub struct EventLog|pub struct Trace|pub struct Event\" AS ?methodSignatures) (\"PowlVariant|PowlConformance|OcelEvent|OcelObject|OcelType|EventLog|Trace|Event\" AS ?returnTypes) (\"POWL variant|POWL conformance|OCEL event|OCEL object|OCEL type|Event log|Trace|Event\" AS ?descriptions) (\"VALIDATE|FITNESS|OCEL|OCEL|OCEL|LOG|LOG|LOG\" AS ?usagePatterns) (\"define|validate|load|load|load|load|load|load\" AS ?stageNames) (\"HIGH|HIGH|CRITICAL|CRITICAL|HIGH|CRITICAL|CRITICAL|CRITICAL\" AS ?priorities) (\"wasm4pm.powl_variant|wasm4pm.powl_conformance|wasm4pm.ocel_event|wasm4pm.ocel_object|wasm4pm.ocel_type|wasm4pm.event_log|wasm4pm.trace|wasm4pm.event\" AS ?otelSpanNames) WHERE { FILTER(true) }" }, template = { file = ".specify/templates/wasm4pm-stub.rs.tera" }, output_file = "src/wasm4pm_stub.rs", mode = "Overwrite", traceability_required = true, receipt_required = true },
-    { name = "wasm4pm-types-stub", query = { file = ".specify/queries/wasm4pm-types-stub.rq" }, template = { file = ".specify/templates/wasm4pm-types-stub.rs.tera" }, output_file = "src/wasm4pm_types_stub.rs", mode = "Overwrite", traceability_required = true, receipt_required = true },
+    { name = "wasm4pm-algos-stub", query = { inline = "SELECT (\"check_conformance_alignment|token_replay|alignment_stats|activity_coverage\" AS ?itemNames) (\"fn check_conformance_alignment(trace: &Trace, net: &PowlPetriNet) -> Result<f64, String>|fn token_replay(log: &EventLog, net: &PowlPetriNet) -> Result<TraceReplayResult, String>|fn alignment_stats(alignments: &[Alignment]) -> AlignmentStats|fn activity_coverage(log: &EventLog, net: &PowlPetriNet) -> f64\" AS ?methodSignatures) (\"Result<f64, String>|Result<TraceReplayResult, String>|AlignmentStats|f64\" AS ?returnTypes) (\"Check conformance|Execute replay|Alignment stats|Coverage metrics\" AS ?descriptions) (\"FITNESS|REPLAY|VALIDATE|FITNESS\" AS ?usagePatterns) (\"validate|ingest|convert|analyze\" AS ?stageNames) (\"CRITICAL|CRITICAL|HIGH|HIGH\" AS ?priorities) (\"pm4py.conformance_check|pm4py.token_replay|pm4py.alignment|pm4py.coverage\" AS ?otelSpanNames) WHERE { FILTER(true) }" }, template = { file = ".specify/templates/wasm4pm-algos-stub.rs.tera" }, output_file = "src/wasm4pm_algos_stub.rs", mode = "Overwrite" },
+    { name = "wasm4pm-cognition-stub", query = { inline = "SELECT (\"breed_eliza|breed_cbr|breed_dendral|breed_strips|breed_prolog|breed_mycin|breed_gps|breed_soar|breed_hearsay\" AS ?itemNames) (\"fn breed_eliza(input: &BreedInput) -> Result<BreedOutput, String>|fn breed_cbr(input: &BreedInput) -> Result<BreedOutput, String>|fn breed_dendral(input: &BreedInput) -> Result<BreedOutput, String>|fn breed_strips(input: &BreedInput) -> Result<BreedOutput, String>|fn breed_prolog(input: &BreedInput) -> Result<BreedOutput, String>|fn breed_mycin(input: &BreedInput) -> Result<BreedOutput, String>|fn breed_gps(input: &BreedInput) -> Result<BreedOutput, String>|fn breed_soar(input: &BreedInput) -> Result<BreedOutput, String>|fn breed_hearsay(input: &BreedInput) -> Result<BreedOutput, String>\" AS ?methodSignatures) (\"Result<BreedOutput, String>|Result<BreedOutput, String>|Result<BreedOutput, String>|Result<BreedOutput, String>|Result<BreedOutput, String>|Result<BreedOutput, String>|Result<BreedOutput, String>|Result<BreedOutput, String>|Result<BreedOutput, String>\" AS ?returnTypes) (\"ELIZA|CBR|Dendral|STRIPS|Prolog|MYCIN|GPS|SOAR|HEARSAY\" AS ?descriptions) (\"COGNITION|COGNITION|COGNITION|COGNITION|COGNITION|COGNITION|COGNITION|COGNITION|COGNITION\" AS ?usagePatterns) (\"breed|infer|solve|reason\" AS ?stageNames) (\"HIGH|HIGH|HIGH|HIGH|HIGH|HIGH|HIGH|HIGH|HIGH\" AS ?priorities) (\"wasm4pm.breed_eliza|wasm4pm.breed_cbr|wasm4pm.breed_dendral|wasm4pm.breed_strips|wasm4pm.breed_prolog|wasm4pm.breed_mycin|wasm4pm.breed_gps|wasm4pm.breed_soar|wasm4pm.breed_hearsay\" AS ?otelSpanNames) WHERE { FILTER(true) }" }, template = { file = ".specify/templates/wasm4pm-cognition-stub.rs.tera" }, output_file = "src/wasm4pm_cognition_stub.rs", mode = "Overwrite" },
+    { name = "wasm4pm-stub", query = { inline = "SELECT (\"powl_variant|powl_conformance|ocel_event|ocel_object|ocel_type|event_log|trace|event\" AS ?itemNames) (\"pub struct PowlVariant|pub struct PowlConformance|pub struct OcelEvent|pub struct OcelObject|pub struct OcelType|pub struct EventLog|pub struct Trace|pub struct Event\" AS ?methodSignatures) (\"PowlVariant|PowlConformance|OcelEvent|OcelObject|OcelType|EventLog|Trace|Event\" AS ?returnTypes) (\"POWL variant|POWL conformance|OCEL event|OCEL object|OCEL type|Event log|Trace|Event\" AS ?descriptions) (\"VALIDATE|FITNESS|OCEL|OCEL|OCEL|LOG|LOG|LOG\" AS ?usagePatterns) (\"define|validate|load|load|load|load|load|load\" AS ?stageNames) (\"HIGH|HIGH|CRITICAL|CRITICAL|HIGH|CRITICAL|CRITICAL|CRITICAL\" AS ?priorities) (\"wasm4pm.powl_variant|wasm4pm.powl_conformance|wasm4pm.ocel_event|wasm4pm.ocel_object|wasm4pm.ocel_type|wasm4pm.event_log|wasm4pm.trace|wasm4pm.event\" AS ?otelSpanNames) WHERE { FILTER(true) }" }, template = { file = ".specify/templates/wasm4pm-stub.rs.tera" }, output_file = "src/wasm4pm_stub.rs", mode = "Overwrite" },
+    { name = "wasm4pm-types-stub", query = { file = ".specify/queries/wasm4pm-types-stub.rq" }, template = { file = ".specify/templates/wasm4pm-types-stub.rs.tera" }, output_file = "src/wasm4pm_types_stub.rs", mode = "Overwrite" },
     ]
 
 # Protected paths — the hand-written implementations; never overwrite
-protected_paths = [
-    "src/cmds/alignment.rs",
-    "src/cmds/clinical.rs",
-    "src/cmds/data.rs",
-    "src/cmds/doctor.rs",
-    "src/cmds/governance.rs",
-    "src/cmds/helpers.rs",
-    "src/cmds/marketplace.rs",
-    "src/cmds/mod.rs",
-    "src/cmds/ontology.rs",
-    "src/cmds/server.rs",
-    "src/main.rs",
-    "src/lib.rs",
-    "src/domain/**",
-    # Supabase migrations: hand-authored DDL. P0-A (2026-05-18) resolved the namespace
-    # bifurcation; P0-B will wire ggen migration emission rules and remove these entries.
-    "supabase/migrations/20260518000001_zoela_tables.sql",
-    "supabase/migrations/20260518000002_zoela_bridge_tables.sql",
-    "supabase/migrations/20260518000003_zoela_rls.sql",
-    "supabase/migrations/20260518000004_zoela_ocel_events.sql",
-]
+# protected_paths = [
+#     "src/cmds/alignment.rs",
+#     "src/cmds/clinical.rs",
+#     "src/cmds/data.rs",
+#     "src/cmds/doctor.rs",
+#     "src/cmds/governance.rs",
+#     "src/cmds/helpers.rs",
+#     "src/cmds/marketplace.rs",
+#     "src/cmds/mod.rs",
+#     "src/cmds/ontology.rs",
+#     "src/cmds/server.rs",
+#     "src/main.rs",
+#     "src/lib.rs",
+#     "src/domain/**",
+#     # Supabase migrations: hand-authored DDL. P0-A (2026-05-18) resolved the namespace
+#     # bifurcation; P0-B will wire ggen migration emission rules and remove these entries.
+#     "supabase/migrations/20260518000001_zoela_tables.sql",
+#     "supabase/migrations/20260518000002_zoela_bridge_tables.sql",
+#     "supabase/migrations/20260518000003_zoela_rls.sql",
+#     "supabase/migrations/20260518000004_zoela_ocel_events.sql",
+# ]
+# 
+# # Regeneratable — tier-3 artifacts managed by ggen
+# # All ZOE LA Mobile artifacts emit to canonical runtime paths; never to generated/
+# regenerate_paths = [
+#     "src/cmds/generated.rs",
+#     "src/cmds/generated_revops.rs",
+#     "src/autoreceipt_law.rs",
+#     # packages/types
+#     "packages/types/zoela.ts",
+#     "packages/types/roles.ts",
+#     "packages/types/pushCards.ts",
+#     # packages/schemas
+#     "packages/schemas/zoela.ts",
+#     # packages/forms
+#     "packages/forms/zoela.tsx",
+#     # packages/screens
+#     "packages/screens/zoela.tsx",
+#     "packages/screens/adminScreens.tsx",
+#     "packages/screens/adminDetailScreen.tsx",
+#     # packages/navigation
+#     "packages/navigation/zoela.tsx",
+#     "packages/navigation/navigationStack.tsx",
+#     # packages/routes
+#     "packages/routes/routeGates.ts",
+#     "packages/routes/assignmentEligibility.ts",
+#     "packages/routes/resourceMatch.ts",
+#     "packages/routes/followupRules.ts",
+#     "packages/routes/connectGroupStages.ts",
+#     "packages/routes/connectGroupWorkOrders.ts",
+#     "packages/routes/connectGroupAdmin.ts",
+#     # packages/evidence
+#     "packages/evidence/OcelEvents.ts",
+#     "packages/evidence/receipts.ts",
+#     "packages/evidence/ocelSchema.ts",
+#     # supabase/functions
+#     "supabase/functions/route-gate/index.ts",
+#     # GitHub Factory
+#     ".github/workflows/receipt-verify.yml",
+#     ".github/workflows/contribution-ledger.yml",
+#     ".github/ISSUE_TEMPLATE/work-order.yml",
+#     "scripts/gh-create-issue.sh",
+#     "scripts/gh-create-pr.sh",
+#     "scripts/collect-github-evidence.sh",
+# ]
 
-# Regeneratable — tier-3 artifacts managed by ggen
-# All ZOE LA Mobile artifacts emit to canonical runtime paths; never to generated/
-regenerate_paths = [
-    "src/cmds/generated.rs",
-    "src/cmds/generated_revops.rs",
-    "src/autoreceipt_law.rs",
-    # packages/types
-    "packages/types/zoela.ts",
-    "packages/types/roles.ts",
-    "packages/types/pushCards.ts",
-    # packages/schemas
-    "packages/schemas/zoela.ts",
-    # packages/forms
-    "packages/forms/zoela.tsx",
-    # packages/screens
-    "packages/screens/zoela.tsx",
-    "packages/screens/adminScreens.tsx",
-    "packages/screens/adminDetailScreen.tsx",
-    # packages/navigation
-    "packages/navigation/zoela.tsx",
-    "packages/navigation/navigationStack.tsx",
-    # packages/routes
-    "packages/routes/routeGates.ts",
-    "packages/routes/assignmentEligibility.ts",
-    "packages/routes/resourceMatch.ts",
-    "packages/routes/followupRules.ts",
-    "packages/routes/connectGroupStages.ts",
-    "packages/routes/connectGroupWorkOrders.ts",
-    "packages/routes/connectGroupAdmin.ts",
-    # packages/evidence
-    "packages/evidence/OcelEvents.ts",
-    "packages/evidence/receipts.ts",
-    "packages/evidence/ocelSchema.ts",
-    # supabase/functions
-    "supabase/functions/route-gate/index.ts",
-    # GitHub Factory
-    ".github/workflows/receipt-verify.yml",
-    ".github/workflows/contribution-ledger.yml",
-    ".github/ISSUE_TEMPLATE/work-order.yml",
-    "scripts/gh-create-issue.sh",
-    "scripts/gh-create-pr.sh",
-    "scripts/collect-github-evidence.sh",
-]
+# generated_header = """
+# // ============================================================
+# // DO NOT EDIT THIS FILE
+# //
+# // This file is auto-generated by ggen from:
+# //   ontology/cli-open-ontologies.ttl
+# //
+# // Regenerate with: ggen sync
+# // ============================================================
+# """
 
-generated_header = """
-// ============================================================
-// DO NOT EDIT THIS FILE
-//
-// This file is auto-generated by ggen from:
-//   ontology/cli-open-ontologies.ttl
-//
-// Regenerate with: ggen sync
-// ============================================================
-"""
+# require_confirmation = false
+# backup_before_write = true
 
-require_confirmation = false
-backup_before_write = true
-
-[generation.poka_yoke]
-warning_headers = true
-gitignore_generated = false
-gitattributes_generated = true
-validate_imports = false
+# [generation.poka_yoke]
+# warning_headers = true
+# gitignore_generated = false
+# gitattributes_generated = true
+# validate_imports = false
 
 [logging]
 level = "info"
 format = "pretty"
 output = "stderr"
 
-[vocabulary]
-allowed_namespaces = [
-    "https://ggen.io/onto/cli/spec/",
-    "https://ggen.io/onto/cli/open-ontologies/",
-    "https://ggen.io/onto/cli/revops/",
-    "https://open-ontologies.org/profile/github-factory#",
-    "http://purl.org/dc/terms/",
-    "https://open-ontologies.org/profile/truex#",
-]
+# [vocabulary]
+# allowed_namespaces = [
+#     "https://ggen.io/onto/cli/spec/",
+#     "https://ggen.io/onto/cli/open-ontologies/",
+#     "https://ggen.io/onto/cli/revops/",
+#     "https://open-ontologies.org/profile/github-factory#",
+#     "http://purl.org/dc/terms/",
+#     "https://open-ontologies.org/profile/truex#",
+# ]
 
 [security]
 allowed_domains = [

@@ -13,4 +13,3 @@ resource "github_repository" "open_ontologies" {
   has_wiki   = false
   auto_init  = true
 }
-

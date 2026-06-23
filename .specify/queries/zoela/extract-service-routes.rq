@@ -49,7 +49,7 @@ SELECT
   (GROUP_CONCAT(?timeoutCoalesced;      SEPARATOR="|") AS ?stageTimeouts)
 WHERE {
   {
-    # ── Primary branch: live zoela ontology triples ──────────────────────────
+    # -- Primary branch: live zoela ontology triples --------------------------
     # Matches when routes.ttl is loaded. Accepts both zoe:routeCode (preferred)
     # and skos:notation (legacy) as route/stage code sources.
     ?route a zoe:ServiceRoute .
@@ -111,7 +111,7 @@ WHERE {
   }
   UNION
   {
-    # ── Fallback branch: static seed data when ontology is not loaded ────────
+    # -- Fallback branch: static seed data when ontology is not loaded --------
     # Active only when no zoe:ServiceRoute exists in the store (FILTER NOT EXISTS).
     # Encodes the Food Distribution Route from ontology/zoela/routes.ttl verbatim.
     FILTER NOT EXISTS { ?anyRoute a zoe:ServiceRoute }

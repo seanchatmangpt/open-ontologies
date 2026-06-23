@@ -720,6 +720,9 @@ pub struct OntoSqlSyncResetInput {
 ///     scope_token: None,
 ///     bypass_admission: None,
 ///     bypass_reason: None,
+///     fusion: None,
+///     high_threshold: None,
+///     low_threshold: None,
 /// };
 /// assert_eq!(inp.min_confidence, Some(0.85));
 /// assert_eq!(inp.dry_run, Some(true));
@@ -843,6 +846,7 @@ pub struct OntoEnforceFeedbackInput {
 /// let inp = OntoEmbedInput {
 ///     struct_dim: Some(64),
 ///     struct_epochs: Some(200),
+///     descriptions: None,
 /// };
 /// assert_eq!(inp.struct_dim, Some(64));
 /// assert_eq!(inp.struct_epochs, Some(200));
@@ -894,6 +898,8 @@ pub struct OntoHnswBuildInput {
 ///     top_k: Some(5),
 ///     mode: Some("text".to_string()),
 ///     alpha: Some(0.7),
+///     use_hnsw: None,
+///     ef_search: None,
 /// };
 /// assert_eq!(inp.top_k, Some(5));
 /// assert_eq!(inp.mode.as_deref(), Some("text"));

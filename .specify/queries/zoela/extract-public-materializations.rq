@@ -83,13 +83,13 @@ WHERE {
         (SAMPLE(?_shapeIriStr)            AS ?shapeIriStr)
         (SAMPLE(?_classColumnTuples)      AS ?classColumnTuples)
     WHERE {
-      # ── Class identity ──────────────────────────────────────────────
+      # -- Class identity ----------------------------------------------
       ?class a owl:Class ;
              rdfs:label    ?_className ;
              skos:notation ?_tableName .
       FILTER(STRSTARTS(STR(?class), "https://zoela.org/ontology/"))
 
-      # ── Class-level admissibility ───────────────────────────────────
+      # -- Class-level admissibility -----------------------------------
 
       # C1 every property has rdfs:range
       FILTER NOT EXISTS {
@@ -115,13 +115,13 @@ WHERE {
         FILTER(STR(?_nX) != STR(?_nY))
       }
 
-      # ── Public-anchor chain ──────────────────────────────────────────
+      # -- Public-anchor chain ------------------------------------------
       ?class rdfs:subClassOf+ ?_anchor .
       FILTER(!STRSTARTS(STR(?_anchor), "https://zoela.org/ontology/"))
       FILTER(?_anchor != owl:Thing)
       FILTER(isIRI(?_anchor))
 
-      # ── Candidate materialization kind ───────────────────────────────
+      # -- Candidate materialization kind -------------------------------
       ?materializationKind a ggen:MaterializationKind ;
                            ggen:materializesPublicAnchor ?_anchor ;
                            ggen:emitsSql       true ;
@@ -132,7 +132,7 @@ WHERE {
                            ggen:materializationPriority ?_priority ;
                            ggen:requiresShape  ?_shape .
 
-      # ── Kind-level admissibility for THIS (class, kind) ─────────────
+      # -- Kind-level admissibility for THIS (class, kind) -------------
 
       # K2 shape must be a sh:NodeShape
       FILTER(EXISTS { ?_shape a sh:NodeShape })
@@ -153,7 +153,7 @@ WHERE {
         }
       )
 
-      # ── Priority winner: no other admissible kind has priority >= self ──
+      # -- Priority winner: no other admissible kind has priority >= self --
       FILTER NOT EXISTS {
         ?class rdfs:subClassOf+ ?_oAnchor .
         FILTER(!STRSTARTS(STR(?_oAnchor), "https://zoela.org/ontology/"))
@@ -184,11 +184,11 @@ WHERE {
 
       OPTIONAL { ?class rdfs:comment ?_cdRaw }
 
-      # ── Per-class property tuple list ────────────────────────────────
+      # -- Per-class property tuple list --------------------------------
       # Body columns disabled — see header note. Tables get id + audit + owner only.
       BIND("" AS ?_classColumnTuples)
 
-      # ── Binds for outer aggregation ──────────────────────────────────
+      # -- Binds for outer aggregation ----------------------------------
       BIND(STR(?class)                       AS ?_classIriStr)
       BIND(STR(?materializationKind)         AS ?_materializationKindIri)
       BIND(STR(?_anchor)                     AS ?_publicAnchorIri)

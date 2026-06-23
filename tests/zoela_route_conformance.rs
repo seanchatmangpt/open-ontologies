@@ -2,7 +2,7 @@
 //!
 //! Validates that the declared POWL partial-order model for ServiceRoute stages
 //! (in ontology/zoela/routes.ttl) is consistent with the generated OCEL event
-//! schema (packages/evidence/OcelEvents.ts).
+//! schema (packages/evidence/OCELEvents.ts).
 //!
 //! Applies the Van der Aalst Constitution: if the event log cannot prove a
 //! lawful process happened, it did not happen. These tests are manufacturing-
@@ -399,21 +399,21 @@ mod zoela_route_conformance {
     #[test]
     fn ocel_event_types_match_route_stage_names() {
         let routes_path = Path::new("ontology/zoela/routes.ttl");
-        let ocel_path = Path::new("packages/evidence/OcelEvents.ts");
+        let ocel_path = Path::new("packages/evidence/OCELEvents.ts");
 
         if !routes_path.exists() {
             eprintln!("SKIP: ontology/zoela/routes.ttl not found");
             return;
         }
         if !ocel_path.exists() {
-            eprintln!("SKIP: packages/evidence/OcelEvents.ts not found");
+            eprintln!("SKIP: packages/evidence/OCELEvents.ts not found");
             return;
         }
 
         let ttl = std::fs::read_to_string(routes_path)
             .expect("Failed to read ontology/zoela/routes.ttl");
         let ocel_ts = std::fs::read_to_string(ocel_path)
-            .expect("Failed to read packages/evidence/OcelEvents.ts");
+            .expect("Failed to read packages/evidence/OCELEvents.ts");
 
         let stages = parse_food_route_stages(&ttl);
         assert!(
@@ -444,12 +444,12 @@ mod zoela_route_conformance {
             }
         }
 
-        // The ZoeOcelEvent interface in ocel_events.ts uses eventType as a
+        // The ZoeOCELEvent interface in ocel_events.ts uses eventType as a
         // free string field, so the specific stage event types appear only if
         // a type-union or enum is generated. If ocel_events.ts only declares
-        // the generic ZoeOcelEvent interface (which is valid), skip the
+        // the generic ZoeOCELEvent interface (which is valid), skip the
         // content-presence check and instead verify the interface exists.
-        if ocel_ts.contains("ZoeOcelEvent") {
+        if ocel_ts.contains("ZoeOCELEvent") {
             // Interface exists — this is the authoritative schema. The event
             // types themselves are runtime values, not compile-time literals,
             // so their absence from the TypeScript file does not indicate a
@@ -457,23 +457,23 @@ mod zoela_route_conformance {
             // interface declares eventType: string.
             assert!(
                 ocel_ts.contains("eventType"),
-                "ZoeOcelEvent interface must declare an 'eventType' field. \
+                "ZoeOCELEvent interface must declare an 'eventType' field. \
                  This field carries the ocelEventType value at runtime for \
                  process mining replay via wasm4pm."
             );
             assert!(
                 ocel_ts.contains("routeStageCode"),
-                "ZoeOcelEvent interface must declare a 'routeStageCode' field. \
+                "ZoeOCELEvent interface must declare a 'routeStageCode' field. \
                  This field correlates OCEL events to their declaring RouteStage \
                  in the POWL model, enabling token-replay conformance checking."
             );
         } else {
-            // Stricter check: if ZoeOcelEvent is absent, the event types must
+            // Stricter check: if ZoeOCELEvent is absent, the event types must
             // appear as string literals in the generated file.
             assert!(
                 missing.is_empty(),
                 "OCEL schema alignment failure: the following ocelEventType values \
-                 declared in routes.ttl are absent from packages/evidence/OcelEvents.ts:\n  {}\n\
+                 declared in routes.ttl are absent from packages/evidence/OCELEvents.ts:\n  {}\n\
                  These event types must appear in the generated schema so that wasm4pm \
                  can replay FoodRoute traces against the declared POWL model.",
                 missing.join("\n  ")

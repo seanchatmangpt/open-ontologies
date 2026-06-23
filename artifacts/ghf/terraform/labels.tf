@@ -60,4 +60,3 @@ resource "github_issue_label" "open_ontologies_bug" {
   color      = "d73a4a"
   description = "Something isn't working"
 }
-

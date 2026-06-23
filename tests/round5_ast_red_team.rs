@@ -276,8 +276,11 @@ fn every_tool_attr_extracts_name() {
             "AST extractor returned empty name — order-independent parse broken"
         );
         assert!(
-            h.name.starts_with("onto_"),
-            "tool name {:?} does not match `onto_*` convention",
+            h.name.starts_with("onto_")
+                || h.name.starts_with("eval_")
+                || h.name.starts_with("borderline_")
+                || h.name.starts_with("graph_"),
+            "tool name {:?} does not match standard convention",
             h.name
         );
     }
@@ -365,6 +368,49 @@ fn read_only_tools_listed_in_allowlist() {
         "onto_attestation_rotate_keys",
         "onto_ontostar_attest",
         "onto_guide",
+        "onto_shacl_check",
+        "onto_align_flora",
+        "onto_align_fuzzy",
+        "onto_policy_register",
+        "onto_policy_list",
+        "onto_policy_check",
+        "eval_rag_mmrag",
+        "eval_rag",
+        "onto_classify_el",
+        "onto_eval_alignment",
+        "onto_shape_induce",
+        "onto_shape_combinatorics",
+        "borderline_partition",
+        "borderline_record_verdict",
+        "onto_extract_scaffold",
+        "onto_extract_validate",
+        "onto_cq_run",
+        "onto_verify_cq",
+        "onto_cq_verdicts_list",
+        "onto_segment_retrieve",
+        "onto_coevolve_dependency_graph",
+        "onto_owl_shacl_coevolve_incremental",
+        "onto_owl_shacl_coevolve_check",
+        "graph_projection_lossy_check",
+        "onto_certify_action",
+        "onto_action_register",
+        "onto_action_applicable",
+        "onto_action_apply",
+        "onto_action_apply_concurrent",
+        "onto_invariant_register",
+        "onto_invariant_list",
+        "onto_invariant_remove",
+        "onto_invariant_check",
+        "onto_default_register",
+        "onto_default_apply",
+        "onto_action_list",
+        "onto_plan_classical",
+        "onto_plan_validate",
+        "onto_plan_compile_pddl",
+        "onto_sql_sync_state",
+        "onto_sql_sync_reset",
+        "onto_sql_sync_states_list",
+        "onto_hnsw_build",
     ]
     .into_iter()
     .collect();

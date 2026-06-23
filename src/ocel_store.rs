@@ -1,7 +1,7 @@
 use crate::state::StateDb;
 use anyhow::Result;
 use chrono::FixedOffset;
-use wasm4pm_types::{OCELObject, OCEL};
+use wasm4pm_types::ocel::{OCELObject, OCEL};
 use std::collections::BTreeSet;
 
 pub struct OcelStore {

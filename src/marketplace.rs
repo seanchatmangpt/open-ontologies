@@ -24,15 +24,15 @@ pub struct MarketplaceEntry {
     pub format: RdfFormat,
 }
 
-/// Curated catalogue of 32 standard W3C/ISO/industry ontologies.
+/// Curated catalogue of 33 standard W3C/ISO/industry ontologies.
 ///
 /// # Examples
 ///
 /// ```
 /// use open_ontologies::marketplace::CATALOGUE;
 ///
-/// // The catalogue must contain exactly 32 standard ontologies — pinned invariant.
-/// assert_eq!(CATALOGUE.len(), 32, "catalogue must have exactly 32 standard ontologies");
+/// // The catalogue must contain exactly 33 standard ontologies — pinned invariant.
+/// assert_eq!(CATALOGUE.len(), 33, "catalogue must have exactly 33 standard ontologies");
 ///
 /// // Every entry must have a non-empty id and url.
 /// for entry in CATALOGUE {

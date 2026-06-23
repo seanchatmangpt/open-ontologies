@@ -20,7 +20,7 @@ SELECT
   (SAMPLE(?_alterBundle)   AS ?alterBundle)
   (SAMPLE(?_policyBundle)  AS ?policyBundle)
 WHERE {
-  # ── Tables → ONE bundle string ─────────────────────────────────────────────
+  # -- Tables → ONE bundle string ---------------------------------------------
   # Inner row layout (per table, separated by "###" outer / "|||" cols / "@@@" idxs):
   #   table_name###col_ddl|col_ddl|...###idx_ddl|idx_ddl|...
   {
@@ -46,7 +46,7 @@ WHERE {
     }
   }
 
-  # ── Alters → ONE bundle string ─────────────────────────────────────────────
+  # -- Alters → ONE bundle string ---------------------------------------------
   # Per-alter layout: table_name###col_ddl|col_ddl|...
   {
     SELECT (GROUP_CONCAT(?_perAlter; SEPARATOR="@@@") AS ?_alterBundle)
@@ -68,7 +68,7 @@ WHERE {
     }
   }
 
-  # ── Policies → ONE bundle string ───────────────────────────────────────────
+  # -- Policies → ONE bundle string -------------------------------------------
   # Per-policy layout: name|table|op|using|check
   {
     SELECT (GROUP_CONCAT(?_perPolicy; SEPARATOR="@@@") AS ?_policyBundle)

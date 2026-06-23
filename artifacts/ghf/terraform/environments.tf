@@ -12,4 +12,3 @@ resource "github_repository_environment" "open_ontologies_prod" {
   repository  = github_repository.open_ontologies.name
   environment = "prod"
 }
-

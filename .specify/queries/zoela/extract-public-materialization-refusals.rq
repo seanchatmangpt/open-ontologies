@@ -69,7 +69,7 @@ WHERE {
                     ?refKindIri ?refKindCode ?refAnchor ?refReason
     WHERE {
       {
-        # ── 1. Refused: missing shape ─────────────────────────────────
+        # -- 1. Refused: missing shape ---------------------------------
         ?_class a owl:Class ;
                 rdfs:label    ?refClassName ;
                 skos:notation ?refTableName .
@@ -91,7 +91,7 @@ WHERE {
       }
       UNION
       {
-        # ── 2. Refused: no body columns AND no required owner ─────────
+        # -- 2. Refused: no body columns AND no required owner ---------
         ?_class a owl:Class ;
                 rdfs:label    ?refClassName ;
                 skos:notation ?refTableName .
@@ -116,7 +116,7 @@ WHERE {
       }
       UNION
       {
-        # ── 3. Refused: at least one property without rdfs:range ──────
+        # -- 3. Refused: at least one property without rdfs:range ------
         ?_class a owl:Class ;
                 rdfs:label    ?refClassName ;
                 skos:notation ?refTableName .
@@ -142,7 +142,7 @@ WHERE {
       }
       UNION
       {
-        # ── 4. Refused: duplicate normalized columns ──────────────────
+        # -- 4. Refused: duplicate normalized columns ------------------
         ?_class a owl:Class ;
                 rdfs:label    ?refClassName ;
                 skos:notation ?refTableName .
@@ -173,7 +173,7 @@ WHERE {
       }
       UNION
       {
-        # ── 4b. Refused: property has multiple skos:notation values ────
+        # -- 4b. Refused: property has multiple skos:notation values ----
         ?_class a owl:Class ;
                 rdfs:label    ?refClassName ;
                 skos:notation ?refTableName .
@@ -200,7 +200,7 @@ WHERE {
       }
       UNION
       {
-        # ── 5. Refused: ODRL policy required but missing ──────────────
+        # -- 5. Refused: ODRL policy required but missing --------------
         ?_class a owl:Class ;
                 rdfs:label    ?refClassName ;
                 skos:notation ?refTableName .
@@ -227,7 +227,7 @@ WHERE {
       }
       UNION
       {
-        # ── 6. Refused: ambiguous (priority tie at max) ───────────────
+        # -- 6. Refused: ambiguous (priority tie at max) ---------------
         # Both candidates pass every admissibility check, but two distinct
         # kinds have the SAME ggen:materializationPriority. No winner.
         ?_class a owl:Class ;

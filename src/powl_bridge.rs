@@ -189,7 +189,7 @@ fn build_trace(case_id: &str, activities: &[String]) -> Trace {
                 name: name.clone(),
                 timestamp: None,
                 lifecycle: None,
-                attributes: std::collections::HashMap::new(),
+                attributes: std::collections::BTreeMap::new(),
             })
             .collect(),
     }

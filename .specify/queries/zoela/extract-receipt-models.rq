@@ -31,7 +31,7 @@ SELECT
   (GROUP_CONCAT(?routeCoalesced; SEPARATOR="|") AS ?usedInRoutes)
 WHERE {
   {
-    # ── Primary branch A: receipt codes from zoe:completionReceiptType triples ─
+    # -- Primary branch A: receipt codes from zoe:completionReceiptType triples -
     # Active when routes.ttl is loaded. Derives route code via zoe:routeCode
     # (preferred) or skos:notation (legacy).
     ?stage zoe:completionReceiptType ?receiptCode .
@@ -46,7 +46,7 @@ WHERE {
   }
   UNION
   {
-    # ── Primary branch B: receipt concepts from SKOS ConceptSchemes ──────────
+    # -- Primary branch B: receipt concepts from SKOS ConceptSchemes ----------
     # Active when receipt SKOS concepts are loaded.
     ?receiptConcept a skos:Concept ;
       skos:notation ?receiptCode ;
@@ -59,7 +59,7 @@ WHERE {
   }
   UNION
   {
-    # ── Fallback branch: static seed data when ontology is not loaded ────────
+    # -- Fallback branch: static seed data when ontology is not loaded --------
     # Active only when no zoe:ServiceRoute triples exist in the store.
     # Encodes receipt types from ontology/zoela/routes.ttl verbatim.
     FILTER NOT EXISTS { ?anyRoute a zoe:ServiceRoute }

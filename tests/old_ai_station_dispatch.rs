@@ -55,6 +55,13 @@ fn fixture_input() -> BreedInput {
                 conclusion: "favor=centralized-cloud".into(),
                 certainty: 0.85,
             },
+            // For ELIZA keyword engine: match 'revenue' in the intent.
+            Rule {
+                id: "eliza-keyword".into(),
+                premise: vec!["REVENUE".into(), "(0)".into()],
+                conclusion: "Why do you mention revenue?".into(),
+                certainty: 1.0,
+            },
             // For STRIPS: premise must be satisfied by initial state
             // atoms (predicate=value form), conclusion adds the goal
             // atom. State has `current=no-architecture`, goal is
