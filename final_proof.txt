@@ -2,17 +2,19 @@ State:
 AutoReceiptClosed
 
 Commit:
-3f228a030ad4dcdc30be791371dee243683060e4
+11a3fe918c0f285a64a0af2e8962a5bfa2197d80
 
 Tree:
 ?? Justfile
 
 Commands:
 - cargo test: pass
+- npx vitest run: pass
+- make verify-receipts: pass
 
 Counts:
-- expected OCEL files: 1
-- real observed OCEL files: 1
+- expected OCEL files: 65
+- real observed OCEL files: 65
 - synthetic observed OCEL files: 0
 - alignment receipts: 1
 - alignment passed: 1
@@ -24,10 +26,10 @@ Counts:
 
 Artifacts:
 - expected OCEL manifest: ec79c9ee0ed02175f5a6bc76a38807ef65c5a7c5ac180ac68bba5ccdf8e3ada8
-- observed OCEL manifest: ec79c9ee0ed02175f5a6bc76a38807ef65c5a7c5ac180ac68bba5ccdf8e3ada8
-- alignment manifest: 31385fd18fd506fbf4bfb8e87a716eafca1a4d94d0c3a66790f4548c16a69972
-- receipt bundle: 6b47cc7bfd2e48780ba74c77868bbdb23b6fa83cc6040c25709890a3783fe3e9
-- final proof report: 077235c86d4465ae368a0c3a44e3d74d9c32d7e950a4d49fbfe33b399d095ddf
+- observed OCEL manifest: b31bb15f1ace103d733c323bce8cb923a04c2325cfdc50a29a9d7ee0cbf7cb7c
+- alignment manifest: e83e178ab7fde1ef62df4b8b0cb2dcea56b90f2bcac09bbadd998c6d8153e906
+- receipt bundle: a2bb6201057482ad7252558766295e07fd4707aa1d2d62b76d8b7a9a8df3d8d4
+- final proof report: 3e427d142b1d941f9b500376e816dbdf16916b24bdb75938d2bf1828cb01e0f3
 
 Verifier Output:
 - real boundary execution: pass
