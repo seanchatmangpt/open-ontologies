@@ -2,7 +2,7 @@ State:
 AutoReceiptClosed
 
 Commit:
-11a3fe918c0f285a64a0af2e8962a5bfa2197d80
+457694885690e238c51cd971b226c1224da5617e
 
 Tree:
 ?? Justfile
@@ -29,7 +29,7 @@ Artifacts:
 - observed OCEL manifest: b31bb15f1ace103d733c323bce8cb923a04c2325cfdc50a29a9d7ee0cbf7cb7c
 - alignment manifest: e83e178ab7fde1ef62df4b8b0cb2dcea56b90f2bcac09bbadd998c6d8153e906
 - receipt bundle: a2bb6201057482ad7252558766295e07fd4707aa1d2d62b76d8b7a9a8df3d8d4
-- final proof report: 3e427d142b1d941f9b500376e816dbdf16916b24bdb75938d2bf1828cb01e0f3
+- final proof report: f2b0928bb537b4429f8ad0d119f2e27589814aadfd67ec9d2a154361e8a1770c
 
 Verifier Output:
 - real boundary execution: pass
