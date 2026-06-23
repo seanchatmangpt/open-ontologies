@@ -1,12 +1,21 @@
 #[cfg(test)]
 mod tests {
-    use open_ontologies::autoreceipt_law::{AutoReceiptPipeline, ArchitecturalReceiptParsed};
+    use open_ontologies::care_followup::CareFollowUp;
 
     #[test]
-    fn test_care_followup_transition() {
-        let machine = AutoReceiptPipeline::<ArchitecturalReceiptParsed>::new();
-        let machine_active = machine.transition();
-        // Just verifying the structure for now, as this is the scaffolded law.
-        // A full test would require the CareFollowUpLaw state machine integration.
+    fn test_care_followup_transition_flow() {
+        // Initialize in Pending state
+        let task = CareFollowUp::new();
+        
+        // Transition using Initiate event to Active state
+        let task_active = task.initiate();
+        
+        // Transition using Complete event to Completed state with consequence notes
+        let task_completed = task_active.complete("Pastoral check completed. Family is doing well and needs no physical assistance at this time.".to_string());
+        
+        // Assert the consequence was generated correctly
+        let consequence = task_completed.consequence();
+        assert_eq!(consequence.outcome_notes, "Pastoral check completed. Family is doing well and needs no physical assistance at this time.");
+        assert!(consequence.timestamp <= chrono::Utc::now());
     }
 }
