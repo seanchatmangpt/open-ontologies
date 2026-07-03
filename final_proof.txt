@@ -1,17 +1,14 @@
 State:
-DirtyTreeUnclassified
+AutoReceiptClosed
 
 Version:
 26.7.3
 
 Commit:
-8332dd3eaf3ca1c7c9d266de8b20ef185304b8cc
+a179356985e2b33eaca0f5f1e5e96136dfba372f
 
 Tree:
-M .ggen/receipts/latest.json
- M artifacts/autoreceipt/AUTORECEIPT_CLOSURE_CERTIFICATE.v26.7.3.json
- M cell8-final-assertion-report.ttl
- M receipts/manufacture-receipt.json
+
 
 Doctrine:
 "Unproven consequence has no operational authority."
@@ -35,7 +32,7 @@ Artifacts:
 - receipt bundle: a2bb6201057482ad7252558766295e07fd4707aa1d2d62b76d8b7a9a8df3d8d4
 - AutoReceipt bundle: a2bb6201057482ad7252558766295e07fd4707aa1d2d62b76d8b7a9a8df3d8d4
 - AutoReceipt matrix: 247e6f161d058b5e0fefbe570c2f683d8db4d3c7defe9a5cab3b55f5eaf213d3
-- closure certificate: 29b829472815fa60468c27312a31b8faa56e45e609cbf5c0de43a80e7a3841be
+- closure certificate: d648d776879e5925b86599f0717198a73ac91cbacf33bc1f16f43a247579e3c1
 
 Verifier Output:
 - real boundary execution: pass
@@ -45,12 +42,12 @@ Verifier Output:
 - alignment receipts valid for closure = 65
 - AutoReceiptReady = True
 - EvidenceIncomplete = False
-- DirtyTree = True
+- DirtyTree = False
 
 Remaining Blockers:
 - 0 JTBDs require execution traces (Observed OCEL) to align with Expected OCEL
-- Dirty git tree prevents total closure
+- None
 
 Next Command:
 pnpm run validate:receipts
-- final proof report: 0ffd1270307083481edbb30179ff21baa82fb9e5c23a4eea8fff7cd5ace09e18
+- final proof report: 8a983f2a7f0e9e770c65e1efec7dd74d4cefb5eefd86fe83f728aa76f071e8c4
