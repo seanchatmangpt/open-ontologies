@@ -203,6 +203,8 @@ idx_hash = sha256(f"{BASE_DIR}/persona-jtbd-index.v{VERSION}.json")
 ttl_hash = sha256(f"{BASE_DIR}/persona-jtbd-public-alignment.ttl")
 shacl_hash = sha256(f"{BASE_DIR}/public-validation-report.v{VERSION}.json")
 manifest_hash = sha256(f"{BASE_DIR}/EXPECTED_OCEL_MANIFEST.v{VERSION}.json")
+obs_manifest_hash = sha256(f"{BASE_DIR}/OBSERVED_OCEL_MANIFEST.v{VERSION}.json")
+align_manifest_hash = sha256(f"{BASE_DIR}/ALIGNMENT_MANIFEST.v{VERSION}.json")
 bundle_hash = sha256(f"{BASE_DIR}/AUTORECEIPT_BUNDLE.v{VERSION}.json")
 matrix_hash = sha256(f"{BASE_DIR}/AUTORECEIPT_MATRIX.v{VERSION}.md")
 cert_hash = sha256(f"{BASE_DIR}/AUTORECEIPT_CLOSURE_CERTIFICATE.v{VERSION}.json")
@@ -218,7 +220,7 @@ for j in bundle["jtbds"]:
 final_state = "AutoReceiptClosed" if ready_jtbds == total_jtbds and not tree else "EvidenceIncomplete"
 if tree and ready_jtbds == total_jtbds: final_state = "DirtyTreeUnclassified"
 
-print(f"""State:
+report_lines = f"""State:
 {final_state}
 
 Version:
@@ -247,6 +249,9 @@ Artifacts:
 - public alignment TTL: {ttl_hash}
 - SHACL validation report: {shacl_hash}
 - expected OCEL manifest: {manifest_hash}
+- observed OCEL manifest: {obs_manifest_hash}
+- alignment manifest: {align_manifest_hash}
+- receipt bundle: {bundle_hash}
 - AutoReceipt bundle: {bundle_hash}
 - AutoReceipt matrix: {matrix_hash}
 - closure certificate: {cert_hash}
@@ -266,4 +271,10 @@ Remaining Blockers:
 - {'Dirty git tree prevents total closure' if tree else 'None'}
 
 Next Command:
-pnpm run validate:receipts""")
+pnpm run validate:receipts"""
+
+report_content = report_lines + "\n"
+computed_report_hash = hashlib.sha256(report_content.encode('utf-8')).hexdigest()
+
+print(report_content, end="")
+print(f"- final proof report: {computed_report_hash}")
