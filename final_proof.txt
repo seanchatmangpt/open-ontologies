@@ -5,10 +5,12 @@ Version:
 26.7.3
 
 Commit:
-e8226a3ed78bf9aa3d0cff52f5f3a23627c8a647
+da2aa64de7a5c8e0c8c171870b96b55899ab67aa
 
 Tree:
-M final_proof.txt
+M artifacts/autoreceipt/AUTORECEIPT_CLOSURE_CERTIFICATE.v26.7.3.json
+ M final_proof.txt
+?? final_proof_tmp.txt
 
 Doctrine:
 "Unproven consequence has no operational authority."
@@ -29,7 +31,7 @@ Artifacts:
 - expected OCEL manifest: ec79c9ee0ed02175f5a6bc76a38807ef65c5a7c5ac180ac68bba5ccdf8e3ada8
 - AutoReceipt bundle: a2bb6201057482ad7252558766295e07fd4707aa1d2d62b76d8b7a9a8df3d8d4
 - AutoReceipt matrix: 247e6f161d058b5e0fefbe570c2f683d8db4d3c7defe9a5cab3b55f5eaf213d3
-- closure certificate: e07263091a85c1c8a6344294f7a7d245596e1bdc3e6221386779e416c8b6db7f
+- closure certificate: 9885286f649f8d41075a75e1b509b847fceb094851096858907902e8eaf0f173
 
 Verifier Output:
 - real boundary execution: pass
