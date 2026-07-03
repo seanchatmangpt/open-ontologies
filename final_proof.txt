@@ -5,10 +5,12 @@ Version:
 26.7.3
 
 Commit:
-77a34a2ba667043b80eba6364f6378c5b9408a0b
+fa8eb477ff1fdede5052ed8061c0b8d273a85c28
 
 Tree:
-M final_proof.txt
+M .ggen/receipts/latest.json
+ M artifacts/autoreceipt/AUTORECEIPT_CLOSURE_CERTIFICATE.v26.7.3.json
+ M receipts/manufacture-receipt.json
 
 Doctrine:
 "Unproven consequence has no operational authority."
@@ -27,9 +29,12 @@ Artifacts:
 - public alignment TTL: 52a2c1e3f0b78ac2b8b8ed637009085824eb7e9360c74e1948dc0cfb409c0c28
 - SHACL validation report: db9717e94fd5d3a1930e647d624042f0cf14f230a7852a8408e9b41bf575b1c2
 - expected OCEL manifest: ec79c9ee0ed02175f5a6bc76a38807ef65c5a7c5ac180ac68bba5ccdf8e3ada8
+- observed OCEL manifest: b31bb15f1ace103d733c323bce8cb923a04c2325cfdc50a29a9d7ee0cbf7cb7c
+- alignment manifest: e83e178ab7fde1ef62df4b8b0cb2dcea56b90f2bcac09bbadd998c6d8153e906
+- receipt bundle: a2bb6201057482ad7252558766295e07fd4707aa1d2d62b76d8b7a9a8df3d8d4
 - AutoReceipt bundle: a2bb6201057482ad7252558766295e07fd4707aa1d2d62b76d8b7a9a8df3d8d4
 - AutoReceipt matrix: 247e6f161d058b5e0fefbe570c2f683d8db4d3c7defe9a5cab3b55f5eaf213d3
-- closure certificate: 94ef24226c73de2ed3b026783b27e3a013afa308fdc316f9c967c1d2ef9fd274
+- closure certificate: f31b95ad5f0593b1bbdeeb88e6642ca66738b7ed9ea2481578483c6089f89501
 
 Verifier Output:
 - real boundary execution: pass
@@ -47,3 +52,4 @@ Remaining Blockers:
 
 Next Command:
 pnpm run validate:receipts
+- final proof report: 831ba40f3f18a041352be9274f62dcd4e0e3e3a947eee89bf5a8999c38234b62
