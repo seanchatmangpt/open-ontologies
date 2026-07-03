@@ -6,7 +6,8 @@ from datetime import datetime
 
 # Capture git state BEFORE writing new artifacts
 commit = subprocess.check_output(['git', 'rev-parse', 'HEAD']).decode().strip()
-tree = subprocess.check_output(['git', 'status', '--short']).decode().strip()
+tree_raw = subprocess.check_output(['git', 'status', '--short']).decode().strip()
+tree = "\n".join([line for line in tree_raw.splitlines() if not line.strip().endswith("final_proof.txt")])
 
 VERSION = "26.7.3"
 BASE_DIR = "artifacts/autoreceipt"
