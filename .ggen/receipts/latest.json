@@ -1,6 +1,6 @@
 {
-  "operation_id": "4d12bdab-e84f-451c-b80d-b4bd88419256",
-  "timestamp": "2026-07-03T23:18:45.436887Z",
+  "operation_id": "4e15698e-aba4-462b-a8ba-4278ceb5fb16",
+  "timestamp": "2026-07-03T23:40:57.566321Z",
   "input_hashes": [
     "actuator:ggen-sync@26.7.2",
     "ggen.toml:4d7282e424ad29069f2013195e769920b3b58565d33a8a5b8b4eff045168099f",
@@ -224,7 +224,7 @@
     "./tests/truex-e2e-ValidCheckoutTest.test.ts:0705526a77c17d04ff0a885ea8d5fe3f79855f308d8ce970aa23df1811564c01",
     "./tests/truex-summary-only-refusal.test.ts:2e6336a987bde6f39d6253dfbc0c5bb06d3320f0e41d03f2b8eec104264b40d1",
     "./docs/truex-ecosystem.md:63f0fc11a7fb95b4feb8930982db6becae7cbcb286c87dff8dc30ee08e764f6c",
-    "./receipts/manufacture-receipt.json:41c2c111e0c816b3b8d62de7af58b19c24585743044c47c6cf0d3aa0ec245adb",
+    "./receipts/manufacture-receipt.json:b2993da9dac63d1f51d64852ccf5c5fbabc4fa6e82f81cf4925be19244046a04",
     "./pnpm-workspace.yaml:4e0d1f3765e4a10f2bb018c3e20ed70dc83ea9ef84533b16754b8027bf596246",
     "./package.json:c52cb479dbfb57e11635033154200b80709c7f51d872efe7b7ec77c664c4ef8e",
     "./jest.config.js:a4169e9cbc0ba79607d1e7693531fd66f56c96db7d760c392279d758ca9e658a",
@@ -234,6 +234,6 @@
     "./src/wasm4pm_stub.rs:2db6d64a0f10abde8abc9af5c1f9289b2819cf47d11ee934e534ef7ddced4828",
     "./src/wasm4pm_types_stub.rs:265475f67d43ff34593c8fb673f21f4dd31f5c11abb814cd632cb11981fad1cb"
   ],
-  "signature": "3ffeb330f75dbc6f80df26edfc7466d94f2cbc2ee1bdc11ff7b8f20af8eda2f4e711a792a0084dbf138087ba7012de0e845903992394557e4b8d4ac1e9aaa00a",
-  "previous_receipt_hash": "49faba705042b22abbba75350b0c8be59882a63169a7c20bab80f4e32fb6b6b6"
+  "signature": "aca8ead33974086bc44a7db4b28b3d2c8c58e7921fedb072b4e9fea711e33681d981311aa02801d5b90d29d3790df2deec1b9567092305643fb81ca60b2ce109",
+  "previous_receipt_hash": "9f70b8904e76e64fb22475c581fe88e4cb01b04a0c193b5c1e9ef36449c0b2ca"
 }

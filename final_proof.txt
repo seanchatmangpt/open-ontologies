@@ -5,11 +5,12 @@ Version:
 26.7.3
 
 Commit:
-fa8eb477ff1fdede5052ed8061c0b8d273a85c28
+8332dd3eaf3ca1c7c9d266de8b20ef185304b8cc
 
 Tree:
 M .ggen/receipts/latest.json
  M artifacts/autoreceipt/AUTORECEIPT_CLOSURE_CERTIFICATE.v26.7.3.json
+ M cell8-final-assertion-report.ttl
  M receipts/manufacture-receipt.json
 
 Doctrine:
@@ -34,7 +35,7 @@ Artifacts:
 - receipt bundle: a2bb6201057482ad7252558766295e07fd4707aa1d2d62b76d8b7a9a8df3d8d4
 - AutoReceipt bundle: a2bb6201057482ad7252558766295e07fd4707aa1d2d62b76d8b7a9a8df3d8d4
 - AutoReceipt matrix: 247e6f161d058b5e0fefbe570c2f683d8db4d3c7defe9a5cab3b55f5eaf213d3
-- closure certificate: f31b95ad5f0593b1bbdeeb88e6642ca66738b7ed9ea2481578483c6089f89501
+- closure certificate: 29b829472815fa60468c27312a31b8faa56e45e609cbf5c0de43a80e7a3841be
 
 Verifier Output:
 - real boundary execution: pass
@@ -52,4 +53,4 @@ Remaining Blockers:
 
 Next Command:
 pnpm run validate:receipts
-- final proof report: 831ba40f3f18a041352be9274f62dcd4e0e3e3a947eee89bf5a8999c38234b62
+- final proof report: 0ffd1270307083481edbb30179ff21baa82fb9e5c23a4eea8fff7cd5ace09e18
