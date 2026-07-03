@@ -1,7 +1,7 @@
 # Security Policy
 
 ## Supported Versions
-v26.5.21
+v26.7.3
 
 ## Reporting a Vulnerability
 Contact maintainers directly. Do NOT open public issues.

@@ -358,15 +358,21 @@ fn run_stdio_server(
     // checks. Shares the StateDb but holds no other shared state. Dropped
     // with the server — the tokio task exits when the handle is dropped.
     let _health_guardian = open_ontologies::health_guardian::HealthGuardian::spawn(db);
-    tokio::runtime::Handle::current()
-        .block_on(async {
+    let (tx, rx) = std::sync::mpsc::channel();
+    tokio::runtime::Handle::current().spawn(async move {
+        let res = async {
             let service = server
                 .serve(rmcp::transport::stdio())
                 .await
                 .map_err(|e| anyhow::anyhow!(e))?;
             service.waiting().await.map_err(|e| anyhow::anyhow!(e))?;
             Ok::<(), anyhow::Error>(())
-        })
+        }
+        .await;
+        let _ = tx.send(res);
+    });
+    rx.recv()
+        .map_err(|e| clap_noun_verb::NounVerbError::execution_error(e.to_string()))?
         .map_err(|e| clap_noun_verb::NounVerbError::execution_error(e.to_string()))
 }
 

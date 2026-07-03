@@ -7,7 +7,7 @@ fn dummy_receipt() -> Receipt {
     Receipt {
         receipt_type: "OpenOntologyReceipt".to_string(),
         receipt_schema: "oo.receipt.v1".to_string(),
-        version: "26.5.21".to_string(),
+        version: "26.7.3".to_string(),
         hash_algorithm: "BLAKE3".to_string(),
         claim: Claim {
             artifact_id: "art-1".to_string(),

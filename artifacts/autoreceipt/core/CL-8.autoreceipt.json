@@ -1,7 +1,7 @@
 {
   "receipt_type": "OpenOntologyReceipt",
   "receipt_schema": "oo.receipt.v1",
-  "version": "26.5.21",
+  "version": "26.7.3",
   "hash_algorithm": "BLAKE3",
   "claim": {
     "artifact_id": "CL-8",
@@ -34,5 +34,5 @@
     "raw_evidence_hash": "672425ae0470b34e9639709678f567d86d9cd33efbafdba6a4b2146caabdc589"
   },
   "previous_receipt_hash": null,
-  "receipt_hash": "fc71895362add42c37314d0922b555b14330290121751a27f2816a3bd8cae28e"
+  "receipt_hash": "9e214d0f2805eb80f1b5d83c332baefa519464c9e0b062ece11a6fc3e43f6dcc"
 }

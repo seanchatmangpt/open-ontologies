@@ -1,10 +1,10 @@
 {
-  "operation_id": "c8cd126c-b45c-4bc3-8330-92ad7cc8389c",
-  "timestamp": "2026-06-23T07:38:40.188219Z",
+  "operation_id": "d219f62c-c0d7-4647-98fe-29070c360325",
+  "timestamp": "2026-07-03T23:12:30.236080Z",
   "input_hashes": [
-    "actuator:ggen-sync@26.6.11",
-    "ggen.toml:2230e74036c60bac96c5ff02117749348bf2962336b9777f172c4ba7bcc34fae",
-    "ontology/cli-open-ontologies.ttl:b8e62d2ead37c5744cacabd50b383f100a6b87411a05754b0fbaae4d8f285c00",
+    "actuator:ggen-sync@26.7.2",
+    "ggen.toml:4d7282e424ad29069f2013195e769920b3b58565d33a8a5b8b4eff045168099f",
+    "ontology/cli-open-ontologies.ttl:614c366b92dd7ffe158fc91bd0bbddac2d8d4837a6d48cb4fcfa8d674ce1a07a",
     "ontology/zoela/categories.ttl:9a39341612f43d5d1e39256b3bef8b6c81e733de752d8ce800d87be68235d93a",
     "ontology/zoela/navigation.ttl:5cb4a70eb3390236af9b1b8159c2892e09cb8781cde96d6ae2b4a8d2cc5bc345",
     "ontology/zoela/notifications.ttl:58a2fe63dae41753117493f4c6faf1a988a999a903cdac1a361a797cd6ab2afc",
@@ -21,10 +21,10 @@
     "ontology/profiles/zoela-governance.ttl:cd70e3a0358c5bd50e9d8019ed10b8d31086820b3a135d2c759dade2d53cea5c",
     "ontology/profiles/zoela-expo-app.ttl:d7aab2b70e0f85947c8e672b3ab9ec958ea7d5e8f77fd2119a62509eacb9b280",
     "ontology/profiles/zoela-legacy-coverage.ttl:135cbea945e6a5414a36405fa33e0634bd53b28d9197db0c124b084361cf324d",
-    "ontology/zoela/autoreceipt.ttl:38e6f49a58da5a033751b73fc7e5fc86b23f7e130ea6ec8ce6c169ae94fa6576",
+    "ontology/cargo-cicd.ttl:822054849bbea062f3d6cd6ca94c2cc759de2309125b6b9be01bab2c4b68c6e1",
     "ontology/ghf-core.ttl:e2465e8ef5281a5bf0a7785d0545d0eba25031a400886fd02b9e976436e616ca",
     "ontology/ghf-shacl.ttl:ef78083bf00187e731d2cd49642d66729952e89300caea1d0ee4d6162703f60f",
-    "ontology/ghf-security-policy.ttl:7576b70ccd7dd2a934f5460098f3048d121ccdd2944bbe8071c885ae313614c2",
+    "ontology/ghf-security-policy.ttl:d9cd695fba31d6390a964ca15f1ddfc3f6be631b9f4b715d3ec786ffdf225968",
     "ontology/truex-ecosystem.ttl:a4a176ec5a49d74f4975a867cf73aa9e5222e89e3e55924b4e6afc68ce54c533",
     "ontology/revops-manufacturing.ttl:23c39744f466b3919d4a32194b103007f238bf70427ff7fbaf9444aa065728d2",
     ".specify/queries/cli/commands_aggregated.rq:2430bed63073fbf7d54e8a4f7d7e586b69c5652999ff817f8365fffb36235bdc",
@@ -155,7 +155,7 @@
     ".specify/templates/wasm4pm-types-stub.rs.tera:8e8d615ab172e61f52e14d08778cae1253bcf71b03fda54e6932a96c5a739fa6"
   ],
   "output_hashes": [
-    "./src/cmds/generated.rs:7468f5bc4e07f8130c1f1cbd998ff68d233a4c44fb7166a7568f50d53aaf2193",
+    "./src/cmds/generated.rs:e7aa95d2a772cb9d2da5947d7285372d8ec92d1272b3a757be70e0abda7e9fda",
     "./src/cmds/generated_revops.rs:57ad08cd9e7588fdde7c054f14f5dd49007ffffa9b8a5c9bde48c167d46dc316",
     "./packages/types/zoela.ts:071490586ee93a3455209565d7c70bfd4e337b8b9311176276b7a9f349b5fee5",
     "./supabase/migrations/20260519000002_zoela_admitted_tables.sql:593d73a07fd8c5a024664b2371293a99df5fee7d21244191afc2579f08c4ef4b",
@@ -183,8 +183,8 @@
     "./packages/evidence/ocelSchema.ts:f67fe2c251e440ba52e9fc1baebc84970dbf481c0495a70bdfb3f6b5fb8b9b31",
     "./packages/screens/adminDetailScreen.tsx:df5a1936ae9d1b89d3f3d7df14f7986312cbc1a9f21dcc105d3a88b3693d2759",
     "./packages/navigation/navigationStack.tsx:03e6d4ec480aa266a199241679c6d0026e032b2f18ab4edb9df31acfefceab72",
-    "./src/autoreceipt_law.rs:f101e7467b4bdb480d1311c9a19ac6ce6f418384da174d04e158955d6fbe92d4",
-    "./src/autoreceipt_law.rs:f101e7467b4bdb480d1311c9a19ac6ce6f418384da174d04e158955d6fbe92d4",
+    "./src/autoreceipt_law.rs:3699738beb3c3616dec2bf568dee0ad6c94005492b75e7bfbdaa4dad1b4e7265",
+    "./src/autoreceipt_law.rs:3699738beb3c3616dec2bf568dee0ad6c94005492b75e7bfbdaa4dad1b4e7265",
     "./artifacts/ghf/terraform/repositories.tf:57c8e68df7c2f8eff8af3b5bf8be356a254e16701616fdf372584fdc7c7cfd17",
     "./artifacts/ghf/terraform/labels.tf:4293f5f3aa1b550ab02162e806c11f04ed8090e6605f7b5984fb19a1f080bfa7",
     "./artifacts/ghf/terraform/branch-protection.tf:449758ced23300f9ce8e09b3be64da74fe443f497eeb44a5c79cae99f0715e07",
@@ -198,7 +198,7 @@
     "./artifacts/ghf/ocel/expected.ocel.jsonl:4dbd79756467d9f1f9174a44b810030f159f37595956b6392a31def2bc5624b0",
     "./docs/ghf-proof-matrix.md:b5e6fa3cce5ab0474410f3ef97e4269e3c464cdedc7369e6795600a5b76e6871",
     "./docs/weekly-ledger-template.md:4e4488462f4b6a3028dad3c6f23f24574a5ed234b0b0afaf64258a46e2078ff4",
-    "./SECURITY.md:a6a7ad964cb1d84dea495b70dbf7cd9c04921496c4734c02bb40cb56371c6dc6",
+    "./SECURITY.md:98d3e625ab53eea2ec9b4b03799ec8254924387c334b252f411edb2ff9c8807a",
     "./packages/truex/canonical/package.json:7ef1af822ae9c4239515fcacc87e6450f9e8ef3d1da89bbc0fc90d69b7eb2594",
     "./packages/truex/capture/package.json:3d474f80a9632d4191306600c91536c35d513724c06740e59f18aa27c66d8170",
     "./packages/truex/cli/package.json:80ef7572393c6569a001f105cef01eec9452456a1bf4edddec496ddadc454e04",
@@ -224,7 +224,7 @@
     "./tests/truex-e2e-ValidCheckoutTest.test.ts:0705526a77c17d04ff0a885ea8d5fe3f79855f308d8ce970aa23df1811564c01",
     "./tests/truex-summary-only-refusal.test.ts:2e6336a987bde6f39d6253dfbc0c5bb06d3320f0e41d03f2b8eec104264b40d1",
     "./docs/truex-ecosystem.md:63f0fc11a7fb95b4feb8930982db6becae7cbcb286c87dff8dc30ee08e764f6c",
-    "./receipts/manufacture-receipt.json:157145ff0a0783d5bd7552d0b1f58ba3afb7df35b8059ef5f53fda9c3a583696",
+    "./receipts/manufacture-receipt.json:a38289d94e256ad63321543b356f39d7bc6c35d437ded230c6d7a3bb1e925433",
     "./pnpm-workspace.yaml:4e0d1f3765e4a10f2bb018c3e20ed70dc83ea9ef84533b16754b8027bf596246",
     "./package.json:c52cb479dbfb57e11635033154200b80709c7f51d872efe7b7ec77c664c4ef8e",
     "./jest.config.js:a4169e9cbc0ba79607d1e7693531fd66f56c96db7d760c392279d758ca9e658a",
@@ -234,6 +234,6 @@
     "./src/wasm4pm_stub.rs:2db6d64a0f10abde8abc9af5c1f9289b2819cf47d11ee934e534ef7ddced4828",
     "./src/wasm4pm_types_stub.rs:265475f67d43ff34593c8fb673f21f4dd31f5c11abb814cd632cb11981fad1cb"
   ],
-  "signature": "72536800d6e433c500c5018f3505f598342f7aef8bd475e378a7084a0e19c69f0045c4b6df3fa288c72bfaff0ab8707b94051b8ac1f3d0ef48864fddf2e02505",
-  "previous_receipt_hash": "ce3578781550883bd636b893d6c16955870bec7e358183df097a239a517d77b2"
+  "signature": "6e5ba8b23b0e01fa394641dd896c8072e178fda17bb2807c35fb972d0a211d3384b9acb3171b1b5ed980428c04f105c8e92d5d3f688e679ec8d89cc3f9cc7d02",
+  "previous_receipt_hash": "78e7808e071ac74585bd8393574ee6ad8c679f217fae0519cfc1e90184885b43"
 }

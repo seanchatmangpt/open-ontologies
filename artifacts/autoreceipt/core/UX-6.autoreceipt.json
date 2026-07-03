@@ -1,7 +1,7 @@
 {
   "receipt_type": "OpenOntologyReceipt",
   "receipt_schema": "oo.receipt.v1",
-  "version": "26.5.21",
+  "version": "26.7.3",
   "hash_algorithm": "BLAKE3",
   "claim": {
     "artifact_id": "UX-6",
@@ -34,5 +34,5 @@
     "raw_evidence_hash": "672425ae0470b34e9639709678f567d86d9cd33efbafdba6a4b2146caabdc589"
   },
   "previous_receipt_hash": null,
-  "receipt_hash": "0ec43fb9a62fa1572e890154d1c3e9a5fca4f26acd437f2383fedec94303cfcf"
+  "receipt_hash": "3012a7bcddc02a06515dab2ee74df761fa536bfab94ff995b270ec7a3f4453d0"
 }

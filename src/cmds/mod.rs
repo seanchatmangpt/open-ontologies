@@ -5,6 +5,7 @@
 
 pub mod alignment;
 pub mod clinical;
+pub mod cicd;
 pub mod data;
 pub mod doctor;
 pub mod generated;

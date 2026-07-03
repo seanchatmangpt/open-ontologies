@@ -33,7 +33,8 @@ onto:OntoInterface a cli:Interface ;
                    onto:ClinicalCommand,
                    onto:MarketplaceCommand,
                    onto:ThesisCommand,
-                   onto:DoctorCommand .
+                   onto:DoctorCommand,
+                   onto:CicdCommand .
 
 #################################################################
 # Top-level noun commands
@@ -616,6 +617,61 @@ onto:DoctorEnvCommand a cli:Command ;
     cli:name "env" ;
     cli:summary "Show resolved environment" ;
     cli:description """Display resolved config path, data dir, ggen path, and environment variable overrides.""" .
+
+#################################################################
+# cicd subcommands
+#################################################################
+
+onto:CicdCommand a cli:Command ;
+    cli:name "cicd" ;
+    cli:summary "Cargo Ontological CICD and Release Law utilities" ;
+    cli:description """Verify release law, check environment health, explain release status, fix issues, and perform release and task orchestration.""" ;
+    cli:hasSubcommand onto:CicdVerifyCommand,
+                      onto:CicdDoctorCommand,
+                      onto:CicdExplainCommand,
+                      onto:CicdFixCommand,
+                      onto:CicdReleaseCommand,
+                      onto:CicdTaskCommand .
+
+onto:CicdVerifyCommand a cli:Command ;
+    cli:name "verify" ;
+    cli:summary "Verify project standing against defined ontology rules" ;
+    cli:description """Evaluate project configurations, execution receipts, and schemas. Outputs a standing report (ADMITTED or REFUSED) and exits with non-zero on REFUSED.""" ;
+    cli:hasOption onto:DataDirOption,
+                  onto:ConfigOption .
+
+onto:CicdDoctorCommand a cli:Command ;
+    cli:name "doctor" ;
+    cli:summary "Run diagnostics on the cargo-cicd environment" ;
+    cli:description """Execute environment checks, configuration validation, and output actionable logs or instructions for repair.""" ;
+    cli:hasOption onto:DataDirOption,
+                  onto:ConfigOption .
+
+onto:CicdExplainCommand a cli:Command ;
+    cli:name "explain" ;
+    cli:summary "Explain why cargo-cicd verification failed" ;
+    cli:description """Parse the latest execution standing, list unmet obligations and failing rules with proof references.""" ;
+    cli:hasOption onto:DataDirOption .
+
+onto:CicdFixCommand a cli:Command ;
+    cli:name "fix" ;
+    cli:summary "Execute agent-remediation tasks to repair environment" ;
+    cli:description """Automatically apply resolution strategies for repairable failures identified by doctor or verify.""" ;
+    cli:hasOption onto:DataDirOption .
+
+onto:CicdReleaseCommand a cli:Command ;
+    cli:name "release" ;
+    cli:summary "Final verification and cryptographic receipt emission" ;
+    cli:description """Execute boundary verification checks, generate final expected vs observed alignment, and sign an immutable release receipt.""" ;
+    cli:hasOption onto:DataDirOption,
+                  onto:ConfigOption .
+
+onto:CicdTaskCommand a cli:Command ;
+    cli:name "task" ;
+    cli:summary "Coordinate underlying task graph execution for agents" ;
+    cli:description """Run and verify specific steps of the workspace task graph defined in the ontology.""" ;
+    cli:hasPositionalArgument onto:PathArg ;
+    cli:hasOption onto:DataDirOption .
 
 #################################################################
 # Shared options

@@ -10,6 +10,25 @@
 //! Each module corresponds to a top-level CLI noun (command).
 //! Verb implementations live in src/cmds/<noun>.rs (hand-written).
 // ============================================================================
+// CICD — Cargo Ontological CICD and Release Law utilities
+
+// ============================================================================
+/// Verify release law, check environment health, explain release status, fix issues, and perform release and task orchestration.
+///
+/// Generated stub — wired to src/cmds/cicd.rs
+#[allow(dead_code)]
+pub mod cicd_stub {
+    use clap_noun_verb::NounVerbError;
+    use clap_noun_verb::Result as NounVerbResult;
+
+    /// Not yet wired — 6 subcommand(s) defined in ontology.
+    /// Real implementation: src/cmds/cicd.rs
+    pub fn not_yet_wired() -> NounVerbResult<serde_json::Value> {
+        Err(NounVerbError::execution_error("not yet wired"))
+    }
+}
+
+// ============================================================================
 // DOCTOR — Health diagnostics
 
 // ============================================================================

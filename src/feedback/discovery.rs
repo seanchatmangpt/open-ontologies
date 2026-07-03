@@ -23,8 +23,8 @@ use crate::ocel_store::OcelStore;
 use anyhow::Result;
 use chrono::Utc;
 use std::collections::HashMap;
-use wasm4pm_types::event_log::{Attribute, AttributeValue};
-use wasm4pm_types::{Event, EventLog, Trace};
+use wasm4pm_compat::event_log::{Attribute, AttributeValue};
+use wasm4pm_compat::{Event, EventLog, Trace};
 
 /// Minimum number of admitted scopes per domain before discovery runs.
 ///
@@ -131,7 +131,7 @@ pub fn discover_for_domain(domain: &str, store: &OcelStore) -> Result<Option<Dis
 
     // 4. wasm4pm discovery — alpha++ gives us a replayable Petri net.
     let admitted =
-        wasm4pm_types::admission::Admission::<_, ()>::new(wasm4pm_log.clone()).into_evidence();
+        wasm4pm_compat::admission::Admission::<_, ()>::new(wasm4pm_log.clone()).into_evidence();
     let petri = match wasm4pm::algorithms::discover_alpha_plus_plus_from_log(
         &admitted,
         "concept:name",

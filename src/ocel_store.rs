@@ -2,7 +2,7 @@ use crate::state::StateDb;
 use anyhow::Result;
 use chrono::FixedOffset;
 use std::collections::BTreeSet;
-use wasm4pm_types::ocel::{OCEL, OCELObject};
+use wasm4pm_compat::ocel::{OCEL, OCELObject};
 
 pub struct OcelStore {
     db: StateDb,
@@ -1014,7 +1014,7 @@ impl OcelStore {
             event_types: event_types
                 .iter()
                 .map(|(n,)| {
-                    use wasm4pm_types::ocel::OCELType;
+                    use wasm4pm_compat::ocel::OCELType;
                     OCELType {
                         name: n.clone(),
                         attributes: Vec::new(),
@@ -1024,7 +1024,7 @@ impl OcelStore {
             object_types: object_type_set
                 .iter()
                 .map(|n| {
-                    use wasm4pm_types::ocel::OCELType;
+                    use wasm4pm_compat::ocel::OCELType;
                     OCELType {
                         name: n.clone(),
                         attributes: Vec::new(),
@@ -1034,7 +1034,7 @@ impl OcelStore {
             events: events
                 .into_iter()
                 .map(|(eid, etype, time, attrs, rels)| {
-                    use wasm4pm_types::ocel::{
+                    use wasm4pm_compat::ocel::{
                         OCELAttributeValue, OCELEvent, OCELEventAttribute, OCELRelationship,
                     };
                     OCELEvent {

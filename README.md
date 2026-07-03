@@ -2,7 +2,7 @@
 
 RDF-based ontology for the `clap-noun-verb` CLI framework version 26.6.1.
 
-**Test totals:** 714 `#[test]` functions across `tests/`
+**Test totals:** 773 `#[test]` functions across `tests/`
 
 ## Files
 

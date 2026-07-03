@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -eo pipefail
 
-REGISTRY="artifacts/autoreceipt/JTBD_EXECUTION_BINDING_REGISTRY.v26.5.21.json"
+REGISTRY="artifacts/autoreceipt/JTBD_EXECUTION_BINDING_REGISTRY.v26.7.3.json"
 PLANS_DIR="artifacts/actuation/plans"
 MEMBRANE="scripts/actuation/oo-gemini-actuate.sh"
 OBS_DIR="artifacts/autoreceipt/observed-ocel"

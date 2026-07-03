@@ -1,7 +1,7 @@
 use crate::state::StateDb;
 use chrono::Utc;
-use wasm4pm_types::event_log::{Attribute, AttributeValue, Attributes};
-use wasm4pm_types::{Event, EventLog, Trace};
+use wasm4pm_compat::event_log::{Attribute, AttributeValue, Attributes};
+use wasm4pm_compat::{Event, EventLog, Trace};
 
 /// The SQLite table name used to store lineage events.
 ///
@@ -603,7 +603,7 @@ fn rand_id() -> u64 {
 ///     .find(|t| {
 ///         t.attributes.iter().any(|a| {
 ///             a.key == "case:concept:name"
-///             && matches!(&a.value, wasm4pm_types::event_log::AttributeValue::String(v) if v == "s1")
+///             && matches!(&a.value, wasm4pm_compat::event_log::AttributeValue::String(v) if v == "s1")
 ///         })
 ///     })
 ///     .expect("trace for session s1 must exist");
@@ -615,7 +615,7 @@ fn rand_id() -> u64 {
 ///     .find(|a| a.key == "concept:name")
 ///     .expect("concept:name attribute must be present");
 /// assert!(matches!(&concept.value,
-///     wasm4pm_types::event_log::AttributeValue::String(v) if v == "G:admission_granted"
+///     wasm4pm_compat::event_log::AttributeValue::String(v) if v == "G:admission_granted"
 /// ));
 /// ```
 ///
@@ -662,7 +662,7 @@ fn rand_id() -> u64 {
 ///     .find(|a| a.key == "lifecycle:transition")
 ///     .expect("lifecycle:transition attribute must be present on every event");
 /// assert!(matches!(&lc.value,
-///     wasm4pm_types::event_log::AttributeValue::String(v) if v == "complete"
+///     wasm4pm_compat::event_log::AttributeValue::String(v) if v == "complete"
 /// ), "lifecycle:transition must be 'complete', got: {:?}", lc.value);
 /// ```
 ///

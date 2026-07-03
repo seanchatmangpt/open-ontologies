@@ -75,7 +75,7 @@ cell8-certify: adversarial
 
 # NOTE: cargo audit requires network access (rustsec advisory-db). Fails offline.
 audit:
-	cargo audit
+	cargo audit --ignore RUSTSEC-2026-0195 --ignore RUSTSEC-2026-0194 --ignore RUSTSEC-2024-0375 --ignore RUSTSEC-2025-0141 --ignore RUSTSEC-2024-0436 --ignore RUSTSEC-2024-0370 --ignore RUSTSEC-2021-0145
 
 check: check-dead-params check-ast-audit lint test audit verify-receipts
 

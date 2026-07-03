@@ -1,0 +1,120 @@
+@prefix cicd: <https://ggen.io/onto/cicd/> .
+@prefix ostar: <urn:ostar:ontology#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+
+cicd:Ontology a owl:Ontology ;
+    rdfs:label "Cargo CICD Release Law Ontology" ;
+    rdfs:comment "Ontology defining cargo-cicd release law, configurations, execution receipts, standing states, and AutoReceipt states." ;
+    owl:versionInfo "1.0.0" .
+
+# =============================================================================
+# 1. Standing States
+# =============================================================================
+cicd:StandingState a owl:Class ;
+    rdfs:label "Standing State" ;
+    rdfs:comment "Final verification standing status of a cargo-cicd release process." .
+
+cicd:ADMITTED a cicd:StandingState ;
+    rdfs:label "ADMITTED" ;
+    rdfs:comment "The release standing is fully compliant with the release law rules." .
+
+cicd:REFUSED a cicd:StandingState ;
+    rdfs:label "REFUSED" ;
+    rdfs:comment "The release standing is refused due to compliance failures." .
+
+# =============================================================================
+# 2. Release Law, Configurations, and Receipts
+# =============================================================================
+cicd:ReleaseLaw a owl:Class ;
+    rdfs:label "Release Law" ;
+    rdfs:comment "The set of non-negotiable rules and obligations that must be discharged for release." .
+
+cicd:Configuration a owl:Class ;
+    rdfs:label "Workspace Configuration" ;
+    rdfs:comment "Ontology configuration models for the Cargo workspace (e.g. Cargo.toml, tool chains)." .
+
+cicd:ExecutionReceipt a owl:Class ;
+    rdfs:subClassOf prov:Bundle ;
+    rdfs:label "Execution Receipt" ;
+    rdfs:comment "Cryptographic, immutable record binding execution details (exit codes, hashes, git status)." .
+
+# Properties
+cicd:hasStanding a owl:ObjectProperty ;
+    rdfs:domain cicd:ExecutionReceipt ;
+    rdfs:range cicd:StandingState .
+
+cicd:hasConfiguration a owl:ObjectProperty ;
+    rdfs:domain cicd:ExecutionReceipt ;
+    rdfs:range cicd:Configuration .
+
+# =============================================================================
+# 3. AutoReceipt States
+# =============================================================================
+cicd:AutoReceiptState a owl:Class ;
+    rdfs:label "AutoReceipt State" ;
+    rdfs:comment "A concrete state in the AutoReceipt verification and receipt protocol." .
+
+cicd:ArchitecturalReceiptParsed a cicd:AutoReceiptState ; rdfs:label "ArchitecturalReceiptParsed" .
+cicd:ExpectedOcelManufactured   a cicd:AutoReceiptState ; rdfs:label "ExpectedOcelManufactured" .
+cicd:ExecutionBindingReady      a cicd:AutoReceiptState ; rdfs:label "ExecutionBindingReady" .
+cicd:RealBoundaryExecuted       a cicd:AutoReceiptState ; rdfs:label "RealBoundaryExecuted" .
+cicd:ObservedOcelCaptured       a cicd:AutoReceiptState ; rdfs:label "ObservedOcelCaptured" .
+cicd:OcelAlignmentPassed        a cicd:AutoReceiptState ; rdfs:label "OcelAlignmentPassed" .
+cicd:OcelAlignmentFailed        a cicd:AutoReceiptState ; rdfs:label "OcelAlignmentFailed" .
+cicd:ReceiptEmitted             a cicd:AutoReceiptState ; rdfs:label "ReceiptEmitted" .
+cicd:ReceiptVerified            a cicd:AutoReceiptState ; rdfs:label "ReceiptVerified" .
+cicd:AutoReceiptClosed          a cicd:AutoReceiptState ; rdfs:label "AutoReceiptClosed" .
+cicd:AutoReceiptBlocked         a cicd:AutoReceiptState ; rdfs:label "AutoReceiptBlocked" .
+cicd:EvidenceIncomplete         a cicd:AutoReceiptState ; rdfs:label "EvidenceIncomplete" .
+cicd:SyntheticObservedOcelRejected a cicd:AutoReceiptState ; rdfs:label "SyntheticObservedOcelRejected" .
+cicd:SyntheticClosureLie        a cicd:AutoReceiptState ; rdfs:label "SyntheticClosureLie" .
+cicd:DirtyTreeUnclassified      a cicd:AutoReceiptState ; rdfs:label "DirtyTreeUnclassified" .
+cicd:VersionMismatch            a cicd:AutoReceiptState ; rdfs:label "VersionMismatch" .
+cicd:CommandFailureUnresolved   a cicd:AutoReceiptState ; rdfs:label "CommandFailureUnresolved" .
+
+# =============================================================================
+# 4. AutoReceipt Pipeline Law (Linear Success State Machine)
+# =============================================================================
+<urn:ostar:law:AutoReceiptPipeline> a ostar:Law ;
+    ostar:lawId "AutoReceiptPipeline" ;
+    ostar:hasTransition [
+        ostar:inputValue "0" ;
+        ostar:selectCondition "ArchitecturalReceiptParsed" ;
+    ],
+    [
+        ostar:inputValue "1" ;
+        ostar:selectCondition "ExpectedOcelManufactured" ;
+    ],
+    [
+        ostar:inputValue "2" ;
+        ostar:selectCondition "ExecutionBindingReady" ;
+    ],
+    [
+        ostar:inputValue "3" ;
+        ostar:selectCondition "RealBoundaryExecuted" ;
+    ],
+    [
+        ostar:inputValue "4" ;
+        ostar:selectCondition "ObservedOcelCaptured" ;
+    ],
+    [
+        ostar:inputValue "5" ;
+        ostar:selectCondition "OcelAlignmentPassed" ;
+    ],
+    [
+        ostar:inputValue "6" ;
+        ostar:selectCondition "ReceiptEmitted" ;
+    ],
+    [
+        ostar:inputValue "7" ;
+        ostar:selectCondition "ReceiptVerified" ;
+    ],
+    [
+        ostar:inputValue "8" ;
+        ostar:selectCondition "AutoReceiptClosed" ;
+    ] .

@@ -7,7 +7,7 @@ the open PIAAC data: the same Oxigraph engine that powers the project validates
 and reports on the harmonisation scheme."""
 import sys, os, datetime
 HERE = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, "/Users/fabio/projects/open-ontologies/python/src")
+sys.path.insert(0, os.path.join(HERE, "../../../python/src"))
 from open_ontologies_lite import OntologyEngine
 
 ttl_path = os.path.join(HERE, "skills-mobility-scheme.ttl")

@@ -14,7 +14,7 @@
 
 [project]
 name = "open-ontologies"
-version = "26.5.21"
+version = "26.7.3"
 description = "AI-native ontology engine CLI — generated from ontology"
 authors = ["Sean Chatman <sean@chatmangpt.com>"]
 license = "MIT"
@@ -55,7 +55,7 @@ imports = [
     # delete the four hand-written 20260518* migrations.
     "ontology/profiles/zoela-legacy-coverage.ttl",
     # P0-B.11 — AutoReceipt pipeline law.
-    "ontology/zoela/autoreceipt.ttl",
+    "ontology/cargo-cicd.ttl",
     # GitHub Factory domain modules
     "ontology/ghf-core.ttl",
     "ontology/ghf-shacl.ttl",

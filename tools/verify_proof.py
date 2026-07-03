@@ -30,13 +30,13 @@ def verify_proof(proof_path, artifacts_dir):
     for line in lines:
         line_strip = line.strip()
         if line_strip.startswith("- expected OCEL manifest:"):
-            proof_hashes["EXPECTED_OCEL_MANIFEST.v26.5.21.json"] = line_strip.split(":")[-1].strip()
+            proof_hashes["EXPECTED_OCEL_MANIFEST.v26.7.3.json"] = line_strip.split(":")[-1].strip()
         elif line_strip.startswith("- observed OCEL manifest:"):
-            proof_hashes["OBSERVED_OCEL_MANIFEST.v26.5.21.json"] = line_strip.split(":")[-1].strip()
+            proof_hashes["OBSERVED_OCEL_MANIFEST.v26.7.3.json"] = line_strip.split(":")[-1].strip()
         elif line_strip.startswith("- alignment manifest:"):
-            proof_hashes["ALIGNMENT_MANIFEST.v26.5.21.json"] = line_strip.split(":")[-1].strip()
+            proof_hashes["ALIGNMENT_MANIFEST.v26.7.3.json"] = line_strip.split(":")[-1].strip()
         elif line_strip.startswith("- receipt bundle:"):
-            proof_hashes["AUTORECEIPT_BUNDLE.v26.5.21.json"] = line_strip.split(":")[-1].strip()
+            proof_hashes["AUTORECEIPT_BUNDLE.v26.7.3.json"] = line_strip.split(":")[-1].strip()
         elif line_strip.startswith("- final proof report:"):
             proof_report_hash = line_strip.split(":")[-1].strip()
 

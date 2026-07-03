@@ -1,7 +1,7 @@
 {
   "receipt_type": "OpenOntologyReceipt",
   "receipt_schema": "oo.receipt.v1",
-  "version": "26.5.21",
+  "version": "26.7.3",
   "hash_algorithm": "BLAKE3",
   "claim": {
     "artifact_id": "IS-5",
@@ -34,5 +34,5 @@
     "raw_evidence_hash": "672425ae0470b34e9639709678f567d86d9cd33efbafdba6a4b2146caabdc589"
   },
   "previous_receipt_hash": null,
-  "receipt_hash": "671f774cd13c291220044bcb63dd4cf476bc9b9298e5052e37777562e08fd70e"
+  "receipt_hash": "ee2c8b266b4adfb6dba0b220f65610382d2e7b233b6ffdc7327d4312f116c6bb"
 }

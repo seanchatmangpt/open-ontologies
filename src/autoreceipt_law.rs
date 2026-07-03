@@ -14,18 +14,27 @@ pub struct ArchitecturalReceiptParsed;
 /// State: ExpectedOcelManufactured
 #[derive(Debug, Clone, Copy)]
 pub struct ExpectedOcelManufactured;
-/// State: ExecutionRegistryBound
+/// State: ExecutionBindingReady
 #[derive(Debug, Clone, Copy)]
-pub struct ExecutionRegistryBound;
+pub struct ExecutionBindingReady;
+/// State: RealBoundaryExecuted
+#[derive(Debug, Clone, Copy)]
+pub struct RealBoundaryExecuted;
 /// State: ObservedOcelCaptured
 #[derive(Debug, Clone, Copy)]
 pub struct ObservedOcelCaptured;
-/// State: AlignmentVerified
+/// State: OcelAlignmentPassed
 #[derive(Debug, Clone, Copy)]
-pub struct AlignmentVerified;
+pub struct OcelAlignmentPassed;
 /// State: ReceiptEmitted
 #[derive(Debug, Clone, Copy)]
 pub struct ReceiptEmitted;
+/// State: ReceiptVerified
+#[derive(Debug, Clone, Copy)]
+pub struct ReceiptVerified;
+/// State: AutoReceiptClosed
+#[derive(Debug, Clone, Copy)]
+pub struct AutoReceiptClosed;
 
 /// The AutoReceiptPipeline state machine.
 #[derive(Debug, Clone, Copy)]
@@ -51,17 +60,29 @@ impl AutoReceiptPipeline<ArchitecturalReceiptParsed> {
     }
 }
 
+
 impl AutoReceiptPipeline<ExpectedOcelManufactured> {
-    /// Transition from ExpectedOcelManufactured to ExecutionRegistryBound.
-    pub fn transition(self) -> AutoReceiptPipeline<ExecutionRegistryBound> {
+    /// Transition from ExpectedOcelManufactured to ExecutionBindingReady.
+    pub fn transition(self) -> AutoReceiptPipeline<ExecutionBindingReady> {
         AutoReceiptPipeline {
-            state: ExecutionRegistryBound,
+            state: ExecutionBindingReady,
         }
     }
 }
 
-impl AutoReceiptPipeline<ExecutionRegistryBound> {
-    /// Transition from ExecutionRegistryBound to ObservedOcelCaptured.
+
+impl AutoReceiptPipeline<ExecutionBindingReady> {
+    /// Transition from ExecutionBindingReady to RealBoundaryExecuted.
+    pub fn transition(self) -> AutoReceiptPipeline<RealBoundaryExecuted> {
+        AutoReceiptPipeline {
+            state: RealBoundaryExecuted,
+        }
+    }
+}
+
+
+impl AutoReceiptPipeline<RealBoundaryExecuted> {
+    /// Transition from RealBoundaryExecuted to ObservedOcelCaptured.
     pub fn transition(self) -> AutoReceiptPipeline<ObservedOcelCaptured> {
         AutoReceiptPipeline {
             state: ObservedOcelCaptured,
@@ -69,20 +90,43 @@ impl AutoReceiptPipeline<ExecutionRegistryBound> {
     }
 }
 
+
 impl AutoReceiptPipeline<ObservedOcelCaptured> {
-    /// Transition from ObservedOcelCaptured to AlignmentVerified.
-    pub fn transition(self) -> AutoReceiptPipeline<AlignmentVerified> {
+    /// Transition from ObservedOcelCaptured to OcelAlignmentPassed.
+    pub fn transition(self) -> AutoReceiptPipeline<OcelAlignmentPassed> {
         AutoReceiptPipeline {
-            state: AlignmentVerified,
+            state: OcelAlignmentPassed,
         }
     }
 }
 
-impl AutoReceiptPipeline<AlignmentVerified> {
-    /// Transition from AlignmentVerified to ReceiptEmitted.
+
+impl AutoReceiptPipeline<OcelAlignmentPassed> {
+    /// Transition from OcelAlignmentPassed to ReceiptEmitted.
     pub fn transition(self) -> AutoReceiptPipeline<ReceiptEmitted> {
         AutoReceiptPipeline {
             state: ReceiptEmitted,
         }
     }
 }
+
+
+impl AutoReceiptPipeline<ReceiptEmitted> {
+    /// Transition from ReceiptEmitted to ReceiptVerified.
+    pub fn transition(self) -> AutoReceiptPipeline<ReceiptVerified> {
+        AutoReceiptPipeline {
+            state: ReceiptVerified,
+        }
+    }
+}
+
+
+impl AutoReceiptPipeline<ReceiptVerified> {
+    /// Transition from ReceiptVerified to AutoReceiptClosed.
+    pub fn transition(self) -> AutoReceiptPipeline<AutoReceiptClosed> {
+        AutoReceiptPipeline {
+            state: AutoReceiptClosed,
+        }
+    }
+}
+
