@@ -5,7 +5,7 @@ Version:
 26.7.3
 
 Commit:
-447e78ecad378f1227e3a510b62bf028a4111a49
+ca88b7c67925458935d5457d811b8ef4018e48fc
 
 Tree:
 
@@ -32,7 +32,7 @@ Artifacts:
 - receipt bundle: a2bb6201057482ad7252558766295e07fd4707aa1d2d62b76d8b7a9a8df3d8d4
 - AutoReceipt bundle: a2bb6201057482ad7252558766295e07fd4707aa1d2d62b76d8b7a9a8df3d8d4
 - AutoReceipt matrix: 247e6f161d058b5e0fefbe570c2f683d8db4d3c7defe9a5cab3b55f5eaf213d3
-- closure certificate: ac1ea30b0f77b2661356a4a32f7ee014a05aa9e0acad17ee13ff9dd55fc2be23
+- closure certificate: 8f8e6741325d1b5fb5c1a33acb9479952aed456de2c4ceeb4b4707e13ea8a03b
 
 Verifier Output:
 - real boundary execution: pass
@@ -50,4 +50,4 @@ Remaining Blockers:
 
 Next Command:
 pnpm run validate:receipts
-- final proof report: 82bb43e0a070708d092c0c34029a174e5078f227d6ae74b1aa862ca37af0028b
+- final proof report: 7b0891d1a82b448287b74ded041beb0b438c5abff67e763dd70423ecd76daa79
