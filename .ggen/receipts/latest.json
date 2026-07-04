@@ -1,9 +1,9 @@
 {
-  "operation_id": "4e15698e-aba4-462b-a8ba-4278ceb5fb16",
-  "timestamp": "2026-07-03T23:40:57.566321Z",
+  "operation_id": "40f9e1f5-bdef-4fb5-9a16-7dd8efec0175",
+  "timestamp": "2026-07-04T00:33:37.567538Z",
   "input_hashes": [
     "actuator:ggen-sync@26.7.2",
-    "ggen.toml:4d7282e424ad29069f2013195e769920b3b58565d33a8a5b8b4eff045168099f",
+    "ggen.toml:d263c0447aef95043ce3206daa6090c16073205ccc3699af3798df70f5abdd29",
     "ontology/cli-open-ontologies.ttl:614c366b92dd7ffe158fc91bd0bbddac2d8d4837a6d48cb4fcfa8d674ce1a07a",
     "ontology/zoela/categories.ttl:9a39341612f43d5d1e39256b3bef8b6c81e733de752d8ce800d87be68235d93a",
     "ontology/zoela/navigation.ttl:5cb4a70eb3390236af9b1b8159c2892e09cb8781cde96d6ae2b4a8d2cc5bc345",
@@ -82,8 +82,6 @@
     ".specify/templates/zoela/admin-detail-screen.tera:2a712391bc6cb005675f9d0825f5f0930ff961330e81951022900de156969160",
     ".specify/queries/zoela/extract-navigation.rq:c6a2fa6fa5736f86fda6078f7cab11c3c3bbfc25743b2be36894822ef4baf2ae",
     ".specify/templates/zoela/expo-navigation-stack.tera:4c50aef96355089100484d309e8059cbf00fa6c5905b6521898d29ea9f2c880d",
-    ".specify/queries/zoela/extract-autoreceipt-law.rq:3e7b320ffd2dcbe16c2aed83337cfdf595f49993ae57ea2705451a12da63d39d",
-    ".specify/templates/zoela/autoreceipt-law.rs.tera:e3f3d310e9d4723fa3304bb44d0612a23fef898f6be46cd8e0319e96b2ca0726",
     ".specify/queries/zoela/extract-autoreceipt-law.rq:3e7b320ffd2dcbe16c2aed83337cfdf595f49993ae57ea2705451a12da63d39d",
     ".specify/templates/zoela/autoreceipt-law.rs.tera:e3f3d310e9d4723fa3304bb44d0612a23fef898f6be46cd8e0319e96b2ca0726",
     ".specify/queries/ghf/repositories_aggregated.rq:11de254a1a8a57e12b88fcb872241fd1705533eabd926c800b5d40a824de27f3",
@@ -184,7 +182,6 @@
     "./packages/screens/adminDetailScreen.tsx:df5a1936ae9d1b89d3f3d7df14f7986312cbc1a9f21dcc105d3a88b3693d2759",
     "./packages/navigation/navigationStack.tsx:03e6d4ec480aa266a199241679c6d0026e032b2f18ab4edb9df31acfefceab72",
     "./src/autoreceipt_law.rs:3699738beb3c3616dec2bf568dee0ad6c94005492b75e7bfbdaa4dad1b4e7265",
-    "./src/autoreceipt_law.rs:3699738beb3c3616dec2bf568dee0ad6c94005492b75e7bfbdaa4dad1b4e7265",
     "./artifacts/ghf/terraform/repositories.tf:57c8e68df7c2f8eff8af3b5bf8be356a254e16701616fdf372584fdc7c7cfd17",
     "./artifacts/ghf/terraform/labels.tf:4293f5f3aa1b550ab02162e806c11f04ed8090e6605f7b5984fb19a1f080bfa7",
     "./artifacts/ghf/terraform/branch-protection.tf:449758ced23300f9ce8e09b3be64da74fe443f497eeb44a5c79cae99f0715e07",
@@ -224,7 +221,7 @@
     "./tests/truex-e2e-ValidCheckoutTest.test.ts:0705526a77c17d04ff0a885ea8d5fe3f79855f308d8ce970aa23df1811564c01",
     "./tests/truex-summary-only-refusal.test.ts:2e6336a987bde6f39d6253dfbc0c5bb06d3320f0e41d03f2b8eec104264b40d1",
     "./docs/truex-ecosystem.md:63f0fc11a7fb95b4feb8930982db6becae7cbcb286c87dff8dc30ee08e764f6c",
-    "./receipts/manufacture-receipt.json:b2993da9dac63d1f51d64852ccf5c5fbabc4fa6e82f81cf4925be19244046a04",
+    "./receipts/manufacture-receipt.json:69b57cd3409f954494c87c707adc4eac328ae0a8498968572ecdb5a858370a91",
     "./pnpm-workspace.yaml:4e0d1f3765e4a10f2bb018c3e20ed70dc83ea9ef84533b16754b8027bf596246",
     "./package.json:c52cb479dbfb57e11635033154200b80709c7f51d872efe7b7ec77c664c4ef8e",
     "./jest.config.js:a4169e9cbc0ba79607d1e7693531fd66f56c96db7d760c392279d758ca9e658a",
@@ -234,6 +231,6 @@
     "./src/wasm4pm_stub.rs:2db6d64a0f10abde8abc9af5c1f9289b2819cf47d11ee934e534ef7ddced4828",
     "./src/wasm4pm_types_stub.rs:265475f67d43ff34593c8fb673f21f4dd31f5c11abb814cd632cb11981fad1cb"
   ],
-  "signature": "aca8ead33974086bc44a7db4b28b3d2c8c58e7921fedb072b4e9fea711e33681d981311aa02801d5b90d29d3790df2deec1b9567092305643fb81ca60b2ce109",
-  "previous_receipt_hash": "9f70b8904e76e64fb22475c581fe88e4cb01b04a0c193b5c1e9ef36449c0b2ca"
+  "signature": "cb5b386a7274847100b139041eefcc92c3e96f5747c67b58f5627ddb06ca80fb9f16ff98c0fa127164748444026365f163ea2d92863d19c610089ed5bf4f8106",
+  "previous_receipt_hash": "c5c80bb7296e815ba2e210e850e65b650ec6c3b536d58f708368cf7b73e862a7"
 }

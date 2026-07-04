@@ -233,8 +233,6 @@ rules = [
     # { name = "zoela-cg-admin",          query = { file = ".specify/queries/zoela/extract-connect-group-admin.rq" },   template = { file = ".specify/templates/zoela/connect-group-admin-surface.tera" },  output_file = "packages/routes/connectGroupAdmin.ts",        mode = "Overwrite" },
     # TEMPORARILY DISABLED: uses extract-connect-group-stages.rq which has VALUES
     # { name = "zoela-cg-interest-form",  query = { file = ".specify/queries/zoela/extract-connect-group-stages.rq" },  template = { file = ".specify/templates/zoela/connect-group-interest-form.tera" },   output_file = "packages/forms/connectGroupInterestForm.tsx", mode = "Overwrite" },
-    # P0-B.11 — AutoReceipt pipeline law.
-    { name = "zoela-autoreceipt-law",   query = { file = ".specify/queries/zoela/extract-autoreceipt-law.rq" },      template = { file = ".specify/templates/zoela/autoreceipt-law.rs.tera" },           output_file = "src/autoreceipt_law.rs",                      mode = "Overwrite" },
     # ZOE LA Mobile pipeline — Supabase Edge Functions
     # TEMPORARILY DISABLED: uses extract-service-routes.rq which has VALUES
     # { name = "zoela-edge-fn",           query = { file = ".specify/queries/zoela/extract-service-routes.rq" },        template = { file = ".specify/templates/zoela/supabase-edge-fn.tera" },             output_file = "supabase/functions/route-gate/index.ts",      mode = "Overwrite" },
