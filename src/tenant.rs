@@ -55,6 +55,74 @@ use crate::admission::AdmissionOp;
 use crate::ocel_store::OcelStore;
 use std::sync::{Arc, RwLock};
 
+/// The default tenant identifier used when `OPEN_ONTOLOGIES_TENANT_ID` is
+/// unset or blank.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::tenant::DEFAULT_TENANT_ID;
+/// assert_eq!(DEFAULT_TENANT_ID, "default");
+/// ```
+pub const DEFAULT_TENANT_ID: &str = "default";
+
+/// Regex pattern that valid tenant identifiers must match.
+///
+/// Rules:
+/// - Starts with a lowercase ASCII letter (`[a-z]`)
+/// - Followed by up to 63 lowercase letters, digits, underscores, or hyphens
+/// - Total length: 1–64 characters
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::tenant::TENANT_ID_PATTERN;
+/// assert_eq!(TENANT_ID_PATTERN, r"^[a-z][a-z0-9_-]{0,63}$");
+/// ```
+pub const TENANT_ID_PATTERN: &str = r"^[a-z][a-z0-9_-]{0,63}$";
+
+/// Returns `true` when `id` conforms to [`TENANT_ID_PATTERN`].
+///
+/// The check is a direct character-by-character scan — no regex crate
+/// dependency required.
+///
+/// # Examples
+///
+/// Valid identifiers:
+/// ```
+/// use open_ontologies::tenant::is_valid_tenant_id;
+/// assert!(is_valid_tenant_id("default"));
+/// assert!(is_valid_tenant_id("acme-corp"));
+/// assert!(is_valid_tenant_id("tenant_42"));
+/// assert!(is_valid_tenant_id("a"));              // single letter is valid
+/// ```
+///
+/// Invalid identifiers are rejected:
+/// ```
+/// use open_ontologies::tenant::is_valid_tenant_id;
+/// // Leading digit
+/// assert!(!is_valid_tenant_id("9tenant"));
+/// // Uppercase character
+/// assert!(!is_valid_tenant_id("Tenant"));
+/// // Space in name
+/// assert!(!is_valid_tenant_id("my tenant"));
+/// // Empty string
+/// assert!(!is_valid_tenant_id(""));
+/// // Too long (65 chars)
+/// assert!(!is_valid_tenant_id("a".repeat(65).as_str()));
+/// ```
+pub fn is_valid_tenant_id(id: &str) -> bool {
+    if id.is_empty() || id.len() > 64 {
+        return false;
+    }
+    let mut chars = id.chars();
+    match chars.next() {
+        Some(c) if c.is_ascii_lowercase() => {}
+        _ => return false,
+    }
+    chars.all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_' || c == '-')
+}
+
 /// Caller-side tenant identifier.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TenantContext {
@@ -78,11 +146,11 @@ impl TenantContext {
     /// ```
     pub fn from_env() -> Self {
         let raw = std::env::var("OPEN_ONTOLOGIES_TENANT_ID")
-            .unwrap_or_else(|_| "default".to_string());
+            .unwrap_or_else(|_| DEFAULT_TENANT_ID.to_string());
         let raw = raw.trim();
         Self {
             tenant_id: if raw.is_empty() {
-                "default".into()
+                DEFAULT_TENANT_ID.into()
             } else {
                 raw.into()
             },
@@ -187,7 +255,7 @@ impl TenantHandle {
     pub fn switch(&self, store: &OcelStore, session_id: &str, new_tenant: &str) {
         let new_tenant = new_tenant.trim();
         let new_tenant = if new_tenant.is_empty() {
-            "default"
+            DEFAULT_TENANT_ID
         } else {
             new_tenant
         };

@@ -54,6 +54,26 @@ pub use arc_swap::ArcSwap;
 pub type KeyFingerprint = [u8; 8];
 
 /// Compute the fingerprint of a verifying key: `BLAKE3(verifying_key_bytes)[..8]`.
+///
+/// The same key always produces the same 8-byte fingerprint; different keys
+/// produce different fingerprints with overwhelming probability.
+///
+/// ```
+/// use open_ontologies::attestation::{Signer, fingerprint};
+///
+/// // Two signers built from the same raw bytes share a fingerprint.
+/// let signer_a = Signer::from_bytes(&[1u8; 32]);
+/// let signer_b = Signer::from_bytes(&[1u8; 32]);
+/// assert_eq!(signer_a.fingerprint(), signer_b.fingerprint());
+///
+/// // Different keys produce different fingerprints.
+/// let signer_c = Signer::from_bytes(&[2u8; 32]);
+/// assert_ne!(signer_a.fingerprint(), signer_c.fingerprint());
+///
+/// // Fingerprint is exactly 8 bytes.
+/// let fpr = signer_a.fingerprint();
+/// assert_eq!(fpr.len(), 8);
+/// ```
 pub fn fingerprint(vk: &VerifyingKey) -> KeyFingerprint {
     let h = blake3::hash(vk.as_bytes());
     let mut out = [0u8; 8];
@@ -133,15 +153,62 @@ impl Signer {
 
     /// Sign the given bytes (typically the canonical record bytes excluding
     /// the signature + fingerprint fields).
+    ///
+    /// The returned [`ed25519_dalek::Signature`] is 64 bytes. Signing the
+    /// same message with the same key is deterministic (Ed25519 is
+    /// deterministic per RFC 8032).
+    ///
+    /// ```
+    /// use open_ontologies::attestation::Signer;
+    ///
+    /// let signer = Signer::from_bytes(&[7u8; 32]);
+    /// let sig = signer.sign(b"hello receipt");
+    ///
+    /// // Signature is 64 bytes.
+    /// assert_eq!(signer.sign(b"hello receipt").to_bytes().len(), 64);
+    ///
+    /// // Ed25519 is deterministic: same key + same msg = same bytes.
+    /// assert_eq!(signer.sign(b"hello receipt").to_bytes(), sig.to_bytes());
+    ///
+    /// // Different messages produce different signatures.
+    /// assert_ne!(
+    ///     signer.sign(b"msg-one").to_bytes(),
+    ///     signer.sign(b"msg-two").to_bytes(),
+    /// );
+    /// ```
     pub fn sign(&self, msg: &[u8]) -> Signature {
         use ed25519_dalek::Signer as _;
         self.key.sign(msg)
     }
 
+    /// Return the 8-byte BLAKE3-prefix fingerprint of this signer's verifying key.
+    ///
+    /// ```
+    /// use open_ontologies::attestation::Signer;
+    ///
+    /// let signer = Signer::from_bytes(&[9u8; 32]);
+    /// let fpr = signer.fingerprint();
+    /// // Fingerprint is a non-zero 8-byte array.
+    /// assert_eq!(fpr.len(), 8);
+    /// // Stable across repeated calls.
+    /// assert_eq!(signer.fingerprint(), fpr);
+    /// ```
     pub fn fingerprint(&self) -> KeyFingerprint {
         self.fpr
     }
 
+    /// Return the Ed25519 verifying (public) key corresponding to this signer.
+    ///
+    /// ```
+    /// use open_ontologies::attestation::Signer;
+    ///
+    /// let signer = Signer::from_bytes(&[3u8; 32]);
+    /// let vk = signer.verifying_key();
+    /// // Verifying key is 32 bytes.
+    /// assert_eq!(vk.as_bytes().len(), 32);
+    /// // The same signer always returns the same verifying key bytes.
+    /// assert_eq!(signer.verifying_key().as_bytes(), vk.as_bytes());
+    /// ```
     pub fn verifying_key(&self) -> VerifyingKey {
         self.key.verifying_key()
     }

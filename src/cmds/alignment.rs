@@ -1,4 +1,44 @@
 //! Alignment Commands — ontology alignment and feedback
+//!
+//! Provides CLI verbs for detecting alignment candidates between two
+//! ontologies (using 7 weighted signals including embedding similarity),
+//! and for recording user feedback to self-calibrate confidence weights.
+//! Also exposes lint and enforce feedback commands.
+//!
+//! # CLI usage
+//!
+//! ```no_run
+//! // Detect alignment candidates between two ontology files:
+//! //   open-ontologies alignment align source.ttl --target target.ttl
+//! //
+//! // Detect with a custom minimum confidence threshold:
+//! //   open-ontologies alignment align source.ttl \
+//! //     --target target.ttl \
+//! //     --min-confidence 0.75
+//! //
+//! // Preview candidates without writing feedback (dry-run):
+//! //   open-ontologies alignment align source.ttl \
+//! //     --target target.ttl \
+//! //     --dry-run true
+//! //
+//! // Accept an alignment candidate (improves future confidence):
+//! //   open-ontologies alignment align-feedback \
+//! //     --source http://example.org/A#Vehicle \
+//! //     --target http://example.org/B#Automobile \
+//! //     --accept true
+//! //
+//! // Dismiss a lint warning so it is suppressed in future runs:
+//! //   open-ontologies alignment lint-feedback \
+//! //     --rule-id missing-label \
+//! //     --entity http://example.org/A#Vehicle \
+//! //     --dismiss true
+//! //
+//! // Accept an enforce violation so it is suppressed in future runs:
+//! //   open-ontologies alignment enforce-feedback \
+//! //     --rule-id boro-top-level \
+//! //     --entity http://example.org/A#Vehicle \
+//! //     --accept true
+//! ```
 
 use clap_noun_verb::Result as NounVerbResult;
 use clap_noun_verb_macros::verb;

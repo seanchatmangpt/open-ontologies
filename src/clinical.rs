@@ -4,13 +4,112 @@ use crate::graph::GraphStore;
 // Parquet schema column names for the clinical crosswalk table.
 // Used both when reading column data and when serialising JSON output —
 // keeping them in one place prevents silent field-name mismatches.
-pub(crate) const COL_SOURCE_CODE: &str = "source_code";
-pub(crate) const COL_SOURCE_SYSTEM: &str = "source_system";
-pub(crate) const COL_TARGET_CODE: &str = "target_code";
-pub(crate) const COL_TARGET_SYSTEM: &str = "target_system";
-pub(crate) const COL_RELATION: &str = "relation";
-pub(crate) const COL_SOURCE_LABEL: &str = "source_label";
-pub(crate) const COL_TARGET_LABEL: &str = "target_label";
+
+/// Parquet/JSON column name for the source clinical code (e.g. `"J18.9"`).
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::clinical::{
+///     COL_SOURCE_CODE, COL_SOURCE_SYSTEM, COL_TARGET_CODE, COL_TARGET_SYSTEM,
+///     COL_RELATION, COL_SOURCE_LABEL, COL_TARGET_LABEL,
+/// };
+///
+/// // Auto-instinct: every COL_* constant is non-empty.
+/// assert!(!COL_SOURCE_CODE.is_empty());
+/// assert!(!COL_SOURCE_SYSTEM.is_empty());
+/// assert!(!COL_TARGET_CODE.is_empty());
+/// assert!(!COL_TARGET_SYSTEM.is_empty());
+/// assert!(!COL_RELATION.is_empty());
+/// assert!(!COL_SOURCE_LABEL.is_empty());
+/// assert!(!COL_TARGET_LABEL.is_empty());
+///
+/// // Auto-instinct: all seven COL_* values are mutually distinct.
+/// let cols = [
+///     COL_SOURCE_CODE, COL_SOURCE_SYSTEM, COL_TARGET_CODE, COL_TARGET_SYSTEM,
+///     COL_RELATION, COL_SOURCE_LABEL, COL_TARGET_LABEL,
+/// ];
+/// let mut seen = std::collections::HashSet::new();
+/// for col in cols {
+///     assert!(seen.insert(col), "duplicate COL constant value: {col}");
+/// }
+///
+/// assert_eq!(COL_SOURCE_CODE, "source_code");
+/// ```
+pub const COL_SOURCE_CODE: &str = "source_code";
+
+/// Parquet/JSON column name for the source coding system (e.g. `"ICD-10"`).
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::clinical::COL_SOURCE_SYSTEM;
+///
+/// assert!(!COL_SOURCE_SYSTEM.is_empty());
+/// assert_eq!(COL_SOURCE_SYSTEM, "source_system");
+/// ```
+pub const COL_SOURCE_SYSTEM: &str = "source_system";
+
+/// Parquet/JSON column name for the target clinical code (e.g. `"233604007"`).
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::clinical::COL_TARGET_CODE;
+///
+/// assert!(!COL_TARGET_CODE.is_empty());
+/// assert_eq!(COL_TARGET_CODE, "target_code");
+/// ```
+pub const COL_TARGET_CODE: &str = "target_code";
+
+/// Parquet/JSON column name for the target coding system (e.g. `"SNOMED"`).
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::clinical::COL_TARGET_SYSTEM;
+///
+/// assert!(!COL_TARGET_SYSTEM.is_empty());
+/// assert_eq!(COL_TARGET_SYSTEM, "target_system");
+/// ```
+pub const COL_TARGET_SYSTEM: &str = "target_system";
+
+/// Parquet/JSON column name for the mapping relation (e.g. `"exactMatch"`).
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::clinical::COL_RELATION;
+///
+/// assert!(!COL_RELATION.is_empty());
+/// assert_eq!(COL_RELATION, "relation");
+/// ```
+pub const COL_RELATION: &str = "relation";
+
+/// Parquet/JSON column name for the source concept label.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::clinical::COL_SOURCE_LABEL;
+///
+/// assert!(!COL_SOURCE_LABEL.is_empty());
+/// assert_eq!(COL_SOURCE_LABEL, "source_label");
+/// ```
+pub const COL_SOURCE_LABEL: &str = "source_label";
+
+/// Parquet/JSON column name for the target concept label.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::clinical::COL_TARGET_LABEL;
+///
+/// assert!(!COL_TARGET_LABEL.is_empty());
+/// assert_eq!(COL_TARGET_LABEL, "target_label");
+/// ```
+pub const COL_TARGET_LABEL: &str = "target_label";
+
 
 /// A single crosswalk mapping row.
 ///

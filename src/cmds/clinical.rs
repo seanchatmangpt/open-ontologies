@@ -1,4 +1,25 @@
 //! Clinical Commands — crosswalk, enrich, validate-clinical
+//!
+//! Provides CLI verbs for looking up clinical terminology mappings
+//! (ICD-10 ↔ SNOMED ↔ MeSH), enriching ontology classes with
+//! `skos:exactMatch` triples, and validating class labels against
+//! the clinical crosswalk.
+//!
+//! # CLI usage
+//!
+//! ```no_run
+//! // Look up all mappings for ICD-10 code J18.9 (pneumonia):
+//! //   open-ontologies clinical crosswalk --code J18.9 --system ICD-10
+//! //
+//! // Add a skos:exactMatch triple linking an OWL class to a clinical code:
+//! //   open-ontologies clinical enrich \
+//! //     --class-iri http://example.org/onto/Pneumonia \
+//! //     --code J18.9 \
+//! //     --system ICD-10
+//! //
+//! // Validate all class labels against the clinical crosswalk:
+//! //   open-ontologies clinical validate-clinical
+//! ```
 
 use clap_noun_verb::Result as NounVerbResult;
 use clap_noun_verb_macros::verb;
@@ -10,6 +31,28 @@ const CROSSWALKS_PATH: &str = "data/crosswalks.parquet";
 
 // ── output types ─────────────────────────────────────────────────────────
 
+/// A single source → target terminology mapping returned by `crosswalk`.
+///
+/// # Examples
+///
+/// ```no_run
+/// // CrosswalkMapping is returned inside CrosswalkOutput.mappings.
+/// // Example JSON output for `clinical crosswalk --code J18.9 --system ICD-10`:
+/// //
+/// // {
+/// //   "code": "J18.9",
+/// //   "system": "ICD-10",
+/// //   "mappings": [
+/// //     {
+/// //       "target_code": "233604007",
+/// //       "target_system": "SNOMED",
+/// //       "relation": "exactMatch",
+/// //       "source_label": "Pneumonia, unspecified organism",
+/// //       "target_label": "Pneumonia (disorder)"
+/// //     }
+/// //   ]
+/// // }
+/// ```
 #[derive(Serialize)]
 pub struct CrosswalkMapping {
     pub target_code: String,

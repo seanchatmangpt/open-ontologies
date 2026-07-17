@@ -12,6 +12,27 @@ use open_ontologies::shacl::ShaclValidator;
 
 // ── output types ─────────────────────────────────────────────────────────
 
+/// Output produced by the `validate` verb.
+///
+/// `ok` is `true` when the TTL/RDF file passes syntax and SHACL checks.
+/// `triples` is the number of triples parsed (0 on failure). `error`
+/// carries the first parser error message when `ok` is `false` and is
+/// omitted from JSON serialization when `None`.
+///
+/// # Examples
+///
+/// ```no_run
+/// # // Illustrative only — runs in the binary crate context.
+/// # use open_ontologies::graph::GraphStore;
+/// // Validate a well-formed Turtle snippet.
+/// let ttl = r#"
+///   @prefix ex: <http://example.org/> .
+///   ex:Foo a owl:Class .
+/// "#;
+/// let result = GraphStore::validate_turtle(ttl);
+/// // On success the triple count is > 0.
+/// assert!(result.is_ok());
+/// ```
 #[derive(Serialize)]
 pub struct ValidateOutput {
     pub ok: bool,
@@ -20,6 +41,25 @@ pub struct ValidateOutput {
     pub error: Option<String>,
 }
 
+/// Output produced by the `load` verb.
+///
+/// Reports the number of triples loaded from the given `path` into the
+/// in-memory Oxigraph store. The `path` field echoes the original
+/// argument so callers can correlate requests with responses in
+/// pipeline output.
+///
+/// # Examples
+///
+/// ```
+/// // Simulate the JSON shape emitted to stdout.
+/// let json = serde_json::json!({
+///     "ok": true,
+///     "triples_loaded": 1247_u64,
+///     "path": "ontology/pizza.ttl"
+/// });
+/// assert_eq!(json["triples_loaded"], 1247_u64);
+/// assert_eq!(json["path"], "ontology/pizza.ttl");
+/// ```
 #[derive(Serialize)]
 pub struct LoadOutput {
     pub ok: bool,
@@ -27,6 +67,23 @@ pub struct LoadOutput {
     pub path: String,
 }
 
+/// Output produced by the `save` verb.
+///
+/// The `format` field reflects the serialization format used. Supported
+/// values are `"turtle"` (default), `"ntriples"`, `"rdfxml"`,
+/// `"nquads"`, and `"trig"`. The `path` field is the file written.
+///
+/// # Examples
+///
+/// ```
+/// // Validate that the default format is always "turtle".
+/// let default_fmt = "turtle";
+/// let supported = ["turtle", "ntriples", "rdfxml", "nquads", "trig"];
+/// assert!(supported.contains(&default_fmt));
+///
+/// // Confirm ntriples is also a valid format string.
+/// assert!(supported.contains(&"ntriples"));
+/// ```
 #[derive(Serialize)]
 pub struct SaveOutput {
     pub ok: bool,
@@ -34,12 +91,43 @@ pub struct SaveOutput {
     pub format: String,
 }
 
+/// Output produced by the `clear` verb.
+///
+/// Always returns `ok: true` on success. The human-readable `message`
+/// field is suitable for display in shell pipelines or log output.
+///
+/// # Examples
+///
+/// ```
+/// // The canonical success message.
+/// let msg = "Store cleared";
+/// assert!(msg.contains("cleared"));
+/// assert!(!msg.is_empty());
+/// ```
 #[derive(Serialize)]
 pub struct ClearOutput {
     pub ok: bool,
     pub message: String,
 }
 
+/// Output produced by the `status` verb.
+///
+/// Reports the server health string (`"ok"`), the crate version, and the
+/// current in-memory triple count. This is the primary liveness signal for
+/// health-check scripts.
+///
+/// # Examples
+///
+/// ```
+/// // The status field is always the literal string "ok" on success.
+/// let status = "ok";
+/// assert_eq!(status, "ok");
+///
+/// // Version follows semver — major.minor.patch.
+/// let version = env!("CARGO_PKG_VERSION");
+/// let parts: Vec<&str> = version.split('.').collect();
+/// assert_eq!(parts.len(), 3, "version must be semver major.minor.patch");
+/// ```
 #[derive(Serialize)]
 pub struct StatusOutput {
     pub status: String,

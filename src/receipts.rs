@@ -831,3 +831,271 @@ fn hex_to_32(s: &str) -> Option<[u8; 32]> {
 pub fn is_valid_hex_hash(s: &str) -> bool {
     s.len() == 64 && s.chars().all(|c| matches!(c, '0'..='9' | 'a'..='f'))
 }
+
+/// BLAKE3 produces a 256-bit (32-byte) digest. This constant names that
+/// invariant so callers can assert it without embedding a magic number.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::receipts::BLAKE3_HASH_LEN;
+///
+/// // The BLAKE3 digest is always 256 bits = 32 bytes.
+/// assert_eq!(BLAKE3_HASH_LEN, 32);
+/// // Its hex encoding is always 64 characters.
+/// assert_eq!(BLAKE3_HASH_LEN * 2, 64);
+/// ```
+pub const BLAKE3_HASH_LEN: usize = 32;
+
+/// Build two receipts from identical `ProductionRecord` values and assert
+/// that BLAKE3 hashing is deterministic: identical inputs always yield
+/// identical digests.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::receipts::build;
+/// use open_ontologies::production_record::ProductionRecord;
+///
+/// fn same_record() -> ProductionRecord {
+///     ProductionRecord {
+///         artifact_hash:            [42u8; 32],
+///         scope_token:              "determinism-check".into(),
+///         declared_powl_hash:       [1u8; 32],
+///         ocel_canonical_hash:      [2u8; 32],
+///         conformance_run_id:       "run-det".into(),
+///         gate_config_hash:         [3u8; 32],
+///         production_law_version:   "ontostar-1.0.0".into(),
+///         defects_taxonomy_version: "ontostar-defects-4.8.0".into(),
+///         gates_passed:             vec!["A1_WorkflowDeclared".into()],
+///         gates_refused:            vec![],
+///         prior_receipt:            None,
+///         signature:                None,
+///         signing_key_fpr:          None,
+///     }
+/// }
+///
+/// let ra = build(same_record());
+/// let rb = build(same_record());
+///
+/// // Identical input records produce identical BLAKE3 digests.
+/// assert_eq!(ra.bytes, rb.bytes);
+/// assert_eq!(ra.hex(), rb.hex());
+///
+/// // The digest is exactly 32 bytes.
+/// assert_eq!(ra.bytes.len(), 32);
+/// ```
+pub fn _doctest_determinism_anchor() {}
+
+/// Demonstrate that sequence numbers are monotonically increasing within a
+/// session. Each new receipt persisted to the same `(session_id, tenant_id)`
+/// pair receives a sequence number one greater than the previous maximum.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::receipts::{build, persist_with_tenant_in_tx};
+/// use open_ontologies::production_record::ProductionRecord;
+/// use open_ontologies::state::StateDb;
+/// use std::path::Path;
+///
+/// let db = StateDb::open(Path::new(":memory:")).unwrap();
+///
+/// let make_record = |scope: &str| ProductionRecord {
+///     artifact_hash:            [0u8; 32],
+///     scope_token:              scope.into(),
+///     declared_powl_hash:       [0u8; 32],
+///     ocel_canonical_hash:      [0u8; 32],
+///     conformance_run_id:       "run-seq".into(),
+///     gate_config_hash:         [0u8; 32],
+///     production_law_version:   "seed-v0".into(),
+///     defects_taxonomy_version: "ontostar-defects-4.8.0".into(),
+///     gates_passed:             vec![],
+///     gates_refused:            vec![],
+///     prior_receipt:            None,
+///     signature:                None,
+///     signing_key_fpr:          None,
+/// };
+///
+/// // Persist three receipts in a single session.
+/// {
+///     let mut conn = db.conn();
+///     let tx = conn.transaction().unwrap();
+///     persist_with_tenant_in_tx(&tx, &build(make_record("step-1")), "sess-mono", "default").unwrap();
+///     persist_with_tenant_in_tx(&tx, &build(make_record("step-2")), "sess-mono", "default").unwrap();
+///     persist_with_tenant_in_tx(&tx, &build(make_record("step-3")), "sess-mono", "default").unwrap();
+///     tx.commit().unwrap();
+/// }
+///
+/// // Read the sequences back and confirm they are 1, 2, 3 in order.
+/// let conn = db.conn();
+/// let mut stmt = conn
+///     .prepare("SELECT sequence FROM receipts WHERE session_id = 'sess-mono' ORDER BY sequence ASC")
+///     .unwrap();
+/// let seqs: Vec<i64> = stmt
+///     .query_map([], |r| r.get(0))
+///     .unwrap()
+///     .map(|x| x.unwrap())
+///     .collect();
+/// assert_eq!(seqs, vec![1i64, 2, 3], "sequences must be strictly monotonic");
+/// ```
+pub fn _doctest_sequence_monotonic_anchor() {}
+
+/// Chain-link invariant: the `prior_receipt` field of entry N equals the
+/// `bytes` (BLAKE3 hash) of entry N−1. This test builds a four-link chain
+/// and verifies every inter-link pointer.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::receipts::{build, is_valid_hex_hash};
+/// use open_ontologies::production_record::ProductionRecord;
+///
+/// fn link_record(scope: &str, prior: Option<[u8; 32]>) -> ProductionRecord {
+///     ProductionRecord {
+///         artifact_hash:            [0u8; 32],
+///         scope_token:              scope.into(),
+///         declared_powl_hash:       [0u8; 32],
+///         ocel_canonical_hash:      [0u8; 32],
+///         conformance_run_id:       "run-inv".into(),
+///         gate_config_hash:         [0u8; 32],
+///         production_law_version:   "ontostar-1.0.0".into(),
+///         defects_taxonomy_version: "ontostar-defects-4.8.0".into(),
+///         gates_passed:             vec![],
+///         gates_refused:            vec![],
+///         prior_receipt:            prior,
+///         signature:                None,
+///         signing_key_fpr:          None,
+///     }
+/// }
+///
+/// let r0 = build(link_record("r0", None));
+/// let r1 = build(link_record("r1", Some(r0.bytes)));
+/// let r2 = build(link_record("r2", Some(r1.bytes)));
+/// let r3 = build(link_record("r3", Some(r2.bytes)));
+///
+/// // Chain-link invariant: prior_receipt[N] == bytes[N-1].
+/// assert!(r0.record.prior_receipt.is_none());
+/// assert_eq!(r1.record.prior_receipt.unwrap(), r0.bytes);
+/// assert_eq!(r2.record.prior_receipt.unwrap(), r1.bytes);
+/// assert_eq!(r3.record.prior_receipt.unwrap(), r2.bytes);
+///
+/// // All four hashes are distinct.
+/// let hashes = [r0.bytes, r1.bytes, r2.bytes, r3.bytes];
+/// let unique: std::collections::HashSet<[u8; 32]> = hashes.into_iter().collect();
+/// assert_eq!(unique.len(), 4, "every link must have a distinct hash");
+///
+/// // Every hex rendering passes the is_valid_hex_hash check.
+/// for r in [&r0, &r1, &r2, &r3] {
+///     assert!(is_valid_hex_hash(&r.hex()));
+/// }
+/// ```
+pub fn _doctest_chain_link_invariant_anchor() {}
+
+/// `ttl_header` with a non-None `prior_receipt` embeds the parent hash
+/// instead of the sentinel `"none"`.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::receipts::{build, ttl_header, is_valid_hex_hash};
+/// use open_ontologies::production_record::ProductionRecord;
+///
+/// fn rec(scope: &str, prior: Option<[u8; 32]>) -> ProductionRecord {
+///     ProductionRecord {
+///         artifact_hash:            [0u8; 32],
+///         scope_token:              scope.into(),
+///         declared_powl_hash:       [0u8; 32],
+///         ocel_canonical_hash:      [0u8; 32],
+///         conformance_run_id:       "run-hdr".into(),
+///         gate_config_hash:         [0u8; 32],
+///         production_law_version:   "ontostar-1.0.0".into(),
+///         defects_taxonomy_version: "ontostar-defects-4.8.0".into(),
+///         gates_passed:             vec![],
+///         gates_refused:            vec![],
+///         prior_receipt:            prior,
+///         signature:                None,
+///         signing_key_fpr:          None,
+///     }
+/// }
+///
+/// let parent = build(rec("parent", None));
+/// let child  = build(rec("child",  Some(parent.bytes)));
+///
+/// let header = ttl_header(&child);
+///
+/// // When prior_receipt is Some, the sentinel "none" must NOT appear.
+/// assert!(!header.contains("# ostar-prior-receipt: none"),
+///     "non-None prior_receipt must embed the parent hash, not 'none'");
+///
+/// // The prior-receipt line must contain the parent's hex hash.
+/// let expected_prior = format!("# ostar-prior-receipt: {}", parent.hex());
+/// assert!(header.contains(&expected_prior),
+///     "prior-receipt line must embed the parent's hex hash");
+///
+/// // The receipt-hash line must embed the child's own hash.
+/// let expected_self = format!("# ostar-receipt-hash: {}", child.hex());
+/// assert!(header.contains(&expected_self));
+/// ```
+pub fn _doctest_ttl_header_with_prior_anchor() {}
+
+/// Sequence counters are per-session and do not bleed across sessions.
+/// Receipts persisted under `sess-A` and `sess-B` each start at sequence 1.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::receipts::{build, persist_with_tenant_in_tx};
+/// use open_ontologies::production_record::ProductionRecord;
+/// use open_ontologies::state::StateDb;
+/// use std::path::Path;
+///
+/// let db = StateDb::open(Path::new(":memory:")).unwrap();
+///
+/// let make_record = |scope: &str| ProductionRecord {
+///     artifact_hash:            [0u8; 32],
+///     scope_token:              scope.into(),
+///     declared_powl_hash:       [0u8; 32],
+///     ocel_canonical_hash:      [0u8; 32],
+///     conformance_run_id:       "run-iso".into(),
+///     gate_config_hash:         [0u8; 32],
+///     production_law_version:   "seed-v0".into(),
+///     defects_taxonomy_version: "ontostar-defects-4.8.0".into(),
+///     gates_passed:             vec![],
+///     gates_refused:            vec![],
+///     prior_receipt:            None,
+///     signature:                None,
+///     signing_key_fpr:          None,
+/// };
+///
+/// {
+///     let mut conn = db.conn();
+///     let tx = conn.transaction().unwrap();
+///     persist_with_tenant_in_tx(&tx, &build(make_record("a-1")), "sess-A", "default").unwrap();
+///     persist_with_tenant_in_tx(&tx, &build(make_record("a-2")), "sess-A", "default").unwrap();
+///     persist_with_tenant_in_tx(&tx, &build(make_record("b-1")), "sess-B", "default").unwrap();
+///     tx.commit().unwrap();
+/// }
+///
+/// // sess-A has sequences 1, 2.
+/// let conn = db.conn();
+/// let max_a: i64 = conn
+///     .query_row(
+///         "SELECT MAX(sequence) FROM receipts WHERE session_id = 'sess-A'",
+///         [],
+///         |r| r.get(0),
+///     )
+///     .unwrap();
+/// assert_eq!(max_a, 2, "sess-A must reach sequence 2");
+///
+/// // sess-B starts at 1 independently of sess-A.
+/// let max_b: i64 = conn
+///     .query_row(
+///         "SELECT MAX(sequence) FROM receipts WHERE session_id = 'sess-B'",
+///         [],
+///         |r| r.get(0),
+///     )
+///     .unwrap();
+/// assert_eq!(max_b, 1, "sess-B must start at sequence 1 independently");
+/// ```
+pub fn _doctest_session_sequence_isolation_anchor() {}

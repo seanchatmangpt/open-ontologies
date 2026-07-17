@@ -496,6 +496,13 @@ pub fn resolve_llm_model(cfg: &LlmConfig) -> String {
 /// // Exactly the three recognised engines — no silent additions.
 /// assert_eq!(VALID_LLM_ENGINES.len(), 3);
 /// ```
+///
+/// Auto-instinct: "inproc" is always a valid fallback engine
+/// ```
+/// use open_ontologies::config::VALID_LLM_ENGINES;
+/// assert!(VALID_LLM_ENGINES.contains(&"inproc"),
+///     "inproc must always be available as fallback");
+/// ```
 pub const VALID_LLM_ENGINES: &[&str] = &[ENGINE_INPROC, ENGINE_GROQ_PM4PY, ENGINE_GEMINI];
 
 /// LLM engine identifier: in-process `GroqTranslator` (HTTP via reqwest).
@@ -680,6 +687,14 @@ pub fn resolve_llm_python(cfg: &LlmConfig) -> String {
 /// if std::env::var("GEMINI_BIN").is_err() {
 ///     assert_eq!(resolve_gemini_bin(), "gemini");
 /// }
+/// ```
+///
+/// ```
+/// // GEMINI_BIN env var takes precedence over default "gemini"
+/// # unsafe { std::env::set_var("GEMINI_BIN", "/custom/gemini"); }
+/// # let bin = open_ontologies::config::resolve_gemini_bin();
+/// # assert_eq!(bin, "/custom/gemini");
+/// # unsafe { std::env::remove_var("GEMINI_BIN"); }
 /// ```
 ///
 /// ```

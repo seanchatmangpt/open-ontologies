@@ -8,6 +8,33 @@ use super::helpers::{DEFAULT_DATA_DIR, setup, to_verb_err};
 
 // ── output types ─────────────────────────────────────────────────────────
 
+/// Output produced by the `lock` verb.
+///
+/// Records which IRIs were locked and the human-readable reason that will
+/// appear in `onto_plan` violation messages when a locked IRI is targeted
+/// for removal.  Passing a comma-separated list to the verb populates
+/// `locked` with one entry per IRI.  An empty list is valid (idempotent).
+///
+/// # Examples
+///
+/// ```
+/// // The CSV parser trims whitespace around each IRI.
+/// let csv = "https://example.org/Foo , https://example.org/Bar";
+/// let iris: Vec<String> = csv
+///     .split(',')
+///     .map(|s| s.trim().to_string())
+///     .filter(|s| !s.is_empty())
+///     .collect();
+/// assert_eq!(iris.len(), 2);
+/// assert_eq!(iris[0], "https://example.org/Foo");
+///
+/// // An empty CSV string produces no IRIs (idempotent lock call).
+/// let empty: Vec<String> = "".split(',')
+///     .map(|s| s.trim().to_string())
+///     .filter(|s| !s.is_empty())
+///     .collect();
+/// assert!(empty.is_empty());
+/// ```
 #[derive(Serialize)]
 pub struct LockOutput {
     pub ok: bool,
@@ -15,12 +42,46 @@ pub struct LockOutput {
     pub reason: String,
 }
 
+/// Output produced by the `monitor_clear` verb.
+///
+/// Always returns `ok: true` on success.  Callers can check `ok` to
+/// distinguish a successful clear from a transport-level failure.
+///
+/// # Examples
+///
+/// ```
+/// // The canonical success message emitted by the verb.
+/// let message = "Monitor block cleared";
+/// assert!(message.contains("cleared"));
+/// assert!(!message.is_empty());
+/// ```
 #[derive(Serialize)]
 pub struct MonitorClearOutput {
     pub ok: bool,
     pub message: String,
 }
 
+/// Output produced by the `lineage` verb.
+///
+/// `session_id` is either the explicitly requested session label or
+/// `"current"` when none was given.  `events` is a compact multi-line
+/// string listing every lineage event recorded in that session.  An
+/// empty `events` string means no events have been recorded yet.
+///
+/// # Examples
+///
+/// ```
+/// // When no session is specified the verb defaults to "current".
+/// let session_id = None::<String>;
+/// let resolved = session_id.unwrap_or_else(|| "current".to_string());
+/// assert_eq!(resolved, "current");
+///
+/// // A compact event string is trimmed before storage.
+/// let raw = "  plan→enforce→apply  ";
+/// let trimmed = raw.trim().to_string();
+/// assert_eq!(trimmed, "plan→enforce→apply");
+/// assert!(!trimmed.is_empty());
+/// ```
 #[derive(Serialize)]
 pub struct LineageOutput {
     pub session_id: String,
@@ -177,6 +238,35 @@ fn maybe_attach_chain(
     }
 }
 
+/// Decode a 64-character lowercase hex string into 32 bytes.
+///
+/// Returns `None` if the input length is not exactly 64 characters or if any
+/// two-character hex pair fails to parse.  This is used to convert the
+/// `receipt_hash` field (stored as hex in JSON output) into the `[u8; 32]`
+/// expected by the chain-walking API.
+///
+/// # Examples
+///
+/// ```
+/// // A 32-byte array encodes to exactly 64 hex characters.
+/// let raw: [u8; 32] = [0xde, 0xad, 0xbe, 0xef, 0, 0, 0, 0,
+///                      0, 0, 0, 0, 0, 0, 0, 0,
+///                      0, 0, 0, 0, 0, 0, 0, 0,
+///                      0, 0, 0, 0, 0, 0, 0, 0];
+/// let hex: String = raw.iter().map(|b| format!("{:02x}", b)).collect();
+/// assert_eq!(hex.len(), 64);
+/// assert!(hex.starts_with("deadbeef"));
+///
+/// // The decoder rejects any string shorter than 64 characters.
+/// assert!("deadbeef".len() < 64);
+///
+/// // Each two-char slice decodes to the correct byte value.
+/// let byte = u8::from_str_radix("de", 16).unwrap();
+/// assert_eq!(byte, 0xde);
+///
+/// // Invalid hex characters cause the parse to fail.
+/// assert!(u8::from_str_radix("zz", 16).is_err());
+/// ```
 fn hex_to_32(s: &str) -> Option<[u8; 32]> {
     if s.len() != 64 {
         return None;

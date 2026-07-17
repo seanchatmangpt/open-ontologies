@@ -22,6 +22,20 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
 /// One field on a signature — input or output.
+///
+/// # Examples
+///
+/// Build a required field, then layer on constraints with the builder methods:
+/// ```
+/// # use open_ontologies::signature_shape::FieldSpec;
+/// let f = FieldSpec::required("priority", "ticket priority")
+///     .with_allowed_values(vec!["low", "medium", "high"])
+///     .with_max_len(6);
+/// assert_eq!(f.name, "priority");
+/// assert!(f.required);
+/// assert!(f.allowed_values.is_some());
+/// assert_eq!(f.max_len, Some(6));
+/// ```
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FieldSpec {
     pub name: String,
@@ -111,6 +125,23 @@ impl FieldSpec {
 }
 
 /// One demonstration (input → expected output) the prompt embeds.
+///
+/// Demos constrain the LLM's output space before generation (DSPy "molding").
+/// Each demo shows a complete input → output pair that the prompt builder
+/// serialises as JSON in the system prompt.
+///
+/// # Examples
+///
+/// ```
+/// # use open_ontologies::signature_shape::Demo;
+/// # use std::collections::BTreeMap;
+/// let demo = Demo {
+///     inputs: BTreeMap::from([("voice".into(), "late renewals".into())]),
+///     outputs: BTreeMap::from([("ctq".into(), "renewals must be detected early".into())]),
+/// };
+/// assert_eq!(demo.inputs["voice"], "late renewals");
+/// assert_eq!(demo.outputs["ctq"], "renewals must be detected early");
+/// ```
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Demo {
     pub inputs: BTreeMap<String, String>,
@@ -118,6 +149,24 @@ pub struct Demo {
 }
 
 /// A DSPy-style signature: instructions + I/O fields + demos.
+///
+/// # Examples
+///
+/// Construct a minimal shape and verify its structure:
+/// ```
+/// # use open_ontologies::signature_shape::{SignatureShape, FieldSpec};
+/// let shape = SignatureShape {
+///     name: "Minimal".into(),
+///     instructions: "Do the thing.".into(),
+///     input_fields: vec![FieldSpec::required("input", "source text")],
+///     output_fields: vec![FieldSpec::required("output", "result text").with_min_len(5)],
+///     demos: vec![],
+/// };
+/// assert_eq!(shape.name, "Minimal");
+/// assert_eq!(shape.input_fields.len(), 1);
+/// assert!(!shape.output_fields.is_empty());
+/// assert!(shape.demos.is_empty());
+/// ```
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SignatureShape {
     pub name: String,
@@ -145,6 +194,37 @@ pub struct SignatureShape {
 /// deterministic gate. A `provisional: false` field in the LLM's reply
 /// is a **claim**, not a fact — the gate forces `provisional = true`
 /// regardless. This struct exposes the claim so it can be audited.
+///
+/// # Examples
+///
+/// A well-behaved LLM response leaves `llm_claimed_authority` false:
+/// ```
+/// # use open_ontologies::signature_shape::{SignatureShape, FieldSpec};
+/// let shape = SignatureShape {
+///     name: "S".into(),
+///     instructions: "I".into(),
+///     input_fields: vec![],
+///     output_fields: vec![FieldSpec::required("answer", "the answer").with_min_len(3)],
+///     demos: vec![],
+/// };
+/// let parsed = shape.parse_and_validate(r#"{"answer": "yes"}"#).unwrap();
+/// assert_eq!(parsed.fields["answer"], "yes");
+/// assert!(!parsed.llm_claimed_authority);
+/// ```
+///
+/// An LLM that inserts `"authoritative": true` flips the flag:
+/// ```
+/// # use open_ontologies::signature_shape::{SignatureShape, FieldSpec};
+/// let shape = SignatureShape {
+///     name: "S".into(),
+///     instructions: "I".into(),
+///     input_fields: vec![],
+///     output_fields: vec![FieldSpec::required("answer", "the answer").with_min_len(3)],
+///     demos: vec![],
+/// };
+/// let parsed = shape.parse_and_validate(r#"{"answer": "yes", "authoritative": true}"#).unwrap();
+/// assert!(parsed.llm_claimed_authority);
+/// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct ParsedFields {
     /// Admitted output fields (`field_name` → `trimmed_value`). Every
@@ -160,6 +240,36 @@ pub struct ParsedFields {
 
 /// Why a candidate output failed validation. Each variant maps to a
 /// specific revision hint the refine loop feeds back to the LLM.
+///
+/// # Examples
+///
+/// Non-JSON response produces [`ValidationFailure::NonJsonResponse`]:
+/// ```
+/// # use open_ontologies::signature_shape::{SignatureShape, FieldSpec, ValidationFailure};
+/// let shape = SignatureShape {
+///     name: "S".into(),
+///     instructions: "I".into(),
+///     input_fields: vec![],
+///     output_fields: vec![FieldSpec::required("x", "x")],
+///     demos: vec![],
+/// };
+/// let errs = shape.parse_and_validate("plain text, no JSON").unwrap_err();
+/// assert!(matches!(errs[0], ValidationFailure::NonJsonResponse { .. }));
+/// ```
+///
+/// `TooLong` is produced when a field exceeds its `max_len`:
+/// ```
+/// # use open_ontologies::signature_shape::{SignatureShape, FieldSpec, ValidationFailure};
+/// let shape = SignatureShape {
+///     name: "S".into(),
+///     instructions: "I".into(),
+///     input_fields: vec![],
+///     output_fields: vec![FieldSpec::required("tag", "a short tag").with_max_len(3)],
+///     demos: vec![],
+/// };
+/// let errs = shape.parse_and_validate(r#"{"tag": "toolong"}"#).unwrap_err();
+/// assert!(matches!(errs[0], ValidationFailure::TooLong { ref field, .. } if field == "tag"));
+/// ```
 #[derive(Debug, Clone, PartialEq)]
 pub enum ValidationFailure {
     NonJsonResponse { snippet: String },

@@ -353,6 +353,211 @@ pub fn lookup_archived(
     }
 }
 
+/// Maximum number of receipt rows the archiver reads from the hot table in
+/// one pass. Kept as a named constant so capacity planning and tests can
+/// reference it without embedding a magic number.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::receipt_archive::MAX_ARCHIVE_BATCH_SIZE;
+///
+/// // The constant is positive and fits in a u64.
+/// assert!(MAX_ARCHIVE_BATCH_SIZE > 0);
+/// // Realistic upper-bound: must be at least large enough for monthly volumes.
+/// assert!(MAX_ARCHIVE_BATCH_SIZE >= 1_000);
+/// ```
+pub const MAX_ARCHIVE_BATCH_SIZE: usize = 100_000;
+
+/// Compute the shard-key (month key) for an RFC-3339 timestamp.
+///
+/// The shard key is the `"YYYY-MM"` prefix of the timestamp string.
+/// Parquet shard filenames follow the pattern `receipts-YYYY-MM.parquet`.
+/// This format is verified by the examples below.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::receipt_archive::month_key;
+///
+/// // Standard RFC-3339 timestamp — key is the first 7 bytes (YYYY-MM).
+/// assert_eq!(month_key("2026-01-15T12:34:56Z"),  "2026-01");
+/// assert_eq!(month_key("2025-12-31T23:59:59+00:00"), "2025-12");
+///
+/// // Edge case: exactly 7 characters — still valid.
+/// assert_eq!(month_key("2026-05"), "2026-05");
+///
+/// // Malformed / too-short string — falls back to "unknown".
+/// assert_eq!(month_key("bad"),    "unknown");
+/// assert_eq!(month_key(""),       "unknown");
+///
+/// // Shard filename derived from the key follows the documented pattern.
+/// let key = month_key("2026-03-01T00:00:00Z");
+/// let shard_name = format!("receipts-{key}.parquet");
+/// assert_eq!(shard_name, "receipts-2026-03.parquet");
+/// ```
+pub fn month_key(rfc3339: &str) -> String {
+    month_key_of(rfc3339)
+}
+
+/// Verify that `ArchiveStats` fields sum correctly when constructing a
+/// combined view of two partial runs.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::receipt_archive::ArchiveStats;
+///
+/// // Two partial runs are combined by accumulation.
+/// let run1 = ArchiveStats { rows_archived: 3, rows_pruned_from_hot: 3, shards_written: 1 };
+/// let run2 = ArchiveStats { rows_archived: 7, rows_pruned_from_hot: 7, shards_written: 2 };
+///
+/// let combined = ArchiveStats {
+///     rows_archived:       run1.rows_archived       + run2.rows_archived,
+///     rows_pruned_from_hot: run1.rows_pruned_from_hot + run2.rows_pruned_from_hot,
+///     shards_written:      run1.shards_written      + run2.shards_written,
+/// };
+/// assert_eq!(combined.rows_archived, 10);
+/// assert_eq!(combined.rows_pruned_from_hot, 10);
+/// assert_eq!(combined.shards_written, 3);
+/// ```
+pub fn _doctest_archive_stats_accumulation_anchor() {}
+
+/// Verify that two receipts from the same calendar month land in the same
+/// shard, while a receipt from a different month lands in a separate shard.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::receipt_archive::{archive_receipts, lookup_archived};
+/// use open_ontologies::state::StateDb;
+/// use tempfile::tempdir;
+///
+/// let db_dir  = tempdir().unwrap();
+/// let arc_dir = tempdir().unwrap();
+/// let db = StateDb::open(&db_dir.path().join("state.db")).unwrap();
+///
+/// // Two receipts from 2025-01 (400+ days ago) and one from 2025-02.
+/// let ts_jan = "2025-01-10T00:00:00+00:00";
+/// let ts_feb = "2025-02-10T00:00:00+00:00";
+/// let h1 = format!("{:064x}", 0x0001_u64);
+/// let h2 = format!("{:064x}", 0x0002_u64);
+/// let h3 = format!("{:064x}", 0x0003_u64);
+///
+/// for (hash, ts, seq) in [(&h1, ts_jan, 1i64), (&h2, ts_jan, 2), (&h3, ts_feb, 1)] {
+///     db.conn().execute(
+///         "INSERT INTO receipts (
+///             receipt_hash, scope_token, session_id,
+///             artifact_hash, declared_powl_hash, ocel_canonical_hash,
+///             gate_config_hash, prior_receipt_hash,
+///             production_law_version, granted_at, sequence, tenant_id,
+///             key_valid_at
+///          ) VALUES (?1,'s','s',?1,?1,?1,?1,NULL,'ontostar-1.0.0',?2,?3,'default','')",
+///         rusqlite::params![hash, ts, seq],
+///     ).unwrap();
+/// }
+///
+/// let stats = archive_receipts(&db, 30, arc_dir.path()).unwrap();
+/// // Three rows archived across two months → two shards.
+/// assert_eq!(stats.rows_archived, 3);
+/// assert_eq!(stats.shards_written, 2);
+///
+/// // All three hashes are recoverable.
+/// for hash in [&h1, &h2, &h3] {
+///     let found = lookup_archived(arc_dir.path(), hash).unwrap();
+///     assert!(found.is_some(), "hash {hash} must be in the archive");
+/// }
+///
+/// // h1 and h2 landed in the January shard.
+/// let r1 = lookup_archived(arc_dir.path(), &h1).unwrap().unwrap();
+/// let r2 = lookup_archived(arc_dir.path(), &h2).unwrap().unwrap();
+/// assert_eq!(r1.shard_file, "receipts-2025-01.parquet");
+/// assert_eq!(r2.shard_file, "receipts-2025-01.parquet");
+///
+/// // h3 landed in the February shard.
+/// let r3 = lookup_archived(arc_dir.path(), &h3).unwrap().unwrap();
+/// assert_eq!(r3.shard_file, "receipts-2025-02.parquet");
+/// ```
+pub fn _doctest_same_month_same_shard_anchor() {}
+
+/// Idempotency: calling `archive_receipts` a second time with the same
+/// threshold archives 0 additional rows (hot table is already empty after
+/// the first run).
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::receipt_archive::archive_receipts;
+/// use open_ontologies::state::StateDb;
+/// use tempfile::tempdir;
+///
+/// let db_dir  = tempdir().unwrap();
+/// let arc_dir = tempdir().unwrap();
+/// let db = StateDb::open(&db_dir.path().join("state.db")).unwrap();
+///
+/// let old_ts = (chrono::Utc::now() - chrono::Duration::days(400)).to_rfc3339();
+/// let hash   = format!("{:064x}", 0xfeed_u64);
+/// db.conn().execute(
+///     "INSERT INTO receipts (
+///         receipt_hash, scope_token, session_id,
+///         artifact_hash, declared_powl_hash, ocel_canonical_hash,
+///         gate_config_hash, prior_receipt_hash,
+///         production_law_version, granted_at, sequence, tenant_id,
+///         key_valid_at
+///      ) VALUES (?1,'s','s',?1,?1,?1,?1,NULL,'ontostar-1.0.0',?2,1,'default','')",
+///     rusqlite::params![hash, old_ts],
+/// ).unwrap();
+///
+/// // First run: one row is archived.
+/// let first = archive_receipts(&db, 365, arc_dir.path()).unwrap();
+/// assert_eq!(first.rows_archived, 1);
+///
+/// // Second run: hot table is empty, nothing new to archive.
+/// let second = archive_receipts(&db, 365, arc_dir.path()).unwrap();
+/// assert_eq!(second.rows_archived, 0);
+/// assert_eq!(second.shards_written, 0);
+/// ```
+pub fn _doctest_archive_idempotency_anchor() {}
+
+/// `ArchivedReceipt` shard file names follow the `"receipts-YYYY-MM.parquet"`
+/// pattern derived from the receipt's `granted_at` timestamp.
+///
+/// # Examples
+///
+/// ```
+/// use open_ontologies::receipt_archive::ArchivedReceipt;
+///
+/// // Build an ArchivedReceipt whose shard_file reflects the YYYY-MM format.
+/// let r = ArchivedReceipt {
+///     receipt_hash:            format!("{:064x}", 0u64),
+///     scope_token:             "p2p".into(),
+///     session_id:              "sess-2".into(),
+///     artifact_hash:           format!("{:064x}", 0u64),
+///     declared_powl_hash:      format!("{:064x}", 0u64),
+///     ocel_canonical_hash:     format!("{:064x}", 0u64),
+///     gate_config_hash:        format!("{:064x}", 0u64),
+///     prior_receipt_hash:      Some(format!("{:064x}", 1u64)),
+///     production_law_version:  "ontostar-1.0.0".into(),
+///     granted_at:              "2026-03-15T09:00:00Z".into(),
+///     sequence:                5,
+///     tenant_id:               "tenant-gamma".into(),
+///     key_valid_at:            String::new(),
+///     shard_file:              "receipts-2026-03.parquet".into(),
+/// };
+///
+/// // The shard_file follows "receipts-YYYY-MM.parquet".
+/// assert!(r.shard_file.starts_with("receipts-"));
+/// assert!(r.shard_file.ends_with(".parquet"));
+/// // The YYYY-MM portion of granted_at matches the shard key.
+/// let month_key = &r.granted_at[..7];   // "2026-03"
+/// let expected  = format!("receipts-{month_key}.parquet");
+/// assert_eq!(r.shard_file, expected);
+///
+/// // prior_receipt_hash is Some for non-seed receipts.
+/// assert!(r.prior_receipt_hash.is_some());
+/// ```
+pub fn _doctest_archived_receipt_shard_name_anchor() {}
+
 const ARCHIVE_INDEX_SCHEMA: &str = "
 CREATE TABLE IF NOT EXISTS archive_index (
     receipt_hash TEXT PRIMARY KEY,

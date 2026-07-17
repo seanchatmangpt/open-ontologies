@@ -1,4 +1,23 @@
 //! Marketplace Commands — list and install standard ontologies
+//!
+//! Provides CLI verbs for browsing and installing standard W3C/ISO/industry
+//! ontologies from the built-in curated catalogue (29 entries).
+//!
+//! # CLI usage
+//!
+//! ```no_run
+//! // List all available ontologies in the marketplace:
+//! //   open-ontologies marketplace list
+//! //
+//! // List ontologies filtered by domain (e.g. "upper", "clinical", "geo"):
+//! //   open-ontologies marketplace list --domain upper
+//! //
+//! // Install the FOAF ontology into the local store:
+//! //   open-ontologies marketplace install foaf
+//! //
+//! // Install SKOS into a custom data directory:
+//! //   open-ontologies marketplace install skos --data-dir /tmp/onto-test
+//! ```
 
 use clap_noun_verb::Result as NounVerbResult;
 use clap_noun_verb_macros::verb;
@@ -25,6 +44,20 @@ pub struct ListOutput {
     pub ontologies: Vec<MarketplaceEntry>,
 }
 
+/// Result returned after installing a marketplace ontology.
+///
+/// # Examples
+///
+/// ```no_run
+/// // JSON output for `marketplace install foaf`:
+/// //
+/// // {
+/// //   "ok": true,
+/// //   "installed": "foaf",
+/// //   "name": "Friend of a Friend (FOAF)",
+/// //   "triples_loaded": 631
+/// // }
+/// ```
 #[derive(Serialize)]
 pub struct InstallOutput {
     pub ok: bool,

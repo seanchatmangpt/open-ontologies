@@ -15,6 +15,25 @@
 //! foreign key (`ocel_event_attrs`, `ocel_relationships`) MUST be pruned
 //! BEFORE the parent (`ocel_events`). Otherwise SQLite's `foreign_keys=ON`
 //! pragma rejects the DELETE.
+//!
+//! # Auto-instincts: `RetentionConfig` window invariants
+//!
+//! ```
+//! use open_ontologies::config::RetentionConfig;
+//!
+//! let cfg = RetentionConfig::default();
+//!
+//! // Every retention window must be a positive number of days
+//! // so the system always has a defined disposal horizon.
+//! assert!(cfg.ocel_days > 0, "ocel_days must be positive");
+//! assert!(cfg.lineage_days > 0, "lineage_days must be positive");
+//! assert!(cfg.conformance_days > 0, "conformance_days must be positive");
+//! assert!(cfg.revocation_grace_days > 0, "revocation_grace_days must be positive");
+//! assert!(cfg.receipt_files_days > 0, "receipt_files_days must be positive");
+//! assert!(cfg.exemplar_days > 0, "exemplar_days must be positive");
+//! assert!(cfg.feedback_days > 0, "feedback_days must be positive");
+//! assert!(cfg.poll_interval_secs > 0, "poll_interval_secs must be positive");
+//! ```
 
 use crate::config::RetentionConfig;
 use crate::state::StateDb;
@@ -106,6 +125,26 @@ impl RetentionWorker {
     /// bootstrap in `src/cmds/server.rs`) can hand the same Arc to the
     /// MCP server, letting `onto_retention_pause` / `onto_retention_resume`
     /// drive the worker without an explicit channel.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use open_ontologies::state::StateDb;
+    /// use open_ontologies::retention::RetentionWorker;
+    /// use open_ontologies::config::RetentionConfig;
+    /// use std::path::Path;
+    /// use std::sync::Arc;
+    /// use std::sync::atomic::{AtomicI64, Ordering};
+    ///
+    /// let db = StateDb::open(Path::new(":memory:")).unwrap();
+    /// let shared = Arc::new(AtomicI64::new(42));
+    /// let worker = RetentionWorker::new_with_pause(db, RetentionConfig::default(), shared.clone());
+    ///
+    /// // The shared atomic is the same object — mutations are visible to both sides.
+    /// assert_eq!(worker.paused_until.load(Ordering::Relaxed), 42);
+    /// shared.store(0, Ordering::Relaxed);
+    /// assert_eq!(worker.paused_until.load(Ordering::Relaxed), 0);
+    /// ```
     pub fn new_with_pause(
         db: StateDb,
         cfg: RetentionConfig,
@@ -234,6 +273,31 @@ impl RetentionWorker {
 
     /// Cascade-delete `ocel_event_attrs` and `ocel_relationships` BEFORE
     /// `ocel_events`. Returns `(attrs, rels, events)`.
+    ///
+    /// Cascade order matters: child tables are deleted first so that
+    /// SQLite's `foreign_keys=ON` pragma does not reject the parent DELETE.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use open_ontologies::state::StateDb;
+    /// use open_ontologies::retention::RetentionWorker;
+    /// use open_ontologies::config::RetentionConfig;
+    /// use std::path::Path;
+    ///
+    /// let db = StateDb::open(Path::new(":memory:")).unwrap();
+    /// let worker = RetentionWorker::new(db, RetentionConfig::default());
+    ///
+    /// // Empty DB: no rows in any ocel_* table, all counts are zero.
+    /// let (attrs, rels, events) = worker.prune_ocel(0).unwrap();
+    /// assert_eq!(attrs, 0);
+    /// assert_eq!(rels, 0);
+    /// assert_eq!(events, 0);
+    ///
+    /// // Auto-instinct: result tuple length is 3 (attrs, rels, events).
+    /// let result = worker.prune_ocel(90).unwrap();
+    /// assert_eq!(result.0 + result.1 + result.2, 0);
+    /// ```
     pub fn prune_ocel(&self, days: u64) -> Result<(u64, u64, u64)> {
         let cutoff = days_ago(days);
         let conn = self.db.conn();
@@ -377,6 +441,24 @@ impl RetentionWorker {
         Ok(n)
     }
 
+    /// Delete `mined_exemplars` rows whose `mined_at` timestamp is older
+    /// than `days`. Returns the number of rows actually removed.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use open_ontologies::state::StateDb;
+    /// use open_ontologies::retention::RetentionWorker;
+    /// use open_ontologies::config::RetentionConfig;
+    /// use std::path::Path;
+    ///
+    /// let db = StateDb::open(Path::new(":memory:")).unwrap();
+    /// let worker = RetentionWorker::new(db, RetentionConfig::default());
+    ///
+    /// // Auto-instinct: pruning an empty table always returns 0.
+    /// let pruned = worker.prune_exemplars(365).unwrap();
+    /// assert_eq!(pruned, 0);
+    /// ```
     pub fn prune_exemplars(&self, days: u64) -> Result<u64> {
         let cutoff = days_ago(days);
         let n = self.db.conn().execute(
@@ -386,6 +468,24 @@ impl RetentionWorker {
         Ok(n)
     }
 
+    /// Delete `align_feedback` rows whose `timestamp` is older than `days`.
+    /// Returns the number of rows actually removed.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use open_ontologies::state::StateDb;
+    /// use open_ontologies::retention::RetentionWorker;
+    /// use open_ontologies::config::RetentionConfig;
+    /// use std::path::Path;
+    ///
+    /// let db = StateDb::open(Path::new(":memory:")).unwrap();
+    /// let worker = RetentionWorker::new(db, RetentionConfig::default());
+    ///
+    /// // Auto-instinct: pruning an empty align_feedback table returns 0.
+    /// let pruned = worker.prune_align_feedback(365).unwrap();
+    /// assert_eq!(pruned, 0);
+    /// ```
     pub fn prune_align_feedback(&self, days: u64) -> Result<u64> {
         let cutoff = days_ago(days);
         let n = self.db.conn().execute(
@@ -395,6 +495,24 @@ impl RetentionWorker {
         Ok(n)
     }
 
+    /// Delete `tool_feedback` rows whose `timestamp` is older than `days`.
+    /// Returns the number of rows actually removed.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use open_ontologies::state::StateDb;
+    /// use open_ontologies::retention::RetentionWorker;
+    /// use open_ontologies::config::RetentionConfig;
+    /// use std::path::Path;
+    ///
+    /// let db = StateDb::open(Path::new(":memory:")).unwrap();
+    /// let worker = RetentionWorker::new(db, RetentionConfig::default());
+    ///
+    /// // Auto-instinct: pruning an empty tool_feedback table returns 0.
+    /// let pruned = worker.prune_tool_feedback(365).unwrap();
+    /// assert_eq!(pruned, 0);
+    /// ```
     pub fn prune_tool_feedback(&self, days: u64) -> Result<u64> {
         let cutoff = days_ago(days);
         let n = self.db.conn().execute(
