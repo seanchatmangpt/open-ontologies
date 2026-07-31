@@ -27,12 +27,30 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          git fetch origin ontostar-integration
           python3 - <<'PY'
           from pathlib import Path
+          import subprocess
+
+          server = Path('src/server.rs')
+          current = server.read_text()
+          parent = subprocess.check_output(
+              ['git', 'show', 'origin/ontostar-integration:src/server.rs'],
+              text=True,
+          )
+          start_marker = '    async fn onto_embed_inner('
+          next_marker = '\n    #[tool(\n        name = "onto_hnsw_build"'
+          current_start = current.index(start_marker)
+          current_end = current.index(next_marker, current_start)
+          parent_start = parent.index(start_marker)
+          parent_end = parent.index(next_marker, parent_start)
+          repaired = current[:current_start] + parent[parent_start:parent_end] + current[current_end:]
+          if repaired.count(start_marker) != 1:
+              raise SystemExit('onto_embed_inner replacement did not produce exactly one function')
+          server.write_text(repaired)
 
           makefile = Path('Makefile')
-          text = makefile.read_text()
-          text = text.replace(
+          text = makefile.read_text().replace(
               '# version (tools/dead-param-gate.sh, deleted) with a syn::Visit AST scan.',
               '# version (the deleted shell scanner) with a syn::Visit AST scan.',
           )
@@ -95,6 +113,7 @@ jobs:
 
           - candidate before receipt: \`${head_before}\`
           - candidate tree before receipt: \`${tree_before}\`
+          - repaired source: \`src/server.rs::onto_embed_inner\` from parseable \`ontostar-integration\` parent
           - wasm4pm rev: \`057d5ba24e10c70036fc4742ede55318c7fe6949\`
           - prior lock SHA-256: \`$(cat /tmp/old-lock.sha)\`
           - regenerated lock SHA-256: \`$(cat /tmp/new-lock.sha)\`
@@ -109,6 +128,6 @@ jobs:
           touch .wip/compile.done
           git add -A
           if ! git diff --cached --quiet; then
-            git commit -m 'fix: admit exact dependency and compile receipt'
+            git commit -m 'fix: repair merged source and admit compile receipt'
             git push origin HEAD:agent/finish-wip-20260730
           fi
