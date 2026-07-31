@@ -7,7 +7,7 @@
 #
 # NOTE: ggen loads only ontology/cli-open-ontologies.ttl. The zoela ontology
 # files (routes.ttl, etc.) are not loaded by ggen. This query therefore uses a
-# UNION with a VALUES fallback so that real route gate data is always emitted
+# UNION with a static fallback so that real route gate data is always emitted
 # even when the zoela triple store is absent.
 #
 # The primary branch matches live triples using BOTH the preferred property form
@@ -115,17 +115,81 @@ WHERE {
     # Active only when no zoe:ServiceRoute exists in the store (FILTER NOT EXISTS).
     # Encodes the Food Distribution Route from ontology/zoela/routes.ttl verbatim.
     FILTER NOT EXISTS { ?anyRoute a zoe:ServiceRoute }
-    VALUES (
-      ?stageCode ?stageLabel ?routeCode
-      ?stageOrderStr ?isEntryStr ?isTerminalStr
-      ?predCodeCoalesced ?roleCodeCoalesced ?consentCodeCoalesced
-      ?receiptTypeCoalesced ?ocelTypeCoalesced ?timeoutCoalesced
-    ) {
-      ("received"  "Received"  "FOOD_DIST_V1"  "0"  "true"   "false"  ""          "MemberRole"    ""  ""                           "food_route.received"   "")
-      ("verified"  "Verified"  "FOOD_DIST_V1"  "1"  "false"  "false"  "received"  "VolunteerRole" ""  ""                           "food_route.verified"   "")
-      ("assigned"  "Assigned"  "FOOD_DIST_V1"  "2"  "false"  "false"  "verified"  "VolunteerRole" ""  ""                           "food_route.assigned"   "")
-      ("delivered" "Delivered" "FOOD_DIST_V1"  "3"  "false"  "false"  "assigned"  "VolunteerRole" ""  "ResourceDistributedReceipt"  "food.delivered"        "")
-      ("closed"    "Closed"    "FOOD_DIST_V1"  "4"  "false"  "true"   "delivered" ""              ""  "CareRouteClosedReceipt"      "care_route.closed"     "")
+    {
+      {
+        BIND("received" AS ?stageCode)
+        BIND("Received" AS ?stageLabel)
+        BIND("FOOD_DIST_V1" AS ?routeCode)
+        BIND("0" AS ?stageOrderStr)
+        BIND("true" AS ?isEntryStr)
+        BIND("false" AS ?isTerminalStr)
+        BIND("" AS ?predCodeCoalesced)
+        BIND("MemberRole" AS ?roleCodeCoalesced)
+        BIND("" AS ?consentCodeCoalesced)
+        BIND("" AS ?receiptTypeCoalesced)
+        BIND("food_route.received" AS ?ocelTypeCoalesced)
+        BIND("" AS ?timeoutCoalesced)
+      }
+      UNION
+      {
+        BIND("verified" AS ?stageCode)
+        BIND("Verified" AS ?stageLabel)
+        BIND("FOOD_DIST_V1" AS ?routeCode)
+        BIND("1" AS ?stageOrderStr)
+        BIND("false" AS ?isEntryStr)
+        BIND("false" AS ?isTerminalStr)
+        BIND("received" AS ?predCodeCoalesced)
+        BIND("VolunteerRole" AS ?roleCodeCoalesced)
+        BIND("" AS ?consentCodeCoalesced)
+        BIND("" AS ?receiptTypeCoalesced)
+        BIND("food_route.verified" AS ?ocelTypeCoalesced)
+        BIND("" AS ?timeoutCoalesced)
+      }
+      UNION
+      {
+        BIND("assigned" AS ?stageCode)
+        BIND("Assigned" AS ?stageLabel)
+        BIND("FOOD_DIST_V1" AS ?routeCode)
+        BIND("2" AS ?stageOrderStr)
+        BIND("false" AS ?isEntryStr)
+        BIND("false" AS ?isTerminalStr)
+        BIND("verified" AS ?predCodeCoalesced)
+        BIND("VolunteerRole" AS ?roleCodeCoalesced)
+        BIND("" AS ?consentCodeCoalesced)
+        BIND("" AS ?receiptTypeCoalesced)
+        BIND("food_route.assigned" AS ?ocelTypeCoalesced)
+        BIND("" AS ?timeoutCoalesced)
+      }
+      UNION
+      {
+        BIND("delivered" AS ?stageCode)
+        BIND("Delivered" AS ?stageLabel)
+        BIND("FOOD_DIST_V1" AS ?routeCode)
+        BIND("3" AS ?stageOrderStr)
+        BIND("false" AS ?isEntryStr)
+        BIND("false" AS ?isTerminalStr)
+        BIND("assigned" AS ?predCodeCoalesced)
+        BIND("VolunteerRole" AS ?roleCodeCoalesced)
+        BIND("" AS ?consentCodeCoalesced)
+        BIND("ResourceDistributedReceipt" AS ?receiptTypeCoalesced)
+        BIND("food.delivered" AS ?ocelTypeCoalesced)
+        BIND("" AS ?timeoutCoalesced)
+      }
+      UNION
+      {
+        BIND("closed" AS ?stageCode)
+        BIND("Closed" AS ?stageLabel)
+        BIND("FOOD_DIST_V1" AS ?routeCode)
+        BIND("4" AS ?stageOrderStr)
+        BIND("false" AS ?isEntryStr)
+        BIND("true" AS ?isTerminalStr)
+        BIND("delivered" AS ?predCodeCoalesced)
+        BIND("" AS ?roleCodeCoalesced)
+        BIND("" AS ?consentCodeCoalesced)
+        BIND("CareRouteClosedReceipt" AS ?receiptTypeCoalesced)
+        BIND("care_route.closed" AS ?ocelTypeCoalesced)
+        BIND("" AS ?timeoutCoalesced)
+      }
     }
   }
 }
