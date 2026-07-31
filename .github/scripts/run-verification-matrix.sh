@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
-# Single source of truth for the regression-gates verification matrix.
-# Runs every gate in declared order; first failure halts the run.
+# Single source of truth for the default-feature repository verification matrix.
+# Runs every admitted gate in declared order; first failure halts the run.
+# The reserved `mcpp` feature is UNSUPPORTED until mcpp-core is published or
+# vendored, so `--all-features` would overclaim the clean-checkout boundary.
 set -euo pipefail
 
 cd "$(dirname "$0")/../.."
@@ -10,25 +12,31 @@ step() {
   echo "── $1 ─────────────────────────────────────────────"
 }
 
-step "1/7: cargo build --lib"
-cargo build --lib --all-features
+step "1/9: ggen standards admission"
+python3 tools/verify_ggen_standards.py
 
-step "2/7: cargo test --lib"
-cargo test --lib --all-features
+step "2/9: cargo metadata --locked"
+cargo metadata --locked --format-version 1 --no-deps >/dev/null
 
-step "3/7: cargo test --tests --no-fail-fast"
-cargo test --tests --no-fail-fast
+step "3/9: cargo build --locked --lib"
+cargo build --locked --lib
 
-step "4/7: dead-param-gate"
-bash tools/dead-param-gate.sh
+step "4/9: cargo test --locked --lib"
+cargo test --locked --lib
 
-step "5/7: cargo clippy --all-targets -- -D warnings"
-cargo clippy --all-targets --all-features -- -D warnings
+step "5/9: cargo test --locked --tests --no-fail-fast"
+cargo test --locked --tests --no-fail-fast
 
-step "6/7: baseline checks (ignore + test-count + ratchet-floor)"
+step "6/9: Rust dead-parameter gate"
+cargo test --locked --test dead_param_gate_test -- --test-threads=1
+
+step "7/9: cargo clippy --locked --all-targets -- -D warnings"
+cargo clippy --locked --all-targets -- -D warnings
+
+step "8/9: baseline checks (ignore + test-count + ratchet-floor)"
 bash .github/scripts/check-ignore-baseline.sh
 bash .github/scripts/check-test-count.sh
 bash .github/scripts/check-ratchet-floor.sh
 
-step "7/7: verification matrix complete"
-echo "✓ all regression gates passed"
+step "9/9: verification matrix complete"
+echo "✓ locked default-feature regression gates passed"
