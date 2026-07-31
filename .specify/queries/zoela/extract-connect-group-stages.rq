@@ -24,15 +24,102 @@ WHERE {
       (GROUP_CONCAT(?ac; separator="|") AS ?autonomic_action_classes)
       (GROUP_CONCAT(?gc; separator="|") AS ?gate_codes)
     WHERE {
-      VALUES (?sc ?sl ?so ?se ?st ?pc ?oe ?ac ?gc) {
-        ("cg-interest-expressed"   "Interest Expressed"    "1" "true"  "false" ""                          "connect_group.interest_expressed"    "A1" "")
-        ("cg-preferences-collected" "Preferences Collected" "2" "false" "false" "cg-interest-expressed"     "connect_group.preferences_collected"  "A1" "")
-        ("cg-eligible-groups-found" "Eligible Groups Found" "3" "false" "false" "cg-preferences-collected"  "connect_group.eligible_groups_found"  "A2" "CapacityGate|ScheduleGate")
-        ("cg-invite-sent"          "Invite Sent"           "4" "false" "false" "cg-eligible-groups-found"  "connect_group.invite_sent"            "A2" "ConsentGate|NotificationBudgetGate")
-        ("cg-invite-accepted"      "Invite Accepted"       "5" "false" "false" "cg-invite-sent"            "connect_group.invite_accepted"        "A1" "CapacityGate")
-        ("cg-first-meeting-attended" "First Meeting Attended" "6" "false" "false" "cg-invite-accepted"    "connect_group.first_meeting_attended"  "A1" "")
-        ("cg-followup-completed"   "Follow-Up Completed"   "7" "false" "false" "cg-first-meeting-attended" "connect_group.followup_completed"     "A1" "")
-        ("cg-membership-active"    "Membership Active"     "8" "false" "true"  "cg-followup-completed"     "connect_group.membership_active"      "A1" "")
+      {
+        {
+          BIND("cg-interest-expressed" AS ?sc)
+          BIND("Interest Expressed" AS ?sl)
+          BIND("1" AS ?so)
+          BIND("true" AS ?se)
+          BIND("false" AS ?st)
+          BIND("" AS ?pc)
+          BIND("connect_group.interest_expressed" AS ?oe)
+          BIND("A1" AS ?ac)
+          BIND("" AS ?gc)
+        }
+        UNION
+        {
+          BIND("cg-preferences-collected" AS ?sc)
+          BIND("Preferences Collected" AS ?sl)
+          BIND("2" AS ?so)
+          BIND("false" AS ?se)
+          BIND("false" AS ?st)
+          BIND("cg-interest-expressed" AS ?pc)
+          BIND("connect_group.preferences_collected" AS ?oe)
+          BIND("A1" AS ?ac)
+          BIND("" AS ?gc)
+        }
+        UNION
+        {
+          BIND("cg-eligible-groups-found" AS ?sc)
+          BIND("Eligible Groups Found" AS ?sl)
+          BIND("3" AS ?so)
+          BIND("false" AS ?se)
+          BIND("false" AS ?st)
+          BIND("cg-preferences-collected" AS ?pc)
+          BIND("connect_group.eligible_groups_found" AS ?oe)
+          BIND("A2" AS ?ac)
+          BIND("CapacityGate|ScheduleGate" AS ?gc)
+        }
+        UNION
+        {
+          BIND("cg-invite-sent" AS ?sc)
+          BIND("Invite Sent" AS ?sl)
+          BIND("4" AS ?so)
+          BIND("false" AS ?se)
+          BIND("false" AS ?st)
+          BIND("cg-eligible-groups-found" AS ?pc)
+          BIND("connect_group.invite_sent" AS ?oe)
+          BIND("A2" AS ?ac)
+          BIND("ConsentGate|NotificationBudgetGate" AS ?gc)
+        }
+        UNION
+        {
+          BIND("cg-invite-accepted" AS ?sc)
+          BIND("Invite Accepted" AS ?sl)
+          BIND("5" AS ?so)
+          BIND("false" AS ?se)
+          BIND("false" AS ?st)
+          BIND("cg-invite-sent" AS ?pc)
+          BIND("connect_group.invite_accepted" AS ?oe)
+          BIND("A1" AS ?ac)
+          BIND("CapacityGate" AS ?gc)
+        }
+        UNION
+        {
+          BIND("cg-first-meeting-attended" AS ?sc)
+          BIND("First Meeting Attended" AS ?sl)
+          BIND("6" AS ?so)
+          BIND("false" AS ?se)
+          BIND("false" AS ?st)
+          BIND("cg-invite-accepted" AS ?pc)
+          BIND("connect_group.first_meeting_attended" AS ?oe)
+          BIND("A1" AS ?ac)
+          BIND("" AS ?gc)
+        }
+        UNION
+        {
+          BIND("cg-followup-completed" AS ?sc)
+          BIND("Follow-Up Completed" AS ?sl)
+          BIND("7" AS ?so)
+          BIND("false" AS ?se)
+          BIND("false" AS ?st)
+          BIND("cg-first-meeting-attended" AS ?pc)
+          BIND("connect_group.followup_completed" AS ?oe)
+          BIND("A1" AS ?ac)
+          BIND("" AS ?gc)
+        }
+        UNION
+        {
+          BIND("cg-membership-active" AS ?sc)
+          BIND("Membership Active" AS ?sl)
+          BIND("8" AS ?so)
+          BIND("false" AS ?se)
+          BIND("true" AS ?st)
+          BIND("cg-followup-completed" AS ?pc)
+          BIND("connect_group.membership_active" AS ?oe)
+          BIND("A1" AS ?ac)
+          BIND("" AS ?gc)
+        }
       }
     }
   }
