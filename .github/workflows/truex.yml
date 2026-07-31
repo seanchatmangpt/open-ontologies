@@ -1,0 +1,36 @@
+name: TrueX Evidence Boundary
+
+on:
+  pull_request:
+    paths:
+      - 'packages/truex/**'
+      - 'tests/truex-*.test.ts'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'tsconfig.json'
+      - 'jest.config.js'
+      - '.github/workflows/truex.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: truex-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out exact candidate
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Install pinned Node
+        uses: actions/setup-node@e51e5fe84fc33b4c73ebe40526b2694712b5b858
+        with:
+          node-version: '22.18.0'
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Verify TrueX boundary
+        run: npm run verify
