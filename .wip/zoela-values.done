@@ -2,4 +2,3 @@ ratchet=tools/activate_zoela_rules.py
 query_authorities=9
 activated_rules=11
 second_apply=byte_identical
-ggen_sha256=2d586e8f063428cbd94d219009afa8eb0450665f88a50911a4ace7a4fb1ab09d
