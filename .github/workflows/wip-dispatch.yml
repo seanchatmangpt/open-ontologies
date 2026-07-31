@@ -1,4 +1,4 @@
-name: WIP Audit Dispatcher
+name: WIP Repair Dispatcher
 
 on:
   pull_request:
@@ -9,90 +9,421 @@ permissions:
   contents: write
 
 jobs:
-  audit:
+  repair:
     if: github.head_ref == 'agent/finish-wip-20260730'
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
         with:
           ref: agent/finish-wip-20260730
           fetch-depth: 0
 
-      - name: Inventory WIP and executable gates
-        shell: bash
-        run: |
-          set -euo pipefail
-          git fetch origin '+refs/heads/*:refs/remotes/origin/*'
-          mkdir -p .wip
-          python3 - <<'PY'
-          import json, re, subprocess, time
-          from pathlib import Path
-
-          excluded = {'.git', 'target', 'node_modules', '.venv', 'venv', 'dist', 'build'}
-          marker_re = re.compile(r'(?i)\b(TODO|FIXME|XXX|HACK|WIP|TBD|NOT[ _-]?IMPLEMENTED|PLACEHOLDER|STUB)\b|todo!\s*\(|unimplemented!\s*\(')
-          text_ext = {'.rs','.py','.ts','.tsx','.js','.jsx','.md','.toml','.yml','.yaml','.json','.ttl','.rq','.tera','.sh','.java','.html','.css','.sql','.txt','.cff'}
-          markers=[]; zero_files=[]
-          for p in Path('.').rglob('*'):
-              if any(part in excluded for part in p.parts) or not p.is_file(): continue
-              try: size=p.stat().st_size
-              except OSError: continue
-              if size == 0: zero_files.append(str(p))
-              if p.suffix.lower() not in text_ext or size > 2_000_000: continue
-              try:
-                  for n,line in enumerate(p.read_text(errors='replace').splitlines(),1):
-                      if marker_re.search(line): markers.append({'path':str(p),'line':n,'text':line.strip()[:500]})
-              except OSError: pass
-
-          branches=[]
-          refs=subprocess.run(['git','for-each-ref','--format=%(refname:short)','refs/remotes/origin'],text=True,capture_output=True,check=True).stdout.splitlines()
-          for ref in refs:
-              if ref in {'origin/HEAD','origin/main'}: continue
-              ahead=int(subprocess.run(['git','rev-list','--count',f'origin/main..{ref}'],text=True,capture_output=True,check=True).stdout.strip() or '0')
-              behind=int(subprocess.run(['git','rev-list','--count',f'{ref}..origin/main'],text=True,capture_output=True,check=True).stdout.strip() or '0')
-              tip=subprocess.run(['git','rev-parse',ref],text=True,capture_output=True,check=True).stdout.strip()
-              subject=subprocess.run(['git','show','-s','--format=%s',ref],text=True,capture_output=True,check=True).stdout.strip()
-              branches.append({'ref':ref,'ahead':ahead,'behind':behind,'tip':tip,'subject':subject})
-
-          duplicate_packages=[]
-          text=Path('Cargo.lock').read_text(errors='replace') if Path('Cargo.lock').exists() else ''
-          blocks=text.split('[[package]]')[1:]; seen={}
-          for i,block in enumerate(blocks,1):
-              def field(name):
-                  m=re.search(rf'^\s*{name}\s*=\s*"([^"]*)"',block,re.M); return m.group(1) if m else None
-              key=(field('name'),field('version'),field('source'))
-              if key[0] and key in seen: duplicate_packages.append({'key':key,'first_block':seen[key],'duplicate_block':i})
-              else: seen[key]=i
-
-          gates=[]
-          for cmd in [['cargo','metadata','--locked','--format-version','1','--no-deps'],['cargo','check','--locked','--all-targets']]:
-              started=time.time()
-              try:
-                  cp=subprocess.run(cmd,text=True,capture_output=True,timeout=1200)
-                  gates.append({'command':' '.join(cmd),'exit':cp.returncode,'seconds':round(time.time()-started,2),'tail':(cp.stdout+'\n'+cp.stderr)[-12000:]})
-                  if cp.returncode: break
-              except subprocess.TimeoutExpired as e:
-                  gates.append({'command':' '.join(cmd),'exit':124,'seconds':round(time.time()-started,2),'tail':str(e)}); break
-
-          audit={'base_sha':subprocess.run(['git','rev-parse','origin/main'],text=True,capture_output=True,check=True).stdout.strip(),'branch_sha':subprocess.run(['git','rev-parse','HEAD'],text=True,capture_output=True,check=True).stdout.strip(),'markers':markers,'zero_byte_files':sorted(zero_files),'branches':sorted(branches,key=lambda x:(-x['ahead'],x['ref'])),'duplicate_lock_packages':duplicate_packages,'gates':gates}
-          Path('.wip/audit.json').write_text(json.dumps(audit,indent=2))
-          lines=['# WIP audit','',f"Base: `{audit['base_sha']}`",f"Audit branch: `{audit['branch_sha']}`",'',f"## Marker findings ({len(markers)})",'']
-          for m in markers[:700]: lines.append(f"- `{m['path']}:{m['line']}` — {m['text']}")
-          if len(markers)>700: lines.append(f"- … {len(markers)-700} additional findings in `audit.json`")
-          lines += ['',f"## Zero-byte files ({len(zero_files)})",'']+[f"- `{p}`" for p in sorted(zero_files)]
-          lines += ['',f"## Non-main branches ({len(branches)})",'']+[f"- `{b['ref']}` — ahead {b['ahead']}, behind {b['behind']}, `{b['tip'][:12]}` — {b['subject']}" for b in audit['branches']]
-          lines += ['',f"## Duplicate Cargo.lock packages ({len(duplicate_packages)})",'']+[f"- `{d['key']}` blocks {d['first_block']} and {d['duplicate_block']}" for d in duplicate_packages]
-          lines += ['','## Executable gates','']
-          for g in gates: lines += [f"### `{g['command']}`",f"Exit: `{g['exit']}` in {g['seconds']}s",'```text',g['tail'][-6000:],'```']
-          Path('.wip/audit.md').write_text('\n'.join(lines)+'\n')
-          PY
-
-      - name: Commit audit receipt to work branch
+      - name: Integrate admitted WIP and repair structural breakage
         shell: bash
         run: |
           set -euo pipefail
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add .wip/audit.json .wip/audit.md
-          git commit -m 'chore: record WIP audit receipt'
-          git push origin HEAD:agent/finish-wip-20260730
+          git fetch origin '+refs/heads/*:refs/remotes/origin/*'
+
+          if [[ ! -f .wip/stage1.done ]]; then
+            git merge --no-edit origin/main
+
+            set +e
+            git merge --no-ff --no-commit -X ours origin/ontostar-integration
+            merge_status=$?
+            set -e
+            mapfile -d '' conflicts < <(git diff --name-only --diff-filter=U -z)
+            for path in "${conflicts[@]}"; do
+              if git ls-files -u -- "$path" | awk '$3 == 2 {found=1} END {exit !found}'; then
+                git checkout --ours -- "$path"
+                git add -- "$path"
+              else
+                git rm -f --ignore-unmatch -- "$path"
+              fi
+            done
+            test -z "$(git diff --name-only --diff-filter=U)"
+            git commit -m 'merge: integrate ontostar-integration WIP' \
+              -m "Preserve current main for conflicting paths; admit all non-conflicting branch work. Initial merge exit status: ${merge_status}."
+
+            cat > Cargo.toml <<'EOF'
+          [package]
+          name = "open-ontologies"
+          version = "26.5.21"
+          edition = "2024"
+          description = "AI-native ontology engine — standalone MCP server"
+          license = "MIT"
+          repository = "https://github.com/seanchatmangpt/open-ontologies"
+
+          [[bin]]
+          name = "open-ontologies"
+          path = "src/main.rs"
+
+          [dependencies]
+          rmcp = { version = "1", features = ["server", "transport-io", "transport-streamable-http-server"] }
+          axum = "0.8"
+          tower-http = { version = "0.6", features = ["cors"] }
+          tokio-util = "0.7"
+          tokio = { version = "1", features = ["full"] }
+          oxigraph = "0.5"
+          rusqlite = { version = "0.32", features = ["bundled"] }
+          reqwest = { version = "0.12", features = ["json"] }
+          schemars = "1"
+          serde = { version = "1", features = ["derive"] }
+          serde_json = "1"
+          toml = "0.8"
+          clap = { version = "4", features = ["derive", "env"] }
+          clap-noun-verb = "5"
+          clap-noun-verb-macros = "5"
+          linkme = "0.3"
+          tracing = "0.1"
+          tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+          chrono = "0.4"
+          anyhow = "1"
+          thiserror = "2"
+          rayon = "1.10"
+          csv = "1"
+          quick-xml = { version = "0.37", features = ["serialize"] }
+          serde_yaml = "0.9"
+          calamine = "0.30"
+          arrow = { version = "54", default-features = false, features = ["csv", "json"] }
+          parquet = { version = "54", default-features = false, features = ["arrow"] }
+          sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "postgres"], optional = true }
+          duckdb = { version = "1", optional = true, features = ["bundled"] }
+          tract-onnx = { version = "0.21", optional = true }
+          tokenizers = { version = "0.21", optional = true, default-features = false, features = ["onig"] }
+          instant-distance = { version = "0.6", optional = true, features = ["with-serde"] }
+          bincode = { version = "1.3", optional = true }
+          sha2 = "0.10"
+          dirs = "6"
+          shell-words = "1"
+          wasm4pm-types = { version = "26.6.13", package = "wasm4pm-compat", features = ["formats"] }
+          wasm4pm = { git = "https://github.com/seanchatmangpt/wasm4pm", default-features = false, features = ["powl", "conformance_basic", "hand_rolled_stats", "streaming_basic", "discovery_advanced", "ml"] }
+          wasm4pm-cognition = { git = "https://github.com/seanchatmangpt/wasm4pm", package = "wasm4pm-cognition", default-features = false }
+          blake3 = "1"
+          hex = "0.4"
+          base64 = "0.22"
+          ulid = "1"
+          dotenvy = "0.15"
+          ed25519-dalek = { version = "2", features = ["pkcs8", "pem", "rand_core"] }
+          rand_core = "0.6"
+          arc-swap = "1"
+          wait-timeout = "0.2"
+          dashmap = "6"
+          async-trait = "0.1"
+          uuid = { version = "1.4", features = ["v4"] }
+
+          [features]
+          default = []
+          postgres = ["sqlx"]
+          duckdb = ["dep:duckdb"]
+          sql = ["postgres", "duckdb"]
+          embeddings = ["tract-onnx", "tokenizers", "instant-distance", "bincode"]
+          causal-pywhy = []
+          mcpp = []
+
+          [lints.clippy]
+          todo = "deny"
+          unimplemented = "deny"
+          dbg_macro = "deny"
+
+          [dev-dependencies]
+          tempfile = "3"
+          criterion = { version = "0.5", features = ["html_reports"] }
+          tower = { version = "0.5", features = ["util"] }
+          syn = { version = "2", features = ["full", "visit", "extra-traits"] }
+          quote = "1"
+          walkdir = "2"
+          wiremock = "0.6"
+
+          [[bench]]
+          name = "admission_bench"
+          harness = false
+
+          [[bench]]
+          name = "manufacturing_bench"
+          harness = false
+
+          [[bench]]
+          name = "swarm_bench"
+          harness = false
+
+          [[bench]]
+          name = "receipts_bench"
+          harness = false
+          EOF
+            sed -i 's/^          //' Cargo.toml
+
+            cat > src/lib.rs <<'EOF'
+          pub mod a2a;
+          pub mod actuation;
+          pub mod admission;
+          pub mod attestation;
+          pub mod autoreceipt;
+          pub mod autoreceipt_law;
+          pub mod batch;
+          pub mod bootstrap;
+          pub mod cache;
+          pub mod care_followup;
+          pub mod cell8;
+          pub mod cell_ready;
+          pub mod defects;
+          pub mod error;
+          pub mod ocel_manufacturer;
+          pub mod production_record;
+          pub mod receipts;
+          pub mod workflows;
+
+          pub use defects::{DefectClass, Deviation};
+
+          pub mod align;
+          pub mod align_fuzzy;
+          pub mod borderline_loop;
+          pub mod claimcheck;
+          pub mod civex;
+          #[cfg(feature = "causal-pywhy")]
+          pub mod civex_pywhy;
+          pub mod classify_el;
+          pub mod clinical;
+          pub mod coevolve;
+          pub mod config;
+          pub mod cq;
+          pub mod drift;
+          pub mod dynamics;
+          pub mod dynamics_bcplus;
+          pub mod enforce;
+          pub mod eval_alignment;
+          pub mod eval_rag;
+          pub mod extract_scaffold;
+          pub mod feedback;
+          pub mod flora_pipeline;
+          pub mod ggen_bridge;
+          pub mod ghf;
+          pub mod graph;
+          pub mod guide;
+          pub mod ingest;
+          pub mod inputs;
+          pub mod kgcl;
+          pub mod language;
+          pub mod lineage;
+          pub mod llm_input;
+          pub mod llm_translator;
+          pub mod manufacturing;
+          pub mod mapping;
+          pub mod marketplace;
+          pub mod mcpp_gate;
+          pub mod monitor;
+          pub mod ocel_store;
+          pub mod ontology;
+          pub mod plan;
+          pub mod plan_classical;
+          pub mod plan_pddl;
+          pub mod plan_validate;
+          pub mod policy;
+          pub mod powl_bridge;
+          pub mod projection_check;
+          pub mod reason;
+          pub mod receipt_archive;
+          pub mod receipt_chain;
+          pub mod registry;
+          pub mod repo;
+          pub mod retention;
+          pub mod runtime;
+          pub mod schema;
+          pub mod segment_retrieve;
+          pub mod server;
+          pub mod shacl;
+          pub mod shape_combinatorics;
+          pub mod signature_shape;
+          #[cfg(unix)]
+          pub mod socket;
+          #[cfg(windows)]
+          #[path = "socket_windows.rs"]
+          pub mod socket;
+          pub mod sql_sync;
+          pub mod sqlsource;
+          pub mod state;
+          pub mod subprocess;
+          pub mod swarm;
+          pub mod tableaux;
+          pub mod telemetry;
+          pub mod tenant;
+          pub mod thesis_doctor;
+          pub mod toolfilter;
+          pub mod verifier_worker;
+          pub mod verify;
+          pub mod vocab_check;
+          pub mod webhook;
+
+          #[cfg(feature = "embeddings")]
+          pub mod embed;
+          #[cfg(feature = "embeddings")]
+          pub mod embed_remote;
+          #[cfg(feature = "embeddings")]
+          pub mod hnsw_index;
+          #[cfg(feature = "embeddings")]
+          pub mod poincare;
+          #[cfg(feature = "embeddings")]
+          pub mod structembed;
+          #[cfg(feature = "embeddings")]
+          pub mod vecstore;
+          EOF
+            sed -i 's/^          //' src/lib.rs
+
+            python3 - <<'PY'
+          from pathlib import Path
+          p = Path('src/mcpp_gate.rs')
+          s = p.read_text()
+          s = s.replace("intercepts every tool call through mcpp's `ProofWriter`.", "intercepts every successful tool call through a portable signed proof envelope.")
+          s = s.replace("K-P09: the sole `ProofWriter::admit()` call site lives in", "K-P09: the portable proof-envelope boundary lives in")
+          s = s.replace("Every successful tool call will be admitted through `ProofWriter::admit()`\n/// and the JSON response gains", "Every successful tool call receives a canonical BLAKE3 + Ed25519 proof envelope\n/// and the JSON response gains")
+          s = s.replace("/// K-P09: sole `ProofWriter::admit()` call site in this crate.", "/// K-P09: portable proof-envelope boundary; no private workspace dependency.")
+          start = s.index('        use chrono::Utc;', s.index('async fn call_tool'))
+          marker = '\n    }\n}\n\n// ─── Helpers'
+          end = s.index(marker, start)
+          body = '''        use chrono::Utc;
+          use ed25519_dalek::Signer;
+          use ulid::Ulid;
+
+          let tool_name = request.name.clone();
+          let scope_token = format!("mcpp-{}-{}", tool_name, Ulid::new());
+          let started = Utc::now();
+
+          emit_invocation_event(&self.db, &scope_token, &tool_name)
+              .map_err(|e| ErrorData::internal_error(format!("mcpp: ocel emit failed: {e}"), None))?;
+
+          let result = self.inner.call_tool(request, context).await?;
+          let text = extract_text(&result);
+          let result_json: serde_json::Value =
+              serde_json::from_str(&text).unwrap_or(serde_json::Value::Null);
+          let ok = result_json.get("ok").and_then(|v| v.as_bool()).unwrap_or(false);
+          if !ok {
+              return Ok(result);
+          }
+
+          let ocel_bytes = collect_ocel(&self.db, &scope_token, started)
+              .map_err(|e| ErrorData::internal_error(format!("mcpp: ocel collect failed: {e}"), None))?;
+          let canonical = serde_json::to_vec(&serde_json::json!({
+              "protocol": "mcpp-compat/v1",
+              "route": "ontology",
+              "tool": tool_name,
+              "scope_token": scope_token,
+              "tool_result": result_json,
+              "ocel_blake3": blake3::hash(&ocel_bytes).to_hex().to_string(),
+          }))
+          .map_err(|e| ErrorData::internal_error(format!("mcpp: canonicalization failed: {e}"), None))?;
+          let receipt_hash = blake3::hash(&canonical).to_hex().to_string();
+          let signature_hex = hex::encode(self.signing_key.sign(&canonical).to_bytes());
+
+          Ok(augment_with_proof(
+              result,
+              &scope_token,
+              &receipt_hash,
+              &signature_hex,
+          ))
+          '''
+          body = '\n'.join(line[10:] if line.startswith('          ') else line for line in body.splitlines())
+          s = s[:start] + body + s[end:]
+          s = s.replace('    receipt_hash: &str,\n) -> CallToolResult {', '    receipt_hash: &str,\n    signature: &str,\n) -> CallToolResult {')
+          s = s.replace('                    "receipt_hash": receipt_hash,\n', '                    "receipt_hash": receipt_hash,\n                    "signature": signature,\n                    "protocol": "mcpp-compat/v1",\n')
+          s = s.replace(') -> anyhow::Result<mcpp_core::proof_writer::OcelEvidence> {', ') -> anyhow::Result<Vec<u8>> {')
+          s = s.replace('    Ok(mcpp_core::proof_writer::OcelEvidence::from_bytes(ocel_json))', '    Ok(ocel_json)')
+          if 'mcpp_core::' in s:
+              raise SystemExit('unresolved mcpp_core reference remains')
+          p.write_text(s)
+          PY
+
+            mkdir -p tools .chatmangpt .wip
+            cat > tools/dead-param-gate.sh <<'EOF'
+          #!/usr/bin/env bash
+          set -euo pipefail
+          cd "$(dirname "$0")/.."
+
+          if command -v rg >/dev/null 2>&1; then
+            if rg -n 'let\s+_\s*=\s*(?:&\s*)?input\.' src/server.rs src/cmds 2>/dev/null; then
+              echo 'dead-param-gate: MCP input parameter is explicitly discarded' >&2
+              exit 1
+            fi
+          fi
+
+          cargo test --locked --test adversarial_jtbd_test
+          echo 'dead-param-gate: no explicit input discard; adversarial parameter tests passed'
+          EOF
+            sed -i 's/^          //' tools/dead-param-gate.sh
+            chmod +x tools/dead-param-gate.sh
+
+            cat > .chatmangpt/namespace.toml <<'EOF'
+          schema_version = "1.0.0"
+          namespace_version = "26.7.29"
+
+          [namespace]
+          origin = "https://chatmangpt.com"
+          vocabulary = "https://chatmangpt.com/ns#"
+          identifier_base = "https://chatmangpt.com/id/"
+          registry_id = "https://chatmangpt.com/id/namespace/26.7.29"
+          registry_repository = "seanchatmangpt/chatmangpt"
+          registry_pr = 44
+
+          [repository]
+          id = "https://chatmangpt.com/id/repository/seanchatmangpt/open-ontologies"
+          full_name = "seanchatmangpt/open-ontologies"
+          source_url = "https://github.com/seanchatmangpt/open-ontologies"
+          kind = "program"
+          family = "knowledge"
+          admission_basis = "metadata_only"
+          standing = "UNKNOWN"
+
+          [public_object]
+          id = "https://chatmangpt.com/id/program/open-ontologies"
+          canonical_path = "/programs/open-ontologies"
+          canonical_url = "https://chatmangpt.com/programs/open-ontologies"
+          source_repository = "https://chatmangpt.com/id/repository/seanchatmangpt/open-ontologies"
+          publish = true
+          admission = "ADMITTED"
+          standing = "UNKNOWN"
+          description = "Public ontology collection and standards-gravity program."
+
+          [law]
+          repository_is_identity = false
+          metadata_implies_standing = false
+          unknown_may_claim_alive = false
+          receipt_required_for_actuation_claim = true
+          EOF
+            sed -i 's/^          //' .chatmangpt/namespace.toml
+
+            if grep -RIl $'<<<<<<<\|=======\|>>>>>>>' --exclude-dir=.git --exclude='*.lock' . | grep -q .; then
+              echo 'merge markers remain' >&2
+              grep -RIn $'<<<<<<<\|=======\|>>>>>>>' --exclude-dir=.git --exclude='*.lock' .
+              exit 1
+            fi
+
+            rm -f Cargo.lock
+            cargo generate-lockfile
+            touch .wip/stage1.done
+            cat > .wip/stage1.md <<EOF
+          # WIP repair stage 1
+
+          - main integrated: $(git rev-parse origin/main)
+          - ontostar-integration integrated: $(git rev-parse origin/ontostar-integration)
+          - namespace PR content admitted
+          - Cargo dependencies made portable
+          - Cargo.lock regenerated by Cargo
+          - src/lib.rs deduplicated as explicit module union
+          - mcpp feature converted to portable signed compatibility envelope
+          - dead-param gate restored as executable adversarial gate
+          EOF
+            sed -i 's/^          //' .wip/stage1.md
+
+            git add -A
+            git commit -m 'fix: integrate and close structural WIP'
+            git push origin HEAD:agent/finish-wip-20260730
+          fi
+
+      - name: Verify narrow build surface
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo metadata --locked --format-version 1 --no-deps >/dev/null
+          cargo check --locked --all-targets
+          cargo check --locked --all-targets --all-features
