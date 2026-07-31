@@ -35,62 +35,60 @@ SELECT
 WHERE {
   # Seed concrete follow-up rule individuals via VALUES since care.ttl is schema-only.
   # Each row pairs a trigger CareRequestType with a FollowUpMethod and scheduling window.
-  VALUES (
-    ?r
-    ?lbl
-    ?triggerLabel
-    ?methodLabel
-    ?daysStr
-    ?roleLabels
-  ) {
-    (
-      zoe:followup-rule-crisis-immediate-call
-      "Crisis Immediate Call"
-      "Crisis"
-      "Call"
-      "1"
-      "Pastoral Staff|Care Team Lead"
-    )
-    (
-      zoe:followup-rule-bereavement-home-visit
-      "Bereavement Home Visit"
-      "Bereavement"
-      "Home Visit"
-      "3"
-      "Pastoral Staff"
-    )
-    (
-      zoe:followup-rule-food-need-text-confirmation
-      "Food Need Text Confirmation"
-      "Food Need"
-      "Text"
-      "2"
-      "Care Team Volunteer|Care Team Lead"
-    )
-    (
-      zoe:followup-rule-prayer-encouragement-text
-      "Prayer Encouragement Text"
-      "Prayer"
-      "Text"
-      "7"
-      "Care Team Volunteer"
-    )
-    (
-      zoe:followup-rule-hospital-pastoral-visit
-      "Hospital Pastoral Visit"
-      "Hospital"
-      "Church Visit"
-      "1"
-      "Pastoral Staff"
-    )
-    (
-      zoe:followup-rule-benevolence-email-followthrough
-      "Benevolence Email Follow-Through"
-      "Benevolence"
-      "Email"
-      "5"
-      "Care Team Lead"
-    )
+  {
+    {
+      BIND(zoe:followup-rule-crisis-immediate-call AS ?r)
+      BIND("Crisis Immediate Call" AS ?lbl)
+      BIND("Crisis" AS ?triggerLabel)
+      BIND("Call" AS ?methodLabel)
+      BIND("1" AS ?daysStr)
+      BIND("Pastoral Staff|Care Team Lead" AS ?roleLabels)
+    }
+    UNION
+    {
+      BIND(zoe:followup-rule-bereavement-home-visit AS ?r)
+      BIND("Bereavement Home Visit" AS ?lbl)
+      BIND("Bereavement" AS ?triggerLabel)
+      BIND("Home Visit" AS ?methodLabel)
+      BIND("3" AS ?daysStr)
+      BIND("Pastoral Staff" AS ?roleLabels)
+    }
+    UNION
+    {
+      BIND(zoe:followup-rule-food-need-text-confirmation AS ?r)
+      BIND("Food Need Text Confirmation" AS ?lbl)
+      BIND("Food Need" AS ?triggerLabel)
+      BIND("Text" AS ?methodLabel)
+      BIND("2" AS ?daysStr)
+      BIND("Care Team Volunteer|Care Team Lead" AS ?roleLabels)
+    }
+    UNION
+    {
+      BIND(zoe:followup-rule-prayer-encouragement-text AS ?r)
+      BIND("Prayer Encouragement Text" AS ?lbl)
+      BIND("Prayer" AS ?triggerLabel)
+      BIND("Text" AS ?methodLabel)
+      BIND("7" AS ?daysStr)
+      BIND("Care Team Volunteer" AS ?roleLabels)
+    }
+    UNION
+    {
+      BIND(zoe:followup-rule-hospital-pastoral-visit AS ?r)
+      BIND("Hospital Pastoral Visit" AS ?lbl)
+      BIND("Hospital" AS ?triggerLabel)
+      BIND("Church Visit" AS ?methodLabel)
+      BIND("1" AS ?daysStr)
+      BIND("Pastoral Staff" AS ?roleLabels)
+    }
+    UNION
+    {
+      BIND(zoe:followup-rule-benevolence-email-followthrough AS ?r)
+      BIND("Benevolence Email Follow-Through" AS ?lbl)
+      BIND("Benevolence" AS ?triggerLabel)
+      BIND("Email" AS ?methodLabel)
+      BIND("5" AS ?daysStr)
+      BIND("Care Team Lead" AS ?roleLabels)
+    }
   }
 
   BIND(STR(?r)    AS ?rule_iri)
