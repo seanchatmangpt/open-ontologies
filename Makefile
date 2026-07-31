@@ -16,11 +16,10 @@ test:
 lint:
 	cargo clippy --locked --all-targets -- -D warnings
 
-# R6 WB — dead-param + gate-fn-discard scanner. Replaces the shell+grep
-# version (tools/dead-param-gate.sh, deleted) with a syn::Visit AST scan.
-# Source-level pass closes B1 false-positive set; companion expanded.rs
-# scan (when target/expanded.rs is present from `make expand`) closes B3
-# (macro_rules-laundered let _ = $p; patterns crossing crate boundaries).
+# R6 WB — dead-param + gate-fn-discard scanner. Replaces the deleted shell
+# predecessor with a syn::Visit AST scan. Source-level pass closes the B1
+# false-positive set; companion expanded.rs scan (when target/expanded.rs is
+# present from `make expand`) closes B3 macro-laundered discard patterns.
 check-dead-params:
 	cargo test --locked --test dead_param_gate_test -- --test-threads=1
 
@@ -33,18 +32,13 @@ check-test-removal-tag:
 # R6 WB — AST-based no-bypass audit. The legacy string-find scan in
 # tests/no_bypass_audit.rs survives but is now joined by an order-
 # independent #[tool(...)] extractor, a derive allowlist, and a B1-B4
-# sabotage suite. All four bypass theses (positional name=, macro-
-# wrapped admission, macro-laundered let _ = $p;, expanded.rs arm-count
-# drift) become red→green via this gate.
+# sabotage suite. All four bypass theses become red→green via this gate.
 check-ast-audit:
 	cargo test --locked --test round5_ast_red_team --test round5_ast_red_team_sabotage --test derive_allowlist_audit -- --test-threads=1
 
 # R6 WB — `cargo expand` integration. Produces target/expanded.rs which
-# the AST audit's expanded_dispatch_arms_match_source_attributes test
-# consumes for B4 closure (rmcp version drift silently dropping
-# dispatch arms). Belongs only in `make adversarial` — the ~25-50s
-# expand cost on every save creates dev friction that pressures
-# contributors to bypass.
+# the AST audit consumes for dispatch-arm closure. Belongs only in
+# `make adversarial`; the expand cost on every save creates bypass pressure.
 EXPAND_BIN := $(shell command -v cargo-expand 2>/dev/null)
 
 expand-prereq:
@@ -172,15 +166,8 @@ clean:
 	cargo clean
 
 # ─── Round 4 WD — §29 worktree GC ─────────────────────────────────────────
-#
-# Stale git worktrees (created during long-running adversarial cascades)
-# accumulate under `.git/worktrees/` and waste disk + confuse `git worktree
-# list`. `clean-worktrees` is the strict variant: it prunes worktree
-# administrative files AND removes any worktree directories Git no longer
-# recognizes. `clean-worktrees-soft` is the warn-only variant wired into
-# `make adversarial` — it counts stale worktrees and prints a warning,
-# but never fails the build (so a CI run on a contributor's branch with
-# legitimate parallel worktrees does not regress).
+# Stale git worktrees accumulate under `.git/worktrees/`. The strict variant
+# prunes administrative files; the soft variant reports without failing CI.
 
 clean-worktrees:
 	@echo "→ pruning stale git worktrees…"
