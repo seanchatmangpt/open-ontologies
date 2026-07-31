@@ -1,0 +1,111 @@
+schema = "chatmangpt.ggen-standards/v1"
+standard_id = "ggen-v26.7.31"
+repository = "seanchatmangpt/open-ontologies"
+public_system = "OntoStar"
+manufacturing_equation = "A = μ(O*)"
+source_authority = "AGENTS.md"
+required_broker = "BRCE"
+release_standing = "UNKNOWN"
+metadata_implies_standing = false
+source_generation_may_promote = false
+lifecycle_is_standing = false
+
+[authority]
+model_output = "candidate_only"
+agent_output = "candidate_only"
+planner_output = "candidate_only"
+intent_hook = "non_actuating"
+external_actuation = "brce_only"
+emergency_bypass = false
+legacy_bypass = false
+
+[standing]
+allowed = [
+  "ALIVE",
+  "PARTIAL_ALIVE",
+  "BLOCKED",
+  "BUILD_BROKEN",
+  "UNKNOWN",
+  "UNSUPPORTED",
+]
+alive_requires_all_evidence = true
+weighted_average_may_promote = false
+
+[evidence]
+required_surfaces = [
+  "positive_witness",
+  "negative_falsifier",
+  "independent_verifier",
+  "receipt_verification",
+  "deterministic_replay",
+]
+receipt_bindings = [
+  "commit",
+  "git_tree",
+  "policy_digest",
+  "observation_digest",
+  "artifact_digest",
+]
+consequence_dimensions = [
+  "substrate",
+  "state",
+  "process_log",
+  "telemetry",
+  "causality",
+]
+
+[process]
+chain = ["O", "O*", "I", "G", "A", "R", "O'"]
+idempotency_before_actuation = true
+bounded_retry = true
+circuit_breaker = true
+andon_stop_the_line = true
+error_budget_gate = true
+receipted_rollback = true
+bounded_mapek = true
+command_success_is_consequence_success = false
+
+[generation]
+authority_order = [
+  "admitted_rdf",
+  "fail_closed_gates",
+  "deterministic_projection",
+  "generated_consequence",
+  "independent_verification",
+  "receipt",
+  "byte_identical_replay",
+]
+hand_edit_generated_outputs = false
+one_owner_per_output = true
+second_manufacture_required = true
+
+[process_evidence]
+powl_is_precedence_list = false
+ocel_from_real_execution = true
+dropped_required_evidence_may_promote = false
+mustar_owns_model_identity = false
+models_have_execution_authority = false
+
+[portability]
+clean_checkout_is_build_unit = true
+absolute_paths_allowed = false
+git_dependencies_require_immutable_revision = true
+private_unpublished_dependency_policy = "vendor_publish_or_unsupported"
+lockfile_duplicate_identity_allowed = false
+pinned_release_toolchain = true
+
+[ci]
+exact_head_required = true
+explicit_permissions_required = true
+workflow_inventory_required = true
+workflow_output_owner_required = true
+immutable_action_references_target = true
+inherited_failure_reproduction_required = true
+bounded_success_may_claim_repository_alive = false
+
+[exclusions]
+external_model_execution = "UNKNOWN"
+external_brce_actuation = "UNKNOWN"
+production_consequence_replay = "UNKNOWN"
+production_load_slo = "UNKNOWN"
+self_awarded_external_attestation = "UNSUPPORTED"
