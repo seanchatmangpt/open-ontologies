@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any
 
 SCHEMA = "chatmangpt.ggen-standards-report/v1"
+WASM4PM_PRECISE = "f1d4d7ac8b2f9a0265be82991487766eb35b4675"
 EXPECTED_STANDINGS = [
     "ALIVE",
     "PARTIAL_ALIVE",
@@ -33,6 +34,13 @@ EXPECTED_EVIDENCE = [
     "deterministic_replay",
 ]
 EXPECTED_CHAIN = ["O", "O*", "I", "G", "A", "R", "O'"]
+REQUIRED_WORKFLOW_IDS = {
+    "ggen-standards",
+    "verification-matrix",
+    "regression-gates",
+    "cascade",
+    "docker",
+}
 REQUIRED_AGENT_FRAGMENTS = [
     "A = μ(O*)",
     "candidate != verified != authorized != actuated",
@@ -83,23 +91,47 @@ def load_toml(path: Path) -> dict[str, Any]:
         ) from exc
 
 
+def load_json(path: Path) -> dict[str, Any]:
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ContractRefusal(
+            "GGEN-STD-PARSE-002",
+            f"cannot parse required JSON {path.as_posix()}: {exc}",
+        ) from exc
+    if not isinstance(value, dict):
+        raise ContractRefusal("GGEN-STD-PARSE-002", f"{path.as_posix()} must be a JSON object")
+    return value
+
+
 def field(block: str, name: str) -> str | None:
     match = re.search(rf'^\s*{re.escape(name)}\s*=\s*"([^"]*)"', block, re.MULTILINE)
     return match.group(1) if match else None
 
 
-def duplicate_lock_identities(lock_path: Path) -> list[dict[str, Any]]:
+def package_blocks(lock_path: Path) -> list[dict[str, Any]]:
     try:
         text = lock_path.read_text(encoding="utf-8", errors="replace")
     except OSError as exc:
         raise ContractRefusal("GGEN-STD-LOCK-001", f"cannot read Cargo.lock: {exc}") from exc
+    return [
+        {
+            "block": number,
+            "name": field(block, "name"),
+            "version": field(block, "version"),
+            "source": field(block, "source"),
+            "text": block,
+        }
+        for number, block in enumerate(text.split("[[package]]")[1:], 1)
+        if field(block, "name")
+    ]
 
+
+def duplicate_lock_identities(lock_path: Path) -> list[dict[str, Any]]:
     duplicates: list[dict[str, Any]] = []
     seen: dict[tuple[str | None, str | None, str | None], int] = {}
-    for number, block in enumerate(text.split("[[package]]")[1:], 1):
-        key = (field(block, "name"), field(block, "version"), field(block, "source"))
-        if not key[0]:
-            continue
+    for package in package_blocks(lock_path):
+        key = (package["name"], package["version"], package["source"])
         if key in seen:
             duplicates.append(
                 {
@@ -107,12 +139,16 @@ def duplicate_lock_identities(lock_path: Path) -> list[dict[str, Any]]:
                     "version": key[1],
                     "source": key[2],
                     "first_block": seen[key],
-                    "duplicate_block": number,
+                    "duplicate_block": package["block"],
                 }
             )
         else:
-            seen[key] = number
+            seen[key] = package["block"]
     return duplicates
+
+
+def find_package(lock_path: Path, name: str) -> list[dict[str, Any]]:
+    return [package for package in package_blocks(lock_path) if package["name"] == name]
 
 
 def absolute_path_references(root: Path) -> list[dict[str, Any]]:
@@ -150,14 +186,20 @@ def stale_dead_param_references(root: Path) -> list[dict[str, Any]]:
     return findings
 
 
+def manifest_version(cargo: str) -> str | None:
+    package = cargo.split("[dependencies]", 1)[0]
+    return field(package, "version")
+
+
 def verify_contract(root: Path) -> list[Check]:
     checks: list[Check] = []
     agents_path = root / "AGENTS.md"
     profile_path = root / "standards" / "ggen-v26.7.31.toml"
     cargo_path = root / "Cargo.toml"
     namespace_path = root / ".chatmangpt" / "namespace.toml"
+    release_path = root / "RELEASE_STANDING.json"
 
-    for required in (agents_path, profile_path, cargo_path, namespace_path):
+    for required in (agents_path, profile_path, cargo_path, namespace_path, release_path):
         checks.append(
             require(
                 required.is_file(),
@@ -275,6 +317,18 @@ def verify_contract(root: Path) -> list[Check]:
         )
     )
 
+    release = load_json(release_path)
+    checks.append(
+        require(
+            release.get("standing") == "UNKNOWN"
+            and release.get("external_actuation") is False
+            and release.get("external_consequence_replay") is False,
+            "GGEN-STD-RELEASE-001",
+            "unobserved external release surfaces remain UNKNOWN",
+            release=release,
+        )
+    )
+
     cargo = cargo_path.read_text(encoding="utf-8", errors="replace")
     absolute_paths = absolute_path_references(root)
     checks.append(
@@ -292,19 +346,21 @@ def verify_contract(root: Path) -> list[Check]:
             "Cargo package metadata names the governing repository",
         )
     )
+    checks.append(
+        require(
+            "mcpp-core" not in cargo and re.search(r"^mcpp\s*=\s*\[\s*\]\s*$", cargo, re.MULTILINE),
+            "GGEN-STD-UNSUPPORTED-001",
+            "unpublished mcpp-core is quarantined as an unsupported empty feature",
+        )
+    )
     return checks
 
 
 def verify_repository(root: Path) -> list[Check]:
     checks = verify_contract(root)
     lock_path = root / "Cargo.lock"
-    checks.append(
-        require(
-            lock_path.is_file(),
-            "GGEN-STD-LOCK-001",
-            "Cargo.lock is committed",
-        )
-    )
+    checks.append(require(lock_path.is_file(), "GGEN-STD-LOCK-001", "Cargo.lock is committed"))
+
     duplicates = duplicate_lock_identities(lock_path)
     checks.append(
         require(
@@ -312,6 +368,44 @@ def verify_repository(root: Path) -> list[Check]:
             "GGEN-STD-LOCK-002",
             "Cargo.lock has unique package identities",
             duplicates=duplicates,
+        )
+    )
+
+    cargo = (root / "Cargo.toml").read_text(encoding="utf-8", errors="replace")
+    root_packages = find_package(lock_path, "open-ontologies")
+    checks.append(
+        require(
+            len(root_packages) == 1 and root_packages[0]["version"] == manifest_version(cargo),
+            "GGEN-STD-LOCK-003",
+            "manifest and root lock package versions agree",
+            manifest_version=manifest_version(cargo),
+            lock_versions=[package["version"] for package in root_packages],
+        )
+    )
+
+    wasm4pm = find_package(lock_path, "wasm4pm")
+    cognition = find_package(lock_path, "wasm4pm-cognition")
+    expected_source = f"git+https://github.com/seanchatmangpt/wasm4pm#{WASM4PM_PRECISE}"
+    checks.append(
+        require(
+            len(wasm4pm) == 1
+            and len(cognition) == 1
+            and wasm4pm[0]["source"] == expected_source
+            and cognition[0]["source"] == expected_source,
+            "GGEN-STD-LOCK-004",
+            "wasm4pm process and cognition authorities resolve to one exact commit",
+            expected_source=expected_source,
+            wasm4pm_sources=[package["source"] for package in wasm4pm],
+            cognition_sources=[package["source"] for package in cognition],
+        )
+    )
+    compat = find_package(lock_path, "wasm4pm-compat")
+    checks.append(
+        require(
+            len(compat) == 1 and compat[0]["version"] == "26.6.29",
+            "GGEN-STD-LOCK-005",
+            "portable wasm4pm type boundary is exactly wasm4pm-compat 26.6.29",
+            observed=[package["version"] for package in compat],
         )
     )
 
@@ -325,11 +419,33 @@ def verify_repository(root: Path) -> list[Check]:
         )
     )
 
+    inventory_path = root / "standards" / "workflows.toml"
+    inventory = load_toml(inventory_path)
+    workflows = inventory.get("workflow", [])
+    observed_ids = {entry.get("id") for entry in workflows if isinstance(entry, dict)}
+    missing_ids = sorted(REQUIRED_WORKFLOW_IDS - observed_ids)
+    missing_paths = sorted(
+        entry.get("path")
+        for entry in workflows
+        if isinstance(entry, dict)
+        and isinstance(entry.get("path"), str)
+        and not (root / entry["path"]).is_file()
+    )
+    checks.append(
+        require(
+            not missing_ids and not missing_paths,
+            "GGEN-STD-CI-002",
+            "critical workflows have named semantic and output owners",
+            missing_ids=missing_ids,
+            missing_paths=missing_paths,
+        )
+    )
+
     workflow = root / ".github" / "workflows" / "ggen-standards.yml"
     checks.append(
         require(
             workflow.is_file(),
-            "GGEN-STD-CI-002",
+            "GGEN-STD-CI-003",
             "permanent exact-head ggen standards workflow exists",
             path=workflow.relative_to(root).as_posix(),
         )
@@ -340,7 +456,7 @@ def verify_repository(root: Path) -> list[Check]:
             "permissions:\n  contents: read" in workflow_text
             and "python3 tools/verify_ggen_standards.py" in workflow_text
             and "cargo metadata --locked" in workflow_text,
-            "GGEN-STD-CI-003",
+            "GGEN-STD-CI-004",
             "standards workflow is read-only and verifies the locked exact tree",
         )
     )
@@ -362,11 +478,7 @@ def build_report(root: Path, contract_only: bool) -> tuple[dict[str, Any], int]:
         "mode": "contract_only" if contract_only else "repository",
         "checks": [asdict(check) for check in checks],
         "refusal": (
-            {
-                "id": refusal.refusal_id,
-                "detail": refusal.detail,
-                "evidence": refusal.evidence,
-            }
+            {"id": refusal.refusal_id, "detail": refusal.detail, "evidence": refusal.evidence}
             if refusal
             else None
         ),
