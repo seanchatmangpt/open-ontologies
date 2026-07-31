@@ -93,6 +93,18 @@ jobs:
           printf '%s\n' "$old_lock" > /tmp/old-lock.sha
           printf '%s\n' "$new_lock" > /tmp/new-lock.sha
 
+      - name: Persist normalized checkpoint
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add Cargo.lock src Makefile .github/scripts/run-verification-matrix.sh
+          if ! git diff --cached --quiet; then
+            git commit -m 'fix: normalize merged source and dependency graph'
+            git push origin HEAD:agent/finish-wip-20260730
+          fi
+
       - name: Verify constitutional and compile boundaries
         shell: bash
         run: |
@@ -129,8 +141,6 @@ jobs:
           EOF
           sed -i 's/^          //' .wip/dependency-boundary.md
           touch .wip/compile.done
-          git add -A
-          if ! git diff --cached --quiet; then
-            git commit -m 'fix: repair merged source and admit compile receipt'
-            git push origin HEAD:agent/finish-wip-20260730
-          fi
+          git add .wip/dependency-boundary.md .wip/compile.done
+          git commit -m 'chore: record exact compile receipt'
+          git push origin HEAD:agent/finish-wip-20260730
