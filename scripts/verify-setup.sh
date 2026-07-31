@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
-# verify-setup.sh — Quick health check for open-ontologies dev environment.
-# Run after cloning or after pulling major changes.
-# Exit 0: setup is healthy. Exit 1: one or more issues found.
+# verify-setup.sh — Quick health check for a clean open-ontologies checkout.
+# Exit 0: bounded default-feature setup is healthy. Exit 1: issues found.
 
 set -euo pipefail
 
@@ -19,23 +18,36 @@ echo "────────────────────────�
 # ── 1. Rust toolchain ────────────────────────────────
 echo "1. Rust toolchain"
 if command -v cargo >/dev/null 2>&1; then
-    ok "cargo $(cargo --version 2>&1 | head -1)"
+    observed="$(rustc --version 2>&1 | awk '{print $2}')"
+    if [ "$observed" = "1.97.1" ]; then
+        ok "rustc $observed matches rust-toolchain.toml"
+    else
+        fail "rustc $observed does not match admitted 1.97.1 toolchain"
+    fi
 else
     fail "cargo not found — install Rust via https://rustup.rs"
 fi
 
-# ── 2. Required sister repos ─────────────────────────
-echo "2. Sister repositories"
-for path in \
-    /Users/sac/wasm4pm \
-    /Users/sac/mcpp \
-    /Users/sac/mcpp/crates/mcpp-core; do
-    if [ -d "$path" ]; then
-        ok "$path"
-    else
-        fail "Missing: $path (required by Cargo.toml path dep)"
-    fi
-done
+# ── 2. Constitutional and dependency admission ─────
+echo "2. Constitutional and dependency admission"
+if python3 tools/verify_ggen_standards.py >/dev/null; then
+    ok "ggen v26.7.31 repository contract admitted"
+else
+    fail "ggen standards verifier refused the repository"
+fi
+if cargo metadata --locked --format-version 1 --no-deps >/dev/null 2>&1; then
+    ok "committed Cargo.lock resolves without workstation paths"
+else
+    fail "locked dependency metadata does not resolve"
+fi
+if grep -Eq 'path\s*=\s*"(/|[A-Za-z]:\\)' Cargo.toml; then
+    fail "Cargo.toml contains an absolute workstation dependency"
+else
+    ok "Cargo.toml has no absolute workstation dependency"
+fi
+if grep -Eq '^mcpp\s*=\s*\[\s*\]\s*$' Cargo.toml; then
+    warn "mcpp feature is reserved but UNSUPPORTED until mcpp-core is published or vendored"
+fi
 
 # ── 3. Python scripts dependencies ───────────────────
 echo "3. Python environment"
@@ -49,13 +61,13 @@ if command -v python3 >/dev/null 2>&1; then
         fi
     done
 else
-    warn "python3 not found (needed for Groq integration scripts)"
+    fail "python3 not found (required by the standards verifier)"
 fi
 
 # ── 4. Binary compiles ───────────────────────────────
 echo "4. Binary compilation"
-if cargo build --release -q 2>/dev/null; then
-    ok "cargo build --release succeeded"
+if cargo build --locked --release -q 2>/dev/null; then
+    ok "cargo build --locked --release succeeded"
     BIN=./target/release/open-ontologies
     if "$BIN" --help >/dev/null 2>&1; then
         ok "binary starts (--help exit 0)"
@@ -63,7 +75,7 @@ if cargo build --release -q 2>/dev/null; then
         fail "binary exits non-zero on --help"
     fi
 else
-    fail "cargo build --release failed — run 'cargo check' for details"
+    fail "locked release build failed — run 'cargo check --locked' for details"
 fi
 
 # ── 5. Config file ───────────────────────────────────
@@ -88,11 +100,11 @@ fi
 
 # ── 6. Key environment variables ─────────────────────
 echo "6. Environment"
-for var in GROQ_API_KEY MCPP_SIGNING_KEY_PATH OPEN_ONTOLOGIES_SIGNING_KEY_PATH; do
+for var in GROQ_API_KEY OPEN_ONTOLOGIES_SIGNING_KEY_PATH; do
     if [ -n "${!var:-}" ]; then
         ok "$var is set"
     else
-        warn "$var not set (optional — see README for when it's needed)"
+        warn "$var not set (optional — see README for when it is needed)"
     fi
 done
 
@@ -101,7 +113,7 @@ echo "7. make check"
 if make check -s 2>/dev/null; then
     ok "make check passed"
 else
-    fail "make check failed — fix compilation errors before proceeding"
+    fail "make check failed — inspect the first refused gate"
 fi
 
 # ── Summary ──────────────────────────────────────────
@@ -112,6 +124,6 @@ if [ "$FAIL" -gt 0 ]; then
     echo "  Setup has issues — fix the [!!] items above."
     exit 1
 else
-    echo "  Setup looks good. Run 'make test' to verify."
+    echo "  Bounded default-feature setup looks good."
     exit 0
 fi
