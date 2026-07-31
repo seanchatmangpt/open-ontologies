@@ -2,7 +2,9 @@
   "name": "truex-monorepo",
   "private": true,
   "scripts": {
-    "test": "jest tests/truex-summary-only-refusal.test.ts"
+    "typecheck": "tsc --noEmit",
+    "test": "jest --runInBand --testPathPattern=truex",
+    "verify": "npm run typecheck && npm test"
   },
   "devDependencies": {
     "@types/jest": "^29.5.0",
