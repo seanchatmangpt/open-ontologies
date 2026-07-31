@@ -1,0 +1,9 @@
+{
+  "schema": "chatmangpt.release-standing/v1",
+  "repository": "seanchatmangpt/open-ontologies",
+  "standard": "ggen-v26.7.31",
+  "standing": "UNKNOWN",
+  "reason": "Source law and deterministic repository verification do not prove external BRCE actuation, consequence observation, receipt verification, or replay.",
+  "external_actuation": false,
+  "external_consequence_replay": false
+}
