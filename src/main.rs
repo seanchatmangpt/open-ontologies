@@ -4,14 +4,14 @@
 //! clap-noun-verb discovers `#[verb]` functions via linkme distributed slices.
 
 #![allow(non_upper_case_globals)] // linkme-generated statics
-#![allow(clippy::unused_unit)]    // #[verb] macro generates unit expressions
+#![allow(clippy::unused_unit)] // #[verb] macro generates unit expressions
 
 mod cmds;
 
 fn main() -> anyhow::Result<()> {
-    // The root async future is polled on the calling thread. Windows gives
-    // the main thread 1 MiB of stack (vs 8 MiB on Linux/macOS), which
-    // overflows in debug builds, so run on a thread with an explicit 8 MiB.
+    // The root async future is polled on the spawned thread. Windows gives the
+    // process main thread a smaller stack than Linux/macOS, so preserve the
+    // explicit 8 MiB boundary used by upstream.
     std::thread::Builder::new()
         .stack_size(8 * 1024 * 1024)
         .spawn(async_main)?
@@ -20,12 +20,6 @@ fn main() -> anyhow::Result<()> {
 }
 
 #[tokio::main]
-async fn main() {
-    match clap_noun_verb::run() {
-        Ok(()) => std::process::exit(0),
-        Err(e) => {
-            eprintln!("ERROR: {}", e);
-            std::process::exit(1);
-        }
-    }
+async fn async_main() -> anyhow::Result<()> {
+    clap_noun_verb::run().map_err(|error| anyhow::anyhow!(error.to_string()))
 }
