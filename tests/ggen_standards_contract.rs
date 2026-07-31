@@ -31,6 +31,7 @@ fn copy_contract_fixture() -> TempDir {
     for relative in [
         "AGENTS.md",
         "Cargo.toml",
+        "RELEASE_STANDING.json",
         ".chatmangpt/namespace.toml",
         "standards/ggen-v26.7.31.toml",
     ] {
