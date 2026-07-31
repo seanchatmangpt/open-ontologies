@@ -25,6 +25,7 @@ export interface ObservedOcel {
 }
 
 export interface ReceiptData {
+  receipt_hash?: string | null;
   stdout_hash?: string | null;
   stderr_hash?: string | null;
   raw_evidence?: RawEvidence | null;
@@ -35,6 +36,7 @@ export interface ReceiptData {
 
 /** Immutable evidence carrier. Receipt construction never implies admission. */
 export class Receipt {
+  public readonly receipt_hash: string | null;
   public readonly stdout_hash: string | null;
   public readonly stderr_hash: string | null;
   public readonly raw_evidence: RawEvidence | null;
@@ -43,6 +45,7 @@ export class Receipt {
   public readonly expected_ocel_hash: string | null;
 
   constructor(data: ReceiptData) {
+    this.receipt_hash = data.receipt_hash ?? null;
     this.stdout_hash = data.stdout_hash ?? null;
     this.stderr_hash = data.stderr_hash ?? null;
     this.raw_evidence = data.raw_evidence ?? null;
