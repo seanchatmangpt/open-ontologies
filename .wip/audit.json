@@ -1,0 +1,1473 @@
+{
+  "base_sha": "0d553c77e86ae252ee627b5e11843a08f3b36ee5",
+  "branch_sha": "bd2e835328737e1b46c679154a5af810eefdde67",
+  "markers": [
+    {
+      "path": "CHANGELOG.md",
+      "line": 76,
+      "text": "`revoked_principals` table lands (TODO marker in code). New"
+    },
+    {
+      "path": "CHANGELOG.md",
+      "line": 323,
+      "text": "TODO(R6) \u2014 same disease, deferred fix template."
+    },
+    {
+      "path": "CHANGELOG.md",
+      "line": 357,
+      "text": "`TODO(R6 \u00a715.A9)`, `TODO(R6 \u00a715.A11)`, `TODO(R6 \u00a715.A12)` comments"
+    },
+    {
+      "path": "CHANGELOG.md",
+      "line": 678,
+      "text": "- `engine=\"groq_pm4py\"` subprocess transport \u2014 MCP handlers now spawn the real DSPy/pm4py-backed translator instead of the in-process stub."
+    },
+    {
+      "path": "CHANGELOG.md",
+      "line": 774,
+      "text": "- [`ee90af9`](../../commit/ee90af9) `fix(no-stub): wire ingest/map/extend/push format params; add named-graph push; remove dead cfg`"
+    },
+    {
+      "path": "CHANGELOG.md",
+      "line": 794,
+      "text": "- [`e4db225`](../../commit/e4db225) `ontostar(R3): wire PowlBridgeReplay into admission gate, replace stub`"
+    },
+    {
+      "path": "CHANGELOG.md",
+      "line": 804,
+      "text": "- `PowlBridgeReplay` replaces the noop stub in the admission gate."
+    },
+    {
+      "path": "DISSERTATION.md",
+      "line": 46,
+      "text": "*   **L6 High-Speed Kernels:** Represented by `wasm4pm` stream-2 stub bindings and the `src/manufacturing/` pipeline."
+    },
+    {
+      "path": "IMPLEMENTATION_SUMMARY.md",
+      "line": 142,
+      "text": "## What's NOT Implemented (Vision 2030 Future Layers)"
+    },
+    {
+      "path": "Cargo.toml",
+      "line": 86,
+      "text": "todo = \"deny\""
+    },
+    {
+      "path": "ontology/alignment-notes.md",
+      "line": 109,
+      "text": "`OcelObjectType` is a typing class for OCEL 2.0 instances (e.g. Order, Item, Package). In the current TTL it is a vocabulary stub \u2014 the actual object type individuals (Order, Item, etc.) are not defined. The enforcer correctly flags it as orphaned."
+    },
+    {
+      "path": "tests/end_to_end_governed_release.rs",
+      "line": 8,
+      "text": "//!   5. assert Admitted(receipt) with non-stub fitness"
+    },
+    {
+      "path": "tests/end_to_end_governed_release.rs",
+      "line": 68,
+      "text": "//    fitness, not a stub 1.0)."
+    },
+    {
+      "path": "tests/end_to_end_governed_release.rs",
+      "line": 78,
+      "text": "!conf.run_id.starts_with(\"stub-run-\"),"
+    },
+    {
+      "path": "tests/end_to_end_governed_release.rs",
+      "line": 79,
+      "text": "\"verdict came from the stub, not the real PowlBridge: {}\","
+    },
+    {
+      "path": "tests/ratchet_red_team.rs",
+      "line": 43,
+      "text": "let msg = \"evaluate_admission(stub) called\";"
+    },
+    {
+      "path": "tests/portability_codegen.rs",
+      "line": 94,
+      "text": "let receipt = build_test_receipt(b\"some-artifact-placeholder\");"
+    },
+    {
+      "path": "tests/saboteur_meta.rs",
+      "line": 5,
+      "text": "//! output is structurally distinct from a hypothetical \"stub that"
+    },
+    {
+      "path": "tests/adversarial_jtbd_test.rs",
+      "line": 114,
+      "text": "Either the format was silently ignored (soft stub) or auto-detection hid the override.\\n\\"
+    },
+    {
+      "path": "tests/saboteur_a9_provenance_chain_load_bearing.rs",
+      "line": 27,
+      "text": "//! R5 WB-1's TODO comment at admission.rs:660-662 carried A9 forward"
+    },
+    {
+      "path": "tests/three_layer_integration_test.rs",
+      "line": 2,
+      "text": "//! (#43 Dynamics \u2192 #44 Causal hookup \u2192 #45 Planner stub)."
+    },
+    {
+      "path": "tests/three_layer_integration_test.rs",
+      "line": 57,
+      "text": "// The Planner stub must read from the same SQLite store that"
+    },
+    {
+      "path": "tests/manufacturing_validators.rs",
+      "line": 191,
+      "text": "// 64-char WO hash literal with a placeholder of equal length."
+    },
+    {
+      "path": "tests/manufacturing_validators.rs",
+      "line": 192,
+      "text": "let placeholder: String = \"f\".repeat(wo_hash.len());"
+    },
+    {
+      "path": "tests/manufacturing_validators.rs",
+      "line": 194,
+      "text": "f.contents = f.contents.replace(&wo_hash, &placeholder);"
+    },
+    {
+      "path": "tests/ed25519_attestation.rs",
+      "line": 3,
+      "text": "//! Replaces the digest-equality tautology stub with cryptographic"
+    },
+    {
+      "path": "tests/ggen_revops_pipeline.rs",
+      "line": 37,
+      "text": "/// the ggen pipeline produced a populated file rather than an empty stub."
+    },
+    {
+      "path": "tests/ggen_pipeline_real.rs",
+      "line": 25,
+      "text": "/// 1. generated.rs exists and contains the expected stub modules."
+    },
+    {
+      "path": "tests/admission_real_replay.rs",
+      "line": 2,
+      "text": "//! `PowlBridgeReplay`, not the `NoopPowlReplay` stub."
+    },
+    {
+      "path": "tests/admission_real_replay.rs",
+      "line": 59,
+      "text": "// The bridge \u2014 not the stub \u2014 produced this verdict. The stub would"
+    },
+    {
+      "path": "tests/admission_real_replay.rs",
+      "line": 60,
+      "text": "// have returned the literal {fitness: 1.0, run_id: \"stub-run-...\"}."
+    },
+    {
+      "path": "tests/admission_real_replay.rs",
+      "line": 62,
+      "text": "!conf.run_id.starts_with(\"stub-run-\"),"
+    },
+    {
+      "path": "tests/admission_real_replay.rs",
+      "line": 63,
+      "text": "\"verdict came from NoopPowlReplay stub, not PowlBridge: run_id={}\","
+    },
+    {
+      "path": "packages/declarations.d.ts",
+      "line": 29,
+      "text": "placeholder?: string;"
+    },
+    {
+      "path": "src/server.rs",
+      "line": 75,
+      "text": "/// (Stream-2 stub path; not backed by real POWL replay). 6 occurrences."
+    },
+    {
+      "path": "src/server.rs",
+      "line": 1008,
+      "text": "// TODO(R3 Task B): replace tenant_id fallback with"
+    },
+    {
+      "path": "src/server.rs",
+      "line": 2551,
+      "text": "#[tool(name = \"onto_policy_register\", description = \"Register an ARGOS-style policy rule (#40, ISWC 2025 WOP). `effect` is `\\\"allow\\\"` or `\\\"deny\\\"`; `condition` is a SPARQL ASK that can use the `{target}` placeholder. Pairs with `onto_policy_check` and `onto_certify_action` \u2014 CIVeX gates causal risk, ARGOS gates authorisation.\")]"
+    },
+    {
+      "path": "src/server.rs",
+      "line": 2964,
+      "text": "#[tool(name = \"onto_plan_classical\", description = \"Invoke Fast Downward as a subprocess on a precompiled PDDL domain + problem (#50). Returns the raw sas_plan content plus a parsed `operators` list (operator name + positional PDDL args). The orchestrator maps args back to original IRIs using the schema parameter names (still client-side per LLM-Modulo). If Fast Downward is not on PATH and `fast_downward_bin` is not set, returns a clean `binary_unavailable` error rather than falling back to a si"
+    },
+    {
+      "path": "src/server.rs",
+      "line": 2996,
+      "text": "#[tool(name = \"onto_plan_compile_pddl\", description = \"Compile a PDDL domain from registered Dynamics action schemas (#43) plus a problem instance from the loaded graph and a goal Turtle slice (#45 Planner stub). Returns {domain, problem, translation_notes}. The actual planner (Fast Downward) is wrapped client-side per the LLM-Modulo convention \u2014 this primitive only emits the PDDL. Lossy in the v0.4 stub: only ASK-shape SPARQL preconditions translate cleanly; SELECT-shaped preconditions are pres"
+    },
+    {
+      "path": "src/server.rs",
+      "line": 5605,
+      "text": "// TODO(stream1-4): Streams 1-4 are not yet merged on this branch. The"
+    },
+    {
+      "path": "src/server.rs",
+      "line": 5859,
+      "text": "// TODO(stream1): replace with self.onto_declare_workflow(...)."
+    },
+    {
+      "path": "src/server.rs",
+      "line": 5981,
+      "text": "// Load scope row (Stream 5 stub schema)."
+    },
+    {
+      "path": "src/server.rs",
+      "line": 5986,
+      "text": "// delta \u2014 not a placeholder."
+    },
+    {
+      "path": "src/server.rs",
+      "line": 6830,
+      "text": "// stub (NoopPowlReplay) or the real wasm4pm bridge.  The stub"
+    },
+    {
+      "path": "src/server.rs",
+      "line": 6831,
+      "text": "// prefixes every run_id with \"stub-run-\" so callers and auditors"
+    },
+    {
+      "path": "src/server.rs",
+      "line": 6832,
+      "text": "// can distinguish stub-path admissions from production-verified"
+    },
+    {
+      "path": "src/server.rs",
+      "line": 6836,
+      "text": "let powl_stub = receipt.record.conformance_run_id.starts_with(\"stub-run-\");"
+    },
+    {
+      "path": "src/server.rs",
+      "line": 6844,
+      "text": "// integrated (stream-2 stub); CTQ admission skipped the real"
+    },
+    {
+      "path": "src/server.rs",
+      "line": 7709,
+      "text": "/// TODO(R3 Task B): replace `is_admin_principal` with the canonical"
+    },
+    {
+      "path": "src/server.rs",
+      "line": 7999,
+      "text": "/// TODO(R3 Task B): switch the INSERT target to `revoked_principals`"
+    },
+    {
+      "path": "src/ocel_store.rs",
+      "line": 478,
+      "text": "// Make sure the conformance_runs table exists. The Stream-3 stub"
+    },
+    {
+      "path": "src/embed.rs",
+      "line": 59,
+      "text": "/// let placeholder: Vec<f32> = vec![0.0; BGE_SMALL_DIM];"
+    },
+    {
+      "path": "src/embed.rs",
+      "line": 60,
+      "text": "/// assert_eq!(placeholder.len(), BGE_SMALL_DIM);"
+    },
+    {
+      "path": "src/cell8.rs",
+      "line": 17,
+      "text": "//! ## Phase 10 stub status"
+    },
+    {
+      "path": "src/policy.rs",
+      "line": 27,
+      "text": "/// SPARQL ASK. Can use the placeholder `{target}` which is substituted"
+    },
+    {
+      "path": "src/attestation.rs",
+      "line": 3,
+      "text": "//! Replaces the Phase-10 A10 tautology stub (which compared"
+    },
+    {
+      "path": "src/cell_ready.rs",
+      "line": 54,
+      "text": "/// Stream-2-stub stand-in for `wasm4pm`'s POWL arena handle. Stream 2"
+    },
+    {
+      "path": "src/cell_ready.rs",
+      "line": 221,
+      "text": "// \u2500\u2500 Real Ed25519 attestation (replaces the A10 tautology stub) \u2500\u2500"
+    },
+    {
+      "path": "src/plan_pddl.rs",
+      "line": 1,
+      "text": "//! Planner stub (#45) \u2014 PDDL emission from Dynamics action schemas."
+    },
+    {
+      "path": "src/plan_pddl.rs",
+      "line": 9,
+      "text": "//! ## Bounded scope (v0.4 stub)"
+    },
+    {
+      "path": "src/plan_pddl.rs",
+      "line": 24,
+      "text": "//! paper is the anchor for the rigorous version; this stub is a sand-table."
+    },
+    {
+      "path": "src/plan_pddl.rs",
+      "line": 34,
+      "text": "/// stub couldn't fully encode and that was preserved as a PDDL comment."
+    },
+    {
+      "path": "src/plan_pddl.rs",
+      "line": 75,
+      "text": "/// Translate a triple position (placeholder `<{x}>`, full IRI `<...>`, or bare"
+    },
+    {
+      "path": "src/plan_pddl.rs",
+      "line": 196,
+      "text": "// Problem stub \u2014 empty init/goal; the MCP layer fills in init from the"
+    },
+    {
+      "path": "src/defects.rs",
+      "line": 49,
+      "text": "/// (replaces the digest-equality tautology stub). Forward-compatible \u2014"
+    },
+    {
+      "path": "src/defects.rs",
+      "line": 203,
+      "text": "/// matches the artifact bit-for-bit. (Phase-10 stub: digest-equality"
+    },
+    {
+      "path": "src/state.rs",
+      "line": 173,
+      "text": "-- \u2500\u2500\u2500 OntoStar Stream 1 stub migrations (authoritative copies live in Stream 1) \u2500\u2500"
+    },
+    {
+      "path": "src/state.rs",
+      "line": 252,
+      "text": "-- the \u00a728 hidden-WIP leak. (Verified: no DELETE statement in"
+    },
+    {
+      "path": "src/plan_classical.rs",
+      "line": 25,
+      "text": "//! NOT fall back to a silent stub."
+    },
+    {
+      "path": "src/socket_windows.rs",
+      "line": 5,
+      "text": "/// Windows stub for the Unix domain socket adapter."
+    },
+    {
+      "path": "src/admission.rs",
+      "line": 5,
+      "text": "//!    (TODO Stream 2: replace [`PowlReplay`] stub with the real bridge),"
+    },
+    {
+      "path": "src/admission.rs",
+      "line": 225,
+      "text": "/// TODO(R3 Task B): switch from `revoked_sessions` fallback to the"
+    },
+    {
+      "path": "src/admission.rs",
+      "line": 525,
+      "text": "/// Stream-2-stub trait. The real implementation lives in `powl_bridge.rs`"
+    },
+    {
+      "path": "src/admission.rs",
+      "line": 529,
+      "text": "/// TODO(stream-2): swap to the wasm4pm-backed bridge. This stub MUST be"
+    },
+    {
+      "path": "src/admission.rs",
+      "line": 538,
+      "text": "/// flag distinguishes placeholder results from production-grade evidence."
+    },
+    {
+      "path": "src/admission.rs",
+      "line": 569,
+      "text": "/// `true` when this result was produced by the stream-2 stub"
+    },
+    {
+      "path": "src/admission.rs",
+      "line": 576,
+      "text": "/// external operators and auditors can distinguish stub-path"
+    },
+    {
+      "path": "src/admission.rs",
+      "line": 595,
+      "text": "/// assert!(!pass.is_stub,             \"pass() produces non-stub evidence\");"
+    },
+    {
+      "path": "src/admission.rs",
+      "line": 623,
+      "text": "/// assert!(!fail.is_stub,             \"fail() produces non-stub evidence\");"
+    },
+    {
+      "path": "src/admission.rs",
+      "line": 684,
+      "text": "/// Returns `true` when this result was produced by the stream-2 stub"
+    },
+    {
+      "path": "src/admission.rs",
+      "line": 687,
+      "text": "/// Stub results have `fitness = 1.0` and `precision = 1.0` as placeholders"
+    },
+    {
+      "path": "src/admission.rs",
+      "line": 690,
+      "text": "/// # Auto-instinct: stub results produced by NoopPowlReplay always conform"
+    },
+    {
+      "path": "src/admission.rs",
+      "line": 698,
+      "text": "/// // Auto-instinct: stub results are always conformant (placeholder 1.0/1.0)."
+    },
+    {
+      "path": "src/admission.rs",
+      "line": 700,
+      "text": "/// assert!(stub_result.is_conformant(),  \"stub result must report conformance\");"
+    },
+    {
+      "path": "src/admission.rs",
+      "line": 702,
+      "text": "/// // A hand-crafted non-stub conforming result is not a stub."
+    },
+    {
+      "path": "src/admission.rs",
+      "line": 711,
+      "text": "/// **Stream-2 stub.** Returns a perfect-fit verdict. Retained because some"
+    },
+    {
+      "path": "src/admission.rs",
+      "line": 724,
+      "text": "/// // Stub always reports perfect fitness and precision \u2014 these are"
+    },
+    {
+      "path": "src/admission.rs",
+      "line": 739,
+      "text": "/// Marker string placed in the codebase to locate every stream-2 stub site."
+    },
+    {
+      "path": "src/admission.rs",
+      "line": 742,
+      "text": "/// remaining match indicates a stub that was not replaced with the real"
+    },
+    {
+      "path": "src/admission.rs",
+      "line": 750,
+      "text": "/// // The value is a recognisable TODO tag, not a semver."
+    },
+    {
+      "path": "src/admission.rs",
+      "line": 751,
+      "text": "/// assert!(STREAM3_STUB_POWL_REPLAY_MARKER.starts_with(\"TODO\"));"
+    },
+    {
+      "path": "src/admission.rs",
+      "line": 754,
+      "text": "pub const STREAM3_STUB_POWL_REPLAY_MARKER: &str = \"TODO(stream-2): replace NoopPowlReplay\";"
+    },
+    {
+      "path": "src/admission.rs",
+      "line": 833,
+      "text": "/// OCEL event attribute key indicating the POWL replay used a stub"
+    },
+    {
+      "path": "src/admission.rs",
+      "line": 913,
+      "text": "// POWL replay is not yet integrated (stream-2 stub);"
+    },
+    {
+      "path": "src/admission.rs",
+      "line": 916,
+      "text": "// `\"stub-run-\"` run_id prefix allow downstream consumers to"
+    },
+    {
+      "path": "src/admission.rs",
+      "line": 922,
+      "text": "run_id: format!(\"stub-run-{}\", scope_token),"
+    },
+    {
+      "path": "src/admission.rs",
+      "line": 1427,
+      "text": "// Run conformance via wasm4pm bridge (or stub)."
+    },
+    {
+      "path": "src/admission.rs",
+      "line": 1462,
+      "text": "// self-attests with the same hash (placeholder until ed25519-dalek"
+    },
+    {
+      "path": "src/admission.rs",
+      "line": 2226,
+      "text": "// Run the stub migration on its own (it is a no-op SQL string but keep"
+    },
+    {
+      "path": "src/admission.rs",
+      "line": 2243,
+      "text": "// Surface stub status in the OCEL witness so a process miner who sees"
+    },
+    {
+      "path": "src/admission.rs",
+      "line": 2244,
+      "text": "// only the event log can flag stub-path runs without parsing run_id."
+    },
+    {
+      "path": "src/admission.rs",
+      "line": 2287,
+      "text": "// placeholder values from NoopPowlReplay (stream-2 stub"
+    },
+    {
+      "path": "src/admission.rs",
+      "line": 2289,
+      "text": "// stub-path conformance runs as production evidence."
+    },
+    {
+      "path": "src/retention.rs",
+      "line": 369,
+      "text": "// This is a placeholder for receipt-file artifacts \u2014 see"
+    },
+    {
+      "path": "src/retention.rs",
+      "line": 415,
+      "text": "/// implementation is a defined no-op placeholder \u2014 returns `0` until a"
+    },
+    {
+      "path": "src/retention.rs",
+      "line": 429,
+      "text": "/// // Placeholder implementation always reports zero orphans pruned."
+    },
+    {
+      "path": "src/receipts.rs",
+      "line": 243,
+      "text": "/// stub migration in `STREAM3_STUB_MIGRATION`."
+    },
+    {
+      "path": "docs/01-architecture.md",
+      "line": 55,
+      "text": "`PowlBridgeReplay` parses declared POWL strings via the `wasm4pm` crate, projects the OCEL trace tagged with `scope_token`, and returns a fitness/precision verdict. Production admission uses this; a `NoopPowlReplay` stub remains for gate-semantics unit tests that need a deterministic pass-through. Defects: `ReplayFailed`, `SkippedTask`, `ExtraTask`, `WrongOrder`, `CapabilityZero`, `ReplayDivergence`."
+    },
+    {
+      "path": "docs/05-receipt-chain.md",
+      "line": 20,
+      "text": "pub signature: Option<Vec<u8>>,      // Ed25519 (Phase 10 stub-of-record)"
+    },
+    {
+      "path": "docs/07-phase-history.md",
+      "line": 11,
+      "text": "Commits `33feda7`, `e4db225`. Replaced the `NoopPowlReplay` stub with `PowlBridgeReplay::new(store)` in production-path admission. The gap closed: 12 admission tests had been validating against a fitness=1.0 stub. Production now routes through `wasm4pm` for every admission; only four gate-semantics tests retain the noop with an explicit `// INTENTIONAL` annotation."
+    },
+    {
+      "path": "docs/04-defect-taxonomy.md",
+      "line": 38,
+      "text": "| `attestation_missing` | `AttestationMissing` | Cell8 A10 `ExternalAttestation` conjunct fails | Stub digest mismatch | `tests/cell8_thirteen_gates.rs` |"
+    },
+    {
+      "path": "docs/ies-ecosystem.md",
+      "line": 204,
+      "text": "| IES Top (ToLO) | ~22 | TBD | TBD | TBD | TBD | TBD |"
+    },
+    {
+      "path": "docs/ies-ecosystem.md",
+      "line": 205,
+      "text": "| IES Core | ~131 | TBD | TBD | TBD | TBD | TBD |"
+    },
+    {
+      "path": "docs/00-overview.md",
+      "line": 34,
+      "text": "- **Receipts prove.** Every admitted operation produces a `ProductionRecord`, a chained `Receipt` (BLAKE3 over canonical bytes, Ed25519-signed in Phase 10's stub-of-record form), and an `admission_granted` OCEL event. Denied operations produce `admission_denied` with a typed `defect` attribute. No claim of success exists outside this chain."
+    },
+    {
+      "path": "docs/00-overview.md",
+      "line": 38,
+      "text": "The Phase 6 audit found 25 silently-broken CLI tests, 12 stub-validated admission tests, 21 dead defect variants, and 5 textual-ratchet bypass patterns. Phases 7\u201311 closed every finding fix-forward. The system now refuses to claim a feature works unless the receipt and the OCEL event log prove it ran. That refusal is the product."
+    },
+    {
+      "path": ".github/workflows/wip-sweep.yml",
+      "line": 1,
+      "text": "name: WIP Sweep"
+    },
+    {
+      "path": ".github/workflows/wip-sweep.yml",
+      "line": 5,
+      "text": "branches: [agent/finish-wip-20260730]"
+    },
+    {
+      "path": ".github/workflows/wip-sweep.yml",
+      "line": 6,
+      "text": "paths: [.github/wip-trigger]"
+    },
+    {
+      "path": ".github/workflows/wip-sweep.yml",
+      "line": 18,
+      "text": "ref: agent/finish-wip-20260730"
+    },
+    {
+      "path": ".github/workflows/wip-sweep.yml",
+      "line": 21,
+      "text": "- name: Inventory WIP and executable gates"
+    },
+    {
+      "path": ".github/workflows/wip-sweep.yml",
+      "line": 26,
+      "text": "mkdir -p .wip"
+    },
+    {
+      "path": ".github/workflows/wip-sweep.yml",
+      "line": 33,
+      "text": "marker_re = re.compile(r'(?i)\\b(TODO|FIXME|XXX|HACK|WIP|TBD|NOT[ _-]?IMPLEMENTED|PLACEHOLDER|STUB)\\b|todo!\\s*\\(|unimplemented!\\s*\\(')"
+    },
+    {
+      "path": ".github/workflows/wip-sweep.yml",
+      "line": 109,
+      "text": "Path('.wip/audit.json').write_text(json.dumps(audit,indent=2))"
+    },
+    {
+      "path": ".github/workflows/wip-sweep.yml",
+      "line": 111,
+      "text": "lines=['# WIP audit','',f\"Base: `{audit['base_sha']}`\",'']"
+    },
+    {
+      "path": ".github/workflows/wip-sweep.yml",
+      "line": 128,
+      "text": "Path('.wip/audit.md').write_text('\\n'.join(lines)+'\\n')"
+    },
+    {
+      "path": ".github/workflows/wip-sweep.yml",
+      "line": 137,
+      "text": "git add .wip/audit.json .wip/audit.md"
+    },
+    {
+      "path": ".github/workflows/wip-sweep.yml",
+      "line": 138,
+      "text": "git commit -m 'chore: record WIP audit receipt'"
+    },
+    {
+      "path": ".github/workflows/wip-sweep.yml",
+      "line": 139,
+      "text": "git push origin HEAD:agent/finish-wip-20260730"
+    },
+    {
+      "path": "ontology/zoela/core.ttl",
+      "line": 181,
+      "text": "# \u00a7 3  Forward-declared stub classes for future modules"
+    },
+    {
+      "path": "ontology/zoela/core.ttl",
+      "line": 209,
+      "text": "# \u00a7 3b  Forward-declared stub classes for newly-created modules"
+    },
+    {
+      "path": "case-studies/jc3iedm-ies4-crosswalk/README.md",
+      "line": 39,
+      "text": "4. **Use a placeholder JC3IEDM IRI namespace.** STANAG 5525 doesn't issue canonical web IRIs; this sketch uses `http://example.org/jc3iedm/` as a placeholder. A real implementation would use NATO/MIP-issued IRIs."
+    },
+    {
+      "path": "case-studies/jc3iedm-ies4-crosswalk/crosswalk.ttl",
+      "line": 11,
+      "text": "# Placeholder JC3IEDM namespace \u2014 STANAG 5525 has no canonical web IRIs."
+    },
+    {
+      "path": "case-studies/mcp-ies-rag-demo/README.md",
+      "line": 81,
+      "text": "- Uses a placeholder `demo:roleIn` helper property. A production IES4 implementation would use the canonical `ies:MemberState` + `ies:isMemberOf` pattern. The shortcut keeps the demo Turtle readable."
+    },
+    {
+      "path": "case-studies/zero-emission-aviation/demo/index.html",
+      "line": 163,
+      "text": "<input id=\"search\" type=\"search\" autocomplete=\"off\" placeholder=\"e.g. ZeroAvia, H2GEAR, electrolysis\" aria-describedby=\"search-help\" />"
+    },
+    {
+      "path": "case-studies/verifiabench/results/multi_per_task_Qwen2.5-3B-Instruct-4bit.json",
+      "line": 602,
+      "text": "\"output\": \"```turtle\\n<biolink:MTOR> <biolink:is_involved_in> <GO:0008150>\\n```\\n\\nNote: The Gene Ontology (GO) term `GO:0008150` is not a real term for 'regulation of cell growth'. A correct representation would use a specific GO term for 'regulation of cell growth', but since one is not provided, I've used a placeholder here. If you have a specific GO term in mind, please provide it, and I can adjust the Turtle accordingly.\""
+    },
+    {
+      "path": "case-studies/verifiabench/results/multi_per_task_Qwen2.5-3B-Instruct-4bit.json",
+      "line": 624,
+      "text": "\"output\": \"```turtle\\n@prefix bio: <http://biolink.info/vocabulary/> .\\n<http://biolink.info/gene/ESR1> bio:involved_in bio:signal_transduction_process.\\n<http://biolink.info/gene/ESR1> bio:is_a bio:Gene.\\n<http://purl.obolinguistics.org/obo/GO_0008155> bio:is_a bio:Biological_process.\\n```\\n\\nNote: The GO term `GO:0008155` is not a real Gene Ontology term. For the purpose of this example, I used `GO:0008155` as a placeholder for a hypothetical Gene Ontology term. The actual term to use would be"
+    },
+    {
+      "path": "case-studies/skills-england-esco-crosswalk/pipeline/fetch_esco.py",
+      "line": 48,
+      "text": "todo = [o for o in occs if o[\"stdCode\"] not in done]"
+    },
+    {
+      "path": "case-studies/skills-england-esco-crosswalk/pipeline/fetch_esco.py",
+      "line": 49,
+      "text": "print(f\"{len(todo)} to fetch ({len(done)} cached)\")"
+    },
+    {
+      "path": "case-studies/skills-england-esco-crosswalk/pipeline/fetch_esco.py",
+      "line": 51,
+      "text": "for i, o in enumerate(todo):"
+    },
+    {
+      "path": "case-studies/skills-england-esco-crosswalk/pipeline/fetch_esco.py",
+      "line": 60,
+      "text": "print(f\"{i}/{len(todo)}\")"
+    },
+    {
+      "path": "case-studies/heritage-aerial/pipeline/build-stac.py",
+      "line": 138,
+      "text": "# An always-present placeholder for the primary image asset (the scan is"
+    },
+    {
+      "path": "case-studies/heritage-aerial/demo/index.html",
+      "line": 32,
+      "text": "#detail .placeholder { color: #999; font-style: italic; font-size: 0.9em; }"
+    },
+    {
+      "path": "case-studies/heritage-aerial/demo/index.html",
+      "line": 73,
+      "text": "<p class=\"placeholder\">Click any marker on the map to view its NAPH metadata.</p>"
+    },
+    {
+      "path": "case-studies/heritage-aerial/demo/index.html",
+      "line": 191,
+      "text": "document.getElementById('detail').innerHTML = `<p class=\"placeholder\">Could not load IIIF manifest: ${err.message}<br><br>Make sure you're serving this from a local HTTP server (not file://) and that <code>../reports/iiif-collection-manifest.json</code> exists.</p>`;"
+    },
+    {
+      "path": "case-studies/heritage-aerial/demo/real.html",
+      "line": 30,
+      "text": "#detail .placeholder { color: #999; font-style: italic; font-size: 0.9em; }"
+    },
+    {
+      "path": "case-studies/heritage-aerial/demo/real.html",
+      "line": 61,
+      "text": "<div id=\"detail\"><p class=\"placeholder\">Click any footprint to view its NAPH metadata.</p></div>"
+    },
+    {
+      "path": "case-studies/heritage-aerial/demo/real.html",
+      "line": 138,
+      "text": "load().catch(err=>{ document.getElementById('detail').innerHTML=`<p class=\"placeholder\">Could not load manifest: ${err.message}. Serve over HTTP, not file://.</p>`; });"
+    },
+    {
+      "path": "case-studies/heritage-aerial/docs/red-team-report.md",
+      "line": 83,
+      "text": "**Status:** documented in the docs but not implemented. The CQ2 expected results table notes \"(requires GeoSPARQL)\" but doesn't say this means *not Oxigraph*."
+    },
+    {
+      "path": "case-studies/heritage-aerial/docs/red-team-report.md",
+      "line": 124,
+      "text": "2. Add a stub IIIF Image API in the demo pipeline that serves placeholder images so manifests fully resolve"
+    },
+    {
+      "path": "case-studies/heritage-aerial/pipeline/scrapers/napl_opencanada.py",
+      "line": 284,
+      "text": "for stub in stubs:"
+    },
+    {
+      "path": "case-studies/heritage-aerial/pipeline/scrapers/napl_opencanada.py",
+      "line": 286,
+      "text": "detail = dataset_detail(stub[\"id\"])"
+    },
+    {
+      "path": "case-studies/heritage-aerial/pipeline/scrapers/napl_opencanada.py",
+      "line": 288,
+      "text": "print(f\"# {stub['id']}: fetch failed: {e}\", file=sys.stderr)"
+    },
+    {
+      "path": "case-studies/heritage-aerial/pipeline/scrapers/__init__.py",
+      "line": 9,
+      "text": "- NCAPAirPhotoFinderScraper \u2014 Angular SPA, requires Playwright/manual JSON capture (stub)"
+    },
+    {
+      "path": "case-studies/heritage-aerial/pipeline/scrapers/__init__.py",
+      "line": 10,
+      "text": "- USGSEarthExplorerScraper \u2014 M2M API, requires registration (stub)"
+    },
+    {
+      "path": "case-studies/heritage-aerial/pipeline/scrapers/usgs_earthexplorer.py",
+      "line": 3,
+      "text": "USGS Earth Explorer M2M API Adapter \u2014 STUB."
+    },
+    {
+      "path": "case-studies/heritage-aerial/pipeline/scrapers/usgs_earthexplorer.py",
+      "line": 42,
+      "text": "description=\"USGS Earth Explorer NAPH adapter (STUB \u2014 requires USGS credentials).\""
+    },
+    {
+      "path": "case-studies/heritage-aerial/pipeline/scrapers/usgs_earthexplorer.py",
+      "line": 53,
+      "text": "print(\"# USGS Earth Explorer M2M adapter \u2014 STUB\", file=sys.stderr)"
+    },
+    {
+      "path": "case-studies/heritage-aerial/deliverables/06-knowledge-transfer/external-integrations.md",
+      "line": 3,
+      "text": "For each NAPH gap previously marked \"stub\" or \"skipped (external API)\", this document maps to the existing open-source implementation worth adopting rather than rebuilding. Status as of 2026-05."
+    },
+    {
+      "path": "case-studies/heritage-aerial/deliverables/06-knowledge-transfer/external-integrations.md",
+      "line": 32,
+      "text": "# See pipeline/scrapers/usgs_earthexplorer.py \u2014 fill in the TODO sections"
+    },
+    {
+      "path": "case-studies/heritage-aerial/deliverables/06-knowledge-transfer/external-integrations.md",
+      "line": 59,
+      "text": "3. Update [`pipeline/iiif-bridge.py`](../../pipeline/iiif-bridge.py) so the `service.id` URLs point at your Cantaloupe instance instead of placeholder URLs"
+    },
+    {
+      "path": "case-studies/heritage-aerial/deliverables/06-knowledge-transfer/external-integrations.md",
+      "line": 144,
+      "text": "2. Replace [`pipeline/scrapers/ncap_airphotofinder.py`](../../pipeline/scrapers/ncap_airphotofinder.py) stub with API client"
+    },
+    {
+      "path": "case-studies/heritage-aerial/deliverables/06-knowledge-transfer/maintenance-runbook.md",
+      "line": 33,
+      "text": "- Mailing list / forum: tbd"
+    },
+    {
+      "path": "case-studies/heritage-aerial/deliverables/04-adoption-guidance/transition-guides/baseline-to-enhanced.md",
+      "line": 57,
+      "text": "naph:flightAltitude 0.0 ;  # placeholder \u2014 flag as unknown"
+    },
+    {
+      "path": "deploy/helm/values.yaml",
+      "line": 58,
+      "text": "# If empty, the chart creates an empty placeholder Secret you must populate"
+    },
+    {
+      "path": "packages/utils/crypto.ts",
+      "line": 5,
+      "text": "// In production this delegates to a BLAKE3 WASM module; this stub provides"
+    },
+    {
+      "path": "packages/utils/crypto.ts",
+      "line": 9,
+      "text": "// Stub implementation \u2014 replace with wasm-blake3 or native binding in app workspace"
+    },
+    {
+      "path": "packages/forms/zoela.tsx",
+      "line": 28,
+      "text": "placeholder: \"Integer priority for ordering push cards in the notification tray; lower values appear first.\","
+    },
+    {
+      "path": "packages/forms/zoela.tsx",
+      "line": 35,
+      "text": "placeholder: \"Expo deep-link URI the card action button navigates to when tapped.\","
+    },
+    {
+      "path": "packages/forms/zoela.tsx",
+      "line": 42,
+      "text": "placeholder: \"Label for the primary call-to-action button rendered on the push card (e.g. 'View Details', 'Accept Request').\","
+    },
+    {
+      "path": "packages/forms/zoela.tsx",
+      "line": 49,
+      "text": "placeholder: \"Main body text of the push card, describing the action or update in detail.\","
+    },
+    {
+      "path": "packages/forms/zoela.tsx",
+      "line": 56,
+      "text": "placeholder: \"Secondary line of text below the card title, providing route or ministry context.\","
+    },
+    {
+      "path": "packages/forms/zoela.tsx",
+      "line": 63,
+      "text": "placeholder: \"Primary headline text displayed on the push card in the notification tray.\","
+    },
+    {
+      "path": "packages/forms/zoela.tsx",
+      "line": 84,
+      "text": "placeholder: \"Expo deep-link URI that opens the relevant screen in ZOE LA Mobile when the notification is tapped.\","
+    },
+    {
+      "path": "packages/forms/zoela.tsx",
+      "line": 91,
+      "text": "placeholder: \"Category identifier from the NotificationCategoryScheme, used to route and filter notifications in the app.\","
+    },
+    {
+      "path": "packages/forms/zoela.tsx",
+      "line": 98,
+      "text": "placeholder: \"Full body text of the push notification providing context and call-to-action.\","
+    },
+    {
+      "path": "packages/forms/zoela.tsx",
+      "line": 105,
+      "text": "placeholder: \"Short headline text of the push notification, displayed in the device notification shade.\","
+    },
+    {
+      "path": "packages/forms/connectGroupInterestForm.tsx",
+      "line": 38,
+      "text": "placeholder=\"e.g. Sunday evenings, weekday mornings\""
+    },
+    {
+      "path": "packages/forms/connectGroupInterestForm.tsx",
+      "line": 56,
+      "text": "placeholder=\"Anything else we should know?\""
+    },
+    {
+      "path": "packages/screens/adminDetailScreen.tsx",
+      "line": 21,
+      "text": "<Text style={styles.placeholder}>"
+    },
+    {
+      "path": "packages/screens/adminDetailScreen.tsx",
+      "line": 33,
+      "text": "placeholder: { fontSize: 14, color: '#666', fontStyle: 'italic' },"
+    },
+    {
+      "path": "src/a2a/router.rs",
+      "line": 43,
+      "text": "\"task_id\": \"a2a-task-placeholder\","
+    },
+    {
+      "path": "src/workflows/mod.rs",
+      "line": 23,
+      "text": "//! confirming they are not placeholder stubs:"
+    },
+    {
+      "path": "src/workflows/builtin.rs",
+      "line": 87,
+      "text": "//   TODO(wasm4pm POWL v2): use CG=(...) once Choice Graphs land upstream"
+    },
+    {
+      "path": "src/workflows/builtin.rs",
+      "line": 133,
+      "text": "// CG{...} \u2192 XOR for now (TODO above)."
+    },
+    {
+      "path": "src/workflows/builtin.rs",
+      "line": 156,
+      "text": "// step (the alphabet still matches). TODO: revisit when POWL gains"
+    },
+    {
+      "path": "src/cmds/generated.rs",
+      "line": 20,
+      "text": "/// Generated stub \u2014 wired to src/cmds/doctor.rs"
+    },
+    {
+      "path": "src/cmds/generated.rs",
+      "line": 39,
+      "text": "/// Generated stub \u2014 wired to src/cmds/thesis.rs"
+    },
+    {
+      "path": "src/cmds/generated.rs",
+      "line": 58,
+      "text": "/// Generated stub \u2014 wired to src/cmds/marketplace.rs"
+    },
+    {
+      "path": "src/cmds/generated.rs",
+      "line": 77,
+      "text": "/// Generated stub \u2014 wired to src/cmds/clinical.rs"
+    },
+    {
+      "path": "src/cmds/generated.rs",
+      "line": 96,
+      "text": "/// Generated stub \u2014 wired to src/cmds/alignment.rs"
+    },
+    {
+      "path": "src/cmds/generated.rs",
+      "line": 115,
+      "text": "/// Generated stub \u2014 wired to src/cmds/governance.rs"
+    },
+    {
+      "path": "src/cmds/generated.rs",
+      "line": 134,
+      "text": "/// Generated stub \u2014 wired to src/cmds/data.rs"
+    },
+    {
+      "path": "src/cmds/generated.rs",
+      "line": 153,
+      "text": "/// Generated stub \u2014 wired to src/cmds/server.rs"
+    },
+    {
+      "path": "src/cmds/generated.rs",
+      "line": 172,
+      "text": "/// Generated stub \u2014 wired to src/cmds/ontology.rs"
+    },
+    {
+      "path": "src/cmds/thesis.rs",
+      "line": 250,
+      "text": "// Stub: return empty claim/evidence packets."
+    },
+    {
+      "path": "src/cmds/thesis.rs",
+      "line": 261,
+      "text": "message: format!(\"Extraction stub for source_id={} \u2014 real LLM call TBD\", source_id),"
+    },
+    {
+      "path": "src/cmds/thesis.rs",
+      "line": 293,
+      "text": "// Stub: run lightweight validation check"
+    },
+    {
+      "path": "src/cmds/thesis.rs",
+      "line": 307,
+      "text": "message: \"Audit stub \u2014 SHACL validation TBD\".to_string(),"
+    },
+    {
+      "path": "src/cmds/thesis.rs",
+      "line": 317,
+      "text": "// Stub: run chapter routing SPARQL CONSTRUCT"
+    },
+    {
+      "path": "src/cmds/thesis.rs",
+      "line": 329,
+      "text": "message: \"Route stub \u2014 SPARQL CONSTRUCT TBD\".to_string(),"
+    },
+    {
+      "path": "src/cmds/thesis.rs",
+      "line": 342,
+      "text": "// Stub: render markdown thesis"
+    },
+    {
+      "path": "src/cmds/thesis.rs",
+      "line": 370,
+      "text": "// Stub: run full pipeline"
+    },
+    {
+      "path": "src/cmds/thesis.rs",
+      "line": 416,
+      "text": "// Check 2: Thesis shapes file (stub: always pass)"
+    },
+    {
+      "path": "src/cmds/thesis.rs",
+      "line": 423,
+      "text": "// Check 3: Gemini connectivity (stub: assume pass)"
+    },
+    {
+      "path": "src/cmds/thesis.rs",
+      "line": 427,
+      "text": "\"Gemini 3.1 Flash reachable (stub)\".to_string(),"
+    },
+    {
+      "path": "src/cmds/thesis.rs",
+      "line": 444,
+      "text": "/// Stub: \"Interactive flow TBD; see onto thesis wizard\""
+    },
+    {
+      "path": "src/cmds/thesis.rs",
+      "line": 449,
+      "text": "// Stub: interactive prompts TBD"
+    },
+    {
+      "path": "src/cmds/thesis.rs",
+      "line": 452,
+      "text": "\"message\": \"Interactive wizard stub \u2014 prompts for input files, source metadata, chapter structure TBD\""
+    },
+    {
+      "path": "src/cmds/thesis.rs",
+      "line": 462,
+      "text": "// Stub: trace provenance"
+    },
+    {
+      "path": "supabase/migrations/20260518000004_zoela_ocel_events.sql",
+      "line": 21,
+      "text": "receipt_hash TEXT,                           -- SHA-256 hex digest (Web Crypto stub)"
+    },
+    {
+      "path": "benchmark/oaei/README.md",
+      "line": 39,
+      "text": "| **Open Ontologies** | **TBD** | **TBD** |"
+    },
+    {
+      "path": "benchmark/reference/ies4.ttl",
+      "line": 2516,
+      "text": "This is a very simple placeholder for an area of IES that is likely to grow in the future. For now, it can be used to group together a number of elements (using isPartOf relationship) to assert that they share the same truth - i.e. in one possible scenario, all of them were true. The same Element may exist in more than one PossibleWorld - i.e. scenarios may share elements. For version 4.1.0 of IES, PossibleWorld is to be used with AssessToBeTrue in order to specify a level of confidence or proba"
+    },
+    {
+      "path": "benchmark/ontoaxiom/results/condition_d/goodrelations.json",
+      "line": 16,
+      "text": "[\"Product Or Services Some Instances Placeholder\", \"Product Or Service\"],"
+    },
+    {
+      "path": "benchmark/ontoaxiom/results/condition_d/goodrelations_extracted.json",
+      "line": 16,
+      "text": "[\"Product or services some instances placeholder (DEPRECATED)\", \"Product or service\"],"
+    },
+    {
+      "path": "benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json",
+      "line": 9999,
+      "text": "\"product or services some instances placeholder\","
+    },
+    {
+      "path": "benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json",
+      "line": 10114,
+      "text": "\"product or services some instances placeholder\""
+    },
+    {
+      "path": "benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json",
+      "line": 10214,
+      "text": "\"product or services some instances placeholder\""
+    },
+    {
+      "path": "benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json",
+      "line": 10310,
+      "text": "\"product or services some instances placeholder\""
+    },
+    {
+      "path": "benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json",
+      "line": 10402,
+      "text": "\"product or services some instances placeholder\""
+    },
+    {
+      "path": "benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json",
+      "line": 10490,
+      "text": "\"product or services some instances placeholder\""
+    },
+    {
+      "path": "benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json",
+      "line": 10574,
+      "text": "\"product or services some instances placeholder\""
+    },
+    {
+      "path": "benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json",
+      "line": 10654,
+      "text": "\"product or services some instances placeholder\""
+    },
+    {
+      "path": "benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json",
+      "line": 10730,
+      "text": "\"product or services some instances placeholder\""
+    },
+    {
+      "path": "benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json",
+      "line": 10802,
+      "text": "\"product or services some instances placeholder\""
+    },
+    {
+      "path": "benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json",
+      "line": 10870,
+      "text": "\"product or services some instances placeholder\""
+    },
+    {
+      "path": "benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json",
+      "line": 10934,
+      "text": "\"product or services some instances placeholder\""
+    },
+    {
+      "path": "benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json",
+      "line": 10994,
+      "text": "\"product or services some instances placeholder\""
+    },
+    {
+      "path": "benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json",
+      "line": 11050,
+      "text": "\"product or services some instances placeholder\""
+    },
+    {
+      "path": "benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json",
+      "line": 11102,
+      "text": "\"product or services some instances placeholder\""
+    },
+    {
+      "path": "benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json",
+      "line": 11150,
+      "text": "\"product or services some instances placeholder\""
+    },
+    {
+      "path": "benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json",
+      "line": 11194,
+      "text": "\"product or services some instances placeholder\""
+    },
+    {
+      "path": "benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json",
+      "line": 11234,
+      "text": "\"product or services some instances placeholder\""
+    },
+    {
+      "path": "benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json",
+      "line": 11270,
+      "text": "\"product or services some instances placeholder\""
+    },
+    {
+      "path": "benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json",
+      "line": 11302,
+      "text": "\"product or services some instances placeholder\""
+    },
+    {
+      "path": "benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json",
+      "line": 11333,
+      "text": "\"product or services some instances placeholder\","
+    },
+    {
+      "path": "benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json",
+      "line": 11337,
+      "text": "\"product or services some instances placeholder\","
+    },
+    {
+      "path": "benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json",
+      "line": 11341,
+      "text": "\"product or services some instances placeholder\","
+    },
+    {
+      "path": "benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json",
+      "line": 11345,
+      "text": "\"product or services some instances placeholder\","
+    },
+    {
+      "path": "benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json",
+      "line": 11349,
+      "text": "\"product or services some instances placeholder\","
+    },
+    {
+      "path": "benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json",
+      "line": 11353,
+      "text": "\"product or services some instances placeholder\","
+    },
+    {
+      "path": "benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json",
+      "line": 11357,
+      "text": "\"product or services some instances placeholder\","
+    },
+    {
+      "path": "benchmark/ontoaxiom/data/ontoaxiom/ontologies/goodrelations.ttl",
+      "line": 205,
+      "text": "rdfs:comment \"A placeholder for all official public holidays at the gr:Location. This allows specifying the opening hours on public holidays. If a given day is a public holiday, this specification supersedes the opening hours for the respective day of the week.\"@en ;"
+    },
+    {
+      "path": "benchmark/ontoaxiom/data/ontoaxiom/ontologies/goodrelations.ttl",
+      "line": 622,
+      "text": "rdfs:comment \"\"\"This states that an actual product instance (gr:Individual) or a placeholder instance for multiple, unidentified such instances (gr:SomeItems) is one occurence of a particular gr:ProductOrServiceModel."
+    },
+    {
+      "path": "benchmark/ontoaxiom/data/ontoaxiom/ontologies/goodrelations.ttl",
+      "line": 1060,
+      "text": "rdfs:label \"Product or services some instances placeholder (DEPRECATED)\"@en ;"
+    },
+    {
+      "path": "benchmark/ontoaxiom/data/ontoaxiom/ontologies/goodrelations.ttl",
+      "line": 1434,
+      "text": "rdfs:comment \"\"\"A placeholder instance for unknown instances of a mass-produced commodity. This is used as a computationally cheap work-around for such instances that are not individually exposed on the Web but just stated to exist (i.e., which are existentially quantified)."
+    },
+    {
+      "path": "benchmark/ontoaxiom/data/ontoaxiom/ontologies/goodrelations.ttl",
+      "line": 1859,
+      "text": "rdfs:comment \"\"\"The superclass of all classes describing products or services types, either by nature or purpose. Examples for such subclasses are \"TV set\", \"vacuum cleaner\", etc. An instance of this class can be either an actual product or service (gr:Individual), a placeholder instance for unknown instances of a mass-produced commodity (gr:SomeItems), or a model / prototype specification (gr:ProductOrServiceModel). When in doubt, use gr:SomeItems."
+    },
+    {
+      "path": "benchmark/ontoaxiom/data/ontoaxiom/ontologies/goodrelations.ttl",
+      "line": 1864,
+      "text": "c) dummyCellPhone123 as a placeholder for actual instances of a certain kind of cell phones (gr:SomeItems)"
+    },
+    {
+      "path": "benchmark/ontoaxiom/data/ontoaxiom/ontologies/time.ttl",
+      "line": 434,
+      "text": "This is a stub class, representing the set of all temporal reference systems.\"\"\"@en ;"
+    },
+    {
+      "path": "benchmark/ontoaxiom/data/ontoaxiom/ontologies/time.ttl",
+      "line": 438,
+      "text": "This is a stub class, representing the set of all temporal reference systems.\"\"\"@en ;"
+    },
+    {
+      "path": "benchmark/ontoaxiom/data/ontoaxiom/ontologies/time.ttl",
+      "line": 547,
+      "text": "skos:note \"An ontology for time zone descriptions was described in [owl-time-20060927] and provided as RDF in a separate namespace tzont:. However, that ontology was incomplete in scope, and the example datasets were selective. Furthermore, since the use of a class from an external ontology as the range of an ObjectProperty in OWL-Time creates a dependency, reference to the time zone class has been replaced with the 'stub' class in the normative part of this version of OWL-Time.\"@en ;"
+    },
+    {
+      "path": "benchmark/ontoaxiom/data/ontoaxiom/classes/goodrelations_classes.json",
+      "line": 29,
+      "text": "\"product or services some instances placeholder\","
+    },
+    {
+      "path": "benchmark/ontoaxiom/data/ontoaxiom/subclassof/goodrelations_subclassof.json",
+      "line": 55,
+      "text": "\"Product Or Services Some Instances Placeholder\","
+    },
+    {
+      "path": "studio/src/components/PropertyInspector.tsx",
+      "line": 292,
+      "text": "placeholder=\"rdfs:label or full URI...\""
+    },
+    {
+      "path": "studio/src/components/PropertyInspector.tsx",
+      "line": 339,
+      "text": "placeholder={newValType === 'uri' ? 'http://...' : 'value...'}"
+    },
+    {
+      "path": "studio/src/components/TreeView.tsx",
+      "line": 511,
+      "text": "<input type=\"text\" placeholder=\"Search nodes...\" value={searchTerm} onChange={e => setSearchTerm(e.target.value)}"
+    },
+    {
+      "path": "studio/src/components/ChatPanel.tsx",
+      "line": 147,
+      "text": "placeholder=\"Ask about ontologies...\""
+    },
+    {
+      "path": "studio/src/components/AddClassDialog.tsx",
+      "line": 38,
+      "text": "placeholder=\"Class name...\""
+    },
+    {
+      "path": "studio/docs/plans/2026-03-14-tauri-implementation-plan.md",
+      "line": 155,
+      "text": "{/* Graph canvas placeholder */}"
+    },
+    {
+      "path": "studio/docs/plans/2026-03-14-tauri-implementation-plan.md",
+      "line": 213,
+      "text": "Expected: Dark-themed window with toolbar, graph placeholder, chat panel, status bar"
+    },
+    {
+      "path": "studio/docs/plans/2026-03-14-tauri-implementation-plan.md",
+      "line": 924,
+      "text": "Replace graph placeholder div with:"
+    },
+    {
+      "path": "studio/docs/plans/2026-03-14-tauri-implementation-plan.md",
+      "line": 933,
+      "text": "// Replace graph placeholder:"
+    },
+    {
+      "path": "studio/docs/plans/2026-03-14-tauri-implementation-plan.md",
+      "line": 990,
+      "text": "placeholder=\"Class name...\""
+    },
+    {
+      "path": "studio/docs/plans/2026-03-14-tauri-implementation-plan.md",
+      "line": 1901,
+      "text": "placeholder=\"Ask about ontologies...\""
+    },
+    {
+      "path": "studio/docs/plans/2026-03-14-tauri-implementation-plan.md",
+      "line": 1963,
+      "text": "Replace the chat placeholder in Layout.tsx:"
+    },
+    {
+      "path": "studio/docs/plans/2026-03-14-tauri-implementation-plan.md",
+      "line": 1968,
+      "text": "// Replace the chat panel placeholder div content:"
+    },
+    {
+      "path": "studio/docs/plans/2026-03-14-tauri-implementation-plan.md",
+      "line": 2131,
+      "text": "// Replace inspector placeholder:"
+    },
+    {
+      "path": "docs/plans/2026-03-09-standalone-mcp-server-plan.md",
+      "line": 86,
+      "text": "**Step 2: Create stub lib.rs so it compiles**"
+    },
+    {
+      "path": "docs/plans/2026-03-12-infrastructure-positioning-plan.md",
+      "line": 262,
+      "text": "Add a shared setup helper and stub the `match` arms (just print `{\"error\":\"not implemented\"}` for now \u2014 we'll fill them in Tasks 2\u20136):"
+    },
+    {
+      "path": "docs/plans/2026-03-12-infrastructure-positioning-plan.md",
+      "line": 369,
+      "text": "Expected: FAIL \u2014 subcommands return `not implemented`."
+    },
+    {
+      "path": "docs/plans/2026-03-12-infrastructure-positioning-plan.md",
+      "line": 1571,
+      "text": "Add new concise benchmark section with the HermiT/Pellet/OO comparison table (numbers TBD after running). Keep existing detailed benchmarks below as \"Detailed Benchmark Methodology\"."
+    },
+    {
+      "path": "docs/research/PHD_PROGRAM.md",
+      "line": 37,
+      "text": "*   *Lab:* Executing the `wasm4pm` stream-2 stub bindings via the `src/swarm.rs` cognition swarm."
+    },
+    {
+      "path": "docs/research/CODEBASE_MAPPING.md",
+      "line": 11,
+      "text": "*   **L6 High-Speed Kernels:** Represented by the `wasm4pm` stream-2 stub bindings (POWL and cognition kernels) and the `src/manufacturing/` pipeline that targets AtomVM, Erlang, and Rust."
+    },
+    {
+      "path": "docs/research/SYLLABI.md",
+      "line": 114,
+      "text": "*   **Weeks 10-12: The `wasm4pm` Lab:** Integrating and evaluating the stream-2 stub bindings. Profiling kernel execution speed."
+    },
+    {
+      "path": "docs/research/materials/EDGE_LAB_SPEC.md",
+      "line": 14,
+      "text": "*   **Wasm Runtime:** WasmEdge runtime configured with the `open-ontologies` `wasm4pm` stream-2 stub bindings."
+    },
+    {
+      "path": ".specify/templates/zoela/connect-group-interest-form.tera",
+      "line": 38,
+      "text": "placeholder=\"e.g. Sunday evenings, weekday mornings\""
+    },
+    {
+      "path": ".specify/templates/zoela/connect-group-interest-form.tera",
+      "line": 56,
+      "text": "placeholder=\"Anything else we should know?\""
+    },
+    {
+      "path": ".specify/templates/zoela/react-hook-form.tera",
+      "line": 69,
+      "text": "placeholder: \"{{ fcomment | trim }}\","
+    },
+    {
+      "path": ".specify/templates/zoela/admin-detail-screen.tera",
+      "line": 42,
+      "text": "<Text style={styles.placeholder}>"
+    },
+    {
+      "path": ".specify/templates/zoela/admin-detail-screen.tera",
+      "line": 54,
+      "text": "placeholder: { fontSize: 14, color: '#666', fontStyle: 'italic' },"
+    },
+    {
+      "path": ".specify/templates/cli/cmds.rs.tera",
+      "line": 49,
+      "text": "/// Generated stub \u2014 wired to src/cmds/{{ name | trim | replace(from=\"-\", to=\"_\") }}.rs"
+    }
+  ],
+  "zero_byte_files": [],
+  "branches": [
+    {
+      "ref": "origin/ontostar-integration",
+      "ahead": 72,
+      "behind": 44,
+      "tip": "ec2115642aa12b41cffd9181c4fabe00cb767017",
+      "subject": "docs: finalize final_proof.txt"
+    },
+    {
+      "ref": "origin/agent/finish-wip-20260730",
+      "ahead": 3,
+      "behind": 3,
+      "tip": "bd2e835328737e1b46c679154a5af810eefdde67",
+      "subject": "chore: retrigger WIP sweep"
+    },
+    {
+      "ref": "origin/agent/chatmangpt-namespace-26.7.29",
+      "ahead": 1,
+      "behind": 95,
+      "tip": "3a5defe909a906a22eb3ecea0bdd9e812cd1b6b5",
+      "subject": "chore(namespace): bind open-ontologies to chatmangpt.com"
+    }
+  ],
+  "duplicate_lock_packages": [
+    {
+      "key": [
+        "oxrdf",
+        "0.3.3",
+        "registry+https://github.com/rust-lang/crates.io-index"
+      ],
+      "first_block": 309,
+      "duplicate_block": 310
+    },
+    {
+      "key": [
+        "oxttl",
+        "0.2.3",
+        "registry+https://github.com/rust-lang/crates.io-index"
+      ],
+      "first_block": 315,
+      "duplicate_block": 316
+    },
+    {
+      "key": [
+        "wit-bindgen",
+        "0.57.1",
+        "registry+https://github.com/rust-lang/crates.io-index"
+      ],
+      "first_block": 606,
+      "duplicate_block": 607
+    }
+  ],
+  "gates": [
+    {
+      "command": "cargo metadata --locked --format-version 1 --no-deps",
+      "exit": 0,
+      "seconds": 1.16,
+      "tail": "[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"requirements_ontology_load\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/requirements_ontology_load.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"requirements_small_e2e\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/requirements_small_e2e.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"retention_worker\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/retention_worker.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"revops_counterfactual\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/revops_counterfactual.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"revops_ctq_admission\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/revops_ctq_admission.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"revops_e2e_inproc\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/revops_e2e_inproc.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"revops_e2e_with_real_groq\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/revops_e2e_with_real_groq.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"revops_negative\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/revops_negative.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"revops_old_ai_stations\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/revops_old_ai_stations.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"round4_admission_op_bypass\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/round4_admission_op_bypass.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"round4_align_dry_run\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/round4_align_dry_run.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"round4_no_bypass_red_team\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/round4_no_bypass_red_team.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"round5_ast_red_team\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/round5_ast_red_team.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"round5_ast_red_team_sabotage\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/round5_ast_red_team_sabotage.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"saboteur_a11_temporal_validity_load_bearing\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/saboteur_a11_temporal_validity_load_bearing.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"saboteur_a12_dependency_closure_load_bearing\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/saboteur_a12_dependency_closure_load_bearing.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"saboteur_a13_replay_proof_load_bearing\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/saboteur_a13_replay_proof_load_bearing.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"saboteur_a9_provenance_chain_load_bearing\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/saboteur_a9_provenance_chain_load_bearing.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"saboteur_llm_authority_creep\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/saboteur_llm_authority_creep.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"saboteur_meta\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/saboteur_meta.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"saboteur_verifier_corrupt_receipt\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/saboteur_verifier_corrupt_receipt.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"schema_test\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/schema_test.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"secret_grep_ratchet\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/secret_grep_ratchet.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"secret_hygiene\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/secret_hygiene.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"server_roundtrip_test\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/server_roundtrip_test.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"shacl_check_test\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/shacl_check_test.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"shacl_shared_receipt\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/shacl_shared_receipt.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"shacl_test\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/shacl_test.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"shaped_translator_e2e\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/shaped_translator_e2e.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"socket_test\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/socket_test.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"solution_manufacturing_e2e\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/solution_manufacturing_e2e.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"sql_ingest_handler\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/sql_ingest_handler.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"sqlsource_test\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/sqlsource_test.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"state_v2_test\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/state_v2_test.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"structembed_test\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/structembed_test.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"tableaux_test\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/tableaux_test.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"tenant_isolation_audit\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/tenant_isolation_audit.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"terraform_loop_test\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/terraform_loop_test.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"three_layer_integration_test\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/three_layer_integration_test.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"threshold_real\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/threshold_real.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"toolfilter_test\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/toolfilter_test.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"vecstore_test\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/vecstore_test.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"wb1_subprocess_timeout\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/wb1_subprocess_timeout.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"workflow_discover_real\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/workflow_discover_real.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"zoela_route_conformance\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/zoela_route_conformance.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"bench\"],\"crate_types\":[\"bin\"],\"name\":\"admission_bench\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/benches/admission_bench.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":false},{\"kind\":[\"bench\"],\"crate_types\":[\"bin\"],\"name\":\"manufacturing_bench\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/benches/manufacturing_bench.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":false},{\"kind\":[\"bench\"],\"crate_types\":[\"bin\"],\"name\":\"receipts_bench\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/benches/receipts_bench.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":false},{\"kind\":[\"bench\"],\"crate_types\":[\"bin\"],\"name\":\"swarm_bench\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/benches/swarm_bench.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":false}],\"features\":{\"bincode\":[\"dep:bincode\"],\"default\":[],\"duckdb\":[\"dep:duckdb\"],\"embeddings\":[\"tract-onnx\",\"tokenizers\"],\"instant-distance\":[\"dep:instant-distance\"],\"mcpp\":[\"dep:mcpp-core\"],\"postgres\":[\"sqlx\"],\"sql\":[\"postgres\",\"duckdb\"],\"sqlx\":[\"dep:sqlx\"],\"tokenizers\":[\"dep:tokenizers\"],\"tract-onnx\":[\"dep:tract-onnx\"]},\"manifest_path\":\"/home/runner/work/open-ontologies/open-ontologies/Cargo.toml\",\"metadata\":null,\"publish\":null,\"authors\":[],\"categories\":[],\"keywords\":[],\"readme\":\"README.md\",\"repository\":\"https://github.com/fabio-rovai/open-ontologies\",\"homepage\":null,\"documentation\":null,\"edition\":\"2024\",\"links\":null,\"default_run\":null,\"rust_version\":null}],\"workspace_members\":[\"path+file:///home/runner/work/open-ontologies/open-ontologies#26.5.13\"],\"workspace_default_members\":[\"path+file:///home/runner/work/open-ontologies/open-ontologies#26.5.13\"],\"resolve\":null,\"target_directory\":\"/home/runner/work/open-ontologies/open-ontologies/target\",\"build_directory\":\"/home/runner/work/open-ontologies/open-ontologies/target\",\"version\":1,\"workspace_root\":\"/home/runner/work/open-ontologies/open-ontologies\",\"metadata\":null}\n\n"
+    },
+    {
+      "command": "cargo check --locked --all-targets",
+      "exit": 101,
+      "seconds": 0.61,
+      "tail": "\nerror: failed to parse lock file at: /home/runner/work/open-ontologies/open-ontologies/Cargo.lock\n\nCaused by:\n  package `oxrdf` is specified twice in the lockfile\n"
+    }
+  ]
+}
