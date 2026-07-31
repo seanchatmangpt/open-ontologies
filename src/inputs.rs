@@ -267,6 +267,12 @@ pub struct OntoPullInput {
     pub sparql: Option<bool>,
     /// Optional SPARQL CONSTRUCT query (required if sparql=true)
     pub query: Option<String>,
+    /// HTTP Basic username for authenticated endpoints (Stardog, GraphDB)
+    pub username: Option<String>,
+    /// HTTP Basic password for authenticated endpoints
+    pub password: Option<String>,
+    /// Bearer token for token-secured endpoints (overrides username/password)
+    pub token: Option<String>,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -386,6 +392,32 @@ pub struct OntoShaclInput {
 /// assert_eq!(inp.profile.as_deref(), Some("rdfs"));
 /// assert_eq!(inp.materialize, Some(true));
 /// ```
+#[derive(Deserialize, JsonSchema)]
+pub struct OntoShaclCheckInput {
+    /// Path to SHACL shapes file OR inline SHACL Turtle content to dry-run-validate
+    /// against the currently loaded ontology. Checks that the shapes parse and that
+    /// every IRI they reference (`sh:targetClass`, `sh:path`, `sh:class`) actually
+    /// exists in the ontology, plus a lightweight XSD-prefix check on `sh:datatype`.
+    /// Does NOT apply or run the shapes — that's `onto_shacl`.
+    pub shapes: String,
+    /// If true, treat shapes as inline Turtle content (default false = file path).
+    pub inline: Option<bool>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct OntoVocabCheckInput {
+    /// Path to a Turtle DATA file OR inline Turtle content to check against the
+    /// currently loaded ontology. Every predicate and every `rdf:type` class used
+    /// in the data, whose namespace belongs to the ontology, must be DECLARED in
+    /// the ontology — otherwise it is reported as a hallucinated/undeclared term.
+    pub data: String,
+    /// If true, treat `data` as inline Turtle content (default false = file path).
+    pub inline: Option<bool>,
+    /// Optional extra namespaces to police, beyond the ontology's own namespaces
+    /// (e.g. an imported vocabulary you also want closed-world-checked).
+    pub namespaces: Option<Vec<String>>,
+}
+
 #[derive(Deserialize, JsonSchema)]
 pub struct OntoReasonInput {
     /// Reasoning profile: rdfs (default), owl-rl
@@ -517,6 +549,16 @@ pub struct OntoDriftInput {
     pub version_a: String,
     /// Second version as inline Turtle
     pub version_b: String,
+    /// Output format. One of: "json" (default, existing schema with added/removed/likely_renames),
+    /// "kgcl" (KGCL Controlled Natural Language, one change per line),
+    /// "kgcl_json" (KGCL changes as structured JSON-LD).
+    #[serde(default)]
+    pub format: Option<String>,
+    /// Confidence threshold above which a likely_rename is emitted as a KGCL
+    /// obsoletion-with-replacement instead of a plain add+remove pair. Default 0.7.
+    /// Only consulted when `format` is "kgcl" or "kgcl_json".
+    #[serde(default)]
+    pub rename_threshold: Option<f64>,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -674,8 +716,18 @@ pub struct OntoAlignInput {
     pub source: String,
     /// Target ontology: inline Turtle content or file path. If omitted, aligns against loaded store
     pub target: Option<String>,
-    /// Minimum confidence threshold for auto-apply (default 0.85)
+    /// Minimum confidence threshold for auto-apply (default 0.85). Back-compat alias for
+    /// `high_threshold` — if both are set, `high_threshold` wins.
     pub min_confidence: Option<f64>,
+    /// Confidence threshold above which a candidate is auto-applied (default 0.85, or
+    /// `min_confidence` if provided for back-compat). Candidates above this land in
+    /// `auto_applied`.
+    pub high_threshold: Option<f64>,
+    /// Confidence threshold below which a candidate is dropped entirely (default 0.4).
+    /// Candidates in [low_threshold, high_threshold] are surfaced in `borderline` with
+    /// enriched context (parents, siblings, labels) so the calling LLM can judge them
+    /// and record verdicts via `onto_align_feedback`.
+    pub low_threshold: Option<f64>,
     /// If true, return candidates only without inserting triples (default false)
     pub dry_run: Option<bool>,
     /// Optional explicit scope token; falls back to the latest open scope.
@@ -781,6 +833,34 @@ pub struct OntoEmbedInput {
     pub struct_dim: Option<usize>,
     /// Structural training epochs. Default: 100
     pub struct_epochs: Option<usize>,
+    /// Optional map from class IRI to a free-text description used for text-embedding
+    /// in place of the class's rdfs:label. When set, classes present in the map are
+    /// embedded from their description (richer semantic context); classes absent from
+    /// the map fall back to the existing label-based embedding. This is the
+    /// MCP-native form of the GenOM pattern (Mensa et al. 2025, accepted World Wide
+    /// Web Journal): instead of the server calling an LLM to author descriptions, the
+    /// connected orchestrator (Claude) authors them in-conversation and passes them
+    /// in this map. Net new dependencies: zero.
+    pub descriptions: Option<std::collections::HashMap<String, String>>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct OntoHnswBuildInput {
+    /// HNSW `ef_construction` — size of the dynamic candidate list during
+    /// graph construction. Higher values yield better recall at the cost of
+    /// slower build. instant-distance's default (100) is a sensible starting
+    /// point; tune upward (e.g. 200-400) for high-recall workloads.
+    pub ef_construction: Option<usize>,
+    /// HNSW `ef_search` — size of the dynamic candidate list during query.
+    /// Higher values yield better recall per query at the cost of slower
+    /// search. instant-distance's default works for most ontologies; raise
+    /// (e.g. 100-200) when search recall matters more than latency.
+    pub ef_search: Option<usize>,
+    /// When true (default), persist the built index to SQLite so subsequent
+    /// process restarts can skip the rebuild via `VecStore::load_cosine_index`.
+    /// Set false for ephemeral one-shot builds.
+    #[serde(default)]
+    pub persist: Option<bool>,
 }
 
 /// Input for finding ontology classes by natural language description.
@@ -809,6 +889,17 @@ pub struct OntoSearchInput {
     pub mode: Option<String>,
     /// Weight for text vs structure in product mode (0.0-1.0). Default: 0.5
     pub alpha: Option<f32>,
+    /// When true (text mode only), route the search through the HNSW cosine
+    /// index instead of the brute-force linear scan. Recommended for ontologies
+    /// with more than a few hundred classes. Default: false.
+    pub use_hnsw: Option<bool>,
+    /// Optional HNSW `ef_search` override. When provided AND `use_hnsw` is true,
+    /// the index is rebuilt with this `ef_search` before searching.
+    /// **Caveat:** `instant-distance` bakes `ef_search` into the HNSW index at
+    /// build time and does not support per-query overrides, so changing this
+    /// value triggers a rebuild. Prefer setting `ef_search` once via
+    /// `onto_hnsw_build` if you query frequently with the same value.
+    pub ef_search: Option<usize>,
 }
 
 /// Input for computing embedding similarity between two class IRIs.

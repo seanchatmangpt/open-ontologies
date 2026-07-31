@@ -342,9 +342,17 @@ impl TextEmbedderProvider {
                     .clone()
                     .map(|p| std::path::PathBuf::from(crate::config::expand_tilde(&p)))
                     .or_else(|| {
-                        default_model_dir
-                            .as_ref()
-                            .map(|d| d.join("bge-small-en-v1.5.onnx"))
+                        default_model_dir.as_ref().map(|d| {
+                            // Prefer the multilingual default; fall back to a
+                            // legacy English model only if it is the one present
+                            // on disk (older installs).
+                            let preferred = d.join(DEFAULT_MODEL_FILENAME);
+                            if preferred.exists() {
+                                return preferred;
+                            }
+                            let legacy = d.join(LEGACY_EN_MODEL_FILENAME);
+                            if legacy.exists() { legacy } else { preferred }
+                        })
                     });
 
                 let tokenizer_path = cfg

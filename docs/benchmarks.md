@@ -20,7 +20,7 @@ The 4 missing classes are teaching artifacts (e.g., `UnclosedPizza`) that exist 
 
 ### IES4 Building Domain — BORO/4D
 
-The [IES4 standard](https://github.com/dstl/IES4) is the UK government's Information Exchange Standard for defence/intelligence.
+The [IES standard](https://informationexchangestandard.org/) (canonical repo: [`IES-Org/ont-ies`](https://github.com/IES-Org/ont-ies); custodian: Department for Business and Trade since March 2025; the legacy [`dstl/IES4`](https://github.com/dstl/IES4) repo is archived, last public release was 4.3.1 under MIT) is the UK government's Information Exchange Standard for defence, intelligence, and increasingly built-environment / cross-sector use.
 
 | Metric | Value |
 | ------ | ----- |
@@ -74,26 +74,61 @@ Given the Manchester Pizza OWL and a 13-row restaurant CSV, map the data into th
 
 Full writeup: [`benchmark/ontoaxiom/ONTOAXIOM_SHOWDOWN.md`](../benchmark/ontoaxiom/ONTOAXIOM_SHOWDOWN.md)
 
-## Reasoning Performance — HermiT vs Open Ontologies
+## Claim Verification — Compiled Reasoning vs HermiT
 
-**Pizza Ontology (4,179 triples)**
+The claim-verification benchmark measures the workload the `claimcheck` module
+is built for: a fixed ontology, compiled once, against a stream of candidate
+claims (small sets of type/relation assertions), each answered consistent /
+rejected / undetermined.
 
-| Tool | Time | Result |
-| ---- | ---- | ------ |
-| HermiT | 213ms | 312 subsumptions |
-| Open Ontologies (OWL-RL) | 43ms | Load + rule-based inference |
-| Open Ontologies (OWL-DL) | 19ms | Consistency check, SHOIQ tableaux |
+### Methodology
 
-**LUBM Scaling (load + reason cycle)**
+- **Task-matched**: both engines answer the identical question on the identical
+  file. The baseline (`ClaimConsistency.java`) asserts each claim as ABox
+  axioms and asks HermiT 1.4.3.456 for full KB consistency, warm JVM, ontology
+  loaded once and amortised across all claims.
+- **Ground truth**: `DisjointnessMatrix.java` exhaustively tests every named
+  class pair A ⊓ B for satisfiability with HermiT — the complete contradiction
+  surface of the ontology, used to audit recall and soundness.
+- **Adversarial claim generation**: `structural_parity.py` derives claims from
+  the compiled structure itself — disjoint pairs pushed down to subclasses
+  (contradictions reachable only by inference), sibling pairs (where
+  incompleteness would show), and class-plus-own-superclass probes (which must
+  never be rejected). Random pair sampling exercises a real contradiction only
+  ~11% of the time; structural generation reaches ~60%.
+- LUBM is deliberately not used: it is an ABox query benchmark with very simple
+  schemas, and the literature (e.g. Lam et al., DMKG 2023) warns against using
+  it to compare reasoners.
 
-| Axioms | Open Ontologies | HermiT | Speedup |
-| ------ | --------------- | ------- | ------- |
-| 1,000 | 15ms | 112ms | **7.5x** |
-| 5,000 | 14ms | 410ms | **29x** |
-| 10,000 | 14ms | 1,200ms | **86x** |
-| 50,000 | 15ms | 24,490ms | **1,633x** |
+### Results (canonical pizza.owl, 1,944 triples, 99 classes; Apple M3 Max)
 
-Scripts and results: [`benchmark/reasoner/`](../benchmark/reasoner/)
+| Per-claim check | median | p95 | throughput |
+| --- | --- | --- | --- |
+| HermiT, warm | 4,936 µs | — | ~200 claims/s |
+| compiled token-bitset check | 0.3 µs | 0.4 µs | 3.1M/s seq, 11.2M/s batched |
+
+| Correctness | result |
+| --- | --- |
+| agreement with HermiT, 78,884 audited pairs (13 ontologies) | 100% |
+| agreement on 793 structurally adversarial claims (8 ontologies) | 100%, 0 false negatives |
+| contradiction recall, pizza.owl | 3,944/3,944 (100%) |
+| contradiction recall, ore_ont_10230 | 232/232 (100%) |
+| unsound rejections, all sweeps | 0 |
+
+The compiled surface is sound but deliberately incomplete: pairs it cannot
+settle return `Undetermined` and route to a reasoner-backed residual tier
+(4.9% of adversarial claims in aggregate; per-ontology tier-1 coverage varies
+with modelling style). The envelope and the propagation rules that close it
+per idiom are documented in
+[layer3-compiled-reasoning.md](layer3-compiled-reasoning.md).
+
+### Offline compile cost
+
+One classification pass plus a propagation fixpoint, per ontology:
+pizza.owl ~120 ms; 659-class ore_ont_12925 ~270 ms for the compile step itself;
+a 3,539-class ontology with 27k inferred subsumptions took 28.5 s to classify —
+a build-time cost to budget for, not a query-time one.
+
 
 ## Running Benchmarks
 

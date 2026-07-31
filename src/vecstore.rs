@@ -32,6 +32,7 @@
 //! assert_eq!(hits.len(), 2);
 //! ```
 
+use crate::hnsw_index::{CosineIndex, PoincareIndex};
 use crate::poincare::{cosine_similarity, l2_normalize, poincare_distance};
 use crate::state::StateDb;
 use std::collections::HashMap;
@@ -42,10 +43,20 @@ struct VecEntry {
     struct_vec: Vec<f32>,
 }
 
-/// Brute-force dual-space vector store.
+/// Brute-force dual-space vector store with an opt-in HNSW cosine index.
 pub struct VecStore {
     db: StateDb,
     entries: HashMap<String, VecEntry>,
+    /// Lazily-built HNSW index over `text_vec`s for accelerated cosine
+    /// search. Invalidated on every mutation; rebuilt on first
+    /// `search_cosine_hnsw` after a mutation. The existing
+    /// `search_cosine` linear scan is unchanged and continues to work
+    /// without HNSW.
+    cosine_index: Option<CosineIndex>,
+    /// Lazily-built HNSW index over `struct_vec`s for accelerated Poincaré
+    /// search. Same invalidation semantics as `cosine_index`. The existing
+    /// brute-force `search_poincare` is unchanged.
+    poincare_index: Option<PoincareIndex>,
 }
 
 impl VecStore {
@@ -73,6 +84,8 @@ impl VecStore {
         Self {
             db,
             entries: HashMap::new(),
+            cosine_index: None,
+            poincare_index: None,
         }
     }
 
@@ -106,6 +119,9 @@ impl VecStore {
             text_vec: l2_normalize(text_vec),
             struct_vec: struct_vec.to_vec(),
         });
+        // Invalidate BOTH HNSW indices — instant-distance is immutable.
+        self.cosine_index = None;
+        self.poincare_index = None;
     }
 
     /// Removes the entry for `iri` if it exists.
@@ -137,6 +153,8 @@ impl VecStore {
     /// ```
     pub fn remove(&mut self, iri: &str) {
         self.entries.remove(iri);
+        self.cosine_index = None;
+        self.poincare_index = None;
     }
 
     /// Returns the top-`k` entries ranked by cosine similarity to `query`.
@@ -385,22 +403,33 @@ impl VecStore {
     /// assert_eq!(store.len(), 2);
     /// ```
     pub fn load_from_db(&mut self) -> anyhow::Result<()> {
-        let conn = self.db.conn();
-        let mut stmt = conn.prepare("SELECT iri, text_vec, struct_vec FROM embeddings")?;
-        let rows = stmt.query_map([], |row| {
-            let iri: String = row.get(0)?;
-            let text_bytes: Vec<u8> = row.get(1)?;
-            let struct_bytes: Vec<u8> = row.get(2)?;
-            Ok((iri, text_bytes, struct_bytes))
-        })?;
+        // Scope the connection + statement so the conn MutexGuard is dropped
+        // before we call `load_cosine_index` (which re-acquires it).
+        {
+            let conn = self.db.conn();
+            let mut stmt = conn.prepare("SELECT iri, text_vec, struct_vec FROM embeddings")?;
+            let rows = stmt.query_map([], |row| {
+                let iri: String = row.get(0)?;
+                let text_bytes: Vec<u8> = row.get(1)?;
+                let struct_bytes: Vec<u8> = row.get(2)?;
+                Ok((iri, text_bytes, struct_bytes))
+            })?;
 
-        for row in rows {
-            let (iri, text_bytes, struct_bytes) = row?;
-            self.entries.insert(iri, VecEntry {
-                text_vec: bytes_to_f32_vec(&text_bytes),
-                struct_vec: bytes_to_f32_vec(&struct_bytes),
-            });
+            for row in rows {
+                let (iri, text_bytes, struct_bytes) = row?;
+                self.entries.insert(iri, VecEntry {
+                    text_vec: bytes_to_f32_vec(&text_bytes),
+                    struct_vec: bytes_to_f32_vec(&struct_bytes),
+                });
+            }
         }
+        // Invalidate any previously-built HNSW indices; try to load persisted
+        // ones. If the persisted fingerprint matches the entries we just loaded,
+        // the next `search_cosine_hnsw` / `search_poincare_hnsw` skips rebuild.
+        self.cosine_index = None;
+        self.poincare_index = None;
+        let _ = self.load_cosine_index()?;
+        let _ = self.load_poincare_index()?;
         Ok(())
     }
 

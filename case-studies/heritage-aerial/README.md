@@ -4,6 +4,60 @@ A focused, vertical, openly-licensed digitisation standard for **aerial photogra
 
 Aligned with the goals of the **Towards a National Collection** programme (AHRC / UKRI) and the **N-RICH Prototype**. See [CHANGELOG](CHANGELOG.md).
 
+> **Now backed by real NCAP data**
+>
+> This case study no longer runs on synthetic records alone. It ingests a live,
+> reproducible sample of **292 real frames** harvested from NCAP's public
+> [Air Photo Finder API](https://airphotofinder.ncap.org/), reprojected from
+> EPSG:3857 to WGS84 and auto-lifted to the NAPH Baseline tier — **0 SHACL
+> violations**. Testing the standard against real holdings found (and fixed) a
+> real defect in the standard's own date-precision shape.
+>
+> - **What the live API actually exposes:** [`docs/empirical-api-findings.md`](docs/empirical-api-findings.md) — 100% of records already carry a machine-readable footprint and an ISO-8601 date. NCAP is closer to Baseline than the browser suggests.
+> - **Harvester:** [`pipeline/scrapers/ncap_airphotofinder.py`](pipeline/scrapers/ncap_airphotofinder.py) (respectful, rate-limited, metadata only)
+> - **Real data:** [`data/real-ncap-sample.ttl`](data/real-ncap-sample.ttl) · **Live map:** [`demo/real.html`](demo/real.html) · **STAC + GeoJSON exports:** [`reports/`](reports/)
+
+> **Also backed by real Canadian data (NAPL)**
+>
+> To test whether the standard is genuinely source-agnostic or quietly shaped
+> around one archive, it was run against a second national collection: Canada's
+> **National Air Photo Library** (NAPL, Natural Resources Canada), via the open
+> **Government of Canada CKAN API** (no authentication). **40 dated orthophoto
+> mosaics across 8 regions (1932–2004)** lifted to NAPH Baseline — **0 SHACL
+> violations**. The ontology, shapes and crosswalk were unchanged; only the
+> harvester adapter differs.
+>
+> The cross-national result is the interesting part: NCAP (UK) has frame-level
+> footprints but **0%** machine-readable rights, while NAPL (Canada) ships
+> **100%** machine-readable rights (Open Government Licence) and native-WGS84
+> footprints but at collection (mosaic) granularity. The two archives are missing
+> opposite things — which is exactly what a shared Baseline test is for.
+>
+> - **Findings + cross-national table:** [`docs/canada-napl-findings.md`](docs/canada-napl-findings.md)
+> - **Harvester:** [`pipeline/scrapers/napl_opencanada.py`](pipeline/scrapers/napl_opencanada.py) (open CKAN API, metadata only, no auth)
+> - **Real data:** [`data/real-napl-sample.ttl`](data/real-napl-sample.ttl) · **GeoJSON:** [`reports/real-napl-footprints.geojson`](reports/real-napl-footprints.geojson)
+
+> **And backed by real US data (WHAIFinder) — without the token-gated API**
+>
+> The obvious US target, USGS EROS, has a token-gated M2M API. Rather than gate the
+> demo behind credentials, the third national collection uses an **openly queryable**
+> holding: the **Wisconsin Historic Aerial Imagery Finder** (~201k frame-level
+> records, largely public-domain USDA survey photography), via its public **ArcGIS
+> FeatureServer** (no auth). **225 real frames (1937–1967)** lifted to NAPH Baseline —
+> **0 SHACL violations**.
+>
+> The US index publishes a **point centerpoint**, not a polygon — so the Baseline
+> footprint is a **closed-form reconstruction** from centerpoint + map scale (standard
+> 9×9-inch frame). That gives the full three-country result: each archive was missing
+> a *different* Baseline piece (rights in the UK, frame granularity in Canada, footprint
+> geometry in the US) and each was closed by a *different* single transform — reproject,
+> publish-as-is, reconstruct — with the ontology, shapes and crosswalk **unchanged**.
+>
+> - **Findings + three-country table:** [`docs/usa-whaifinder-findings.md`](docs/usa-whaifinder-findings.md)
+> - **Harvester:** [`pipeline/scrapers/whaifinder_arcgis.py`](pipeline/scrapers/whaifinder_arcgis.py) (open ArcGIS REST, no auth)
+> - **Real data:** [`data/real-whai-sample.ttl`](data/real-whai-sample.ttl) · **GeoJSON:** [`reports/real-whai-footprints.geojson`](reports/real-whai-footprints.geojson)
+> - **USGS (token route):** [`pipeline/scrapers/usgs_earthexplorer.py`](pipeline/scrapers/usgs_earthexplorer.py) documents the USGS EROS M2M pattern (needs a free USGS token).
+
 ## Why narrow
 
 Generic GLAM-wide digitisation standards exist. Aerial photography heritage has distinctive characteristics — stereo pairs, ground sample distance, declassification provenance, sortie metadata — that benefit from a focused, deep treatment rather than a generic framework. NAPH is deliberately one vertical, done well. See [ADR-0001](deliverables/06-knowledge-transfer/architecture-decision-records/0001-narrow-vertical.md).
@@ -52,6 +106,9 @@ The [`deliverables/`](deliverables/) directory contains the complete A-to-Z syst
 | 9 architecture decision records (ADRs) | [`deliverables/06-knowledge-transfer/architecture-decision-records/`](deliverables/06-knowledge-transfer/architecture-decision-records/) |
 | Cross-collection federation playbook | [`deliverables/06-knowledge-transfer/federation-playbook/`](deliverables/06-knowledge-transfer/federation-playbook/) |
 | Vision-language classification pipeline spec | [`deliverables/06-knowledge-transfer/vlm-pipeline-spec.md`](deliverables/06-knowledge-transfer/vlm-pipeline-spec.md) |
+| **RiC-O × STAC crosswalk** (archival ↔ geospatial bridge) | [`deliverables/06-knowledge-transfer/ric-o-stac-crosswalk.md`](deliverables/06-knowledge-transfer/ric-o-stac-crosswalk.md) + [`ontology/naph-ric-o-crosswalk.ttl`](ontology/naph-ric-o-crosswalk.ttl) |
+| **Empirical API findings** (measured against live NCAP data) | [`docs/empirical-api-findings.md`](docs/empirical-api-findings.md) |
+| **STAC 1.0 catalog** (292 real frames) + GeoJSON | [`reports/stac/`](reports/stac/) · [`reports/real-footprints.geojson`](reports/real-footprints.geojson) |
 | **7. Templates** (rights, identifier policy, scoping, council charter) | [`deliverables/07-templates/`](deliverables/07-templates/) |
 | **8. Compliance registry** (institutional declarations) | [`registry/`](registry/) |
 
@@ -245,9 +302,9 @@ This is interoperability without lock-in: institutions adopt NAPH and gain the I
 
 ## Roadmap
 
-This is **v0.2** — working ontology, validated SHACL shapes, end-to-end ingest pipeline, IIIF bridge, validation reports.
+This is **v0.3** — working ontology, validated SHACL shapes, end-to-end ingest pipeline, IIIF bridge, validation reports, **and a live real-data harvest** from the NCAP Air Photo Finder API.
 
-- [ ] **v0.3** — expand sample dataset to 50+ records with real Air Photo Finder browse data, add CSV-W mapping spec
+- [x] **v0.3** — real Air Photo Finder data (292 frames, live API, reprojected + validated); date-precision shape fix; STAC + GeoJSON exports; RiC-O × STAC crosswalk
 - [ ] **v0.4** — automated subject classification pipeline (vision-language models, drafts requiring human validation)
 - [ ] **v0.5** — full case study writeup with cost/effort breakdown per tier and partner adoption playbook
 

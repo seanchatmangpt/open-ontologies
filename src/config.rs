@@ -24,6 +24,7 @@ use std::path::Path;
 pub struct Config {
     pub general: GeneralConfig,
     pub embeddings: EmbeddingsConfig,
+    pub language: LanguageConfig,
     pub cache: CacheConfig,
     pub tools: ToolsConfig,
     pub webhook: WebhookConfig,
@@ -63,7 +64,6 @@ pub struct Config {
     /// `[a2a]` — T2-1 Agent-to-Agent protocol configuration.
     pub a2a: A2aConfig,
 }
-
 
 impl Config {
     pub fn load(path: &Path) -> Result<Self> {
@@ -119,7 +119,11 @@ pub fn resolve_ontology_dirs(cfg: &[String]) -> Vec<std::path::PathBuf> {
             .map(|s| s.trim().to_string())
             .filter(|s| !s.is_empty())
             .collect(),
-        _ => cfg.iter().map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect(),
+        _ => cfg
+            .iter()
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .collect(),
     };
     let mut seen = std::collections::HashSet::new();
     let mut out = Vec::with_capacity(raw.len());
@@ -144,16 +148,17 @@ pub struct EmbeddingsConfig {
     /// `OPEN_ONTOLOGIES_EMBEDDINGS_PROVIDER`.
     pub provider: Option<String>,
     /// Path to the ONNX model file (provider = "local" only).
-    /// Default: ~/.open-ontologies/models/bge-small-en-v1.5.onnx
+    /// Default: ~/.open-ontologies/models/paraphrase-multilingual-MiniLM-L12-v2.onnx
+    /// (falls back to a legacy bge-small-en-v1.5.onnx if that is what is on disk).
     pub model_path: Option<String>,
     /// Path to the tokenizer.json file (provider = "local" only).
     /// Default: ~/.open-ontologies/models/tokenizer.json
     pub tokenizer_path: Option<String>,
-    /// URL to download the ONNX model from. Default: BGE-small-en-v1.5 from Hugging Face
+    /// URL to download the ONNX model from. Default: multilingual MiniLM-L12-v2 from Hugging Face
     pub model_url: Option<String>,
-    /// URL to download the tokenizer from. Default: BGE-small-en-v1.5 tokenizer from Hugging Face
+    /// URL to download the tokenizer from. Default: multilingual MiniLM-L12-v2 tokenizer from Hugging Face
     pub tokenizer_url: Option<String>,
-    /// Filename for the downloaded model. Default: bge-small-en-v1.5.onnx
+    /// Filename for the downloaded model. Default: paraphrase-multilingual-MiniLM-L12-v2.onnx
     pub model_name: Option<String>,
 
     // ─── OpenAI-compatible provider (provider = "openai") ───────────────
@@ -730,10 +735,12 @@ pub struct ToolsConfig {
 /// assert_eq!(open_ontologies::config::expand_tilde("/absolute"), "/absolute");
 /// ```
 pub fn expand_tilde(path: &str) -> String {
-    if (path.starts_with("~/") || path == "~")
-        && let Some(home) = std::env::var_os("HOME") {
+    if path.starts_with("~/") || path == "~" {
+        let home = std::env::var_os("HOME").or_else(|| std::env::var_os("USERPROFILE"));
+        if let Some(home) = home {
             return path.replacen("~", &home.to_string_lossy(), 1);
         }
+    }
     path.to_string()
 }
 
@@ -748,7 +755,11 @@ pub struct WebhookConfig {
     pub request_timeout_secs: u64,
 }
 impl Default for WebhookConfig {
-    fn default() -> Self { Self { request_timeout_secs: 10 } }
+    fn default() -> Self {
+        Self {
+            request_timeout_secs: 10,
+        }
+    }
 }
 
 /// `[http]` — Streamable HTTP transport (`serve-http`).
@@ -807,7 +818,12 @@ pub struct MonitorConfig {
     pub interval_secs: u64,
 }
 impl Default for MonitorConfig {
-    fn default() -> Self { Self { enabled: false, interval_secs: 30 } }
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            interval_secs: 30,
+        }
+    }
 }
 
 /// `[reasoner]` — RDFS / OWL-RL fixpoint and DL tableaux limits.
@@ -827,7 +843,11 @@ pub struct ReasonerConfig {
 }
 impl Default for ReasonerConfig {
     fn default() -> Self {
-        Self { tableaux_max_depth: 100, tableaux_max_nodes: 10_000, max_iterations: 64 }
+        Self {
+            tableaux_max_depth: 100,
+            tableaux_max_nodes: 10_000,
+            max_iterations: 64,
+        }
     }
 }
 
@@ -844,7 +864,12 @@ pub struct FeedbackConfig {
     pub downgrade_threshold: i64,
 }
 impl Default for FeedbackConfig {
-    fn default() -> Self { Self { suppress_threshold: 3, downgrade_threshold: 2 } }
+    fn default() -> Self {
+        Self {
+            suppress_threshold: 3,
+            downgrade_threshold: 2,
+        }
+    }
 }
 
 /// `[retention]` — Round 4 WD §29 Cell8 retirement closure. Per-table
@@ -959,7 +984,11 @@ pub struct ImportsConfig {
 }
 impl Default for ImportsConfig {
     fn default() -> Self {
-        Self { max_depth: 3, request_timeout_secs: 30, follow_remote: true }
+        Self {
+            max_depth: 3,
+            request_timeout_secs: 30,
+            follow_remote: true,
+        }
     }
 }
 
@@ -972,7 +1001,11 @@ pub struct RepoConfig {
     pub default_list_limit: usize,
 }
 impl Default for RepoConfig {
-    fn default() -> Self { Self { default_list_limit: 1000 } }
+    fn default() -> Self {
+        Self {
+            default_list_limit: 1000,
+        }
+    }
 }
 
 /// `[socket]` — Unix domain socket adapter for Tardygrada fact grounding.
@@ -1005,7 +1038,11 @@ pub struct LoggingConfig {
 }
 impl Default for LoggingConfig {
     fn default() -> Self {
-        Self { level: "info".into(), format: "compact".into(), file: None }
+        Self {
+            level: "info".into(),
+            format: "compact".into(),
+            file: None,
+        }
     }
 }
 
@@ -1201,8 +1238,7 @@ pub fn resolve_imports_timeout_secs(cfg: &ImportsConfig) -> u64 {
 /// Resolve the monitor sweep interval. Precedence:
 /// `OPEN_ONTOLOGIES_MONITOR_INTERVAL_SECS` > config > default.
 pub fn resolve_monitor_interval_secs(cfg: &MonitorConfig) -> u64 {
-    parse_env_u64("OPEN_ONTOLOGIES_MONITOR_INTERVAL_SECS")
-        .unwrap_or(cfg.interval_secs)
+    parse_env_u64("OPEN_ONTOLOGIES_MONITOR_INTERVAL_SECS").unwrap_or(cfg.interval_secs)
 }
 
 /// Resolve the HTTP bind host. Precedence:
@@ -1336,6 +1372,31 @@ mod tests {
             .trim()
             .to_lowercase();
         assert_eq!(resolved, "local");
+    }
+
+    #[test]
+    fn language_section_parses_and_defaults_to_multilingual() {
+        // Empty / absent => keep all languages.
+        let cfg: Config = toml::from_str("").expect("parse empty");
+        assert!(cfg.language.preferred.is_empty());
+
+        let toml_src = r#"
+            [language]
+            preferred = ["en", "CY"]
+        "#;
+        let cfg: Config = toml::from_str(toml_src).expect("parse");
+        assert_eq!(cfg.language.preferred, vec!["en", "CY"]);
+        // Resolver lowercases (env var unset in this path).
+        if std::env::var("OPEN_ONTOLOGIES_LANGUAGES").is_err() {
+            assert_eq!(resolve_languages(&cfg.language), vec!["en", "cy"]);
+        }
+
+        // Alias `preferred_languages` also populates the field.
+        let aliased: Config = toml::from_str(
+            "[language]\npreferred_languages = [\"fr\"]\n",
+        )
+        .expect("parse alias");
+        assert_eq!(aliased.language.preferred, vec!["fr"]);
     }
 
     #[test]
@@ -1473,7 +1534,9 @@ mod tests {
             }
         }
 
-        let webhook = WebhookConfig { request_timeout_secs: 7 };
+        let webhook = WebhookConfig {
+            request_timeout_secs: 7,
+        };
         assert_eq!(resolve_webhook_timeout_secs(&webhook), 7);
 
         let imports = ImportsConfig {
@@ -1483,7 +1546,10 @@ mod tests {
         };
         assert_eq!(resolve_imports_timeout_secs(&imports), 42);
 
-        let monitor = MonitorConfig { enabled: true, interval_secs: 11 };
+        let monitor = MonitorConfig {
+            enabled: true,
+            interval_secs: 11,
+        };
         assert_eq!(resolve_monitor_interval_secs(&monitor), 11);
     }
 

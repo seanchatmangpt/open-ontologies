@@ -133,10 +133,12 @@ impl DriftDetector {
     /// assert_eq!(parsed["added"].as_array().unwrap().len(), 1);
     /// ```
     pub fn detect(&self, v1_turtle: &str, v2_turtle: &str) -> anyhow::Result<String> {
-        let store1 = Arc::new(GraphStore::new());
-        let store2 = Arc::new(GraphStore::new());
-        store1.load_turtle(v1_turtle, None)?;
-        store2.load_turtle(v2_turtle, None)?;
+        let raw1 = GraphStore::new();
+        let raw2 = GraphStore::new();
+        raw1.load_turtle(v1_turtle, None)?;
+        raw2.load_turtle(v2_turtle, None)?;
+        let store1 = Arc::new(raw1.canonicalize_blank_nodes()?);
+        let store2 = Arc::new(raw2.canonicalize_blank_nodes()?);
 
         let v1_vocab = self.extract_vocabulary(&store1);
         let v2_vocab = self.extract_vocabulary(&store2);
@@ -394,6 +396,11 @@ impl DriftDetector {
 
     fn extract_vocabulary(&self, store: &GraphStore) -> HashMap<String, VocabEntry> {
         let mut vocab = HashMap::new();
+
+        // Blank nodes are canonicalised upstream in `detect()` via RDFC 1.0, so
+        // they carry deterministic `_:c14n<n>` identifiers stable across reparses.
+        // They participate in the vocab diff like any other node — the previous
+        // `_:`-prefix filter (PR #14) is no longer needed.
 
         // Classes
         let class_query = "SELECT DISTINCT ?c WHERE { ?c a <http://www.w3.org/2002/07/owl#Class> }";

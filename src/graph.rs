@@ -3,7 +3,7 @@ use std::sync::Mutex;
 
 use oxigraph::io::{RdfFormat, RdfParser, RdfSerializer};
 use oxigraph::model::*;
-use oxigraph::sparql::QueryResults;
+use oxigraph::sparql::{QueryResults, SparqlEvaluator};
 use oxigraph::store::Store;
 
 // ── Format token constants ────────────────────────────────────────────────────
@@ -295,7 +295,7 @@ impl GraphStore {
     /// ```
     pub fn load_file(&self, path: &str) -> anyhow::Result<usize> {
         let content = std::fs::read_to_string(path)?;
-        let format = Self::detect_format(path);
+        let format = Self::detect_format_sniffed(path, &content);
         let store = self.store.lock().unwrap();
         let reader = Cursor::new(content.as_bytes());
         let parser = RdfParser::from_format(format).for_reader(reader);
@@ -432,7 +432,7 @@ impl GraphStore {
     /// ```
     pub fn validate_file(path: &str) -> anyhow::Result<usize> {
         let content = std::fs::read_to_string(path)?;
-        let format = Self::detect_format(path);
+        let format = Self::detect_format_sniffed(path, &content);
         let reader = Cursor::new(content.as_bytes());
         let parser = RdfParser::from_format(format).for_reader(reader);
         let mut count = 0;
@@ -485,7 +485,11 @@ impl GraphStore {
     /// ```
     pub fn sparql_select(&self, query: &str) -> anyhow::Result<String> {
         let store = self.store.lock().unwrap();
-        match store.query(query)? {
+        match SparqlEvaluator::new()
+            .parse_query(query)?
+            .on_store(&store)
+            .execute()?
+        {
             QueryResults::Solutions(solutions) => {
                 let vars: Vec<String> = solutions
                     .variables()
@@ -590,7 +594,11 @@ impl GraphStore {
             let quad = quad?;
             serializer.serialize_triple(quad.as_ref())?;
         }
-        drop(serializer);
+        // `finish()` writes the final terminator (e.g. the trailing `.` on the
+        // last Turtle triple, or `</rdf:RDF>` for RDF/XML). Dropping the
+        // serializer skips this step, which produced truncated, unparseable
+        // output — see `convert` → `drift` round-trip on the Pizza ontology.
+        serializer.finish()?;
         Ok(String::from_utf8(buf)?)
     }
 
@@ -688,21 +696,48 @@ impl GraphStore {
         let individual_query = "SELECT (COUNT(DISTINCT ?i) AS ?count) WHERE { ?i a ?c . FILTER(?c != <http://www.w3.org/2002/07/owl#Class> && ?c != <http://www.w3.org/2000/01/rdf-schema#Class> && ?c != <http://www.w3.org/2002/07/owl#ObjectProperty> && ?c != <http://www.w3.org/2002/07/owl#DatatypeProperty> && ?c != <http://www.w3.org/2002/07/owl#Ontology>) }";
 
         let count_from_query = |q: &str| -> usize {
-            let Ok(QueryResults::Solutions(solutions)) = store.query(q) else { return 0 };
+            let Ok(prepared) = SparqlEvaluator::new().parse_query(q) else { return 0 };
+            let Ok(QueryResults::Solutions(solutions)) = prepared
+                .on_store(&store)
+                .execute()
+            else { return 0 };
             let Some(Ok(row)) = solutions.into_iter().next() else { return 0 };
             let Some(Term::Literal(lit)) = row.get("count") else { return 0 };
             lit.value().parse().unwrap_or(0)
         };
 
+        // Typed subsets: object vs datatype properties. The broad `prop_query`
+        // above also counts rdf:Property and implicit (subPropertyOf/domain/range)
+        // properties, so object + data need not sum to `properties` — but
+        // reporting the real datatype-property count is more honest than the
+        // previous hardcoded 0 (which showed e.g. Schema.org / FOAF as having no
+        // properties even though they declare hundreds).
+        let obj_prop_query = "SELECT (COUNT(DISTINCT ?p) AS ?count) WHERE {
+            ?p a <http://www.w3.org/2002/07/owl#ObjectProperty> .
+            FILTER(isIRI(?p)
+                && !STRSTARTS(STR(?p), \"http://www.w3.org/1999/02/22-rdf-syntax-ns#\")
+                && !STRSTARTS(STR(?p), \"http://www.w3.org/2000/01/rdf-schema#\")
+                && !STRSTARTS(STR(?p), \"http://www.w3.org/2002/07/owl#\"))
+        }";
+        let data_prop_query = "SELECT (COUNT(DISTINCT ?p) AS ?count) WHERE {
+            ?p a <http://www.w3.org/2002/07/owl#DatatypeProperty> .
+            FILTER(isIRI(?p)
+                && !STRSTARTS(STR(?p), \"http://www.w3.org/1999/02/22-rdf-syntax-ns#\")
+                && !STRSTARTS(STR(?p), \"http://www.w3.org/2000/01/rdf-schema#\")
+                && !STRSTARTS(STR(?p), \"http://www.w3.org/2002/07/owl#\"))
+        }";
+
         let classes = count_from_query(class_query);
         let props = count_from_query(prop_query);
+        let object_props = count_from_query(obj_prop_query);
+        let data_props = count_from_query(data_prop_query);
         let individuals = count_from_query(individual_query);
 
         Ok(serde_json::json!({
             "triples": total,
             "classes": classes,
-            "object_properties": props,
-            "data_properties": 0,
+            "object_properties": object_props,
+            "data_properties": data_props,
             "properties": props,
             "individuals": individuals
         })
@@ -834,14 +869,28 @@ impl GraphStore {
     /// }
     /// ```
     pub async fn fetch_sparql(endpoint: &str, query: &str) -> anyhow::Result<String> {
+        Self::fetch_sparql_auth(endpoint, query, &SparqlAuth::default()).await
+    }
+
+    /// Run a SPARQL query against an endpoint, with optional HTTP auth.
+    ///
+    /// Works against any SPARQL 1.1 Protocol endpoint: Apache Jena/Fuseki and
+    /// Eclipse RDF4J (no auth), Stardog and Ontotext GraphDB (Basic/Bearer).
+    /// Amazon Neptune with IAM auth requires SigV4 request signing, which this
+    /// path does not perform; use an unsigned/IAM-disabled endpoint or a signing
+    /// proxy in front of Neptune.
+    pub async fn fetch_sparql_auth(
+        endpoint: &str,
+        query: &str,
+        auth: &SparqlAuth,
+    ) -> anyhow::Result<String> {
         let client = reqwest::Client::new();
-        let resp = client
+        let rb = client
             .post(endpoint)
             .header("Content-Type", "application/sparql-query")
             .header("Accept", "text/turtle")
-            .body(query.to_string())
-            .send()
-            .await?;
+            .body(query.to_string());
+        let resp = auth.apply(rb).send().await?;
         if !resp.status().is_success() {
             anyhow::bail!("SPARQL endpoint returned HTTP {}", resp.status());
         }
@@ -979,6 +1028,41 @@ impl GraphStore {
         } else {
             RdfFormat::Turtle
         }
+    }
+
+    /// Format detection that consults the file body, not just the extension.
+    ///
+    /// `.owl` is ambiguous in the wild: the extension says "an OWL ontology"
+    /// and says nothing about the serialisation. Both RDF/XML and Turtle are
+    /// routinely published as `.owl`, so trusting the extension alone makes a
+    /// perfectly valid file fail to parse. Sniff the first non-blank,
+    /// non-comment line and let the content decide.
+    fn detect_format_sniffed(path: &str, content: &str) -> RdfFormat {
+        let ext_format = Self::detect_format(path);
+
+        let head = content
+            .lines()
+            .map(str::trim)
+            .find(|l| !l.is_empty() && !l.starts_with('#'))
+            .unwrap_or("");
+
+        // XML declaration or an opening tag means RDF/XML regardless of name.
+        if head.starts_with("<?xml") || head.starts_with("<rdf:") || head.starts_with("<RDF") {
+            return RdfFormat::RdfXml;
+        }
+
+        // Turtle/TriG directives. `<` alone is not a signal: it also opens an
+        // N-Triples subject IRI, so only treat explicit directives as proof.
+        let is_turtle_directive = head.starts_with("@prefix")
+            || head.starts_with("@base")
+            || head.to_uppercase().starts_with("PREFIX ")
+            || head.to_uppercase().starts_with("BASE ");
+
+        if is_turtle_directive && matches!(ext_format, RdfFormat::RdfXml) {
+            return RdfFormat::Turtle;
+        }
+
+        ext_format
     }
 
     fn parse_format(name: &str) -> anyhow::Result<RdfFormat> {

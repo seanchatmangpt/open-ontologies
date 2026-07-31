@@ -14,8 +14,20 @@ pub mod workflows;
 
 pub use defects::{DefectClass, Deviation};
 pub mod align;
-pub mod config;
+pub mod align_fuzzy;
+pub mod batch;
+pub mod borderline_loop;
+pub mod cache;
+/// Compiled claim verification (Tardygrada Layer 3 hot path).
+pub mod claimcheck;
+pub mod civex;
+#[cfg(feature = "causal-pywhy")]
+pub mod civex_pywhy;
+pub mod classify_el;
 pub mod clinical;
+pub mod coevolve;
+pub mod config;
+pub mod cq;
 pub mod drift;
 pub mod enforce;
 pub mod feedback;
@@ -65,6 +77,43 @@ pub mod vecstore;
 pub mod embed;
 #[cfg(feature = "embeddings")]
 pub mod embed_remote;
+pub mod enforce;
+pub mod feedback;
+pub mod graph;
+#[cfg(feature = "embeddings")]
+pub mod hnsw_index;
+pub mod ingest;
+pub mod inputs;
+pub mod kgcl;
+pub mod language;
+pub mod lineage;
+pub mod mapping;
+pub mod marketplace;
+pub mod monitor;
+pub mod ontology;
+pub mod plan;
+pub mod plan_classical;
+pub mod plan_pddl;
+pub mod plan_validate;
+#[cfg(feature = "embeddings")]
+pub mod poincare;
+pub mod reason;
+pub mod registry;
+pub mod repo;
+pub mod runtime;
+pub mod schema;
+pub mod segment_retrieve;
+pub mod server;
+pub mod shacl;
+#[cfg(unix)]
+pub mod socket;
+#[cfg(windows)]
+#[path = "socket_windows.rs"]
+pub mod socket;
+pub mod sql_sync;
+pub mod sqlsource;
+pub mod vocab_check;
+pub mod state;
 #[cfg(feature = "embeddings")]
 pub mod structembed;
 
