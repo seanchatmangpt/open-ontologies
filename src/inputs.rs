@@ -411,6 +411,16 @@ pub struct OntoShaclCheckInput {
 }
 
 #[derive(Deserialize, JsonSchema)]
+pub struct OntoVocabCheckInput {
+    /// Path to Turtle data or inline Turtle content.
+    pub data: String,
+    /// Treat `data` as inline Turtle when true.
+    pub inline: Option<bool>,
+    /// Additional namespaces whose predicates and classes are checked.
+    pub namespaces: Option<Vec<String>>,
+}
+
+#[derive(Deserialize, JsonSchema)]
 pub struct OntoReasonInput {
     /// Reasoning profile: rdfs (default), owl-rl
     pub profile: Option<String>,

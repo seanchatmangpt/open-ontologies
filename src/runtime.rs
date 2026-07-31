@@ -392,6 +392,29 @@ pub fn preferred_languages() -> Vec<String> {
         .unwrap_or_default()
 }
 
+/// Per-satisfiability-test deadline. The documented default is 10 seconds.
+/// Set `OPEN_ONTOLOGIES_TABLEAUX_TEST_TIMEOUT_MS=0` to disable it.
+pub fn tableaux_test_timeout_ms() -> Option<u64> {
+    timeout_ms_from_env("OPEN_ONTOLOGIES_TABLEAUX_TEST_TIMEOUT_MS", 10_000)
+}
+
+/// Global parallel-classification deadline. The default is 60 seconds.
+/// Set `OPEN_ONTOLOGIES_CLASSIFY_TIMEOUT_MS=0` to disable it.
+pub fn classify_timeout_ms() -> Option<u64> {
+    timeout_ms_from_env("OPEN_ONTOLOGIES_CLASSIFY_TIMEOUT_MS", 60_000)
+}
+
+fn timeout_ms_from_env(name: &str, default_ms: u64) -> Option<u64> {
+    match std::env::var(name) {
+        Ok(value) => match value.trim().parse::<u64>() {
+            Ok(0) => None,
+            Ok(milliseconds) => Some(milliseconds),
+            Err(_) => Some(default_ms),
+        },
+        Err(_) => Some(default_ms),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

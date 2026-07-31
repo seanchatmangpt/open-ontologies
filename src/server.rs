@@ -4,7 +4,7 @@ use crate::admission::{
     OCEL_KEY_DEFECTS_TAXONOMY_VERSION, OCEL_KEY_PRODUCTION_LAW_VERSION, OCEL_KEY_RECEIPT_HASH,
 };
 use crate::config::{ENGINE_GROQ_PM4PY, ENGINE_INPROC, expand_tilde};
-use crate::graph::GraphStore;
+use crate::graph::{GraphStore, SparqlAuth};
 use crate::inputs::*;
 use crate::registry::{NTRIPLES_FORMAT, TURTLE_FORMAT};
 use crate::state::StateDb;
@@ -3990,6 +3990,8 @@ impl OpenOntologiesServer {
                 "hint": "Provide inline Turtle for version_b, or call onto_version to save a snapshot and pass its Turtle content here"
             }).to_string();
         }
+        let format = input.format.as_deref().unwrap_or("json");
+        let threshold = input.rename_threshold.unwrap_or(0.7);
         let detector = crate::drift::DriftDetector::new(self.db.clone());
         match detector.detect(&input.version_a, &input.version_b) {
             Ok(result) => {
