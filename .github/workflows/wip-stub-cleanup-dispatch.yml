@@ -1,0 +1,130 @@
+name: WIP wasm4pm Stub Cleanup
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: wip-stub-cleanup-${{ github.head_ref }}
+  cancel-in-progress: true
+
+jobs:
+  cleanup:
+    if: github.head_ref == 'agent/finish-wip-20260730'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out exact WIP branch
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: agent/finish-wip-20260730
+          fetch-depth: 0
+      - name: Remove duplicate wasm4pm authority
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          manifest = Path('ggen.toml')
+          names = (
+              'wasm4pm-algos-stub',
+              'wasm4pm-cognition-stub',
+              'wasm4pm-stub',
+              'wasm4pm-types-stub',
+          )
+          lines = manifest.read_text().splitlines()
+          filtered = [line for line in lines if not any(f'name = "{name}"' in line for name in names)]
+          manifest.write_text('\n'.join(filtered) + '\n')
+          PY
+
+          git rm --ignore-unmatch -- \
+            .specify/queries/extract-wasm4pm-stub-interfaces.rq \
+            .specify/queries/extract-wasm4pm-stub-requirements.rq \
+            .specify/queries/wasm4pm-stub-modules.rq \
+            .specify/queries/wasm4pm-types-stub.rq \
+            .specify/templates/wasm4pm-algos-stub.rs.tera \
+            .specify/templates/wasm4pm-cognition-stub.rs.tera \
+            .specify/templates/wasm4pm-stub.rs.tera \
+            .specify/templates/wasm4pm-types-stub.rs.tera \
+            ontology/wasm4pm-stubs.ttl \
+            src/wasm4pm_algos_stub.rs \
+            src/wasm4pm_cognition_stub.rs \
+            src/wasm4pm_stub.rs \
+            src/wasm4pm_types_stub.rs
+
+          cat > tests/no_duplicate_wasm4pm_authority.rs <<'RS'
+          use std::fs;
+          use std::path::PathBuf;
+
+          fn root() -> PathBuf {
+              PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+          }
+
+          #[test]
+          fn real_wasm4pm_crates_are_the_only_runtime_authority() {
+              let root = root();
+              let manifest = fs::read_to_string(root.join("ggen.toml")).expect("read ggen.toml");
+              for forbidden in [
+                  "wasm4pm-algos-stub",
+                  "wasm4pm-cognition-stub",
+                  "wasm4pm-stub",
+                  "wasm4pm-types-stub",
+              ] {
+                  assert!(!manifest.contains(forbidden), "duplicate ggen authority returned: {forbidden}");
+              }
+              for path in [
+                  "src/wasm4pm_algos_stub.rs",
+                  "src/wasm4pm_cognition_stub.rs",
+                  "src/wasm4pm_stub.rs",
+                  "src/wasm4pm_types_stub.rs",
+              ] {
+                  assert!(!root.join(path).exists(), "duplicate generated authority exists: {path}");
+              }
+              let cargo = fs::read_to_string(root.join("Cargo.toml")).expect("read Cargo.toml");
+              assert!(cargo.contains("package = \"wasm4pm-compat\""));
+              assert!(cargo.contains("wasm4pm = { git = \"https://github.com/seanchatmangpt/wasm4pm\""));
+              assert!(cargo.contains("wasm4pm-cognition = { git = \"https://github.com/seanchatmangpt/wasm4pm\""));
+          }
+          RS
+          sed -i 's/^          //' tests/no_duplicate_wasm4pm_authority.rs
+          cargo fmt --all
+
+          python3 - <<'PY'
+          from pathlib import Path
+          names = (
+              'wasm4pm-algos-stub',
+              'wasm4pm-cognition-stub',
+              'wasm4pm-stub',
+              'wasm4pm-types-stub',
+          )
+          text = Path('ggen.toml').read_text()
+          present = [name for name in names if name in text]
+          if present:
+              raise SystemExit(f'duplicate ggen rules remain: {present}')
+          for path in (
+              'src/wasm4pm_algos_stub.rs',
+              'src/wasm4pm_cognition_stub.rs',
+              'src/wasm4pm_stub.rs',
+              'src/wasm4pm_types_stub.rs',
+          ):
+              if Path(path).exists():
+                  raise SystemExit(f'duplicate source remains: {path}')
+          Path('.wip').mkdir(exist_ok=True)
+          Path('.wip/wasm4pm-stubs-removed.done').write_text('authority=wasm4pm crates\nduplicate_rules=0\nduplicate_sources=0\n')
+          PY
+      - name: Persist cleanup checkpoint
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A ggen.toml tests/no_duplicate_wasm4pm_authority.rs .wip/wasm4pm-stubs-removed.done \
+            .specify/queries .specify/templates ontology src
+          if ! git diff --cached --quiet; then
+            git commit -m 'refactor(wasm4pm): remove duplicate generated stub authority'
+            git push origin HEAD:agent/finish-wip-20260730
+          fi
