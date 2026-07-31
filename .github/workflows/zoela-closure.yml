@@ -53,34 +53,116 @@ jobs:
             -p ggen-cli-lib \
             --bin ggen
           "$CARGO_TARGET_DIR/debug/ggen" --version
-      - name: Manufacture Zoela Zod consequence twice
+      - name: Manufacture isolated Zoela Zod consequence twice
         shell: bash
         run: |
           set -euo pipefail
           GGEN="$CARGO_TARGET_DIR/debug/ggen"
-          "$GGEN" sync run --help | tee /tmp/ggen-sync-help.txt
-          if grep -q -- '--rule' /tmp/ggen-sync-help.txt; then
-            selector=(--rule zoela-mobile-zod)
-          elif grep -q -- '--only' /tmp/ggen-sync-help.txt; then
-            selector=(--only zoela-mobile-zod)
-          else
-            echo '::error::Exact ggen authority exposes no bounded rule selector; refusing full-repository actuation.'
-            exit 78
-          fi
+          REPO="$PWD"
+          WORK="$(mktemp -d)"
+          trap 'rm -rf "$WORK"' EXIT
 
-          "$GGEN" sync run --dry-run "${selector[@]}"
-          "$GGEN" sync run "${selector[@]}"
-          test -s packages/schemas/zoela.ts
-          first_hash="$(sha256sum packages/schemas/zoela.ts | cut -d' ' -f1)"
-          "$GGEN" sync run "${selector[@]}"
-          second_hash="$(sha256sum packages/schemas/zoela.ts | cut -d' ' -f1)"
-          test "$first_hash" = "$second_hash"
-          ! grep -Eq 'export (const|type) [A-Za-z0-9_]+ [A-Za-z0-9_ ]*Schema' packages/schemas/zoela.ts
-          ! grep -q 'Contribution Unit Shape' packages/schemas/zoela.ts
+          mkdir -p \
+            "$WORK/ontology/zoela" \
+            "$WORK/ontology/profiles" \
+            "$WORK/.specify/queries/zoela" \
+            "$WORK/.specify/templates/zoela" \
+            "$WORK/packages/schemas"
+
+          cp ontology/cli-open-ontologies.ttl "$WORK/ontology/"
+          cp ontology/zoela/*.ttl "$WORK/ontology/zoela/"
+          cp ontology/profiles/zoela-*.ttl "$WORK/ontology/profiles/"
+          cp ontology/profiles/public-role-shapes.ttl "$WORK/ontology/profiles/"
+          cp .specify/queries/zoela/extract-skos-enums.rq "$WORK/.specify/queries/zoela/"
+          cp .specify/templates/zoela/zod-schema.tera "$WORK/.specify/templates/zoela/"
+
+          cat > "$WORK/ggen.toml" <<'TOML'
+          [project]
+          name = "zoela-zod-isolated"
+          version = "1.0.0"
+          description = "Bounded Zoela Zod manufacturing object"
+          authors = ["Sean Chatman"]
+          license = "MIT"
+
+          [ontology]
+          source = "ontology/cli-open-ontologies.ttl"
+          base_iri = "https://zoela.org/ontology/"
+          imports = [
+            "ontology/zoela/categories.ttl",
+            "ontology/zoela/navigation.ttl",
+            "ontology/zoela/notifications.ttl",
+            "ontology/zoela/routes.ttl",
+            "ontology/zoela/connect-groups.ttl",
+            "ontology/zoela/connect-group-routes.ttl",
+            "ontology/zoela/person.ttl",
+            "ontology/zoela/consent.ttl",
+            "ontology/zoela/ocel.ttl",
+            "ontology/zoela/policy.ttl",
+            "ontology/zoela/autoreceipt.ttl",
+            "ontology/profiles/zoela-supabase-materialization.ttl",
+            "ontology/profiles/public-role-shapes.ttl",
+            "ontology/profiles/zoela-supabase-rls.ttl",
+            "ontology/profiles/zoela-governance.ttl",
+            "ontology/profiles/zoela-expo-app.ttl",
+            "ontology/profiles/zoela-legacy-coverage.ttl",
+          ]
+
+          [rdf]
+          base_uri = "https://zoela.org/ontology/"
+          default_format = "turtle"
+          cache_queries = false
+          store_path = ".ggen/rdf-store"
+
+          [rdf.prefixes]
+          ggen = "https://open-ontologies.org/ggen#"
+          zoe = "https://zoela.org/ontology/"
+          rdf = "http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+          rdfs = "http://www.w3.org/2000/01/rdf-schema#"
+          sh = "http://www.w3.org/ns/shacl#"
+          xsd = "http://www.w3.org/2001/XMLSchema#"
+
+          [sparql]
+          timeout = 60
+          max_results = 5000
+          cache_enabled = false
+
+          [[inference.rules]]
+          name = "bounded-identity"
+          description = "Retain admitted triples inside the isolated object graph."
+          construct = """
+          CONSTRUCT { ?s ?p ?o }
+          WHERE { ?s ?p ?o }
+          """
+
+          [generation]
+          rules = [
+            { name = "zoela-mobile-zod", query = { file = ".specify/queries/zoela/extract-skos-enums.rq" }, template = { file = ".specify/templates/zoela/zod-schema.tera" }, output_file = "packages/schemas/zoela.ts", mode = "Overwrite" },
+          ]
+          TOML
+          sed -i 's/^          //' "$WORK/ggen.toml"
+
+          (
+            cd "$WORK"
+            "$GGEN" sync run --dry-run
+            "$GGEN" sync run
+            test -s packages/schemas/zoela.ts
+            first_hash="$(sha256sum packages/schemas/zoela.ts | cut -d' ' -f1)"
+            "$GGEN" sync run
+            second_hash="$(sha256sum packages/schemas/zoela.ts | cut -d' ' -f1)"
+            test "$first_hash" = "$second_hash"
+            ! grep -Eq 'export (const|type) [A-Za-z0-9_]+ [A-Za-z0-9_ ]*Schema' packages/schemas/zoela.ts
+            ! grep -q 'Contribution Unit Shape' packages/schemas/zoela.ts
+            cp packages/schemas/zoela.ts "$REPO/packages/schemas/zoela.ts"
+            printf '%s' "$second_hash" > "$REPO/.zoela-output-sha256"
+          )
+
           test ! -e generated/zoela/navigation.ts
+          second_hash="$(cat .zoela-output-sha256)"
+          rm .zoela-output-sha256
           mkdir -p .wip
           cat > .wip/zoela-generation.done <<EOF
           ggen_rev=$GGEN_REV
+          configuration=isolated_single_rule
           rule=zoela-mobile-zod
           output_sha256=$second_hash
           second_manufacture=byte_identical
@@ -101,6 +183,6 @@ jobs:
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           rm -rf .ggen-tool .cache node_modules apps/mobile/node_modules
           git rm .github/workflows/zoela-closure.yml
-          git add packages/schemas/zoela.ts .ggen-v2 .wip/zoela-generation.done
+          git add packages/schemas/zoela.ts .wip/zoela-generation.done
           git commit -m 'fix(zoela): manufacture admitted schema and validate mobile graph'
           git push origin HEAD:agent/wip-zoela-closure
