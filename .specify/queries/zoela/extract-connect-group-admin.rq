@@ -16,19 +16,102 @@ WHERE {
       (GROUP_CONCAT(?fs; separator="|") AS ?filter_stage_codes)
       (GROUP_CONCAT(?su; separator="|") AS ?surface_urgency)
     WHERE {
-      VALUES (?sc ?sl ?sd ?fs ?su) {
-        ("open-interests"         "Open Group Interests"       "Interests submitted awaiting matching"              "cg-interest-expressed"     "normal")
-        ("unmatched-people"       "Unmatched People"           "No eligible groups found for expressed interests"   "cg-eligible-groups-found"  "high")
-        ("invites-not-accepted"   "Invites Sent / Not Accepted" "Invites sent with no response within 7 days"       "cg-invite-sent"            "normal")
-        ("first-meeting-missed"   "First Meeting Missed"       "Accepted invite but did not attend first meeting"   "cg-invite-accepted"        "high")
-        ("followups-overdue"      "Follow-Ups Overdue"         "Follow-ups not completed within expected window"    "cg-followup-completed"     "high")
-        ("near-capacity"          "Groups Near Capacity"       "Groups at 80% or more capacity"                    ""                          "normal")
-        ("under-capacity"         "Groups Under Capacity"      "Groups below minimum capacity threshold"            ""                          "low")
-        ("without-leader"         "Groups Without Leader"      "Active groups with no assigned leader"              ""                          "high")
-        ("private-approval"       "Private Approval Required"  "Interests requiring manual leader approval"         "cg-eligible-groups-found"  "high")
-        ("route-refusals"         "Route Refusals"             "Consent or policy refusals emitted by the system"  ""                          "normal")
-        ("autonomic-matched"      "Autonomically Matched Today" "Matches completed autonomically in last 24h"       "cg-membership-active"      "normal")
-        ("human-required"         "Human Required Today"       "Cases requiring human intervention in last 24h"    ""                          "normal")
+      {
+        {
+          BIND("open-interests" AS ?sc)
+          BIND("Open Group Interests" AS ?sl)
+          BIND("Interests submitted awaiting matching" AS ?sd)
+          BIND("cg-interest-expressed" AS ?fs)
+          BIND("normal" AS ?su)
+        }
+        UNION
+        {
+          BIND("unmatched-people" AS ?sc)
+          BIND("Unmatched People" AS ?sl)
+          BIND("No eligible groups found for expressed interests" AS ?sd)
+          BIND("cg-eligible-groups-found" AS ?fs)
+          BIND("high" AS ?su)
+        }
+        UNION
+        {
+          BIND("invites-not-accepted" AS ?sc)
+          BIND("Invites Sent / Not Accepted" AS ?sl)
+          BIND("Invites sent with no response within 7 days" AS ?sd)
+          BIND("cg-invite-sent" AS ?fs)
+          BIND("normal" AS ?su)
+        }
+        UNION
+        {
+          BIND("first-meeting-missed" AS ?sc)
+          BIND("First Meeting Missed" AS ?sl)
+          BIND("Accepted invite but did not attend first meeting" AS ?sd)
+          BIND("cg-invite-accepted" AS ?fs)
+          BIND("high" AS ?su)
+        }
+        UNION
+        {
+          BIND("followups-overdue" AS ?sc)
+          BIND("Follow-Ups Overdue" AS ?sl)
+          BIND("Follow-ups not completed within expected window" AS ?sd)
+          BIND("cg-followup-completed" AS ?fs)
+          BIND("high" AS ?su)
+        }
+        UNION
+        {
+          BIND("near-capacity" AS ?sc)
+          BIND("Groups Near Capacity" AS ?sl)
+          BIND("Groups at 80% or more capacity" AS ?sd)
+          BIND("" AS ?fs)
+          BIND("normal" AS ?su)
+        }
+        UNION
+        {
+          BIND("under-capacity" AS ?sc)
+          BIND("Groups Under Capacity" AS ?sl)
+          BIND("Groups below minimum capacity threshold" AS ?sd)
+          BIND("" AS ?fs)
+          BIND("low" AS ?su)
+        }
+        UNION
+        {
+          BIND("without-leader" AS ?sc)
+          BIND("Groups Without Leader" AS ?sl)
+          BIND("Active groups with no assigned leader" AS ?sd)
+          BIND("" AS ?fs)
+          BIND("high" AS ?su)
+        }
+        UNION
+        {
+          BIND("private-approval" AS ?sc)
+          BIND("Private Approval Required" AS ?sl)
+          BIND("Interests requiring manual leader approval" AS ?sd)
+          BIND("cg-eligible-groups-found" AS ?fs)
+          BIND("high" AS ?su)
+        }
+        UNION
+        {
+          BIND("route-refusals" AS ?sc)
+          BIND("Route Refusals" AS ?sl)
+          BIND("Consent or policy refusals emitted by the system" AS ?sd)
+          BIND("" AS ?fs)
+          BIND("normal" AS ?su)
+        }
+        UNION
+        {
+          BIND("autonomic-matched" AS ?sc)
+          BIND("Autonomically Matched Today" AS ?sl)
+          BIND("Matches completed autonomically in last 24h" AS ?sd)
+          BIND("cg-membership-active" AS ?fs)
+          BIND("normal" AS ?su)
+        }
+        UNION
+        {
+          BIND("human-required" AS ?sc)
+          BIND("Human Required Today" AS ?sl)
+          BIND("Cases requiring human intervention in last 24h" AS ?sd)
+          BIND("" AS ?fs)
+          BIND("normal" AS ?su)
+        }
       }
     }
   }
