@@ -1,4 +1,7 @@
 [toolchain]
-channel = "1.97.1"
+channel = "nightly-2026-04-15"
 profile = "minimal"
 components = ["clippy", "rustfmt"]
+
+# Matches the exact wasm4pm dependency revision. wasm4pm-compat uses
+# generic_const_exprs and refuses stable Rust with E0554.
