@@ -63,9 +63,22 @@ WHERE {
     # Active only when no zoe:ServiceRoute triples exist in the store.
     # Encodes receipt types from ontology/zoela/routes.ttl verbatim.
     FILTER NOT EXISTS { ?anyRoute a zoe:ServiceRoute }
-    VALUES (?receiptCode ?receiptLabel ?defCoalesced ?ocelCoalesced ?routeCoalesced) {
-      ("ResourceDistributedReceipt" "Resource Distributed Receipt"  "Proof of food/resource distribution to recipient"  "food.delivered"    "FOOD_DIST_V1")
-      ("CareRouteClosedReceipt"     "Care Route Closed Receipt"     "Proof of care route case closure"                  "care_route.closed" "FOOD_DIST_V1")
+    {
+      {
+        BIND("ResourceDistributedReceipt" AS ?receiptCode)
+        BIND("Resource Distributed Receipt" AS ?receiptLabel)
+        BIND("Proof of food/resource distribution to recipient" AS ?defCoalesced)
+        BIND("food.delivered" AS ?ocelCoalesced)
+        BIND("FOOD_DIST_V1" AS ?routeCoalesced)
+      }
+      UNION
+      {
+        BIND("CareRouteClosedReceipt" AS ?receiptCode)
+        BIND("Care Route Closed Receipt" AS ?receiptLabel)
+        BIND("Proof of care route case closure" AS ?defCoalesced)
+        BIND("care_route.closed" AS ?ocelCoalesced)
+        BIND("FOOD_DIST_V1" AS ?routeCoalesced)
+      }
     }
   }
 }
