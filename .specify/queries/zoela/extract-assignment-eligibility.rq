@@ -26,19 +26,109 @@ SELECT
   (GROUP_CONCAT(?skills;         SEPARATOR="|") AS ?req_skill_labels)
   (GROUP_CONCAT(?eligible_roles; SEPARATOR="|") AS ?eligible_role_codes)
 WHERE {
-  VALUES (?route_label ?min_hours ?req_bgc ?skills ?eligible_roles) {
-    ("Food Distribution Route"          "2" "true"  "Food Safety"       "VOL;CARE;ADMIN;PASTOR")
-    ("Care and Pastoral Route"          "4" "true"  "First Aid"         "CARE;LEADER;ADMIN;PASTOR")
-    ("Clothing Distribution Route"      "2" "true"  "Food Safety"       "VOL;CARE;ADMIN;PASTOR")
-    ("Volunteer Assignment Route"       "0" "true"  ""                  "LEADER;ADMIN;PASTOR")
-    ("Event Registration Route"         "1" "false" ""                  "VOL;LEADER;CARE;ADMIN;PASTOR")
-    ("Kids Check-In Route"              "2" "true"  "Child Safety"      "YTH-LEAD;ADMIN;PASTOR")
-    ("Youth Event Participation Route"  "2" "true"  "Child Safety"      "YTH-LEAD;LEADER;ADMIN;PASTOR")
-    ("Camp Consent and Registration Route" "2" "true" "Child Safety"    "YTH-LEAD;ADMIN;PASTOR")
-    ("Baptism Registration Route"       "1" "false" ""                  "LEADER;CARE;ADMIN;PASTOR")
-    ("Connect Group Join Route"         "1" "false" ""                  "LEADER;ADMIN;PASTOR")
-    ("Partner Organization Referral Route" "2" "true" "Case Management" "CARE;ADMIN;PASTOR")
-    ("Care Follow-Up Route"             "2" "true"  "First Aid"         "CARE;LEADER;ADMIN;PASTOR")
-    ("Mission Trip Participation Route" "4" "true"  "First Aid"         "VOL;LEADER;ADMIN;PASTOR")
+  {
+    {
+      BIND("Food Distribution Route" AS ?route_label)
+      BIND("2" AS ?min_hours)
+      BIND("true" AS ?req_bgc)
+      BIND("Food Safety" AS ?skills)
+      BIND("VOL;CARE;ADMIN;PASTOR" AS ?eligible_roles)
+    }
+    UNION
+    {
+      BIND("Care and Pastoral Route" AS ?route_label)
+      BIND("4" AS ?min_hours)
+      BIND("true" AS ?req_bgc)
+      BIND("First Aid" AS ?skills)
+      BIND("CARE;LEADER;ADMIN;PASTOR" AS ?eligible_roles)
+    }
+    UNION
+    {
+      BIND("Clothing Distribution Route" AS ?route_label)
+      BIND("2" AS ?min_hours)
+      BIND("true" AS ?req_bgc)
+      BIND("Food Safety" AS ?skills)
+      BIND("VOL;CARE;ADMIN;PASTOR" AS ?eligible_roles)
+    }
+    UNION
+    {
+      BIND("Volunteer Assignment Route" AS ?route_label)
+      BIND("0" AS ?min_hours)
+      BIND("true" AS ?req_bgc)
+      BIND("" AS ?skills)
+      BIND("LEADER;ADMIN;PASTOR" AS ?eligible_roles)
+    }
+    UNION
+    {
+      BIND("Event Registration Route" AS ?route_label)
+      BIND("1" AS ?min_hours)
+      BIND("false" AS ?req_bgc)
+      BIND("" AS ?skills)
+      BIND("VOL;LEADER;CARE;ADMIN;PASTOR" AS ?eligible_roles)
+    }
+    UNION
+    {
+      BIND("Kids Check-In Route" AS ?route_label)
+      BIND("2" AS ?min_hours)
+      BIND("true" AS ?req_bgc)
+      BIND("Child Safety" AS ?skills)
+      BIND("YTH-LEAD;ADMIN;PASTOR" AS ?eligible_roles)
+    }
+    UNION
+    {
+      BIND("Youth Event Participation Route" AS ?route_label)
+      BIND("2" AS ?min_hours)
+      BIND("true" AS ?req_bgc)
+      BIND("Child Safety" AS ?skills)
+      BIND("YTH-LEAD;LEADER;ADMIN;PASTOR" AS ?eligible_roles)
+    }
+    UNION
+    {
+      BIND("Camp Consent and Registration Route" AS ?route_label)
+      BIND("2" AS ?min_hours)
+      BIND("true" AS ?req_bgc)
+      BIND("Child Safety" AS ?skills)
+      BIND("YTH-LEAD;ADMIN;PASTOR" AS ?eligible_roles)
+    }
+    UNION
+    {
+      BIND("Baptism Registration Route" AS ?route_label)
+      BIND("1" AS ?min_hours)
+      BIND("false" AS ?req_bgc)
+      BIND("" AS ?skills)
+      BIND("LEADER;CARE;ADMIN;PASTOR" AS ?eligible_roles)
+    }
+    UNION
+    {
+      BIND("Connect Group Join Route" AS ?route_label)
+      BIND("1" AS ?min_hours)
+      BIND("false" AS ?req_bgc)
+      BIND("" AS ?skills)
+      BIND("LEADER;ADMIN;PASTOR" AS ?eligible_roles)
+    }
+    UNION
+    {
+      BIND("Partner Organization Referral Route" AS ?route_label)
+      BIND("2" AS ?min_hours)
+      BIND("true" AS ?req_bgc)
+      BIND("Case Management" AS ?skills)
+      BIND("CARE;ADMIN;PASTOR" AS ?eligible_roles)
+    }
+    UNION
+    {
+      BIND("Care Follow-Up Route" AS ?route_label)
+      BIND("2" AS ?min_hours)
+      BIND("true" AS ?req_bgc)
+      BIND("First Aid" AS ?skills)
+      BIND("CARE;LEADER;ADMIN;PASTOR" AS ?eligible_roles)
+    }
+    UNION
+    {
+      BIND("Mission Trip Participation Route" AS ?route_label)
+      BIND("4" AS ?min_hours)
+      BIND("true" AS ?req_bgc)
+      BIND("First Aid" AS ?skills)
+      BIND("VOL;LEADER;ADMIN;PASTOR" AS ?eligible_roles)
+    }
   }
 }
