@@ -10,7 +10,7 @@ permissions:
 
 concurrency:
   group: wip-exact-head-${{ github.head_ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   verify:
