@@ -49,8 +49,8 @@ sha2 = "0.10"
 dirs = "6"
 shell-words = "1"
 wasm4pm-types = { version = "26.6.13", package = "wasm4pm-compat", features = ["formats"] }
-wasm4pm = { git = "https://github.com/seanchatmangpt/wasm4pm", default-features = false, features = ["powl", "conformance_basic", "hand_rolled_stats", "streaming_basic", "discovery_advanced", "ml"] }
-wasm4pm-cognition = { git = "https://github.com/seanchatmangpt/wasm4pm", package = "wasm4pm-cognition", default-features = false }
+wasm4pm = { git = "https://github.com/seanchatmangpt/wasm4pm", rev = "057d5ba24e10c70036fc4742ede55318c7fe6949", default-features = false, features = ["powl", "conformance_basic", "hand_rolled_stats", "streaming_basic", "discovery_advanced", "ml"] }
+wasm4pm-cognition = { git = "https://github.com/seanchatmangpt/wasm4pm", rev = "057d5ba24e10c70036fc4742ede55318c7fe6949", package = "wasm4pm-cognition" }
 blake3 = "1"
 hex = "0.4"
 base64 = "0.22"
