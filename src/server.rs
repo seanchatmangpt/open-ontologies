@@ -1911,6 +1911,12 @@ impl OpenOntologiesServer {
     async fn onto_pull(&self, Parameters(input): Parameters<OntoPullInput>) -> String {
         use crate::graph::GraphStore;
 
+        let auth = SparqlAuth::from_parts(
+            input.username.clone(),
+            input.password.clone(),
+            input.token.clone(),
+        );
+
         if input.url.trim().is_empty() {
             return r#"{"ok":false,"error":"'url' is required — provide an HTTP URL to a .ttl/.rdf file or a SPARQL CONSTRUCT endpoint.","hint":"Example: onto_pull with url='https://example.org/ontology.ttl' or url='http://localhost:7878/query' with sparql=true and a CONSTRUCT query."}"#.to_string();
         }
