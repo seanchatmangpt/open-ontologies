@@ -26,10 +26,29 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Manufacture compatibility and formatting checkpoint
+      - name: Manufacture companion-authority, compatibility, and formatting checkpoint
         shell: bash
         run: |
           set -euo pipefail
+          companion_authority=ec2115642aa12b41cffd9181c4fabe00cb767017
+          companion_marker=.wip/companion-authority.done
+          if [[ ! -f "$companion_marker" ]]; then
+            git cat-file -e "${companion_authority}^{commit}"
+            git checkout "$companion_authority" -- \
+              src/config.rs \
+              src/inputs.rs \
+              src/graph.rs \
+              src/runtime.rs \
+              src/projection_check.rs
+            mkdir -p .wip
+            cat > "$companion_marker" <<EOF
+          authority=${companion_authority}
+          paths=src/config.rs,src/inputs.rs,src/graph.rs,src/runtime.rs,src/projection_check.rs
+          reason=restore coherent companion APIs retained by the newer server surface
+          EOF
+            sed -i 's/^          //' "$companion_marker"
+          fi
+
           python3 - <<'PY'
           from pathlib import Path
           from textwrap import dedent
@@ -112,15 +131,18 @@ jobs:
           cargo fmt --all
           cargo generate-lockfile
 
-      - name: Persist compatibility and formatting checkpoint
+      - name: Persist manufactured checkpoint
         shell: bash
         run: |
           set -euo pipefail
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git add -u
+          if [[ -f .wip/companion-authority.done ]]; then
+            git add .wip/companion-authority.done
+          fi
           if ! git diff --cached --quiet; then
-            git commit -m 'fix: admit WIP compatibility and formatting boundary'
+            git commit -m 'fix: restore coherent WIP companion authorities'
             git push origin HEAD:agent/finish-wip-20260730
           fi
 
@@ -147,6 +169,7 @@ jobs:
 
           - candidate before receipt: \`${head_before}\`
           - candidate tree before receipt: \`${tree_before}\`
+          - companion authority: \`ec2115642aa12b41cffd9181c4fabe00cb767017\`
           - wasm4pm rev: \`057d5ba24e10c70036fc4742ede55318c7fe6949\`
           - lock generator: \`cargo generate-lockfile\`
           - moving git branches in Cargo.toml: 0
