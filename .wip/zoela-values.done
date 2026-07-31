@@ -1,11 +1,5 @@
-schema=chatmangpt.zoela-values-receipt/v1
-manifest=ggen.toml
-manifest_git_blob=bb53320526d454eb84450bef754b875f41283634
-manifest_commit=975ae75066ae08085a5c3a804c9516f6054cee72
+ratchet=tools/activate_zoela_rules.py
 query_authorities=9
 activated_rules=11
-disabled_rule_copies=0
-temporary_disable_comments=0
-ratchet=tools/activate_zoela_rules.py
-standing=PARTIAL_ALIVE
-pending=ggen manufacture replay and exact-head verifier ladder
+second_apply=byte_identical
+ggen_sha256=2d586e8f063428cbd94d219009afa8eb0450665f88a50911a4ace7a4fb1ab09d
