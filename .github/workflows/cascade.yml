@@ -11,6 +11,9 @@ on:
   schedule:
     - cron: '17 12 * * *'
 
+permissions:
+  contents: read
+
 env:
   CARGO_TERM_COLOR: always
   CARGO_INCREMENTAL: 0
@@ -19,45 +22,51 @@ env:
 jobs:
   check:
     name: cascade-check
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-        with: { components: clippy }
-      - uses: Swatinem/rust-cache@v2
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4
+        with:
+          toolchain: 1.97.1
+          components: clippy
+      - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32
         with: { key: cascade-check }
       - run: make check
 
   audit-substrate:
     name: cascade-audit-substrate
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4
+        with:
+          toolchain: 1.97.1
+      - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32
         with: { key: cascade-substrate }
       - name: four ratchets (no-bypass, secret-grep, llm-authority-zero, test-removal-tag)
         run: |
-          cargo test --test no_bypass_audit -- --test-threads=1
-          cargo test --test secret_grep_ratchet -- --test-threads=1
-          cargo test --test llm_authority_zero -- --test-threads=1
+          cargo test --locked --test no_bypass_audit -- --test-threads=1
+          cargo test --locked --test secret_grep_ratchet -- --test-threads=1
+          cargo test --locked --test llm_authority_zero -- --test-threads=1
           bash tools/check-test-removal-tag.sh
 
   adversarial:
     name: cascade-adversarial
     needs: check
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-        with: { components: clippy }
-      - uses: Swatinem/rust-cache@v2
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4
+        with:
+          toolchain: 1.97.1
+          components: clippy
+      - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32
         with: { key: cascade-adversarial }
-      - uses: taiki-e/install-action@v2
+      - uses: taiki-e/install-action@6a1bd70eaac3c8bdf093356838d7ee09fda951cf
         with: { tool: cargo-expand }
       - run: make adversarial
       - name: saboteur gates (A11/A12/A13 load-bearing deny-path proofs)
         run: |
-          cargo test --test saboteur_a11_temporal_validity_load_bearing -- --ignored --test-threads=1
-          cargo test --test saboteur_a12_dependency_closure_load_bearing -- --ignored --test-threads=1
-          cargo test --test saboteur_a13_replay_proof_load_bearing -- --ignored --test-threads=1
+          cargo test --locked --test saboteur_a11_temporal_validity_load_bearing -- --ignored --test-threads=1
+          cargo test --locked --test saboteur_a12_dependency_closure_load_bearing -- --ignored --test-threads=1
+          cargo test --locked --test saboteur_a13_replay_proof_load_bearing -- --ignored --test-threads=1
