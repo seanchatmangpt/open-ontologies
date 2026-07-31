@@ -96,7 +96,7 @@ def main() -> int:
         action_refs = re.findall(r"uses:\s+[^@\s]+@([^\s]+)", text)
         immutable = bool(action_refs) and all(re.fullmatch(r"[0-9a-f]{40}", ref) for ref in action_refs)
         checks.append(check("external actions pinned to immutable SHA", immutable, refs=action_refs))
-    except Exception as exc:  # verifier must emit a machine-readable refusal
+    except Exception as exc:
         errors.append(str(exc))
 
     passed = not errors and all(bool(item["passed"]) for item in checks)
