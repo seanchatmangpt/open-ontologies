@@ -34,3 +34,5 @@ jobs:
         run: npm ci
       - name: Verify TrueX boundary
         run: npm run verify
+
+# Exact-head read-only verifier; source repair workflows may not promote standing.
