@@ -126,7 +126,9 @@ fn real_pizza_verdicts_and_latency() {
     );
 
     // Throughput: sequential loop vs rayon batch over the same mixed stream.
-    let big: Vec<Claim> = (0..200_000).map(|i| claims[i % claims.len()].clone()).collect();
+    let big: Vec<Claim> = (0..200_000)
+        .map(|i| claims[i % claims.len()].clone())
+        .collect();
 
     let t = std::time::Instant::now();
     for cl in &big {
@@ -143,6 +145,8 @@ fn real_pizza_verdicts_and_latency() {
     let par_rate = big.len() as f64 / par.as_secs_f64();
     eprintln!(
         "throughput: sequential {:.0} claims/s | batch(rayon) {:.0} claims/s | scaling {:.1}x",
-        seq_rate, par_rate, par_rate / seq_rate
+        seq_rate,
+        par_rate,
+        par_rate / seq_rate
     );
 }

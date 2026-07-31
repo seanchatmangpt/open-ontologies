@@ -39,7 +39,7 @@ attack_1_let_method_discard() {
     Add to any src/*.rs (not src/cmds/) inside a method body:
         let _ = self.evaluate_admission(op, scope, kind, bytes);
   Expected catch:
-    tools/dead-param-gate.sh exits 1 with
+    the delegated Rust AST test exits non-zero with
     "❌ Gate-fn Result discarded via `let _ = self.<gate>(...)`:"
 ATTACK
 }
@@ -51,7 +51,7 @@ attack_2_bare_method_discard() {
     Insert at the start of a line in src/*.rs:
         _ = self.persist_receipt(receipt);
   Expected catch:
-    tools/dead-param-gate.sh exits 1 with
+    the delegated Rust AST test exits non-zero with
     "❌ Gate-fn Result discarded via bare `_ = self.<gate>(...)`:"
 ATTACK
 }

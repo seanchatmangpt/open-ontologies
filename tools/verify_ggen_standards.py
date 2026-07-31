@@ -129,26 +129,31 @@ def absolute_path_references(root: Path) -> list[dict[str, Any]]:
     return findings
 
 
-def stale_dead_param_references(root: Path) -> list[dict[str, Any]]:
+def dead_param_gate_findings(root: Path) -> list[dict[str, Any]]:
+    wrapper = root / "tools" / "dead-param-gate.sh"
     findings: list[dict[str, Any]] = []
-    paths = [root / ".github" / "workflows", root / ".github" / "scripts", root / "Makefile"]
-    for entry in paths:
-        files = [entry] if entry.is_file() else sorted(entry.rglob("*")) if entry.exists() else []
-        for path in files:
-            if not path.is_file() or path.suffix not in {".yml", ".yaml", ".sh", ""}:
-                continue
-            text = path.read_text(encoding="utf-8", errors="replace")
-            for lineno, line in enumerate(text.splitlines(), 1):
-                if "tools/dead-param-gate.sh" in line:
-                    findings.append(
-                        {
-                            "path": path.relative_to(root).as_posix(),
-                            "line": lineno,
-                            "text": line.strip(),
-                        }
-                    )
-    return findings
+    if not wrapper.is_file():
+        return [{"path": "tools/dead-param-gate.sh", "detail": "compatibility wrapper missing"}]
 
+    text = wrapper.read_text(encoding="utf-8", errors="replace")
+    authority = "cargo test --locked --test dead_param_gate_test"
+    if authority not in text:
+        findings.append(
+            {
+                "path": "tools/dead-param-gate.sh",
+                "detail": "wrapper does not delegate to the admitted Rust AST gate",
+            }
+        )
+    forbidden = ("rg -n", "grep -", "GATE_LET", "GENERIC_DISCARD")
+    for token in forbidden:
+        if token in text:
+            findings.append(
+                {
+                    "path": "tools/dead-param-gate.sh",
+                    "detail": f"wrapper contains superseded scanner logic: {token}",
+                }
+            )
+    return findings
 
 def verify_contract(root: Path) -> list[Check]:
     checks: list[Check] = []
@@ -315,13 +320,13 @@ def verify_repository(root: Path) -> list[Check]:
         )
     )
 
-    stale_refs = stale_dead_param_references(root)
+    gate_findings = dead_param_gate_findings(root)
     checks.append(
         require(
-            not stale_refs,
+            not gate_findings,
             "GGEN-STD-CI-001",
-            "CI invokes the admitted Rust dead-parameter gate rather than a deleted shell path",
-            findings=stale_refs,
+            "dead-parameter compatibility wrapper delegates only to the admitted Rust AST gate",
+            findings=gate_findings,
         )
     )
 

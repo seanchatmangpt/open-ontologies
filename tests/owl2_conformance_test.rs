@@ -39,7 +39,6 @@ fn disable_reasoner_timeouts() {
     open_ontologies::runtime::set_classify_timeout_ms(0);
 }
 
-
 // ── W3C-style Consistency Tests ─────────────────────────────────────────
 // Reference: OWL 2 Structural Specification §11 (consistency)
 // Oracle: HermiT 1.4.3
