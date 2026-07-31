@@ -88,9 +88,9 @@ embeddings = ["tract-onnx", "tokenizers", "instant-distance", "bincode"]
 # Explicit process-boundary feature used by src/civex_pywhy.rs. It has no
 # additional Rust dependency and remains candidate-only at the Python boundary.
 causal-pywhy = []
-# The proof-gated adapter depends on unpublished private mcpp-core APIs. The
-# feature name remains reserved for compatibility but is UNSUPPORTED in clean
-# public checkouts until the dependency is published or vendored with receipts.
+# The proof-gated adapter depends on unpublished private proof APIs. The feature
+# name remains reserved for compatibility but is UNSUPPORTED in clean public
+# checkouts until that dependency is published or vendored with receipts.
 mcpp = []
 
 [lints.clippy]
