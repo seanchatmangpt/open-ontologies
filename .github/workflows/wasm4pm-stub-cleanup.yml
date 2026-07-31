@@ -1,0 +1,104 @@
+name: Remove Duplicate wasm4pm Stub Authority
+
+on:
+  pull_request:
+    branches: [agent/finish-wip-20260730]
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: wasm4pm-stub-cleanup-${{ github.head_ref }}
+  cancel-in-progress: true
+
+jobs:
+  cleanup:
+    if: github.head_ref == 'agent/wip-remove-wasm4pm-stubs'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out exact cleanup branch
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: agent/wip-remove-wasm4pm-stubs
+          fetch-depth: 0
+      - name: Remove duplicate generator authority
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          manifest = Path('ggen.toml')
+          names = (
+              'wasm4pm-algos-stub',
+              'wasm4pm-cognition-stub',
+              'wasm4pm-stub',
+              'wasm4pm-types-stub',
+          )
+          lines = manifest.read_text().splitlines()
+          filtered = [line for line in lines if not any(f'name = "{name}"' in line for name in names)]
+          if len(filtered) != len(lines) - len(names):
+              raise SystemExit('expected exactly four wasm4pm stub rules')
+          manifest.write_text('\n'.join(filtered) + '\n')
+          PY
+
+          mapfile -d '' stub_paths < <(git ls-files -z | grep -zE '(^|/)(wasm4pm[^/]*stub|[^/]*wasm4pm[^/]*stub)[^/]*$' || true)
+          if (( ${#stub_paths[@]} == 0 )); then
+            echo 'No duplicate stub files found' >&2
+            exit 1
+          fi
+          printf 'Removing duplicate stub authority:\n'
+          printf '  %s\n' "${stub_paths[@]}"
+          git rm -- "${stub_paths[@]}"
+
+          cat > tests/no_duplicate_wasm4pm_authority.rs <<'RS'
+          use std::fs;
+          use std::path::PathBuf;
+
+          fn root() -> PathBuf {
+              PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+          }
+
+          #[test]
+          fn real_wasm4pm_crates_are_the_only_runtime_authority() {
+              let root = root();
+              let manifest = fs::read_to_string(root.join("ggen.toml")).expect("read ggen.toml");
+              for forbidden in [
+                  "wasm4pm-algos-stub",
+                  "wasm4pm-cognition-stub",
+                  "wasm4pm-stub",
+                  "wasm4pm-types-stub",
+              ] {
+                  assert!(!manifest.contains(forbidden), "duplicate ggen authority returned: {forbidden}");
+              }
+
+              for path in [
+                  "src/wasm4pm_algos_stub.rs",
+                  "src/wasm4pm_cognition_stub.rs",
+                  "src/wasm4pm_stub.rs",
+                  "src/wasm4pm_types_stub.rs",
+              ] {
+                  assert!(!root.join(path).exists(), "duplicate generated runtime authority exists: {path}");
+              }
+
+              let cargo = fs::read_to_string(root.join("Cargo.toml")).expect("read Cargo.toml");
+              assert!(cargo.contains("package = \"wasm4pm-compat\""));
+              assert!(cargo.contains("wasm4pm = { git = \"https://github.com/seanchatmangpt/wasm4pm\""));
+              assert!(cargo.contains("wasm4pm-cognition = { git = \"https://github.com/seanchatmangpt/wasm4pm\""));
+          }
+          RS
+          sed -i 's/^          //' tests/no_duplicate_wasm4pm_authority.rs
+          cargo fmt --all
+          cargo test --locked --test no_duplicate_wasm4pm_authority
+
+      - name: Persist verified cleanup and remove one-use workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git rm .github/workflows/wasm4pm-stub-cleanup.yml
+          git add ggen.toml tests/no_duplicate_wasm4pm_authority.rs
+          git commit -m 'refactor(wasm4pm): remove duplicate generated stub authority'
+          git push origin HEAD:agent/wip-remove-wasm4pm-stubs
