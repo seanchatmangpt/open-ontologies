@@ -1,4 +1,4 @@
-name: WIP Sweep
+name: Dependency Boundary Audit
 
 on:
   push:
@@ -8,132 +8,179 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: open-ontologies-dependency-audit
+  cancel-in-progress: true
+
 jobs:
   audit:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - name: Check out exact candidate
+        uses: actions/checkout@v4
         with:
           ref: agent/finish-wip-20260730
-          fetch-depth: 0
+          fetch-depth: 1
 
-      - name: Inventory WIP and executable gates
+      - name: Observe dependency and authority boundaries
         shell: bash
         run: |
           set -euo pipefail
-          git fetch origin '+refs/heads/*:refs/remotes/origin/*'
           mkdir -p .wip
           python3 - <<'PY'
-          import json, os, re, subprocess, time
+          from __future__ import annotations
+
+          import json
+          import re
+          import subprocess
           from pathlib import Path
 
-          root = Path('.')
-          excluded = {'.git', 'target', 'node_modules', '.venv', 'venv', 'dist', 'build'}
-          marker_re = re.compile(r'(?i)\b(TODO|FIXME|XXX|HACK|WIP|TBD|NOT[ _-]?IMPLEMENTED|PLACEHOLDER|STUB)\b|todo!\s*\(|unimplemented!\s*\(')
-          text_ext = {'.rs','.py','.ts','.tsx','.js','.jsx','.md','.toml','.yml','.yaml','.json','.ttl','.rq','.tera','.sh','.java','.html','.css','.sql','.txt','.cff'}
+          ROOT = Path('.')
+          TOKENS = (
+              'wasm4pm_types',
+              'wasm4pm_algos',
+              'wasm4pm_cognition',
+              'wasm4pm::',
+              'mcpp_core',
+              'feature = "mcpp"',
+              'cfg(feature = "mcpp")',
+          )
+          TEXT_SUFFIXES = {'.rs', '.toml', '.yml', '.yaml', '.sh', '.py', '.md'}
+          EXCLUDED = {'.git', 'target', '.wip'}
 
-          markers = []
-          zero_files = []
-          for p in root.rglob('*'):
-              if any(part in excluded for part in p.parts):
+          use_sites = []
+          for path in sorted(ROOT.rglob('*')):
+              if not path.is_file() or path.suffix.lower() not in TEXT_SUFFIXES:
                   continue
-              if not p.is_file():
+              if any(part in EXCLUDED for part in path.parts):
                   continue
               try:
-                  size = p.stat().st_size
+                  lines = path.read_text(encoding='utf-8', errors='replace').splitlines()
               except OSError:
                   continue
-              if size == 0:
-                  zero_files.append(str(p))
-              if p.suffix.lower() not in text_ext or size > 2_000_000:
-                  continue
-              try:
-                  for lineno, line in enumerate(p.read_text(errors='replace').splitlines(), 1):
-                      if marker_re.search(line):
-                          markers.append({'path': str(p), 'line': lineno, 'text': line.strip()[:500]})
-              except OSError:
-                  pass
+              for lineno, line in enumerate(lines, 1):
+                  if any(token in line for token in TOKENS):
+                      use_sites.append({
+                          'path': path.as_posix(),
+                          'line': lineno,
+                          'text': line.strip()[:500],
+                      })
 
-          branches = []
-          refs = subprocess.run(['git','for-each-ref','--format=%(refname:short)','refs/remotes/origin'], text=True, capture_output=True, check=True).stdout.splitlines()
-          for ref in refs:
-              if ref in {'origin/HEAD','origin/main'}:
-                  continue
-              ahead = int(subprocess.run(['git','rev-list','--count',f'origin/main..{ref}'], text=True, capture_output=True, check=True).stdout.strip() or '0')
-              behind = int(subprocess.run(['git','rev-list','--count',f'{ref}..origin/main'], text=True, capture_output=True, check=True).stdout.strip() or '0')
-              tip = subprocess.run(['git','rev-parse',ref], text=True, capture_output=True, check=True).stdout.strip()
-              subject = subprocess.run(['git','show','-s','--format=%s',ref], text=True, capture_output=True, check=True).stdout.strip()
-              branches.append({'ref':ref,'ahead':ahead,'behind':behind,'tip':tip,'subject':subject})
+          manifest = Path('Cargo.toml').read_text(encoding='utf-8')
+          absolute_path_dependencies = []
+          for lineno, line in enumerate(manifest.splitlines(), 1):
+              if re.search(r'\bpath\s*=\s*"/', line):
+                  absolute_path_dependencies.append({
+                      'line': lineno,
+                      'text': line.strip(),
+                  })
 
+          lock_text = Path('Cargo.lock').read_text(encoding='utf-8', errors='replace')
           duplicate_packages = []
-          lock_text = Path('Cargo.lock').read_text(errors='replace') if Path('Cargo.lock').exists() else ''
-          blocks = lock_text.split('[[package]]')[1:]
           seen = {}
-          for i, block in enumerate(blocks, 1):
-              def field(name):
-                  m = re.search(rf'^\s*{name}\s*=\s*"([^"]*)"', block, re.M)
-                  return m.group(1) if m else None
+          for block_number, block in enumerate(lock_text.split('[[package]]')[1:], 1):
+              def field(name: str):
+                  match = re.search(rf'^\s*{name}\s*=\s*"([^"]*)"', block, re.M)
+                  return match.group(1) if match else None
               key = (field('name'), field('version'), field('source'))
               if key[0] and key in seen:
-                  duplicate_packages.append({'key':key,'first_block':seen[key],'duplicate_block':i})
-              else:
-                  seen[key]=i
+                  duplicate_packages.append({
+                      'name': key[0],
+                      'version': key[1],
+                      'source': key[2],
+                      'first_block': seen[key],
+                      'duplicate_block': block_number,
+                  })
+              elif key[0]:
+                  seen[key] = block_number
 
-          commands = [
-              ['cargo','metadata','--locked','--format-version','1','--no-deps'],
-              ['cargo','check','--locked','--all-targets'],
-          ]
-          gates=[]
-          for cmd in commands:
-              started=time.time()
-              try:
-                  cp=subprocess.run(cmd,text=True,capture_output=True,timeout=1200)
-                  out=(cp.stdout+'\n'+cp.stderr)[-12000:]
-                  gates.append({'command':' '.join(cmd),'exit':cp.returncode,'seconds':round(time.time()-started,2),'tail':out})
-                  if cp.returncode != 0:
-                      break
-              except subprocess.TimeoutExpired as e:
-                  gates.append({'command':' '.join(cmd),'exit':124,'seconds':round(time.time()-started,2),'tail':str(e)})
-                  break
-
-          audit={
-              'base_sha': subprocess.run(['git','rev-parse','origin/main'],text=True,capture_output=True,check=True).stdout.strip(),
-              'branch_sha': subprocess.run(['git','rev-parse','HEAD'],text=True,capture_output=True,check=True).stdout.strip(),
-              'markers': markers,
-              'zero_byte_tracked_or_present': sorted(zero_files),
-              'branches': sorted(branches,key=lambda x:(-x['ahead'],x['ref'])),
-              'duplicate_lock_packages': duplicate_packages,
-              'gates': gates,
+          command = ['cargo', 'metadata', '--locked', '--format-version', '1', '--no-deps']
+          completed = subprocess.run(command, text=True, capture_output=True, check=False)
+          metadata_gate = {
+              'command': ' '.join(command),
+              'exit': completed.returncode,
+              'stdout_tail': completed.stdout[-4000:],
+              'stderr_tail': completed.stderr[-4000:],
           }
-          Path('.wip/audit.json').write_text(json.dumps(audit,indent=2))
 
-          lines=['# WIP audit','',f"Base: `{audit['base_sha']}`",'']
-          lines += [f"## Marker findings ({len(markers)})",'']
-          for m in markers[:500]: lines.append(f"- `{m['path']}:{m['line']}` — {m['text']}")
-          if len(markers)>500: lines.append(f"- … {len(markers)-500} additional findings in `audit.json`")
-          lines += ['',f"## Zero-byte files ({len(zero_files)})",'']
-          for p in sorted(zero_files): lines.append(f"- `{p}`")
-          lines += ['',f"## Non-main branches ({len(branches)})",'']
-          for b in audit['branches']: lines.append(f"- `{b['ref']}` — ahead {b['ahead']}, behind {b['behind']}, `{b['tip'][:12]}` — {b['subject']}")
-          lines += ['',f"## Duplicate Cargo.lock packages ({len(duplicate_packages)})",'']
-          for d in duplicate_packages: lines.append(f"- `{d['key']}` blocks {d['first_block']} and {d['duplicate_block']}")
-          lines += ['','## Executable gates','']
-          for g in gates:
-              lines.append(f"### `{g['command']}`")
-              lines.append(f"Exit: `{g['exit']}` in {g['seconds']}s")
-              lines.append('```text')
-              lines.append(g['tail'][-6000:])
-              lines.append('```')
-          Path('.wip/audit.md').write_text('\n'.join(lines)+'\n')
+          branch_sha = subprocess.run(
+              ['git', 'rev-parse', 'HEAD'], text=True, capture_output=True, check=True
+          ).stdout.strip()
+          tree_sha = subprocess.run(
+              ['git', 'rev-parse', 'HEAD^{tree}'], text=True, capture_output=True, check=True
+          ).stdout.strip()
+
+          audit = {
+              'schema': 'open-ontologies-dependency-audit/v1',
+              'branch_sha': branch_sha,
+              'tree_sha': tree_sha,
+              'use_sites': use_sites,
+              'absolute_path_dependencies': absolute_path_dependencies,
+              'duplicate_lock_packages': duplicate_packages,
+              'cargo_metadata_gate': metadata_gate,
+              'standing': 'BUILD_BROKEN' if metadata_gate['exit'] else 'PARTIAL_ALIVE',
+              'standing_reason': (
+                  'Cargo metadata does not parse or resolve the admitted dependency graph.'
+                  if metadata_gate['exit']
+                  else 'Dependency metadata resolves; compilation and runtime evidence remain separate.'
+              ),
+          }
+          Path('.wip/dependency-audit.json').write_text(
+              json.dumps(audit, indent=2, sort_keys=True) + '\n', encoding='utf-8'
+          )
+
+          lines = [
+              '# Dependency boundary audit',
+              '',
+              f"- exact commit: `{branch_sha}`",
+              f"- exact tree: `{tree_sha}`",
+              f"- standing: **{audit['standing']}**",
+              f"- absolute path dependencies: **{len(absolute_path_dependencies)}**",
+              f"- duplicate lock package keys: **{len(duplicate_packages)}**",
+              f"- dependency use sites: **{len(use_sites)}**",
+              '',
+              '## Cargo metadata',
+              '',
+              f"Exit: `{metadata_gate['exit']}`",
+              '',
+              '```text',
+              (metadata_gate['stderr_tail'] or metadata_gate['stdout_tail']).strip(),
+              '```',
+              '',
+              '## Absolute path dependencies',
+              '',
+          ]
+          lines.extend(
+              f"- `Cargo.toml:{item['line']}` — `{item['text']}`"
+              for item in absolute_path_dependencies
+          )
+          lines.extend(['', '## Duplicate lock package keys', ''])
+          lines.extend(
+              f"- `{item['name']} {item['version']} {item['source']}` — blocks "
+              f"{item['first_block']} and {item['duplicate_block']}"
+              for item in duplicate_packages
+          )
+          lines.extend(['', '## Dependency use sites', ''])
+          lines.extend(
+              f"- `{item['path']}:{item['line']}` — `{item['text']}`"
+              for item in use_sites
+          )
+          Path('.wip/dependency-audit.md').write_text(
+              '\n'.join(lines) + '\n', encoding='utf-8'
+          )
           PY
 
-      - name: Commit audit receipt
+      - name: Commit bounded audit receipt
         shell: bash
         run: |
           set -euo pipefail
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add .wip/audit.json .wip/audit.md
-          git commit -m 'chore: record WIP audit receipt'
+          git add .wip/dependency-audit.json .wip/dependency-audit.md
+          if git diff --cached --quiet; then
+            echo 'dependency audit unchanged'
+            exit 0
+          fi
+          git commit -m 'chore: record dependency boundary audit'
           git push origin HEAD:agent/finish-wip-20260730
