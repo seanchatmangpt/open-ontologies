@@ -9,8 +9,8 @@ permissions:
   contents: write
 
 concurrency:
-  group: zoela-manifest-repair-${{ github.event.pull_request.head.sha }}
-  cancel-in-progress: false
+  group: zoela-manifest-repair
+  cancel-in-progress: true
 
 jobs:
   repair:
