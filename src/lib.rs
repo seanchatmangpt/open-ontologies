@@ -44,6 +44,7 @@ pub mod ggen_bridge;
 pub mod ghf;
 pub mod graph;
 pub mod guide;
+pub mod health_guardian;
 pub mod ingest;
 pub mod inputs;
 pub mod kgcl;
