@@ -1,62 +1,56 @@
-import { Verifier } from '../packages/truex/verifier';
+import { RefusalState, VerificationState, Verifier } from '../packages/truex/verifier';
 import { Receipt } from '../packages/truex/receipt';
 
-describe('Truex Refusal Engine', () => {// Failure Taxonomy from Law Surface:
-  
-  // BoundaryProjectionFailure: Failed to project raw boundary evidence into a valid OCEL structure.
-  // TemporalOrderingViolation: Observed event sequence violates the causal/temporal laws defined in the expected path.
-  // ArtifactOriginMismatch: Emitted artifact hash or path does not match the derivation origin in the boundary evidence.
-  // StateTransitionMismatch: Observed object state transitions do not match the expected state graph mutations.
-  // NonDerivableExecution: The claimed execution path cannot be physically derived from raw boundary evidence.
-  // MissingBoundary: Absence of required physical execution evidence.
-  // CloneTrace: Using expected OCEL as observed evidence (cloning).
-  // SummaryOnlyProof: Attempting closure with only high-level hashes (stdout_hash) without raw evidence.
-  // OCELLaundering: Formatting OCEL from summary data without raw boundary derivation.
+describe('TrueX refusal engine', () => {
+  it('refuses summary-only proofs', async () => {
+    const result = await new Verifier().verify(
+      new Receipt({
+        stdout_hash: 'abc',
+        raw_evidence: null
+      })
+    );
 
-  it('should refuse summary-only proofs', async () => {
-    const verifier = new Verifier();
-    const summaryOnlyReceipt = new Receipt({
-      stdout_hash: 'abc',
-      raw_evidence: null // Missing raw boundary
-    });
-
-    const result = await verifier.verify(summaryOnlyReceipt);
-    expect(result.state).toBe('Refused');
-    expect(result.refusal_state).toBe('SummaryOnlyProof');
+    expect(result.state).toBe(VerificationState.Refused);
+    expect(result.refusal_state).toBe(RefusalState.SummaryOnlyProof);
   });
 
-  it('should refuse OCEL laundering (fake paths)', async () => {
-    const verifier = new Verifier();
-    const launderedReceipt = new Receipt({
-      raw_evidence: { exit_code: 0, stdout: 'Success' },
-      observed_ocel: { 
-        'ocel:events': [{
-          'ocel:activity': 'ExecutionComplete_Fake',
-          'ocel:vmap': { stdout_hash: 'laundered_hash' } // Mismatch: OCEL claims hash, but Raw has no hash logic
-        }]
-      },
-      raw_evidence_hash: 'mismatch' 
-    });
+  it('refuses a laundered raw-evidence hash', async () => {
+    const result = await new Verifier().verify(
+      new Receipt({
+        raw_evidence: { exit_code: 0, stdout: 'Success' },
+        raw_evidence_hash: 'mismatch',
+        observed_ocel: {
+          'ocel:events': [
+            {
+              'ocel:activity': 'ExecutionComplete_Fake',
+              'ocel:vmap': { exit_code: 0 }
+            }
+          ]
+        }
+      })
+    );
 
-    const result = await verifier.verify(launderedReceipt);
-    expect(result.state).toBe('Refused');
-    expect(result.refusal_state).toBe('OCELLaundering');
+    expect(result.state).toBe(VerificationState.Refused);
+    expect(result.refusal_state).toBe(RefusalState.OCELLaundering);
   });
 
-  it('should refuse OCEL not derivable from raw evidence', async () => {
-    const verifier = new Verifier();
-    const nonDerivableReceipt = new Receipt({
-      raw_evidence: { exit_code: 1, stdout: 'error' },
-      observed_ocel: {
-        'ocel:events': [{
-          'ocel:activity': 'ExecutionComplete_OA-1',
-          'ocel:vmap': { exit_code: 0 } // Mismatch: OCEL says success, Raw says fail
-        }]
-      }
-    });
+  it('refuses an execution consequence not derivable from raw evidence', async () => {
+    const result = await new Verifier().verify(
+      new Receipt({
+        raw_evidence: { exit_code: 1, stdout: 'error' },
+        raw_evidence_hash: 'd30e046fc9cc2eaea7e3eb777035adb3cbd0b46af953c066dcf680007ce3f4a5',
+        observed_ocel: {
+          'ocel:events': [
+            {
+              'ocel:activity': 'ExecutionComplete_OA-1',
+              'ocel:vmap': { exit_code: 0 }
+            }
+          ]
+        }
+      })
+    );
 
-    const result = await verifier.verify(nonDerivableReceipt);
-    expect(result.state).toBe('Refused');
-    expect(result.refusal_state).toBe('OCELLaundering');
+    expect(result.state).toBe(VerificationState.Refused);
+    expect(result.refusal_state).toBe(RefusalState.NonDerivableExecution);
   });
 });
