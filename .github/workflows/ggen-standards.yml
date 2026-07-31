@@ -56,11 +56,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if git grep -n -E 'path\s*=\s*"(?:/|[A-Za-z]:\\)' -- Cargo.toml; then
+          if git grep -n -E 'path[[:space:]]*=[[:space:]]*"(/|[A-Za-z]:\\)' -- Cargo.toml; then
             echo 'absolute dependency path refused' >&2
             exit 1
           fi
-          if git grep -n -E 'git\s*=.*github\.com.*' -- Cargo.toml | grep -v 'rev\s*='; then
+          moving="$(git grep -n -E 'git[[:space:]]*=.*github\.com' -- Cargo.toml | grep -v -E 'rev[[:space:]]*=' || true)"
+          if [[ -n "$moving" ]]; then
+            printf '%s\n' "$moving"
             echo 'moving git dependency refused' >&2
             exit 1
           fi
