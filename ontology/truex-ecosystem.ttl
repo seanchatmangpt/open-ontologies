@@ -393,7 +393,7 @@ truex:NonDerivableExitCodeTest a truex:E2ETest ;
     rdfs:label "NonDerivableExitCodeTest" ;
     truex:testInput "{\"raw_evidence\":{\"exit_code\":1,\"stdout\":\"error\"},\"observed_ocel\":{\"ocel:events\":[{\"ocel:activity\":\"ExecutionComplete_OA-1\",\"ocel:vmap\":{\"exit_code\":0}}]},\"raw_evidence_hash\":\"d30e046fc9cc2eaea7e3eb777035adb3cbd0b46af953c066dcf680007ce3f4a5\"}" ;
     truex:expectedResult "Refused" ;
-    truex:refusalReason "OCELLaundering" ;
+    truex:refusalReason "NonDerivableExecution" ;
     truex:discharges truex:NonDerivableExecution .
 
 truex:MissingRawEvidenceTest a truex:E2ETest ;
