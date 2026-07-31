@@ -1,0 +1,522 @@
+{
+  "absolute_path_dependencies": [],
+  "branch_sha": "6ff86d3712cc88b3675f9115b0ea59862756699d",
+  "cargo_metadata_gate": {
+    "command": "cargo metadata --locked --format-version 1 --no-deps",
+    "exit": 0,
+    "stderr_tail": "info: syncing channel updates for nightly-x86_64-unknown-linux-gnu\ninfo: latest update on 2026-07-31 for version 1.99.0-nightly (8ab9fdff5 2026-07-30)\ninfo: downloading 3 components\n",
+    "stdout_tail": "\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"tenant_isolation_audit\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/tenant_isolation_audit.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"terraform_loop_test\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/terraform_loop_test.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"three_layer_integration_test\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/three_layer_integration_test.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"threshold_real\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/threshold_real.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"toolfilter_test\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/toolfilter_test.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"vecstore_test\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/vecstore_test.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"wb1_subprocess_timeout\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/wb1_subprocess_timeout.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"workflow_discover_real\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/workflow_discover_real.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"zoela_route_conformance\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/zoela_route_conformance.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"bench\"],\"crate_types\":[\"bin\"],\"name\":\"admission_bench\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/benches/admission_bench.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":false},{\"kind\":[\"bench\"],\"crate_types\":[\"bin\"],\"name\":\"manufacturing_bench\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/benches/manufacturing_bench.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":false},{\"kind\":[\"bench\"],\"crate_types\":[\"bin\"],\"name\":\"receipts_bench\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/benches/receipts_bench.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":false},{\"kind\":[\"bench\"],\"crate_types\":[\"bin\"],\"name\":\"swarm_bench\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/benches/swarm_bench.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":false}],\"features\":{\"bincode\":[\"dep:bincode\"],\"causal-pywhy\":[],\"default\":[],\"duckdb\":[\"dep:duckdb\"],\"embeddings\":[\"tract-onnx\",\"tokenizers\",\"instant-distance\",\"bincode\"],\"instant-distance\":[\"dep:instant-distance\"],\"mcpp\":[],\"postgres\":[\"sqlx\"],\"sql\":[\"postgres\",\"duckdb\"],\"sqlx\":[\"dep:sqlx\"],\"tokenizers\":[\"dep:tokenizers\"],\"tract-onnx\":[\"dep:tract-onnx\"]},\"manifest_path\":\"/home/runner/work/open-ontologies/open-ontologies/Cargo.toml\",\"metadata\":null,\"publish\":null,\"authors\":[],\"categories\":[],\"keywords\":[],\"readme\":\"README.md\",\"repository\":\"https://github.com/seanchatmangpt/open-ontologies\",\"homepage\":null,\"documentation\":null,\"edition\":\"2024\",\"links\":null,\"default_run\":null,\"rust_version\":null}],\"workspace_members\":[\"path+file:///home/runner/work/open-ontologies/open-ontologies#26.5.21\"],\"workspace_default_members\":[\"path+file:///home/runner/work/open-ontologies/open-ontologies#26.5.21\"],\"resolve\":null,\"target_directory\":\"/home/runner/work/open-ontologies/open-ontologies/target\",\"build_directory\":\"/home/runner/work/open-ontologies/open-ontologies/target\",\"version\":1,\"workspace_root\":\"/home/runner/work/open-ontologies/open-ontologies\",\"metadata\":null}\n"
+  },
+  "duplicate_lock_packages": [],
+  "schema": "open-ontologies-dependency-audit/v1",
+  "standing": "PARTIAL_ALIVE",
+  "standing_reason": "Dependency metadata resolves; compilation and runtime evidence remain separate.",
+  "tree_sha": "ef749a625b62435c03da71311e5429ec4f9e6b9d",
+  "use_sites": [
+    {
+      "line": 330,
+      "path": ".github/workflows/wip-dispatch.yml",
+      "text": "s = s.replace(') -> anyhow::Result<mcpp_core::proof_writer::OcelEvidence> {', ') -> anyhow::Result<Vec<u8>> {')"
+    },
+    {
+      "line": 331,
+      "path": ".github/workflows/wip-dispatch.yml",
+      "text": "s = s.replace('    Ok(mcpp_core::proof_writer::OcelEvidence::from_bytes(ocel_json))', '    Ok(ocel_json)')"
+    },
+    {
+      "line": 332,
+      "path": ".github/workflows/wip-dispatch.yml",
+      "text": "if 'mcpp_core::' in s:"
+    },
+    {
+      "line": 333,
+      "path": ".github/workflows/wip-dispatch.yml",
+      "text": "raise SystemExit('unresolved mcpp_core reference remains')"
+    },
+    {
+      "line": 10,
+      "path": "benches/swarm_bench.rs",
+      "text": "use wasm4pm_cognition::breeds::{BreedInput, Candidate, Case, Fact, Goal, Rule, StateAtom};"
+    },
+    {
+      "line": 21,
+      "path": "docs/01-architecture.md",
+      "text": "\u2502  src/swarm.rs \u00b7 wasm4pm_cognition::breeds                       \u2502"
+    },
+    {
+      "line": 70,
+      "path": "docs/02-quickstart.md",
+      "text": "Expected output: a candidate POWL string molded by a `SignatureShape`, then validated by `wasm4pm::parse`. If the LLM emits invalid POWL, the refine loop retries with a typed `ValidationFailure` until the shape gauges pass or the budget is exhausted. See `tests/real_groq_powl.rs`."
+    },
+    {
+      "line": 45,
+      "path": "docs/06-llm-boundary.md",
+      "text": "`tests/real_groq_powl.rs` replicates the pm4py paper's example end-to-end: a natural-language process description, a `SignatureShape` defining the POWL output field, a real Groq call (no mocks, no replay), then `wasm4pm::parse` as the structural gauge. Invalid POWL \u2192 typed `ValidationFailure` \u2192 refine loop. Five LLM boundaries got the same treatment in commits `1b7d6cc` and `619c3b1`:"
+    },
+    {
+      "line": 6,
+      "path": "docs/research/chapter3/01_powl_bridge_analysis.md",
+      "text": "The bridge acts as an adapter. It parses the declarative POWL string into a `PowlArena` using `wasm4pm::powl_parser::parse_powl_model_string`. It then converts the POWL AST into a Petri Net (`wasm4pm::powl::conversion::to_petri_net::apply`)."
+    },
+    {
+      "line": 8,
+      "path": "docs/research/chapter3/01_powl_bridge_analysis.md",
+      "text": "When evaluating a trace, the bridge projects the OCEL log into a flat string slice and calls `wasm4pm::powl::conformance::token_replay::replay_trace`."
+    },
+    {
+      "line": 134,
+      "path": "emitted/open-ontologies-audit.md",
+      "text": "- `wasm4pm_types_stub` \u2014 OCEL 2.0 Event/Trace/EventLog types"
+    },
+    {
+      "line": 135,
+      "path": "emitted/open-ontologies-audit.md",
+      "text": "- `wasm4pm_cognition_stub` \u2014 9-breed symbolic AI dispatch (Eliza, CBR, Dendral, STRIPS, Prolog, MYCIN, GPS, Soar, Hearsay)"
+    },
+    {
+      "line": 136,
+      "path": "emitted/open-ontologies-audit.md",
+      "text": "- `wasm4pm_algos_stub` \u2014 Token replay conformance, Alpha algorithm discovery"
+    },
+    {
+      "line": 297,
+      "path": "ggen.toml",
+      "text": "{ name = \"wasm4pm-algos-stub\", query = { inline = \"SELECT (\\\"check_conformance_alignment|token_replay|alignment_stats|activity_coverage\\\" AS ?itemNames) (\\\"fn check_conformance_alignment(trace: &Trace, net: &PowlPetriNet) -> Result<f64, String>|fn token_replay(log: &EventLog, net: &PowlPetriNet) -> Result<TraceReplayResult, String>|fn alignment_stats(alignments: &[Alignment]) -> AlignmentStats|fn activity_coverage(log: &EventLog, net: &PowlPetriNet) -> f64\\\" AS ?methodSignatures) (\\\"Result<f64, "
+    },
+    {
+      "line": 298,
+      "path": "ggen.toml",
+      "text": "{ name = \"wasm4pm-cognition-stub\", query = { inline = \"SELECT (\\\"breed_eliza|breed_cbr|breed_dendral|breed_strips|breed_prolog|breed_mycin|breed_gps|breed_soar|breed_hearsay\\\" AS ?itemNames) (\\\"fn breed_eliza(input: &BreedInput) -> Result<BreedOutput, String>|fn breed_cbr(input: &BreedInput) -> Result<BreedOutput, String>|fn breed_dendral(input: &BreedInput) -> Result<BreedOutput, String>|fn breed_strips(input: &BreedInput) -> Result<BreedOutput, String>|fn breed_prolog(input: &BreedInput) -> Re"
+    },
+    {
+      "line": 300,
+      "path": "ggen.toml",
+      "text": "{ name = \"wasm4pm-types-stub\", query = { file = \".specify/queries/wasm4pm-types-stub.rq\" }, template = { file = \".specify/templates/wasm4pm-types-stub.rs.tera\" }, output_file = \"src/wasm4pm_types_stub.rs\", mode = \"Overwrite\" },"
+    },
+    {
+      "line": 311,
+      "path": "src/cmds/server.rs",
+      "text": "#[cfg(feature = \"mcpp\")]"
+    },
+    {
+      "line": 312,
+      "path": "src/cmds/server.rs",
+      "text": "let server: MaybeGatedServer = match mcpp_core::receipt::KeyLoader::from_env() {"
+    },
+    {
+      "line": 323,
+      "path": "src/cmds/server.rs",
+      "text": "#[cfg(not(feature = \"mcpp\"))]"
+    },
+    {
+      "line": 471,
+      "path": "src/cmds/server.rs",
+      "text": "#[cfg(feature = \"mcpp\")]"
+    },
+    {
+      "line": 473,
+      "path": "src/cmds/server.rs",
+      "text": "mcpp_core::receipt::KeyLoader::from_env().unwrap_or(None);"
+    },
+    {
+      "line": 474,
+      "path": "src/cmds/server.rs",
+      "text": "#[cfg(feature = \"mcpp\")]"
+    },
+    {
+      "line": 505,
+      "path": "src/cmds/server.rs",
+      "text": "#[cfg(feature = \"mcpp\")]"
+    },
+    {
+      "line": 9,
+      "path": "src/feedback/discovery.rs",
+      "text": "//! Adapter note: the plan calls for `wasm4pm::powl::discovery::choice_graph::discover_choice_graph`"
+    },
+    {
+      "line": 26,
+      "path": "src/feedback/discovery.rs",
+      "text": "use wasm4pm_types::event_log::{Attribute, AttributeValue};"
+    },
+    {
+      "line": 27,
+      "path": "src/feedback/discovery.rs",
+      "text": "use wasm4pm_types::{Event, EventLog, Trace};"
+    },
+    {
+      "line": 130,
+      "path": "src/feedback/discovery.rs",
+      "text": "let wasm4pm_log = wasm4pm::models::EventLog::from(log);"
+    },
+    {
+      "line": 134,
+      "path": "src/feedback/discovery.rs",
+      "text": "wasm4pm_types::admission::Admission::<_, ()>::new(wasm4pm_log.clone()).into_evidence();"
+    },
+    {
+      "line": 135,
+      "path": "src/feedback/discovery.rs",
+      "text": "let petri = match wasm4pm::algorithms::discover_alpha_plus_plus_from_log("
+    },
+    {
+      "line": 145,
+      "path": "src/feedback/discovery.rs",
+      "text": "let conf = wasm4pm::conformance::token_replay_pure(&wasm4pm_log, &petri, \"concept:name\");"
+    },
+    {
+      "line": 1719,
+      "path": "src/inputs.rs",
+      "text": "/// `wasm4pm_cognition::breeds::BreedInput` JSON. Must contain at"
+    },
+    {
+      "line": 3,
+      "path": "src/lineage.rs",
+      "text": "use wasm4pm_types::event_log::{Attribute, AttributeValue, Attributes};"
+    },
+    {
+      "line": 4,
+      "path": "src/lineage.rs",
+      "text": "use wasm4pm_types::{Event, EventLog, Trace};"
+    },
+    {
+      "line": 606,
+      "path": "src/lineage.rs",
+      "text": "///             && matches!(&a.value, wasm4pm_types::event_log::AttributeValue::String(v) if v == \"s1\")"
+    },
+    {
+      "line": 618,
+      "path": "src/lineage.rs",
+      "text": "///     wasm4pm_types::event_log::AttributeValue::String(v) if v == \"G:admission_granted\""
+    },
+    {
+      "line": 665,
+      "path": "src/lineage.rs",
+      "text": "///     wasm4pm_types::event_log::AttributeValue::String(v) if v == \"complete\""
+    },
+    {
+      "line": 31,
+      "path": "src/mcpp_gate.rs",
+      "text": "#[cfg(feature = \"mcpp\")]"
+    },
+    {
+      "line": 34,
+      "path": "src/mcpp_gate.rs",
+      "text": "#[cfg(feature = \"mcpp\")]"
+    },
+    {
+      "line": 80,
+      "path": "src/mcpp_gate.rs",
+      "text": "#[cfg(feature = \"mcpp\")]"
+    },
+    {
+      "line": 126,
+      "path": "src/mcpp_gate.rs",
+      "text": "#[cfg(feature = \"mcpp\")]"
+    },
+    {
+      "line": 136,
+      "path": "src/mcpp_gate.rs",
+      "text": "#[cfg(feature = \"mcpp\")]"
+    },
+    {
+      "line": 144,
+      "path": "src/mcpp_gate.rs",
+      "text": "#[cfg(feature = \"mcpp\")]"
+    },
+    {
+      "line": 156,
+      "path": "src/mcpp_gate.rs",
+      "text": "#[cfg(feature = \"mcpp\")]"
+    },
+    {
+      "line": 168,
+      "path": "src/mcpp_gate.rs",
+      "text": "#[cfg(feature = \"mcpp\")]"
+    },
+    {
+      "line": 180,
+      "path": "src/mcpp_gate.rs",
+      "text": "#[cfg(feature = \"mcpp\")]"
+    },
+    {
+      "line": 192,
+      "path": "src/mcpp_gate.rs",
+      "text": "#[cfg(feature = \"mcpp\")]"
+    },
+    {
+      "line": 204,
+      "path": "src/mcpp_gate.rs",
+      "text": "#[cfg(feature = \"mcpp\")]"
+    },
+    {
+      "line": 212,
+      "path": "src/mcpp_gate.rs",
+      "text": "#[cfg(feature = \"mcpp\")]"
+    },
+    {
+      "line": 219,
+      "path": "src/mcpp_gate.rs",
+      "text": "#[cfg(feature = \"mcpp\")]"
+    },
+    {
+      "line": 229,
+      "path": "src/mcpp_gate.rs",
+      "text": "/// # #[cfg(feature = \"mcpp\")]"
+    },
+    {
+      "line": 253,
+      "path": "src/mcpp_gate.rs",
+      "text": "#[cfg(feature = \"mcpp\")]"
+    },
+    {
+      "line": 347,
+      "path": "src/mcpp_gate.rs",
+      "text": "#[cfg(feature = \"mcpp\")]"
+    },
+    {
+      "line": 359,
+      "path": "src/mcpp_gate.rs",
+      "text": "#[cfg(feature = \"mcpp\")]"
+    },
+    {
+      "line": 385,
+      "path": "src/mcpp_gate.rs",
+      "text": "#[cfg(feature = \"mcpp\")]"
+    },
+    {
+      "line": 403,
+      "path": "src/mcpp_gate.rs",
+      "text": "#[cfg(feature = \"mcpp\")]"
+    },
+    {
+      "line": 5,
+      "path": "src/ocel_store.rs",
+      "text": "use wasm4pm_types::ocel::{OCEL, OCELObject};"
+    },
+    {
+      "line": 467,
+      "path": "src/ocel_store.rs",
+      "text": "/// `wasm4pm::powl::conformance::token_replay` via the bridge. Persists a"
+    },
+    {
+      "line": 1017,
+      "path": "src/ocel_store.rs",
+      "text": "use wasm4pm_types::ocel::OCELType;"
+    },
+    {
+      "line": 1027,
+      "path": "src/ocel_store.rs",
+      "text": "use wasm4pm_types::ocel::OCELType;"
+    },
+    {
+      "line": 1037,
+      "path": "src/ocel_store.rs",
+      "text": "use wasm4pm_types::ocel::{"
+    },
+    {
+      "line": 14,
+      "path": "src/powl_bridge.rs",
+      "text": "//! - `wasm4pm::powl_parser::parse_powl_model_string(s, &mut PowlArena) -> Result<u32, String>`"
+    },
+    {
+      "line": 15,
+      "path": "src/powl_bridge.rs",
+      "text": "//! - `wasm4pm::powl::conversion::to_petri_net::apply(&PowlArena, root) -> PowlPetriNetResult`"
+    },
+    {
+      "line": 16,
+      "path": "src/powl_bridge.rs",
+      "text": "//! - `wasm4pm::powl::conformance::token_replay::replay_trace(&PetriNet, &Marking, &Marking, &Trace) -> TraceReplayResult`"
+    },
+    {
+      "line": 17,
+      "path": "src/powl_bridge.rs",
+      "text": "//! - `wasm4pm::powl::conformance::token_replay::compute_fitness(&PetriNet, &Marking, &Marking, &EventLog) -> FitnessResult`"
+    },
+    {
+      "line": 40,
+      "path": "src/powl_bridge.rs",
+      "text": "pub use wasm4pm::powl::conformance::token_replay::{FitnessResult, TraceReplayResult};"
+    },
+    {
+      "line": 41,
+      "path": "src/powl_bridge.rs",
+      "text": "pub use wasm4pm::powl_arena::PowlArena;"
+    },
+    {
+      "line": 42,
+      "path": "src/powl_bridge.rs",
+      "text": "pub use wasm4pm::powl_event_log::{Event, EventLog, Trace};"
+    },
+    {
+      "line": 43,
+      "path": "src/powl_bridge.rs",
+      "text": "pub use wasm4pm::powl_models::{PowlMarking, PowlPetriNet};"
+    },
+    {
+      "line": 97,
+      "path": "src/powl_bridge.rs",
+      "text": "/// `wasm4pm::powl_parser::parse_powl_model_string`."
+    },
+    {
+      "line": 123,
+      "path": "src/powl_bridge.rs",
+      "text": "let root = wasm4pm::powl_parser::parse_powl_model_string(powl_string, &mut self.arena)"
+    },
+    {
+      "line": 126,
+      "path": "src/powl_bridge.rs",
+      "text": "let pn = wasm4pm::powl::conversion::to_petri_net::apply(&self.arena, root);"
+    },
+    {
+      "line": 145,
+      "path": "src/powl_bridge.rs",
+      "text": "Ok(wasm4pm::powl::conformance::token_replay::replay_trace("
+    },
+    {
+      "line": 154,
+      "path": "src/powl_bridge.rs",
+      "text": "/// `wasm4pm::powl::conformance::token_replay::compute_fitness`."
+    },
+    {
+      "line": 160,
+      "path": "src/powl_bridge.rs",
+      "text": "Ok(wasm4pm::powl::conformance::token_replay::compute_fitness("
+    },
+    {
+      "line": 8454,
+      "path": "src/server.rs",
+      "text": "let breed_input: wasm4pm_cognition::breeds::BreedInput = match serde_json::from_str("
+    },
+    {
+      "line": 8466,
+      "path": "src/server.rs",
+      "text": "let dispatched = wasm4pm_cognition::breeds::dispatch_breed_test(&breed, &breed_input);"
+    },
+    {
+      "line": 14,
+      "path": "src/swarm.rs",
+      "text": "//! `wasm4pm_cognition::breeds::dispatch_breed_test` (cognition)."
+    },
+    {
+      "line": 18,
+      "path": "src/swarm.rs",
+      "text": "use wasm4pm_cognition::breeds::{BreedInput, BreedOutput, dispatch_breed_test};"
+    },
+    {
+      "line": 288,
+      "path": "src/swarm.rs",
+      "text": "/// use wasm4pm_cognition::breeds::{BreedInput, Candidate};"
+    },
+    {
+      "line": 340,
+      "path": "src/swarm.rs",
+      "text": "fn parse_breed_id(name: &str) -> wasm4pm_cognition::breeds::BreedId {"
+    },
+    {
+      "line": 341,
+      "path": "src/swarm.rs",
+      "text": "use wasm4pm_cognition::breeds::BreedId;"
+    },
+    {
+      "line": 365,
+      "path": "src/swarm.rs",
+      "text": "/// use wasm4pm_cognition::breeds::{BreedInput, Candidate};"
+    },
+    {
+      "line": 393,
+      "path": "src/swarm.rs",
+      "text": "use wasm4pm_cognition::breeds::{Candidate, Fact};"
+    },
+    {
+      "line": 431,
+      "path": "src/swarm.rs",
+      "text": "breed: wasm4pm_cognition::breeds::BreedId::Hearsay,"
+    },
+    {
+      "line": 464,
+      "path": "src/swarm.rs",
+      "text": "use wasm4pm_cognition::breeds::{Candidate, Case, Fact, Goal, Rule, StateAtom};"
+    },
+    {
+      "line": 13,
+      "path": "src/wasm4pm_algos_stub.rs",
+      "text": "//!   Tier 3  \u2014 src/wasm4pm_algos_stub.rs       (this file, wired to lib)"
+    },
+    {
+      "line": 20,
+      "path": "src/wasm4pm_algos_stub.rs",
+      "text": "// PETRI NET MODELS (from wasm4pm::powl_models)"
+    },
+    {
+      "line": 10,
+      "path": "src/wasm4pm_cognition_stub.rs",
+      "text": "//!   Tier 3  \u2014 src/wasm4pm_cognition_stub.rs (this file, wired to wasm4pm crate)"
+    },
+    {
+      "line": 252,
+      "path": "src/wasm4pm_cognition_stub.rs",
+      "text": "Err(\"wasm4pm_cognition not yet implemented: dispatch_breed_test unavailable\".to_string())"
+    },
+    {
+      "line": 24,
+      "path": "tests/cell_ready_fixtures/mod.rs",
+      "text": "use wasm4pm_cognition::breeds::{BreedInput, Candidate, Case, Fact, Goal, Rule, StateAtom};"
+    },
+    {
+      "line": 22,
+      "path": "tests/hearsay_returns_typed_consensus.rs",
+      "text": "use wasm4pm_cognition::breeds::{BreedInput, BreedOutput};"
+    },
+    {
+      "line": 45,
+      "path": "tests/mcpp_gate_smoke.rs",
+      "text": "#[cfg(feature = \"mcpp\")]"
+    },
+    {
+      "line": 61,
+      "path": "tests/mcpp_gate_smoke.rs",
+      "text": "#[cfg(feature = \"mcpp\")]"
+    },
+    {
+      "line": 92,
+      "path": "tests/mcpp_gate_smoke.rs",
+      "text": "#[cfg(feature = \"mcpp\")]"
+    },
+    {
+      "line": 3,
+      "path": "tests/old_ai_station_dispatch.rs",
+      "text": "//! Drives `wasm4pm_cognition::breeds::dispatch_breed_test` against all 9"
+    },
+    {
+      "line": 16,
+      "path": "tests/old_ai_station_dispatch.rs",
+      "text": "use wasm4pm_cognition::breeds::{"
+    },
+    {
+      "line": 4,
+      "path": "tests/powl_bridge.rs",
+      "text": "//! `wasm4pm::powl::conformance::token_replay`. The bridge is plumbing only."
+    },
+    {
+      "line": 7,
+      "path": "tests/real_swarm_e2e.rs",
+      "text": "use wasm4pm_cognition::breeds::{BreedInput, Candidate, Case, Fact, Goal, Rule, StateAtom};"
+    },
+    {
+      "line": 21,
+      "path": "tests/revops_old_ai_stations.rs",
+      "text": "use wasm4pm_cognition::breeds::{"
+    },
+    {
+      "line": 15,
+      "path": "tests/saboteur_meta.rs",
+      "text": "//! `open_ontologies` or `wasm4pm_cognition` crates."
+    },
+    {
+      "line": 96,
+      "path": "tests/saboteur_meta.rs",
+      "text": "use wasm4pm_cognition::breeds::{BreedId, BreedOutput, Candidate};"
+    }
+  ]
+}
