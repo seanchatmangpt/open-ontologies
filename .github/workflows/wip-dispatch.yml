@@ -1,54 +1,75 @@
-name: WIP Repair Dispatcher
+name: WIP Exact-Head Verifier
 
 on:
   pull_request:
-    branches: [main]
+    branches: [automation/wip-executor-base]
     types: [opened, synchronize, reopened]
 
 permissions:
   contents: write
 
+concurrency:
+  group: wip-exact-head-${{ github.head_ref }}
+  cancel-in-progress: false
+
 jobs:
-  repair:
+  verify:
     if: github.head_ref == 'agent/finish-wip-20260730'
     runs-on: ubuntu-24.04
-    timeout-minutes: 90
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
         with:
           ref: agent/finish-wip-20260730
           fetch-depth: 0
 
-      - name: Regenerate dependency receipt
+      - name: Format and regenerate dependency state
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo fmt --all
+          old_lock="$(sha256sum Cargo.lock | awk '{print $1}')"
+          cargo generate-lockfile
+          new_lock="$(sha256sum Cargo.lock | awk '{print $1}')"
+          printf '%s\n' "$old_lock" > /tmp/old-lock.sha
+          printf '%s\n' "$new_lock" > /tmp/new-lock.sha
+
+      - name: Verify constitutional and compile boundaries
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tools/verify_ggen_standards.py
+          cargo metadata --locked --format-version 1 --no-deps >/dev/null
+          cargo check --locked --all-targets
+          cargo check --locked --all-targets --all-features
+
+      - name: Commit exact-head compile receipt
         shell: bash
         run: |
           set -euo pipefail
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          old_lock="$(sha256sum Cargo.lock | awk '{print $1}')"
-          cargo generate-lockfile
-          new_lock="$(sha256sum Cargo.lock | awk '{print $1}')"
           mkdir -p .wip
+          head_before="$(git rev-parse HEAD)"
+          tree_before="$(git rev-parse HEAD^{tree})"
           cat > .wip/dependency-boundary.md <<EOF
           # Dependency boundary receipt
 
+          - candidate before receipt: \`${head_before}\`
+          - candidate tree before receipt: \`${tree_before}\`
           - wasm4pm rev: \`057d5ba24e10c70036fc4742ede55318c7fe6949\`
-          - prior lock SHA-256: \`${old_lock}\`
-          - regenerated lock SHA-256: \`${new_lock}\`
+          - prior lock SHA-256: \`$(cat /tmp/old-lock.sha)\`
+          - regenerated lock SHA-256: \`$(cat /tmp/new-lock.sha)\`
           - generator: \`cargo generate-lockfile\`
           - moving git branches in Cargo.toml: 0
+          - \`cargo metadata --locked --format-version 1 --no-deps\`: exit 0
+          - \`cargo check --locked --all-targets\`: exit 0
+          - \`cargo check --locked --all-targets --all-features\`: exit 0
           EOF
           sed -i 's/^          //' .wip/dependency-boundary.md
-          git add Cargo.lock .wip/dependency-boundary.md
+          touch .wip/compile.done
+          git add -A
           if ! git diff --cached --quiet; then
-            git commit -m 'fix: regenerate pinned dependency lock receipt'
+            git commit -m 'fix: admit exact dependency and compile receipt'
             git push origin HEAD:agent/finish-wip-20260730
           fi
-
-      - name: Verify dependency and compile boundaries
-        shell: bash
-        run: |
-          set -euo pipefail
-          cargo metadata --locked --format-version 1 --no-deps >/dev/null
-          cargo check --locked --all-targets
-          cargo check --locked --all-targets --all-features
