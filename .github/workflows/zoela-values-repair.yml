@@ -1,0 +1,43 @@
+name: Zoela VALUES Authority Repair
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/zoela-values-repair.yml'
+      - 'tools/rewrite_zoela_values.py'
+      - 'ggen.toml'
+      - '.specify/queries/zoela/**'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: zoela-values-repair-${{ github.head_ref }}
+  cancel-in-progress: true
+
+jobs:
+  repair:
+    if: github.head_ref == 'agent/wip-zoela-closure'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out exact Zoela branch
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: agent/wip-zoela-closure
+          fetch-depth: 0
+      - name: Normalize unsupported VALUES tables and activate rules
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tools/rewrite_zoela_values.py --apply
+          python3 tools/rewrite_zoela_values.py --check
+      - name: Persist source-authority repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git rm .github/workflows/zoela-values-repair.yml
+          git add ggen.toml tools/rewrite_zoela_values.py .specify/queries/zoela
+          git commit -m 'fix(zoela): normalize VALUES authority and activate rules'
+          git push origin HEAD:agent/wip-zoela-closure
