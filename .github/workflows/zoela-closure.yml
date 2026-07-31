@@ -1,7 +1,20 @@
 name: Zoela Manufacture and Typecheck
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/zoela-closure.yml'
+      - '.specify/queries/zoela/**'
+      - '.specify/templates/zoela/**'
+      - 'ontology/zoela/**'
+      - 'ontology/profiles/zoela-**'
+      - 'ontology/profiles/public-role-shapes.ttl'
+      - 'apps/mobile/**'
+      - 'packages/**'
+      - 'ggen.toml'
   pull_request:
+    branches: [main]
     paths:
       - '.github/workflows/zoela-closure.yml'
       - '.specify/queries/zoela/**'
@@ -14,16 +27,15 @@ on:
       - 'ggen.toml'
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
-  group: zoela-closure-${{ github.head_ref }}
+  group: zoela-closure-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   manufacture:
-    if: github.head_ref == 'agent/wip-zoela-closure'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-22.04
     timeout-minutes: 180
     env:
       GGEN_REV: dc9daf2b2a6f5b8991e75b7f3b715a3203f90d59
@@ -31,10 +43,9 @@ jobs:
       CARGO_TARGET_DIR: ${{ github.workspace }}/.cache/ggen-target
       RUSTC_WRAPPER: ''
     steps:
-      - name: Check out Zoela candidate
+      - name: Check out exact candidate
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
-          ref: agent/wip-zoela-closure
           fetch-depth: 0
       - name: Check out exact ggen authority
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
@@ -53,7 +64,7 @@ jobs:
             -p ggen-cli-lib \
             --bin ggen
           "$CARGO_TARGET_DIR/debug/ggen" --version
-      - name: Manufacture Zoela Zod consequence twice
+      - name: Manufacture Zoela consequence twice
         shell: bash
         run: |
           set -euo pipefail
@@ -78,29 +89,14 @@ jobs:
           ! grep -Eq 'export (const|type) [A-Za-z0-9_]+ [A-Za-z0-9_ ]*Schema' packages/schemas/zoela.ts
           ! grep -q 'Contribution Unit Shape' packages/schemas/zoela.ts
           test ! -e generated/zoela/navigation.ts
-          mkdir -p .wip
-          cat > .wip/zoela-generation.done <<EOF
-          ggen_rev=$GGEN_REV
-          rule=zoela-mobile-zod
-          output_sha256=$second_hash
-          second_manufacture=byte_identical
-          stale_navigation=absent
-          EOF
+          printf 'ggen_rev=%s\nrule=zoela-mobile-zod\noutput_sha256=%s\nsecond_manufacture=byte_identical\n' \
+            "$GGEN_REV" "$second_hash" | tee /tmp/zoela-generation.receipt
       - name: Typecheck Expo and manufactured packages
         shell: bash
         run: |
           set -euo pipefail
-          npm install --prefix apps/mobile --ignore-scripts --no-audit --no-fund --package-lock=false
+          corepack enable
+          corepack prepare pnpm@9.15.4 --activate
+          pnpm --dir apps/mobile install --frozen-lockfile
           ln -sfn apps/mobile/node_modules node_modules
-          npm --prefix apps/mobile run typecheck
-      - name: Persist verified Zoela consequence
-        shell: bash
-        run: |
-          set -euo pipefail
-          git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          rm -rf .ggen-tool .cache node_modules apps/mobile/node_modules
-          git rm .github/workflows/zoela-closure.yml
-          git add packages/schemas/zoela.ts .ggen-v2 .wip/zoela-generation.done
-          git commit -m 'fix(zoela): manufacture admitted schema and validate mobile graph'
-          git push origin HEAD:agent/wip-zoela-closure
+          pnpm --dir apps/mobile run typecheck
