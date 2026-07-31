@@ -16,15 +16,16 @@ fn main() -> anyhow::Result<()> {
         .stack_size(8 * 1024 * 1024)
         .spawn(async_main)?
         .join()
-        .expect("main thread panicked")
+        .map_err(|panic| anyhow::anyhow!("Open Ontologies runtime thread panicked: {panic:?}"))?;
+    Ok(())
 }
 
 #[tokio::main]
-async fn main() {
+async fn async_main() {
     match clap_noun_verb::run() {
         Ok(()) => std::process::exit(0),
-        Err(e) => {
-            eprintln!("ERROR: {}", e);
+        Err(error) => {
+            eprintln!("ERROR: {error}");
             std::process::exit(1);
         }
     }
