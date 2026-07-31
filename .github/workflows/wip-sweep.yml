@@ -1,0 +1,139 @@
+name: WIP Sweep
+
+on:
+  push:
+    branches: [agent/finish-wip-20260730]
+    paths: [.github/wip-trigger]
+
+permissions:
+  contents: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/finish-wip-20260730
+          fetch-depth: 0
+
+      - name: Inventory WIP and executable gates
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin '+refs/heads/*:refs/remotes/origin/*'
+          mkdir -p .wip
+          python3 - <<'PY'
+          import json, os, re, subprocess, time
+          from pathlib import Path
+
+          root = Path('.')
+          excluded = {'.git', 'target', 'node_modules', '.venv', 'venv', 'dist', 'build'}
+          marker_re = re.compile(r'(?i)\b(TODO|FIXME|XXX|HACK|WIP|TBD|NOT[ _-]?IMPLEMENTED|PLACEHOLDER|STUB)\b|todo!\s*\(|unimplemented!\s*\(')
+          text_ext = {'.rs','.py','.ts','.tsx','.js','.jsx','.md','.toml','.yml','.yaml','.json','.ttl','.rq','.tera','.sh','.java','.html','.css','.sql','.txt','.cff'}
+
+          markers = []
+          zero_files = []
+          for p in root.rglob('*'):
+              if any(part in excluded for part in p.parts):
+                  continue
+              if not p.is_file():
+                  continue
+              try:
+                  size = p.stat().st_size
+              except OSError:
+                  continue
+              if size == 0:
+                  zero_files.append(str(p))
+              if p.suffix.lower() not in text_ext or size > 2_000_000:
+                  continue
+              try:
+                  for lineno, line in enumerate(p.read_text(errors='replace').splitlines(), 1):
+                      if marker_re.search(line):
+                          markers.append({'path': str(p), 'line': lineno, 'text': line.strip()[:500]})
+              except OSError:
+                  pass
+
+          branches = []
+          refs = subprocess.run(['git','for-each-ref','--format=%(refname:short)','refs/remotes/origin'], text=True, capture_output=True, check=True).stdout.splitlines()
+          for ref in refs:
+              if ref in {'origin/HEAD','origin/main'}:
+                  continue
+              ahead = int(subprocess.run(['git','rev-list','--count',f'origin/main..{ref}'], text=True, capture_output=True, check=True).stdout.strip() or '0')
+              behind = int(subprocess.run(['git','rev-list','--count',f'{ref}..origin/main'], text=True, capture_output=True, check=True).stdout.strip() or '0')
+              tip = subprocess.run(['git','rev-parse',ref], text=True, capture_output=True, check=True).stdout.strip()
+              subject = subprocess.run(['git','show','-s','--format=%s',ref], text=True, capture_output=True, check=True).stdout.strip()
+              branches.append({'ref':ref,'ahead':ahead,'behind':behind,'tip':tip,'subject':subject})
+
+          duplicate_packages = []
+          lock_text = Path('Cargo.lock').read_text(errors='replace') if Path('Cargo.lock').exists() else ''
+          blocks = lock_text.split('[[package]]')[1:]
+          seen = {}
+          for i, block in enumerate(blocks, 1):
+              def field(name):
+                  m = re.search(rf'^\s*{name}\s*=\s*"([^"]*)"', block, re.M)
+                  return m.group(1) if m else None
+              key = (field('name'), field('version'), field('source'))
+              if key[0] and key in seen:
+                  duplicate_packages.append({'key':key,'first_block':seen[key],'duplicate_block':i})
+              else:
+                  seen[key]=i
+
+          commands = [
+              ['cargo','metadata','--locked','--format-version','1','--no-deps'],
+              ['cargo','check','--locked','--all-targets'],
+          ]
+          gates=[]
+          for cmd in commands:
+              started=time.time()
+              try:
+                  cp=subprocess.run(cmd,text=True,capture_output=True,timeout=1200)
+                  out=(cp.stdout+'\n'+cp.stderr)[-12000:]
+                  gates.append({'command':' '.join(cmd),'exit':cp.returncode,'seconds':round(time.time()-started,2),'tail':out})
+                  if cp.returncode != 0:
+                      break
+              except subprocess.TimeoutExpired as e:
+                  gates.append({'command':' '.join(cmd),'exit':124,'seconds':round(time.time()-started,2),'tail':str(e)})
+                  break
+
+          audit={
+              'base_sha': subprocess.run(['git','rev-parse','origin/main'],text=True,capture_output=True,check=True).stdout.strip(),
+              'branch_sha': subprocess.run(['git','rev-parse','HEAD'],text=True,capture_output=True,check=True).stdout.strip(),
+              'markers': markers,
+              'zero_byte_tracked_or_present': sorted(zero_files),
+              'branches': sorted(branches,key=lambda x:(-x['ahead'],x['ref'])),
+              'duplicate_lock_packages': duplicate_packages,
+              'gates': gates,
+          }
+          Path('.wip/audit.json').write_text(json.dumps(audit,indent=2))
+
+          lines=['# WIP audit','',f"Base: `{audit['base_sha']}`",'']
+          lines += [f"## Marker findings ({len(markers)})",'']
+          for m in markers[:500]: lines.append(f"- `{m['path']}:{m['line']}` — {m['text']}")
+          if len(markers)>500: lines.append(f"- … {len(markers)-500} additional findings in `audit.json`")
+          lines += ['',f"## Zero-byte files ({len(zero_files)})",'']
+          for p in sorted(zero_files): lines.append(f"- `{p}`")
+          lines += ['',f"## Non-main branches ({len(branches)})",'']
+          for b in audit['branches']: lines.append(f"- `{b['ref']}` — ahead {b['ahead']}, behind {b['behind']}, `{b['tip'][:12]}` — {b['subject']}")
+          lines += ['',f"## Duplicate Cargo.lock packages ({len(duplicate_packages)})",'']
+          for d in duplicate_packages: lines.append(f"- `{d['key']}` blocks {d['first_block']} and {d['duplicate_block']}")
+          lines += ['','## Executable gates','']
+          for g in gates:
+              lines.append(f"### `{g['command']}`")
+              lines.append(f"Exit: `{g['exit']}` in {g['seconds']}s")
+              lines.append('```text')
+              lines.append(g['tail'][-6000:])
+              lines.append('```')
+          Path('.wip/audit.md').write_text('\n'.join(lines)+'\n')
+          PY
+
+      - name: Commit audit receipt
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add .wip/audit.json .wip/audit.md
+          git commit -m 'chore: record WIP audit receipt'
+          git push origin HEAD:agent/finish-wip-20260730
