@@ -1,6 +1,6 @@
 {
   "base_sha": "0d553c77e86ae252ee627b5e11843a08f3b36ee5",
-  "branch_sha": "bd2e835328737e1b46c679154a5af810eefdde67",
+  "branch_sha": "5c40fb4a5cf3b5ae3de80625f0c4777ab4f70021",
   "markers": [
     {
       "path": "CHANGELOG.md",
@@ -166,6 +166,2881 @@
       "path": "tests/admission_real_replay.rs",
       "line": 63,
       "text": "\"verdict came from NoopPowlReplay stub, not PowlBridge: run_id={}\","
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 1,
+      "text": "# WIP audit"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 8,
+      "text": "- `CHANGELOG.md:76` \u2014 `revoked_principals` table lands (TODO marker in code). New"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 9,
+      "text": "- `CHANGELOG.md:323` \u2014 TODO(R6) \u2014 same disease, deferred fix template."
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 10,
+      "text": "- `CHANGELOG.md:357` \u2014 `TODO(R6 \u00a715.A9)`, `TODO(R6 \u00a715.A11)`, `TODO(R6 \u00a715.A12)` comments"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 11,
+      "text": "- `CHANGELOG.md:678` \u2014 - `engine=\"groq_pm4py\"` subprocess transport \u2014 MCP handlers now spawn the real DSPy/pm4py-backed translator instead of the in-process stub."
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 12,
+      "text": "- `CHANGELOG.md:774` \u2014 - [`ee90af9`](../../commit/ee90af9) `fix(no-stub): wire ingest/map/extend/push format params; add named-graph push; remove dead cfg`"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 13,
+      "text": "- `CHANGELOG.md:794` \u2014 - [`e4db225`](../../commit/e4db225) `ontostar(R3): wire PowlBridgeReplay into admission gate, replace stub`"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 14,
+      "text": "- `CHANGELOG.md:804` \u2014 - `PowlBridgeReplay` replaces the noop stub in the admission gate."
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 15,
+      "text": "- `DISSERTATION.md:46` \u2014 *   **L6 High-Speed Kernels:** Represented by `wasm4pm` stream-2 stub bindings and the `src/manufacturing/` pipeline."
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 16,
+      "text": "- `IMPLEMENTATION_SUMMARY.md:142` \u2014 ## What's NOT Implemented (Vision 2030 Future Layers)"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 17,
+      "text": "- `Cargo.toml:86` \u2014 todo = \"deny\""
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 18,
+      "text": "- `ontology/alignment-notes.md:109` \u2014 `OcelObjectType` is a typing class for OCEL 2.0 instances (e.g. Order, Item, Package). In the current TTL it is a vocabulary stub \u2014 the actual object type individuals (Order, Item, etc.) are not defined. The enforcer correctly flags it as orphaned."
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 19,
+      "text": "- `tests/end_to_end_governed_release.rs:8` \u2014 //!   5. assert Admitted(receipt) with non-stub fitness"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 20,
+      "text": "- `tests/end_to_end_governed_release.rs:68` \u2014 //    fitness, not a stub 1.0)."
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 21,
+      "text": "- `tests/end_to_end_governed_release.rs:78` \u2014 !conf.run_id.starts_with(\"stub-run-\"),"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 22,
+      "text": "- `tests/end_to_end_governed_release.rs:79` \u2014 \"verdict came from the stub, not the real PowlBridge: {}\","
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 23,
+      "text": "- `tests/ratchet_red_team.rs:43` \u2014 let msg = \"evaluate_admission(stub) called\";"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 24,
+      "text": "- `tests/portability_codegen.rs:94` \u2014 let receipt = build_test_receipt(b\"some-artifact-placeholder\");"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 25,
+      "text": "- `tests/saboteur_meta.rs:5` \u2014 //! output is structurally distinct from a hypothetical \"stub that"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 26,
+      "text": "- `tests/adversarial_jtbd_test.rs:114` \u2014 Either the format was silently ignored (soft stub) or auto-detection hid the override.\\n\\"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 27,
+      "text": "- `tests/saboteur_a9_provenance_chain_load_bearing.rs:27` \u2014 //! R5 WB-1's TODO comment at admission.rs:660-662 carried A9 forward"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 28,
+      "text": "- `tests/three_layer_integration_test.rs:2` \u2014 //! (#43 Dynamics \u2192 #44 Causal hookup \u2192 #45 Planner stub)."
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 29,
+      "text": "- `tests/three_layer_integration_test.rs:57` \u2014 // The Planner stub must read from the same SQLite store that"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 30,
+      "text": "- `tests/manufacturing_validators.rs:191` \u2014 // 64-char WO hash literal with a placeholder of equal length."
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 31,
+      "text": "- `tests/manufacturing_validators.rs:192` \u2014 let placeholder: String = \"f\".repeat(wo_hash.len());"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 32,
+      "text": "- `tests/manufacturing_validators.rs:194` \u2014 f.contents = f.contents.replace(&wo_hash, &placeholder);"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 33,
+      "text": "- `tests/ed25519_attestation.rs:3` \u2014 //! Replaces the digest-equality tautology stub with cryptographic"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 34,
+      "text": "- `tests/ggen_revops_pipeline.rs:37` \u2014 /// the ggen pipeline produced a populated file rather than an empty stub."
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 35,
+      "text": "- `tests/ggen_pipeline_real.rs:25` \u2014 /// 1. generated.rs exists and contains the expected stub modules."
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 36,
+      "text": "- `tests/admission_real_replay.rs:2` \u2014 //! `PowlBridgeReplay`, not the `NoopPowlReplay` stub."
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 37,
+      "text": "- `tests/admission_real_replay.rs:59` \u2014 // The bridge \u2014 not the stub \u2014 produced this verdict. The stub would"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 38,
+      "text": "- `tests/admission_real_replay.rs:60` \u2014 // have returned the literal {fitness: 1.0, run_id: \"stub-run-...\"}."
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 39,
+      "text": "- `tests/admission_real_replay.rs:62` \u2014 !conf.run_id.starts_with(\"stub-run-\"),"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 40,
+      "text": "- `tests/admission_real_replay.rs:63` \u2014 \"verdict came from NoopPowlReplay stub, not PowlBridge: run_id={}\","
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 41,
+      "text": "- `packages/declarations.d.ts:29` \u2014 placeholder?: string;"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 42,
+      "text": "- `src/server.rs:75` \u2014 /// (Stream-2 stub path; not backed by real POWL replay). 6 occurrences."
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 43,
+      "text": "- `src/server.rs:1008` \u2014 // TODO(R3 Task B): replace tenant_id fallback with"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 44,
+      "text": "- `src/server.rs:2551` \u2014 #[tool(name = \"onto_policy_register\", description = \"Register an ARGOS-style policy rule (#40, ISWC 2025 WOP). `effect` is `\\\"allow\\\"` or `\\\"deny\\\"`; `condition` is a SPARQL ASK that can use the `{target}` placeholder. Pairs with `onto_policy_check` and `onto_certify_action` \u2014 CIVeX gates causal risk, ARGOS gates authorisation.\")]"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 46,
+      "text": "- `src/server.rs:2996` \u2014 #[tool(name = \"onto_plan_compile_pddl\", description = \"Compile a PDDL domain from registered Dynamics action schemas (#43) plus a problem instance from the loaded graph and a goal Turtle slice (#45 Planner stub). Returns {domain, problem, translation_notes}. The actual planner (Fast Downward) is wrapped client-side per the LLM-Modulo convention \u2014 this primitive only emits the PDDL. Lossy in the v0.4 stub: only ASK-shape SPARQL preconditions translate cleanly; SELECT-shap"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 47,
+      "text": "- `src/server.rs:5605` \u2014 // TODO(stream1-4): Streams 1-4 are not yet merged on this branch. The"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 48,
+      "text": "- `src/server.rs:5859` \u2014 // TODO(stream1): replace with self.onto_declare_workflow(...)."
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 49,
+      "text": "- `src/server.rs:5981` \u2014 // Load scope row (Stream 5 stub schema)."
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 50,
+      "text": "- `src/server.rs:5986` \u2014 // delta \u2014 not a placeholder."
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 51,
+      "text": "- `src/server.rs:6830` \u2014 // stub (NoopPowlReplay) or the real wasm4pm bridge.  The stub"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 52,
+      "text": "- `src/server.rs:6831` \u2014 // prefixes every run_id with \"stub-run-\" so callers and auditors"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 53,
+      "text": "- `src/server.rs:6832` \u2014 // can distinguish stub-path admissions from production-verified"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 54,
+      "text": "- `src/server.rs:6836` \u2014 let powl_stub = receipt.record.conformance_run_id.starts_with(\"stub-run-\");"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 55,
+      "text": "- `src/server.rs:6844` \u2014 // integrated (stream-2 stub); CTQ admission skipped the real"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 56,
+      "text": "- `src/server.rs:7709` \u2014 /// TODO(R3 Task B): replace `is_admin_principal` with the canonical"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 57,
+      "text": "- `src/server.rs:7999` \u2014 /// TODO(R3 Task B): switch the INSERT target to `revoked_principals`"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 58,
+      "text": "- `src/ocel_store.rs:478` \u2014 // Make sure the conformance_runs table exists. The Stream-3 stub"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 59,
+      "text": "- `src/embed.rs:59` \u2014 /// let placeholder: Vec<f32> = vec![0.0; BGE_SMALL_DIM];"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 60,
+      "text": "- `src/embed.rs:60` \u2014 /// assert_eq!(placeholder.len(), BGE_SMALL_DIM);"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 61,
+      "text": "- `src/cell8.rs:17` \u2014 //! ## Phase 10 stub status"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 62,
+      "text": "- `src/policy.rs:27` \u2014 /// SPARQL ASK. Can use the placeholder `{target}` which is substituted"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 63,
+      "text": "- `src/attestation.rs:3` \u2014 //! Replaces the Phase-10 A10 tautology stub (which compared"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 64,
+      "text": "- `src/cell_ready.rs:54` \u2014 /// Stream-2-stub stand-in for `wasm4pm`'s POWL arena handle. Stream 2"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 65,
+      "text": "- `src/cell_ready.rs:221` \u2014 // \u2500\u2500 Real Ed25519 attestation (replaces the A10 tautology stub) \u2500\u2500"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 66,
+      "text": "- `src/plan_pddl.rs:1` \u2014 //! Planner stub (#45) \u2014 PDDL emission from Dynamics action schemas."
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 67,
+      "text": "- `src/plan_pddl.rs:9` \u2014 //! ## Bounded scope (v0.4 stub)"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 68,
+      "text": "- `src/plan_pddl.rs:24` \u2014 //! paper is the anchor for the rigorous version; this stub is a sand-table."
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 69,
+      "text": "- `src/plan_pddl.rs:34` \u2014 /// stub couldn't fully encode and that was preserved as a PDDL comment."
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 70,
+      "text": "- `src/plan_pddl.rs:75` \u2014 /// Translate a triple position (placeholder `<{x}>`, full IRI `<...>`, or bare"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 71,
+      "text": "- `src/plan_pddl.rs:196` \u2014 // Problem stub \u2014 empty init/goal; the MCP layer fills in init from the"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 72,
+      "text": "- `src/defects.rs:49` \u2014 /// (replaces the digest-equality tautology stub). Forward-compatible \u2014"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 73,
+      "text": "- `src/defects.rs:203` \u2014 /// matches the artifact bit-for-bit. (Phase-10 stub: digest-equality"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 74,
+      "text": "- `src/state.rs:173` \u2014 -- \u2500\u2500\u2500 OntoStar Stream 1 stub migrations (authoritative copies live in Stream 1) \u2500\u2500"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 75,
+      "text": "- `src/state.rs:252` \u2014 -- the \u00a728 hidden-WIP leak. (Verified: no DELETE statement in"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 76,
+      "text": "- `src/plan_classical.rs:25` \u2014 //! NOT fall back to a silent stub."
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 77,
+      "text": "- `src/socket_windows.rs:5` \u2014 /// Windows stub for the Unix domain socket adapter."
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 78,
+      "text": "- `src/admission.rs:5` \u2014 //!    (TODO Stream 2: replace [`PowlReplay`] stub with the real bridge),"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 79,
+      "text": "- `src/admission.rs:225` \u2014 /// TODO(R3 Task B): switch from `revoked_sessions` fallback to the"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 80,
+      "text": "- `src/admission.rs:525` \u2014 /// Stream-2-stub trait. The real implementation lives in `powl_bridge.rs`"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 81,
+      "text": "- `src/admission.rs:529` \u2014 /// TODO(stream-2): swap to the wasm4pm-backed bridge. This stub MUST be"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 82,
+      "text": "- `src/admission.rs:538` \u2014 /// flag distinguishes placeholder results from production-grade evidence."
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 83,
+      "text": "- `src/admission.rs:569` \u2014 /// `true` when this result was produced by the stream-2 stub"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 84,
+      "text": "- `src/admission.rs:576` \u2014 /// external operators and auditors can distinguish stub-path"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 85,
+      "text": "- `src/admission.rs:595` \u2014 /// assert!(!pass.is_stub,             \"pass() produces non-stub evidence\");"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 86,
+      "text": "- `src/admission.rs:623` \u2014 /// assert!(!fail.is_stub,             \"fail() produces non-stub evidence\");"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 87,
+      "text": "- `src/admission.rs:684` \u2014 /// Returns `true` when this result was produced by the stream-2 stub"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 88,
+      "text": "- `src/admission.rs:687` \u2014 /// Stub results have `fitness = 1.0` and `precision = 1.0` as placeholders"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 89,
+      "text": "- `src/admission.rs:690` \u2014 /// # Auto-instinct: stub results produced by NoopPowlReplay always conform"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 90,
+      "text": "- `src/admission.rs:698` \u2014 /// // Auto-instinct: stub results are always conformant (placeholder 1.0/1.0)."
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 91,
+      "text": "- `src/admission.rs:700` \u2014 /// assert!(stub_result.is_conformant(),  \"stub result must report conformance\");"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 92,
+      "text": "- `src/admission.rs:702` \u2014 /// // A hand-crafted non-stub conforming result is not a stub."
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 93,
+      "text": "- `src/admission.rs:711` \u2014 /// **Stream-2 stub.** Returns a perfect-fit verdict. Retained because some"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 94,
+      "text": "- `src/admission.rs:724` \u2014 /// // Stub always reports perfect fitness and precision \u2014 these are"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 95,
+      "text": "- `src/admission.rs:739` \u2014 /// Marker string placed in the codebase to locate every stream-2 stub site."
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 96,
+      "text": "- `src/admission.rs:742` \u2014 /// remaining match indicates a stub that was not replaced with the real"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 97,
+      "text": "- `src/admission.rs:750` \u2014 /// // The value is a recognisable TODO tag, not a semver."
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 98,
+      "text": "- `src/admission.rs:751` \u2014 /// assert!(STREAM3_STUB_POWL_REPLAY_MARKER.starts_with(\"TODO\"));"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 99,
+      "text": "- `src/admission.rs:754` \u2014 pub const STREAM3_STUB_POWL_REPLAY_MARKER: &str = \"TODO(stream-2): replace NoopPowlReplay\";"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 100,
+      "text": "- `src/admission.rs:833` \u2014 /// OCEL event attribute key indicating the POWL replay used a stub"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 101,
+      "text": "- `src/admission.rs:913` \u2014 // POWL replay is not yet integrated (stream-2 stub);"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 102,
+      "text": "- `src/admission.rs:916` \u2014 // `\"stub-run-\"` run_id prefix allow downstream consumers to"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 103,
+      "text": "- `src/admission.rs:922` \u2014 run_id: format!(\"stub-run-{}\", scope_token),"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 104,
+      "text": "- `src/admission.rs:1427` \u2014 // Run conformance via wasm4pm bridge (or stub)."
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 105,
+      "text": "- `src/admission.rs:1462` \u2014 // self-attests with the same hash (placeholder until ed25519-dalek"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 106,
+      "text": "- `src/admission.rs:2226` \u2014 // Run the stub migration on its own (it is a no-op SQL string but keep"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 107,
+      "text": "- `src/admission.rs:2243` \u2014 // Surface stub status in the OCEL witness so a process miner who sees"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 108,
+      "text": "- `src/admission.rs:2244` \u2014 // only the event log can flag stub-path runs without parsing run_id."
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 109,
+      "text": "- `src/admission.rs:2287` \u2014 // placeholder values from NoopPowlReplay (stream-2 stub"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 110,
+      "text": "- `src/admission.rs:2289` \u2014 // stub-path conformance runs as production evidence."
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 111,
+      "text": "- `src/retention.rs:369` \u2014 // This is a placeholder for receipt-file artifacts \u2014 see"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 112,
+      "text": "- `src/retention.rs:415` \u2014 /// implementation is a defined no-op placeholder \u2014 returns `0` until a"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 113,
+      "text": "- `src/retention.rs:429` \u2014 /// // Placeholder implementation always reports zero orphans pruned."
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 114,
+      "text": "- `src/receipts.rs:243` \u2014 /// stub migration in `STREAM3_STUB_MIGRATION`."
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 115,
+      "text": "- `docs/01-architecture.md:55` \u2014 `PowlBridgeReplay` parses declared POWL strings via the `wasm4pm` crate, projects the OCEL trace tagged with `scope_token`, and returns a fitness/precision verdict. Production admission uses this; a `NoopPowlReplay` stub remains for gate-semantics unit tests that need a deterministic pass-through. Defects: `ReplayFailed`, `SkippedTask`, `ExtraTask`, `WrongOrder`, `CapabilityZero`, `ReplayDivergence`."
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 116,
+      "text": "- `docs/05-receipt-chain.md:20` \u2014 pub signature: Option<Vec<u8>>,      // Ed25519 (Phase 10 stub-of-record)"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 117,
+      "text": "- `docs/07-phase-history.md:11` \u2014 Commits `33feda7`, `e4db225`. Replaced the `NoopPowlReplay` stub with `PowlBridgeReplay::new(store)` in production-path admission. The gap closed: 12 admission tests had been validating against a fitness=1.0 stub. Production now routes through `wasm4pm` for every admission; only four gate-semantics tests retain the noop with an explicit `// INTENTIONAL` annotation."
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 118,
+      "text": "- `docs/04-defect-taxonomy.md:38` \u2014 | `attestation_missing` | `AttestationMissing` | Cell8 A10 `ExternalAttestation` conjunct fails | Stub digest mismatch | `tests/cell8_thirteen_gates.rs` |"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 119,
+      "text": "- `docs/ies-ecosystem.md:204` \u2014 | IES Top (ToLO) | ~22 | TBD | TBD | TBD | TBD | TBD |"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 120,
+      "text": "- `docs/ies-ecosystem.md:205` \u2014 | IES Core | ~131 | TBD | TBD | TBD | TBD | TBD |"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 121,
+      "text": "- `docs/00-overview.md:34` \u2014 - **Receipts prove.** Every admitted operation produces a `ProductionRecord`, a chained `Receipt` (BLAKE3 over canonical bytes, Ed25519-signed in Phase 10's stub-of-record form), and an `admission_granted` OCEL event. Denied operations produce `admission_denied` with a typed `defect` attribute. No claim of success exists outside this chain."
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 122,
+      "text": "- `docs/00-overview.md:38` \u2014 The Phase 6 audit found 25 silently-broken CLI tests, 12 stub-validated admission tests, 21 dead defect variants, and 5 textual-ratchet bypass patterns. Phases 7\u201311 closed every finding fix-forward. The system now refuses to claim a feature works unless the receipt and the OCEL event log prove it ran. That refusal is the product."
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 123,
+      "text": "- `.github/workflows/wip-sweep.yml:1` \u2014 name: WIP Sweep"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 124,
+      "text": "- `.github/workflows/wip-sweep.yml:5` \u2014 branches: [agent/finish-wip-20260730]"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 125,
+      "text": "- `.github/workflows/wip-sweep.yml:6` \u2014 paths: [.github/wip-trigger]"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 126,
+      "text": "- `.github/workflows/wip-sweep.yml:18` \u2014 ref: agent/finish-wip-20260730"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 127,
+      "text": "- `.github/workflows/wip-sweep.yml:21` \u2014 - name: Inventory WIP and executable gates"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 128,
+      "text": "- `.github/workflows/wip-sweep.yml:26` \u2014 mkdir -p .wip"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 129,
+      "text": "- `.github/workflows/wip-sweep.yml:33` \u2014 marker_re = re.compile(r'(?i)\\b(TODO|FIXME|XXX|HACK|WIP|TBD|NOT[ _-]?IMPLEMENTED|PLACEHOLDER|STUB)\\b|todo!\\s*\\(|unimplemented!\\s*\\(')"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 130,
+      "text": "- `.github/workflows/wip-sweep.yml:109` \u2014 Path('.wip/audit.json').write_text(json.dumps(audit,indent=2))"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 131,
+      "text": "- `.github/workflows/wip-sweep.yml:111` \u2014 lines=['# WIP audit','',f\"Base: `{audit['base_sha']}`\",'']"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 132,
+      "text": "- `.github/workflows/wip-sweep.yml:128` \u2014 Path('.wip/audit.md').write_text('\\n'.join(lines)+'\\n')"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 133,
+      "text": "- `.github/workflows/wip-sweep.yml:137` \u2014 git add .wip/audit.json .wip/audit.md"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 134,
+      "text": "- `.github/workflows/wip-sweep.yml:138` \u2014 git commit -m 'chore: record WIP audit receipt'"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 135,
+      "text": "- `.github/workflows/wip-sweep.yml:139` \u2014 git push origin HEAD:agent/finish-wip-20260730"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 136,
+      "text": "- `ontology/zoela/core.ttl:181` \u2014 # \u00a7 3  Forward-declared stub classes for future modules"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 137,
+      "text": "- `ontology/zoela/core.ttl:209` \u2014 # \u00a7 3b  Forward-declared stub classes for newly-created modules"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 138,
+      "text": "- `case-studies/jc3iedm-ies4-crosswalk/README.md:39` \u2014 4. **Use a placeholder JC3IEDM IRI namespace.** STANAG 5525 doesn't issue canonical web IRIs; this sketch uses `http://example.org/jc3iedm/` as a placeholder. A real implementation would use NATO/MIP-issued IRIs."
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 139,
+      "text": "- `case-studies/jc3iedm-ies4-crosswalk/crosswalk.ttl:11` \u2014 # Placeholder JC3IEDM namespace \u2014 STANAG 5525 has no canonical web IRIs."
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 140,
+      "text": "- `case-studies/mcp-ies-rag-demo/README.md:81` \u2014 - Uses a placeholder `demo:roleIn` helper property. A production IES4 implementation would use the canonical `ies:MemberState` + `ies:isMemberOf` pattern. The shortcut keeps the demo Turtle readable."
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 141,
+      "text": "- `case-studies/zero-emission-aviation/demo/index.html:163` \u2014 <input id=\"search\" type=\"search\" autocomplete=\"off\" placeholder=\"e.g. ZeroAvia, H2GEAR, electrolysis\" aria-describedby=\"search-help\" />"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 142,
+      "text": "- `case-studies/verifiabench/results/multi_per_task_Qwen2.5-3B-Instruct-4bit.json:602` \u2014 \"output\": \"```turtle\\n<biolink:MTOR> <biolink:is_involved_in> <GO:0008150>\\n```\\n\\nNote: The Gene Ontology (GO) term `GO:0008150` is not a real term for 'regulation of cell growth'. A correct representation would use a specific GO term for 'regulation of cell growth', but since one is not provided, I've used a placeholder here. If you have a specific GO term in mind, please provide it, and I can adjust the T"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 143,
+      "text": "- `case-studies/verifiabench/results/multi_per_task_Qwen2.5-3B-Instruct-4bit.json:624` \u2014 \"output\": \"```turtle\\n@prefix bio: <http://biolink.info/vocabulary/> .\\n<http://biolink.info/gene/ESR1> bio:involved_in bio:signal_transduction_process.\\n<http://biolink.info/gene/ESR1> bio:is_a bio:Gene.\\n<http://purl.obolinguistics.org/obo/GO_0008155> bio:is_a bio:Biological_process.\\n```\\n\\nNote: The GO term `GO:0008155` is not a real Gene Ontology term. For the purpose of this example, I used `GO:0008155"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 144,
+      "text": "- `case-studies/skills-england-esco-crosswalk/pipeline/fetch_esco.py:48` \u2014 todo = [o for o in occs if o[\"stdCode\"] not in done]"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 145,
+      "text": "- `case-studies/skills-england-esco-crosswalk/pipeline/fetch_esco.py:49` \u2014 print(f\"{len(todo)} to fetch ({len(done)} cached)\")"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 146,
+      "text": "- `case-studies/skills-england-esco-crosswalk/pipeline/fetch_esco.py:51` \u2014 for i, o in enumerate(todo):"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 147,
+      "text": "- `case-studies/skills-england-esco-crosswalk/pipeline/fetch_esco.py:60` \u2014 print(f\"{i}/{len(todo)}\")"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 148,
+      "text": "- `case-studies/heritage-aerial/pipeline/build-stac.py:138` \u2014 # An always-present placeholder for the primary image asset (the scan is"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 149,
+      "text": "- `case-studies/heritage-aerial/demo/index.html:32` \u2014 #detail .placeholder { color: #999; font-style: italic; font-size: 0.9em; }"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 150,
+      "text": "- `case-studies/heritage-aerial/demo/index.html:73` \u2014 <p class=\"placeholder\">Click any marker on the map to view its NAPH metadata.</p>"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 151,
+      "text": "- `case-studies/heritage-aerial/demo/index.html:191` \u2014 document.getElementById('detail').innerHTML = `<p class=\"placeholder\">Could not load IIIF manifest: ${err.message}<br><br>Make sure you're serving this from a local HTTP server (not file://) and that <code>../reports/iiif-collection-manifest.json</code> exists.</p>`;"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 152,
+      "text": "- `case-studies/heritage-aerial/demo/real.html:30` \u2014 #detail .placeholder { color: #999; font-style: italic; font-size: 0.9em; }"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 153,
+      "text": "- `case-studies/heritage-aerial/demo/real.html:61` \u2014 <div id=\"detail\"><p class=\"placeholder\">Click any footprint to view its NAPH metadata.</p></div>"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 154,
+      "text": "- `case-studies/heritage-aerial/demo/real.html:138` \u2014 load().catch(err=>{ document.getElementById('detail').innerHTML=`<p class=\"placeholder\">Could not load manifest: ${err.message}. Serve over HTTP, not file://.</p>`; });"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 155,
+      "text": "- `case-studies/heritage-aerial/docs/red-team-report.md:83` \u2014 **Status:** documented in the docs but not implemented. The CQ2 expected results table notes \"(requires GeoSPARQL)\" but doesn't say this means *not Oxigraph*."
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 156,
+      "text": "- `case-studies/heritage-aerial/docs/red-team-report.md:124` \u2014 2. Add a stub IIIF Image API in the demo pipeline that serves placeholder images so manifests fully resolve"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 157,
+      "text": "- `case-studies/heritage-aerial/pipeline/scrapers/napl_opencanada.py:284` \u2014 for stub in stubs:"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 158,
+      "text": "- `case-studies/heritage-aerial/pipeline/scrapers/napl_opencanada.py:286` \u2014 detail = dataset_detail(stub[\"id\"])"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 159,
+      "text": "- `case-studies/heritage-aerial/pipeline/scrapers/napl_opencanada.py:288` \u2014 print(f\"# {stub['id']}: fetch failed: {e}\", file=sys.stderr)"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 160,
+      "text": "- `case-studies/heritage-aerial/pipeline/scrapers/__init__.py:9` \u2014 - NCAPAirPhotoFinderScraper \u2014 Angular SPA, requires Playwright/manual JSON capture (stub)"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 161,
+      "text": "- `case-studies/heritage-aerial/pipeline/scrapers/__init__.py:10` \u2014 - USGSEarthExplorerScraper \u2014 M2M API, requires registration (stub)"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 162,
+      "text": "- `case-studies/heritage-aerial/pipeline/scrapers/usgs_earthexplorer.py:3` \u2014 USGS Earth Explorer M2M API Adapter \u2014 STUB."
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 163,
+      "text": "- `case-studies/heritage-aerial/pipeline/scrapers/usgs_earthexplorer.py:42` \u2014 description=\"USGS Earth Explorer NAPH adapter (STUB \u2014 requires USGS credentials).\""
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 164,
+      "text": "- `case-studies/heritage-aerial/pipeline/scrapers/usgs_earthexplorer.py:53` \u2014 print(\"# USGS Earth Explorer M2M adapter \u2014 STUB\", file=sys.stderr)"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 165,
+      "text": "- `case-studies/heritage-aerial/deliverables/06-knowledge-transfer/external-integrations.md:3` \u2014 For each NAPH gap previously marked \"stub\" or \"skipped (external API)\", this document maps to the existing open-source implementation worth adopting rather than rebuilding. Status as of 2026-05."
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 166,
+      "text": "- `case-studies/heritage-aerial/deliverables/06-knowledge-transfer/external-integrations.md:32` \u2014 # See pipeline/scrapers/usgs_earthexplorer.py \u2014 fill in the TODO sections"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 167,
+      "text": "- `case-studies/heritage-aerial/deliverables/06-knowledge-transfer/external-integrations.md:59` \u2014 3. Update [`pipeline/iiif-bridge.py`](../../pipeline/iiif-bridge.py) so the `service.id` URLs point at your Cantaloupe instance instead of placeholder URLs"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 168,
+      "text": "- `case-studies/heritage-aerial/deliverables/06-knowledge-transfer/external-integrations.md:144` \u2014 2. Replace [`pipeline/scrapers/ncap_airphotofinder.py`](../../pipeline/scrapers/ncap_airphotofinder.py) stub with API client"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 169,
+      "text": "- `case-studies/heritage-aerial/deliverables/06-knowledge-transfer/maintenance-runbook.md:33` \u2014 - Mailing list / forum: tbd"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 170,
+      "text": "- `case-studies/heritage-aerial/deliverables/04-adoption-guidance/transition-guides/baseline-to-enhanced.md:57` \u2014 naph:flightAltitude 0.0 ;  # placeholder \u2014 flag as unknown"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 171,
+      "text": "- `deploy/helm/values.yaml:58` \u2014 # If empty, the chart creates an empty placeholder Secret you must populate"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 172,
+      "text": "- `packages/utils/crypto.ts:5` \u2014 // In production this delegates to a BLAKE3 WASM module; this stub provides"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 173,
+      "text": "- `packages/utils/crypto.ts:9` \u2014 // Stub implementation \u2014 replace with wasm-blake3 or native binding in app workspace"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 174,
+      "text": "- `packages/forms/zoela.tsx:28` \u2014 placeholder: \"Integer priority for ordering push cards in the notification tray; lower values appear first.\","
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 175,
+      "text": "- `packages/forms/zoela.tsx:35` \u2014 placeholder: \"Expo deep-link URI the card action button navigates to when tapped.\","
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 176,
+      "text": "- `packages/forms/zoela.tsx:42` \u2014 placeholder: \"Label for the primary call-to-action button rendered on the push card (e.g. 'View Details', 'Accept Request').\","
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 177,
+      "text": "- `packages/forms/zoela.tsx:49` \u2014 placeholder: \"Main body text of the push card, describing the action or update in detail.\","
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 178,
+      "text": "- `packages/forms/zoela.tsx:56` \u2014 placeholder: \"Secondary line of text below the card title, providing route or ministry context.\","
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 179,
+      "text": "- `packages/forms/zoela.tsx:63` \u2014 placeholder: \"Primary headline text displayed on the push card in the notification tray.\","
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 180,
+      "text": "- `packages/forms/zoela.tsx:84` \u2014 placeholder: \"Expo deep-link URI that opens the relevant screen in ZOE LA Mobile when the notification is tapped.\","
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 181,
+      "text": "- `packages/forms/zoela.tsx:91` \u2014 placeholder: \"Category identifier from the NotificationCategoryScheme, used to route and filter notifications in the app.\","
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 182,
+      "text": "- `packages/forms/zoela.tsx:98` \u2014 placeholder: \"Full body text of the push notification providing context and call-to-action.\","
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 183,
+      "text": "- `packages/forms/zoela.tsx:105` \u2014 placeholder: \"Short headline text of the push notification, displayed in the device notification shade.\","
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 184,
+      "text": "- `packages/forms/connectGroupInterestForm.tsx:38` \u2014 placeholder=\"e.g. Sunday evenings, weekday mornings\""
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 185,
+      "text": "- `packages/forms/connectGroupInterestForm.tsx:56` \u2014 placeholder=\"Anything else we should know?\""
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 186,
+      "text": "- `packages/screens/adminDetailScreen.tsx:21` \u2014 <Text style={styles.placeholder}>"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 187,
+      "text": "- `packages/screens/adminDetailScreen.tsx:33` \u2014 placeholder: { fontSize: 14, color: '#666', fontStyle: 'italic' },"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 188,
+      "text": "- `src/a2a/router.rs:43` \u2014 \"task_id\": \"a2a-task-placeholder\","
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 189,
+      "text": "- `src/workflows/mod.rs:23` \u2014 //! confirming they are not placeholder stubs:"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 190,
+      "text": "- `src/workflows/builtin.rs:87` \u2014 //   TODO(wasm4pm POWL v2): use CG=(...) once Choice Graphs land upstream"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 191,
+      "text": "- `src/workflows/builtin.rs:133` \u2014 // CG{...} \u2192 XOR for now (TODO above)."
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 192,
+      "text": "- `src/workflows/builtin.rs:156` \u2014 // step (the alphabet still matches). TODO: revisit when POWL gains"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 193,
+      "text": "- `src/cmds/generated.rs:20` \u2014 /// Generated stub \u2014 wired to src/cmds/doctor.rs"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 194,
+      "text": "- `src/cmds/generated.rs:39` \u2014 /// Generated stub \u2014 wired to src/cmds/thesis.rs"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 195,
+      "text": "- `src/cmds/generated.rs:58` \u2014 /// Generated stub \u2014 wired to src/cmds/marketplace.rs"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 196,
+      "text": "- `src/cmds/generated.rs:77` \u2014 /// Generated stub \u2014 wired to src/cmds/clinical.rs"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 197,
+      "text": "- `src/cmds/generated.rs:96` \u2014 /// Generated stub \u2014 wired to src/cmds/alignment.rs"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 198,
+      "text": "- `src/cmds/generated.rs:115` \u2014 /// Generated stub \u2014 wired to src/cmds/governance.rs"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 199,
+      "text": "- `src/cmds/generated.rs:134` \u2014 /// Generated stub \u2014 wired to src/cmds/data.rs"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 200,
+      "text": "- `src/cmds/generated.rs:153` \u2014 /// Generated stub \u2014 wired to src/cmds/server.rs"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 201,
+      "text": "- `src/cmds/generated.rs:172` \u2014 /// Generated stub \u2014 wired to src/cmds/ontology.rs"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 202,
+      "text": "- `src/cmds/thesis.rs:250` \u2014 // Stub: return empty claim/evidence packets."
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 203,
+      "text": "- `src/cmds/thesis.rs:261` \u2014 message: format!(\"Extraction stub for source_id={} \u2014 real LLM call TBD\", source_id),"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 204,
+      "text": "- `src/cmds/thesis.rs:293` \u2014 // Stub: run lightweight validation check"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 205,
+      "text": "- `src/cmds/thesis.rs:307` \u2014 message: \"Audit stub \u2014 SHACL validation TBD\".to_string(),"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 206,
+      "text": "- `src/cmds/thesis.rs:317` \u2014 // Stub: run chapter routing SPARQL CONSTRUCT"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 207,
+      "text": "- `src/cmds/thesis.rs:329` \u2014 message: \"Route stub \u2014 SPARQL CONSTRUCT TBD\".to_string(),"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 208,
+      "text": "- `src/cmds/thesis.rs:342` \u2014 // Stub: render markdown thesis"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 209,
+      "text": "- `src/cmds/thesis.rs:370` \u2014 // Stub: run full pipeline"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 210,
+      "text": "- `src/cmds/thesis.rs:416` \u2014 // Check 2: Thesis shapes file (stub: always pass)"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 211,
+      "text": "- `src/cmds/thesis.rs:423` \u2014 // Check 3: Gemini connectivity (stub: assume pass)"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 212,
+      "text": "- `src/cmds/thesis.rs:427` \u2014 \"Gemini 3.1 Flash reachable (stub)\".to_string(),"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 213,
+      "text": "- `src/cmds/thesis.rs:444` \u2014 /// Stub: \"Interactive flow TBD; see onto thesis wizard\""
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 214,
+      "text": "- `src/cmds/thesis.rs:449` \u2014 // Stub: interactive prompts TBD"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 215,
+      "text": "- `src/cmds/thesis.rs:452` \u2014 \"message\": \"Interactive wizard stub \u2014 prompts for input files, source metadata, chapter structure TBD\""
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 216,
+      "text": "- `src/cmds/thesis.rs:462` \u2014 // Stub: trace provenance"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 217,
+      "text": "- `supabase/migrations/20260518000004_zoela_ocel_events.sql:21` \u2014 receipt_hash TEXT,                           -- SHA-256 hex digest (Web Crypto stub)"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 218,
+      "text": "- `benchmark/oaei/README.md:39` \u2014 | **Open Ontologies** | **TBD** | **TBD** |"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 219,
+      "text": "- `benchmark/reference/ies4.ttl:2516` \u2014 This is a very simple placeholder for an area of IES that is likely to grow in the future. For now, it can be used to group together a number of elements (using isPartOf relationship) to assert that they share the same truth - i.e. in one possible scenario, all of them were true. The same Element may exist in more than one PossibleWorld - i.e. scenarios may share elements. For version 4.1.0 of IES, PossibleWorld is to be used with AssessToBeTrue in order t"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 220,
+      "text": "- `benchmark/ontoaxiom/results/condition_d/goodrelations.json:16` \u2014 [\"Product Or Services Some Instances Placeholder\", \"Product Or Service\"],"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 221,
+      "text": "- `benchmark/ontoaxiom/results/condition_d/goodrelations_extracted.json:16` \u2014 [\"Product or services some instances placeholder (DEPRECATED)\", \"Product or service\"],"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 222,
+      "text": "- `benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json:9999` \u2014 \"product or services some instances placeholder\","
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 223,
+      "text": "- `benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json:10114` \u2014 \"product or services some instances placeholder\""
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 224,
+      "text": "- `benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json:10214` \u2014 \"product or services some instances placeholder\""
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 225,
+      "text": "- `benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json:10310` \u2014 \"product or services some instances placeholder\""
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 226,
+      "text": "- `benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json:10402` \u2014 \"product or services some instances placeholder\""
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 227,
+      "text": "- `benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json:10490` \u2014 \"product or services some instances placeholder\""
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 228,
+      "text": "- `benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json:10574` \u2014 \"product or services some instances placeholder\""
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 229,
+      "text": "- `benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json:10654` \u2014 \"product or services some instances placeholder\""
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 230,
+      "text": "- `benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json:10730` \u2014 \"product or services some instances placeholder\""
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 231,
+      "text": "- `benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json:10802` \u2014 \"product or services some instances placeholder\""
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 232,
+      "text": "- `benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json:10870` \u2014 \"product or services some instances placeholder\""
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 233,
+      "text": "- `benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json:10934` \u2014 \"product or services some instances placeholder\""
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 234,
+      "text": "- `benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json:10994` \u2014 \"product or services some instances placeholder\""
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 235,
+      "text": "- `benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json:11050` \u2014 \"product or services some instances placeholder\""
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 236,
+      "text": "- `benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json:11102` \u2014 \"product or services some instances placeholder\""
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 237,
+      "text": "- `benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json:11150` \u2014 \"product or services some instances placeholder\""
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 238,
+      "text": "- `benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json:11194` \u2014 \"product or services some instances placeholder\""
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 239,
+      "text": "- `benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json:11234` \u2014 \"product or services some instances placeholder\""
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 240,
+      "text": "- `benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json:11270` \u2014 \"product or services some instances placeholder\""
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 241,
+      "text": "- `benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json:11302` \u2014 \"product or services some instances placeholder\""
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 242,
+      "text": "- `benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json:11333` \u2014 \"product or services some instances placeholder\","
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 243,
+      "text": "- `benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json:11337` \u2014 \"product or services some instances placeholder\","
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 244,
+      "text": "- `benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json:11341` \u2014 \"product or services some instances placeholder\","
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 245,
+      "text": "- `benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json:11345` \u2014 \"product or services some instances placeholder\","
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 246,
+      "text": "- `benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json:11349` \u2014 \"product or services some instances placeholder\","
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 247,
+      "text": "- `benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json:11353` \u2014 \"product or services some instances placeholder\","
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 248,
+      "text": "- `benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json:11357` \u2014 \"product or services some instances placeholder\","
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 249,
+      "text": "- `benchmark/ontoaxiom/data/ontoaxiom/ontologies/goodrelations.ttl:205` \u2014 rdfs:comment \"A placeholder for all official public holidays at the gr:Location. This allows specifying the opening hours on public holidays. If a given day is a public holiday, this specification supersedes the opening hours for the respective day of the week.\"@en ;"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 250,
+      "text": "- `benchmark/ontoaxiom/data/ontoaxiom/ontologies/goodrelations.ttl:622` \u2014 rdfs:comment \"\"\"This states that an actual product instance (gr:Individual) or a placeholder instance for multiple, unidentified such instances (gr:SomeItems) is one occurence of a particular gr:ProductOrServiceModel."
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 251,
+      "text": "- `benchmark/ontoaxiom/data/ontoaxiom/ontologies/goodrelations.ttl:1060` \u2014 rdfs:label \"Product or services some instances placeholder (DEPRECATED)\"@en ;"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 252,
+      "text": "- `benchmark/ontoaxiom/data/ontoaxiom/ontologies/goodrelations.ttl:1434` \u2014 rdfs:comment \"\"\"A placeholder instance for unknown instances of a mass-produced commodity. This is used as a computationally cheap work-around for such instances that are not individually exposed on the Web but just stated to exist (i.e., which are existentially quantified)."
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 253,
+      "text": "- `benchmark/ontoaxiom/data/ontoaxiom/ontologies/goodrelations.ttl:1859` \u2014 rdfs:comment \"\"\"The superclass of all classes describing products or services types, either by nature or purpose. Examples for such subclasses are \"TV set\", \"vacuum cleaner\", etc. An instance of this class can be either an actual product or service (gr:Individual), a placeholder instance for unknown instances of a mass-produced commodity (gr:SomeItems), or a model / prototype specification (gr:ProductOrServiceModel). When"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 254,
+      "text": "- `benchmark/ontoaxiom/data/ontoaxiom/ontologies/goodrelations.ttl:1864` \u2014 c) dummyCellPhone123 as a placeholder for actual instances of a certain kind of cell phones (gr:SomeItems)"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 255,
+      "text": "- `benchmark/ontoaxiom/data/ontoaxiom/ontologies/time.ttl:434` \u2014 This is a stub class, representing the set of all temporal reference systems.\"\"\"@en ;"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 256,
+      "text": "- `benchmark/ontoaxiom/data/ontoaxiom/ontologies/time.ttl:438` \u2014 This is a stub class, representing the set of all temporal reference systems.\"\"\"@en ;"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 257,
+      "text": "- `benchmark/ontoaxiom/data/ontoaxiom/ontologies/time.ttl:547` \u2014 skos:note \"An ontology for time zone descriptions was described in [owl-time-20060927] and provided as RDF in a separate namespace tzont:. However, that ontology was incomplete in scope, and the example datasets were selective. Furthermore, since the use of a class from an external ontology as the range of an ObjectProperty in OWL-Time creates a dependency, reference to the time zone class has been replaced with the 'stub' class in"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 258,
+      "text": "- `benchmark/ontoaxiom/data/ontoaxiom/classes/goodrelations_classes.json:29` \u2014 \"product or services some instances placeholder\","
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 259,
+      "text": "- `benchmark/ontoaxiom/data/ontoaxiom/subclassof/goodrelations_subclassof.json:55` \u2014 \"Product Or Services Some Instances Placeholder\","
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 260,
+      "text": "- `studio/src/components/PropertyInspector.tsx:292` \u2014 placeholder=\"rdfs:label or full URI...\""
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 261,
+      "text": "- `studio/src/components/PropertyInspector.tsx:339` \u2014 placeholder={newValType === 'uri' ? 'http://...' : 'value...'}"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 262,
+      "text": "- `studio/src/components/TreeView.tsx:511` \u2014 <input type=\"text\" placeholder=\"Search nodes...\" value={searchTerm} onChange={e => setSearchTerm(e.target.value)}"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 263,
+      "text": "- `studio/src/components/ChatPanel.tsx:147` \u2014 placeholder=\"Ask about ontologies...\""
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 264,
+      "text": "- `studio/src/components/AddClassDialog.tsx:38` \u2014 placeholder=\"Class name...\""
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 265,
+      "text": "- `studio/docs/plans/2026-03-14-tauri-implementation-plan.md:155` \u2014 {/* Graph canvas placeholder */}"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 266,
+      "text": "- `studio/docs/plans/2026-03-14-tauri-implementation-plan.md:213` \u2014 Expected: Dark-themed window with toolbar, graph placeholder, chat panel, status bar"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 267,
+      "text": "- `studio/docs/plans/2026-03-14-tauri-implementation-plan.md:924` \u2014 Replace graph placeholder div with:"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 268,
+      "text": "- `studio/docs/plans/2026-03-14-tauri-implementation-plan.md:933` \u2014 // Replace graph placeholder:"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 269,
+      "text": "- `studio/docs/plans/2026-03-14-tauri-implementation-plan.md:990` \u2014 placeholder=\"Class name...\""
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 270,
+      "text": "- `studio/docs/plans/2026-03-14-tauri-implementation-plan.md:1901` \u2014 placeholder=\"Ask about ontologies...\""
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 271,
+      "text": "- `studio/docs/plans/2026-03-14-tauri-implementation-plan.md:1963` \u2014 Replace the chat placeholder in Layout.tsx:"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 272,
+      "text": "- `studio/docs/plans/2026-03-14-tauri-implementation-plan.md:1968` \u2014 // Replace the chat panel placeholder div content:"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 273,
+      "text": "- `studio/docs/plans/2026-03-14-tauri-implementation-plan.md:2131` \u2014 // Replace inspector placeholder:"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 274,
+      "text": "- `docs/plans/2026-03-09-standalone-mcp-server-plan.md:86` \u2014 **Step 2: Create stub lib.rs so it compiles**"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 275,
+      "text": "- `docs/plans/2026-03-12-infrastructure-positioning-plan.md:262` \u2014 Add a shared setup helper and stub the `match` arms (just print `{\"error\":\"not implemented\"}` for now \u2014 we'll fill them in Tasks 2\u20136):"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 276,
+      "text": "- `docs/plans/2026-03-12-infrastructure-positioning-plan.md:369` \u2014 Expected: FAIL \u2014 subcommands return `not implemented`."
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 277,
+      "text": "- `docs/plans/2026-03-12-infrastructure-positioning-plan.md:1571` \u2014 Add new concise benchmark section with the HermiT/Pellet/OO comparison table (numbers TBD after running). Keep existing detailed benchmarks below as \"Detailed Benchmark Methodology\"."
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 278,
+      "text": "- `docs/research/PHD_PROGRAM.md:37` \u2014 *   *Lab:* Executing the `wasm4pm` stream-2 stub bindings via the `src/swarm.rs` cognition swarm."
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 279,
+      "text": "- `docs/research/CODEBASE_MAPPING.md:11` \u2014 *   **L6 High-Speed Kernels:** Represented by the `wasm4pm` stream-2 stub bindings (POWL and cognition kernels) and the `src/manufacturing/` pipeline that targets AtomVM, Erlang, and Rust."
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 280,
+      "text": "- `docs/research/SYLLABI.md:114` \u2014 *   **Weeks 10-12: The `wasm4pm` Lab:** Integrating and evaluating the stream-2 stub bindings. Profiling kernel execution speed."
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 281,
+      "text": "- `docs/research/materials/EDGE_LAB_SPEC.md:14` \u2014 *   **Wasm Runtime:** WasmEdge runtime configured with the `open-ontologies` `wasm4pm` stream-2 stub bindings."
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 282,
+      "text": "- `.specify/templates/zoela/connect-group-interest-form.tera:38` \u2014 placeholder=\"e.g. Sunday evenings, weekday mornings\""
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 283,
+      "text": "- `.specify/templates/zoela/connect-group-interest-form.tera:56` \u2014 placeholder=\"Anything else we should know?\""
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 284,
+      "text": "- `.specify/templates/zoela/react-hook-form.tera:69` \u2014 placeholder: \"{{ fcomment | trim }}\","
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 285,
+      "text": "- `.specify/templates/zoela/admin-detail-screen.tera:42` \u2014 <Text style={styles.placeholder}>"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 286,
+      "text": "- `.specify/templates/zoela/admin-detail-screen.tera:54` \u2014 placeholder: { fontSize: 14, color: '#666', fontStyle: 'italic' },"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 287,
+      "text": "- `.specify/templates/cli/cmds.rs.tera:49` \u2014 /// Generated stub \u2014 wired to src/cmds/{{ name | trim | replace(from=\"-\", to=\"_\") }}.rs"
+    },
+    {
+      "path": ".wip/audit.md",
+      "line": 295,
+      "text": "- `origin/agent/finish-wip-20260730` \u2014 ahead 3, behind 3, `bd2e83532873` \u2014 chore: retrigger WIP sweep"
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 8,
+      "text": "\"text\": \"`revoked_principals` table lands (TODO marker in code). New\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 13,
+      "text": "\"text\": \"TODO(R6) \\u2014 same disease, deferred fix template.\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 18,
+      "text": "\"text\": \"`TODO(R6 \\u00a715.A9)`, `TODO(R6 \\u00a715.A11)`, `TODO(R6 \\u00a715.A12)` comments\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 23,
+      "text": "\"text\": \"- `engine=\\\"groq_pm4py\\\"` subprocess transport \\u2014 MCP handlers now spawn the real DSPy/pm4py-backed translator instead of the in-process stub.\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 28,
+      "text": "\"text\": \"- [`ee90af9`](../../commit/ee90af9) `fix(no-stub): wire ingest/map/extend/push format params; add named-graph push; remove dead cfg`\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 33,
+      "text": "\"text\": \"- [`e4db225`](../../commit/e4db225) `ontostar(R3): wire PowlBridgeReplay into admission gate, replace stub`\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 38,
+      "text": "\"text\": \"- `PowlBridgeReplay` replaces the noop stub in the admission gate.\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 43,
+      "text": "\"text\": \"*   **L6 High-Speed Kernels:** Represented by `wasm4pm` stream-2 stub bindings and the `src/manufacturing/` pipeline.\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 48,
+      "text": "\"text\": \"## What's NOT Implemented (Vision 2030 Future Layers)\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 53,
+      "text": "\"text\": \"todo = \\\"deny\\\"\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 58,
+      "text": "\"text\": \"`OcelObjectType` is a typing class for OCEL 2.0 instances (e.g. Order, Item, Package). In the current TTL it is a vocabulary stub \\u2014 the actual object type individuals (Order, Item, etc.) are not defined. The enforcer correctly flags it as orphaned.\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 63,
+      "text": "\"text\": \"//!   5. assert Admitted(receipt) with non-stub fitness\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 68,
+      "text": "\"text\": \"//    fitness, not a stub 1.0).\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 73,
+      "text": "\"text\": \"!conf.run_id.starts_with(\\\"stub-run-\\\"),\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 78,
+      "text": "\"text\": \"\\\"verdict came from the stub, not the real PowlBridge: {}\\\",\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 83,
+      "text": "\"text\": \"let msg = \\\"evaluate_admission(stub) called\\\";\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 88,
+      "text": "\"text\": \"let receipt = build_test_receipt(b\\\"some-artifact-placeholder\\\");\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 93,
+      "text": "\"text\": \"//! output is structurally distinct from a hypothetical \\\"stub that\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 98,
+      "text": "\"text\": \"Either the format was silently ignored (soft stub) or auto-detection hid the override.\\\\n\\\\\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 103,
+      "text": "\"text\": \"//! R5 WB-1's TODO comment at admission.rs:660-662 carried A9 forward\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 108,
+      "text": "\"text\": \"//! (#43 Dynamics \\u2192 #44 Causal hookup \\u2192 #45 Planner stub).\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 113,
+      "text": "\"text\": \"// The Planner stub must read from the same SQLite store that\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 118,
+      "text": "\"text\": \"// 64-char WO hash literal with a placeholder of equal length.\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 123,
+      "text": "\"text\": \"let placeholder: String = \\\"f\\\".repeat(wo_hash.len());\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 128,
+      "text": "\"text\": \"f.contents = f.contents.replace(&wo_hash, &placeholder);\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 133,
+      "text": "\"text\": \"//! Replaces the digest-equality tautology stub with cryptographic\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 138,
+      "text": "\"text\": \"/// the ggen pipeline produced a populated file rather than an empty stub.\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 143,
+      "text": "\"text\": \"/// 1. generated.rs exists and contains the expected stub modules.\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 148,
+      "text": "\"text\": \"//! `PowlBridgeReplay`, not the `NoopPowlReplay` stub.\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 153,
+      "text": "\"text\": \"// The bridge \\u2014 not the stub \\u2014 produced this verdict. The stub would\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 158,
+      "text": "\"text\": \"// have returned the literal {fitness: 1.0, run_id: \\\"stub-run-...\\\"}.\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 163,
+      "text": "\"text\": \"!conf.run_id.starts_with(\\\"stub-run-\\\"),\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 168,
+      "text": "\"text\": \"\\\"verdict came from NoopPowlReplay stub, not PowlBridge: run_id={}\\\",\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 173,
+      "text": "\"text\": \"placeholder?: string;\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 178,
+      "text": "\"text\": \"/// (Stream-2 stub path; not backed by real POWL replay). 6 occurrences.\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 183,
+      "text": "\"text\": \"// TODO(R3 Task B): replace tenant_id fallback with\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 188,
+      "text": "\"text\": \"#[tool(name = \\\"onto_policy_register\\\", description = \\\"Register an ARGOS-style policy rule (#40, ISWC 2025 WOP). `effect` is `\\\\\\\"allow\\\\\\\"` or `\\\\\\\"deny\\\\\\\"`; `condition` is a SPARQL ASK that can use the `{target}` placeholder. Pairs with `onto_policy_check` and `onto_certify_action` \\u2014 CIVeX gates causal risk, ARGOS gates authorisation.\\\")]\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 198,
+      "text": "\"text\": \"#[tool(name = \\\"onto_plan_compile_pddl\\\", description = \\\"Compile a PDDL domain from registered Dynamics action schemas (#43) plus a problem instance from the loaded graph and a goal Turtle slice (#45 Planner stub). Returns {domain, problem, translation_notes}. The actual planner (Fast Downward) is wrapped client-side per the LLM-Modulo convention \\u2014 this primitive only emits the PDDL. Lossy in the v0.4 stub: only ASK-shape SPARQL preconditions translate cleanly; SELECT-shaped preco"
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 203,
+      "text": "\"text\": \"// TODO(stream1-4): Streams 1-4 are not yet merged on this branch. The\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 208,
+      "text": "\"text\": \"// TODO(stream1): replace with self.onto_declare_workflow(...).\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 213,
+      "text": "\"text\": \"// Load scope row (Stream 5 stub schema).\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 218,
+      "text": "\"text\": \"// delta \\u2014 not a placeholder.\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 223,
+      "text": "\"text\": \"// stub (NoopPowlReplay) or the real wasm4pm bridge.  The stub\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 228,
+      "text": "\"text\": \"// prefixes every run_id with \\\"stub-run-\\\" so callers and auditors\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 233,
+      "text": "\"text\": \"// can distinguish stub-path admissions from production-verified\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 238,
+      "text": "\"text\": \"let powl_stub = receipt.record.conformance_run_id.starts_with(\\\"stub-run-\\\");\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 243,
+      "text": "\"text\": \"// integrated (stream-2 stub); CTQ admission skipped the real\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 248,
+      "text": "\"text\": \"/// TODO(R3 Task B): replace `is_admin_principal` with the canonical\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 253,
+      "text": "\"text\": \"/// TODO(R3 Task B): switch the INSERT target to `revoked_principals`\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 258,
+      "text": "\"text\": \"// Make sure the conformance_runs table exists. The Stream-3 stub\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 263,
+      "text": "\"text\": \"/// let placeholder: Vec<f32> = vec![0.0; BGE_SMALL_DIM];\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 268,
+      "text": "\"text\": \"/// assert_eq!(placeholder.len(), BGE_SMALL_DIM);\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 273,
+      "text": "\"text\": \"//! ## Phase 10 stub status\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 278,
+      "text": "\"text\": \"/// SPARQL ASK. Can use the placeholder `{target}` which is substituted\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 283,
+      "text": "\"text\": \"//! Replaces the Phase-10 A10 tautology stub (which compared\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 288,
+      "text": "\"text\": \"/// Stream-2-stub stand-in for `wasm4pm`'s POWL arena handle. Stream 2\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 293,
+      "text": "\"text\": \"// \\u2500\\u2500 Real Ed25519 attestation (replaces the A10 tautology stub) \\u2500\\u2500\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 298,
+      "text": "\"text\": \"//! Planner stub (#45) \\u2014 PDDL emission from Dynamics action schemas.\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 303,
+      "text": "\"text\": \"//! ## Bounded scope (v0.4 stub)\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 308,
+      "text": "\"text\": \"//! paper is the anchor for the rigorous version; this stub is a sand-table.\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 313,
+      "text": "\"text\": \"/// stub couldn't fully encode and that was preserved as a PDDL comment.\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 318,
+      "text": "\"text\": \"/// Translate a triple position (placeholder `<{x}>`, full IRI `<...>`, or bare\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 323,
+      "text": "\"text\": \"// Problem stub \\u2014 empty init/goal; the MCP layer fills in init from the\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 328,
+      "text": "\"text\": \"/// (replaces the digest-equality tautology stub). Forward-compatible \\u2014\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 333,
+      "text": "\"text\": \"/// matches the artifact bit-for-bit. (Phase-10 stub: digest-equality\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 338,
+      "text": "\"text\": \"-- \\u2500\\u2500\\u2500 OntoStar Stream 1 stub migrations (authoritative copies live in Stream 1) \\u2500\\u2500\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 343,
+      "text": "\"text\": \"-- the \\u00a728 hidden-WIP leak. (Verified: no DELETE statement in\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 348,
+      "text": "\"text\": \"//! NOT fall back to a silent stub.\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 353,
+      "text": "\"text\": \"/// Windows stub for the Unix domain socket adapter.\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 358,
+      "text": "\"text\": \"//!    (TODO Stream 2: replace [`PowlReplay`] stub with the real bridge),\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 363,
+      "text": "\"text\": \"/// TODO(R3 Task B): switch from `revoked_sessions` fallback to the\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 368,
+      "text": "\"text\": \"/// Stream-2-stub trait. The real implementation lives in `powl_bridge.rs`\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 373,
+      "text": "\"text\": \"/// TODO(stream-2): swap to the wasm4pm-backed bridge. This stub MUST be\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 378,
+      "text": "\"text\": \"/// flag distinguishes placeholder results from production-grade evidence.\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 383,
+      "text": "\"text\": \"/// `true` when this result was produced by the stream-2 stub\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 388,
+      "text": "\"text\": \"/// external operators and auditors can distinguish stub-path\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 393,
+      "text": "\"text\": \"/// assert!(!pass.is_stub,             \\\"pass() produces non-stub evidence\\\");\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 398,
+      "text": "\"text\": \"/// assert!(!fail.is_stub,             \\\"fail() produces non-stub evidence\\\");\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 403,
+      "text": "\"text\": \"/// Returns `true` when this result was produced by the stream-2 stub\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 408,
+      "text": "\"text\": \"/// Stub results have `fitness = 1.0` and `precision = 1.0` as placeholders\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 413,
+      "text": "\"text\": \"/// # Auto-instinct: stub results produced by NoopPowlReplay always conform\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 418,
+      "text": "\"text\": \"/// // Auto-instinct: stub results are always conformant (placeholder 1.0/1.0).\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 423,
+      "text": "\"text\": \"/// assert!(stub_result.is_conformant(),  \\\"stub result must report conformance\\\");\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 428,
+      "text": "\"text\": \"/// // A hand-crafted non-stub conforming result is not a stub.\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 433,
+      "text": "\"text\": \"/// **Stream-2 stub.** Returns a perfect-fit verdict. Retained because some\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 438,
+      "text": "\"text\": \"/// // Stub always reports perfect fitness and precision \\u2014 these are\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 443,
+      "text": "\"text\": \"/// Marker string placed in the codebase to locate every stream-2 stub site.\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 448,
+      "text": "\"text\": \"/// remaining match indicates a stub that was not replaced with the real\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 453,
+      "text": "\"text\": \"/// // The value is a recognisable TODO tag, not a semver.\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 458,
+      "text": "\"text\": \"/// assert!(STREAM3_STUB_POWL_REPLAY_MARKER.starts_with(\\\"TODO\\\"));\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 463,
+      "text": "\"text\": \"pub const STREAM3_STUB_POWL_REPLAY_MARKER: &str = \\\"TODO(stream-2): replace NoopPowlReplay\\\";\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 468,
+      "text": "\"text\": \"/// OCEL event attribute key indicating the POWL replay used a stub\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 473,
+      "text": "\"text\": \"// POWL replay is not yet integrated (stream-2 stub);\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 478,
+      "text": "\"text\": \"// `\\\"stub-run-\\\"` run_id prefix allow downstream consumers to\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 483,
+      "text": "\"text\": \"run_id: format!(\\\"stub-run-{}\\\", scope_token),\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 488,
+      "text": "\"text\": \"// Run conformance via wasm4pm bridge (or stub).\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 493,
+      "text": "\"text\": \"// self-attests with the same hash (placeholder until ed25519-dalek\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 498,
+      "text": "\"text\": \"// Run the stub migration on its own (it is a no-op SQL string but keep\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 503,
+      "text": "\"text\": \"// Surface stub status in the OCEL witness so a process miner who sees\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 508,
+      "text": "\"text\": \"// only the event log can flag stub-path runs without parsing run_id.\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 513,
+      "text": "\"text\": \"// placeholder values from NoopPowlReplay (stream-2 stub\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 518,
+      "text": "\"text\": \"// stub-path conformance runs as production evidence.\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 523,
+      "text": "\"text\": \"// This is a placeholder for receipt-file artifacts \\u2014 see\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 528,
+      "text": "\"text\": \"/// implementation is a defined no-op placeholder \\u2014 returns `0` until a\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 533,
+      "text": "\"text\": \"/// // Placeholder implementation always reports zero orphans pruned.\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 538,
+      "text": "\"text\": \"/// stub migration in `STREAM3_STUB_MIGRATION`.\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 543,
+      "text": "\"text\": \"`PowlBridgeReplay` parses declared POWL strings via the `wasm4pm` crate, projects the OCEL trace tagged with `scope_token`, and returns a fitness/precision verdict. Production admission uses this; a `NoopPowlReplay` stub remains for gate-semantics unit tests that need a deterministic pass-through. Defects: `ReplayFailed`, `SkippedTask`, `ExtraTask`, `WrongOrder`, `CapabilityZero`, `ReplayDivergence`.\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 548,
+      "text": "\"text\": \"pub signature: Option<Vec<u8>>,      // Ed25519 (Phase 10 stub-of-record)\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 553,
+      "text": "\"text\": \"Commits `33feda7`, `e4db225`. Replaced the `NoopPowlReplay` stub with `PowlBridgeReplay::new(store)` in production-path admission. The gap closed: 12 admission tests had been validating against a fitness=1.0 stub. Production now routes through `wasm4pm` for every admission; only four gate-semantics tests retain the noop with an explicit `// INTENTIONAL` annotation.\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 558,
+      "text": "\"text\": \"| `attestation_missing` | `AttestationMissing` | Cell8 A10 `ExternalAttestation` conjunct fails | Stub digest mismatch | `tests/cell8_thirteen_gates.rs` |\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 563,
+      "text": "\"text\": \"| IES Top (ToLO) | ~22 | TBD | TBD | TBD | TBD | TBD |\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 568,
+      "text": "\"text\": \"| IES Core | ~131 | TBD | TBD | TBD | TBD | TBD |\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 573,
+      "text": "\"text\": \"- **Receipts prove.** Every admitted operation produces a `ProductionRecord`, a chained `Receipt` (BLAKE3 over canonical bytes, Ed25519-signed in Phase 10's stub-of-record form), and an `admission_granted` OCEL event. Denied operations produce `admission_denied` with a typed `defect` attribute. No claim of success exists outside this chain.\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 578,
+      "text": "\"text\": \"The Phase 6 audit found 25 silently-broken CLI tests, 12 stub-validated admission tests, 21 dead defect variants, and 5 textual-ratchet bypass patterns. Phases 7\\u201311 closed every finding fix-forward. The system now refuses to claim a feature works unless the receipt and the OCEL event log prove it ran. That refusal is the product.\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 581,
+      "text": "\"path\": \".github/workflows/wip-sweep.yml\","
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 583,
+      "text": "\"text\": \"name: WIP Sweep\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 586,
+      "text": "\"path\": \".github/workflows/wip-sweep.yml\","
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 588,
+      "text": "\"text\": \"branches: [agent/finish-wip-20260730]\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 591,
+      "text": "\"path\": \".github/workflows/wip-sweep.yml\","
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 593,
+      "text": "\"text\": \"paths: [.github/wip-trigger]\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 596,
+      "text": "\"path\": \".github/workflows/wip-sweep.yml\","
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 598,
+      "text": "\"text\": \"ref: agent/finish-wip-20260730\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 601,
+      "text": "\"path\": \".github/workflows/wip-sweep.yml\","
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 603,
+      "text": "\"text\": \"- name: Inventory WIP and executable gates\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 606,
+      "text": "\"path\": \".github/workflows/wip-sweep.yml\","
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 608,
+      "text": "\"text\": \"mkdir -p .wip\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 611,
+      "text": "\"path\": \".github/workflows/wip-sweep.yml\","
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 613,
+      "text": "\"text\": \"marker_re = re.compile(r'(?i)\\\\b(TODO|FIXME|XXX|HACK|WIP|TBD|NOT[ _-]?IMPLEMENTED|PLACEHOLDER|STUB)\\\\b|todo!\\\\s*\\\\(|unimplemented!\\\\s*\\\\(')\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 616,
+      "text": "\"path\": \".github/workflows/wip-sweep.yml\","
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 618,
+      "text": "\"text\": \"Path('.wip/audit.json').write_text(json.dumps(audit,indent=2))\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 621,
+      "text": "\"path\": \".github/workflows/wip-sweep.yml\","
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 623,
+      "text": "\"text\": \"lines=['# WIP audit','',f\\\"Base: `{audit['base_sha']}`\\\",'']\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 626,
+      "text": "\"path\": \".github/workflows/wip-sweep.yml\","
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 628,
+      "text": "\"text\": \"Path('.wip/audit.md').write_text('\\\\n'.join(lines)+'\\\\n')\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 631,
+      "text": "\"path\": \".github/workflows/wip-sweep.yml\","
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 633,
+      "text": "\"text\": \"git add .wip/audit.json .wip/audit.md\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 636,
+      "text": "\"path\": \".github/workflows/wip-sweep.yml\","
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 638,
+      "text": "\"text\": \"git commit -m 'chore: record WIP audit receipt'\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 641,
+      "text": "\"path\": \".github/workflows/wip-sweep.yml\","
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 643,
+      "text": "\"text\": \"git push origin HEAD:agent/finish-wip-20260730\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 648,
+      "text": "\"text\": \"# \\u00a7 3  Forward-declared stub classes for future modules\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 653,
+      "text": "\"text\": \"# \\u00a7 3b  Forward-declared stub classes for newly-created modules\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 658,
+      "text": "\"text\": \"4. **Use a placeholder JC3IEDM IRI namespace.** STANAG 5525 doesn't issue canonical web IRIs; this sketch uses `http://example.org/jc3iedm/` as a placeholder. A real implementation would use NATO/MIP-issued IRIs.\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 663,
+      "text": "\"text\": \"# Placeholder JC3IEDM namespace \\u2014 STANAG 5525 has no canonical web IRIs.\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 668,
+      "text": "\"text\": \"- Uses a placeholder `demo:roleIn` helper property. A production IES4 implementation would use the canonical `ies:MemberState` + `ies:isMemberOf` pattern. The shortcut keeps the demo Turtle readable.\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 673,
+      "text": "\"text\": \"<input id=\\\"search\\\" type=\\\"search\\\" autocomplete=\\\"off\\\" placeholder=\\\"e.g. ZeroAvia, H2GEAR, electrolysis\\\" aria-describedby=\\\"search-help\\\" />\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 678,
+      "text": "\"text\": \"\\\"output\\\": \\\"```turtle\\\\n<biolink:MTOR> <biolink:is_involved_in> <GO:0008150>\\\\n```\\\\n\\\\nNote: The Gene Ontology (GO) term `GO:0008150` is not a real term for 'regulation of cell growth'. A correct representation would use a specific GO term for 'regulation of cell growth', but since one is not provided, I've used a placeholder here. If you have a specific GO term in mind, please provide it, and I can adjust the Turtle accordingly.\\\"\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 683,
+      "text": "\"text\": \"\\\"output\\\": \\\"```turtle\\\\n@prefix bio: <http://biolink.info/vocabulary/> .\\\\n<http://biolink.info/gene/ESR1> bio:involved_in bio:signal_transduction_process.\\\\n<http://biolink.info/gene/ESR1> bio:is_a bio:Gene.\\\\n<http://purl.obolinguistics.org/obo/GO_0008155> bio:is_a bio:Biological_process.\\\\n```\\\\n\\\\nNote: The GO term `GO:0008155` is not a real Gene Ontology term. For the purpose of this example, I used `GO:0008155` as a placeholder for a hypothetical Gene Ontology term. The actual t"
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 688,
+      "text": "\"text\": \"todo = [o for o in occs if o[\\\"stdCode\\\"] not in done]\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 693,
+      "text": "\"text\": \"print(f\\\"{len(todo)} to fetch ({len(done)} cached)\\\")\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 698,
+      "text": "\"text\": \"for i, o in enumerate(todo):\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 703,
+      "text": "\"text\": \"print(f\\\"{i}/{len(todo)}\\\")\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 708,
+      "text": "\"text\": \"# An always-present placeholder for the primary image asset (the scan is\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 713,
+      "text": "\"text\": \"#detail .placeholder { color: #999; font-style: italic; font-size: 0.9em; }\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 718,
+      "text": "\"text\": \"<p class=\\\"placeholder\\\">Click any marker on the map to view its NAPH metadata.</p>\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 723,
+      "text": "\"text\": \"document.getElementById('detail').innerHTML = `<p class=\\\"placeholder\\\">Could not load IIIF manifest: ${err.message}<br><br>Make sure you're serving this from a local HTTP server (not file://) and that <code>../reports/iiif-collection-manifest.json</code> exists.</p>`;\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 728,
+      "text": "\"text\": \"#detail .placeholder { color: #999; font-style: italic; font-size: 0.9em; }\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 733,
+      "text": "\"text\": \"<div id=\\\"detail\\\"><p class=\\\"placeholder\\\">Click any footprint to view its NAPH metadata.</p></div>\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 738,
+      "text": "\"text\": \"load().catch(err=>{ document.getElementById('detail').innerHTML=`<p class=\\\"placeholder\\\">Could not load manifest: ${err.message}. Serve over HTTP, not file://.</p>`; });\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 743,
+      "text": "\"text\": \"**Status:** documented in the docs but not implemented. The CQ2 expected results table notes \\\"(requires GeoSPARQL)\\\" but doesn't say this means *not Oxigraph*.\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 748,
+      "text": "\"text\": \"2. Add a stub IIIF Image API in the demo pipeline that serves placeholder images so manifests fully resolve\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 753,
+      "text": "\"text\": \"for stub in stubs:\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 758,
+      "text": "\"text\": \"detail = dataset_detail(stub[\\\"id\\\"])\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 763,
+      "text": "\"text\": \"print(f\\\"# {stub['id']}: fetch failed: {e}\\\", file=sys.stderr)\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 768,
+      "text": "\"text\": \"- NCAPAirPhotoFinderScraper \\u2014 Angular SPA, requires Playwright/manual JSON capture (stub)\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 773,
+      "text": "\"text\": \"- USGSEarthExplorerScraper \\u2014 M2M API, requires registration (stub)\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 778,
+      "text": "\"text\": \"USGS Earth Explorer M2M API Adapter \\u2014 STUB.\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 783,
+      "text": "\"text\": \"description=\\\"USGS Earth Explorer NAPH adapter (STUB \\u2014 requires USGS credentials).\\\"\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 788,
+      "text": "\"text\": \"print(\\\"# USGS Earth Explorer M2M adapter \\u2014 STUB\\\", file=sys.stderr)\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 793,
+      "text": "\"text\": \"For each NAPH gap previously marked \\\"stub\\\" or \\\"skipped (external API)\\\", this document maps to the existing open-source implementation worth adopting rather than rebuilding. Status as of 2026-05.\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 798,
+      "text": "\"text\": \"# See pipeline/scrapers/usgs_earthexplorer.py \\u2014 fill in the TODO sections\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 803,
+      "text": "\"text\": \"3. Update [`pipeline/iiif-bridge.py`](../../pipeline/iiif-bridge.py) so the `service.id` URLs point at your Cantaloupe instance instead of placeholder URLs\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 808,
+      "text": "\"text\": \"2. Replace [`pipeline/scrapers/ncap_airphotofinder.py`](../../pipeline/scrapers/ncap_airphotofinder.py) stub with API client\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 813,
+      "text": "\"text\": \"- Mailing list / forum: tbd\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 818,
+      "text": "\"text\": \"naph:flightAltitude 0.0 ;  # placeholder \\u2014 flag as unknown\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 823,
+      "text": "\"text\": \"# If empty, the chart creates an empty placeholder Secret you must populate\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 828,
+      "text": "\"text\": \"// In production this delegates to a BLAKE3 WASM module; this stub provides\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 833,
+      "text": "\"text\": \"// Stub implementation \\u2014 replace with wasm-blake3 or native binding in app workspace\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 838,
+      "text": "\"text\": \"placeholder: \\\"Integer priority for ordering push cards in the notification tray; lower values appear first.\\\",\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 843,
+      "text": "\"text\": \"placeholder: \\\"Expo deep-link URI the card action button navigates to when tapped.\\\",\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 848,
+      "text": "\"text\": \"placeholder: \\\"Label for the primary call-to-action button rendered on the push card (e.g. 'View Details', 'Accept Request').\\\",\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 853,
+      "text": "\"text\": \"placeholder: \\\"Main body text of the push card, describing the action or update in detail.\\\",\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 858,
+      "text": "\"text\": \"placeholder: \\\"Secondary line of text below the card title, providing route or ministry context.\\\",\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 863,
+      "text": "\"text\": \"placeholder: \\\"Primary headline text displayed on the push card in the notification tray.\\\",\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 868,
+      "text": "\"text\": \"placeholder: \\\"Expo deep-link URI that opens the relevant screen in ZOE LA Mobile when the notification is tapped.\\\",\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 873,
+      "text": "\"text\": \"placeholder: \\\"Category identifier from the NotificationCategoryScheme, used to route and filter notifications in the app.\\\",\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 878,
+      "text": "\"text\": \"placeholder: \\\"Full body text of the push notification providing context and call-to-action.\\\",\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 883,
+      "text": "\"text\": \"placeholder: \\\"Short headline text of the push notification, displayed in the device notification shade.\\\",\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 888,
+      "text": "\"text\": \"placeholder=\\\"e.g. Sunday evenings, weekday mornings\\\"\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 893,
+      "text": "\"text\": \"placeholder=\\\"Anything else we should know?\\\"\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 898,
+      "text": "\"text\": \"<Text style={styles.placeholder}>\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 903,
+      "text": "\"text\": \"placeholder: { fontSize: 14, color: '#666', fontStyle: 'italic' },\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 908,
+      "text": "\"text\": \"\\\"task_id\\\": \\\"a2a-task-placeholder\\\",\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 913,
+      "text": "\"text\": \"//! confirming they are not placeholder stubs:\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 918,
+      "text": "\"text\": \"//   TODO(wasm4pm POWL v2): use CG=(...) once Choice Graphs land upstream\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 923,
+      "text": "\"text\": \"// CG{...} \\u2192 XOR for now (TODO above).\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 928,
+      "text": "\"text\": \"// step (the alphabet still matches). TODO: revisit when POWL gains\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 933,
+      "text": "\"text\": \"/// Generated stub \\u2014 wired to src/cmds/doctor.rs\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 938,
+      "text": "\"text\": \"/// Generated stub \\u2014 wired to src/cmds/thesis.rs\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 943,
+      "text": "\"text\": \"/// Generated stub \\u2014 wired to src/cmds/marketplace.rs\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 948,
+      "text": "\"text\": \"/// Generated stub \\u2014 wired to src/cmds/clinical.rs\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 953,
+      "text": "\"text\": \"/// Generated stub \\u2014 wired to src/cmds/alignment.rs\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 958,
+      "text": "\"text\": \"/// Generated stub \\u2014 wired to src/cmds/governance.rs\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 963,
+      "text": "\"text\": \"/// Generated stub \\u2014 wired to src/cmds/data.rs\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 968,
+      "text": "\"text\": \"/// Generated stub \\u2014 wired to src/cmds/server.rs\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 973,
+      "text": "\"text\": \"/// Generated stub \\u2014 wired to src/cmds/ontology.rs\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 978,
+      "text": "\"text\": \"// Stub: return empty claim/evidence packets.\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 983,
+      "text": "\"text\": \"message: format!(\\\"Extraction stub for source_id={} \\u2014 real LLM call TBD\\\", source_id),\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 988,
+      "text": "\"text\": \"// Stub: run lightweight validation check\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 993,
+      "text": "\"text\": \"message: \\\"Audit stub \\u2014 SHACL validation TBD\\\".to_string(),\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 998,
+      "text": "\"text\": \"// Stub: run chapter routing SPARQL CONSTRUCT\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 1003,
+      "text": "\"text\": \"message: \\\"Route stub \\u2014 SPARQL CONSTRUCT TBD\\\".to_string(),\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 1008,
+      "text": "\"text\": \"// Stub: render markdown thesis\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 1013,
+      "text": "\"text\": \"// Stub: run full pipeline\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 1018,
+      "text": "\"text\": \"// Check 2: Thesis shapes file (stub: always pass)\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 1023,
+      "text": "\"text\": \"// Check 3: Gemini connectivity (stub: assume pass)\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 1028,
+      "text": "\"text\": \"\\\"Gemini 3.1 Flash reachable (stub)\\\".to_string(),\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 1033,
+      "text": "\"text\": \"/// Stub: \\\"Interactive flow TBD; see onto thesis wizard\\\"\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 1038,
+      "text": "\"text\": \"// Stub: interactive prompts TBD\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 1043,
+      "text": "\"text\": \"\\\"message\\\": \\\"Interactive wizard stub \\u2014 prompts for input files, source metadata, chapter structure TBD\\\"\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 1048,
+      "text": "\"text\": \"// Stub: trace provenance\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 1053,
+      "text": "\"text\": \"receipt_hash TEXT,                           -- SHA-256 hex digest (Web Crypto stub)\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 1058,
+      "text": "\"text\": \"| **Open Ontologies** | **TBD** | **TBD** |\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 1063,
+      "text": "\"text\": \"This is a very simple placeholder for an area of IES that is likely to grow in the future. For now, it can be used to group together a number of elements (using isPartOf relationship) to assert that they share the same truth - i.e. in one possible scenario, all of them were true. The same Element may exist in more than one PossibleWorld - i.e. scenarios may share elements. For version 4.1.0 of IES, PossibleWorld is to be used with AssessToBeTrue in order to specify a level of confidence"
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 1068,
+      "text": "\"text\": \"[\\\"Product Or Services Some Instances Placeholder\\\", \\\"Product Or Service\\\"],\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 1073,
+      "text": "\"text\": \"[\\\"Product or services some instances placeholder (DEPRECATED)\\\", \\\"Product or service\\\"],\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 1078,
+      "text": "\"text\": \"\\\"product or services some instances placeholder\\\",\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 1083,
+      "text": "\"text\": \"\\\"product or services some instances placeholder\\\"\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 1088,
+      "text": "\"text\": \"\\\"product or services some instances placeholder\\\"\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 1093,
+      "text": "\"text\": \"\\\"product or services some instances placeholder\\\"\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 1098,
+      "text": "\"text\": \"\\\"product or services some instances placeholder\\\"\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 1103,
+      "text": "\"text\": \"\\\"product or services some instances placeholder\\\"\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 1108,
+      "text": "\"text\": \"\\\"product or services some instances placeholder\\\"\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 1113,
+      "text": "\"text\": \"\\\"product or services some instances placeholder\\\"\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 1118,
+      "text": "\"text\": \"\\\"product or services some instances placeholder\\\"\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 1123,
+      "text": "\"text\": \"\\\"product or services some instances placeholder\\\"\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 1128,
+      "text": "\"text\": \"\\\"product or services some instances placeholder\\\"\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 1133,
+      "text": "\"text\": \"\\\"product or services some instances placeholder\\\"\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 1138,
+      "text": "\"text\": \"\\\"product or services some instances placeholder\\\"\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 1143,
+      "text": "\"text\": \"\\\"product or services some instances placeholder\\\"\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 1148,
+      "text": "\"text\": \"\\\"product or services some instances placeholder\\\"\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 1153,
+      "text": "\"text\": \"\\\"product or services some instances placeholder\\\"\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 1158,
+      "text": "\"text\": \"\\\"product or services some instances placeholder\\\"\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 1163,
+      "text": "\"text\": \"\\\"product or services some instances placeholder\\\"\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 1168,
+      "text": "\"text\": \"\\\"product or services some instances placeholder\\\"\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 1173,
+      "text": "\"text\": \"\\\"product or services some instances placeholder\\\"\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 1178,
+      "text": "\"text\": \"\\\"product or services some instances placeholder\\\",\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 1183,
+      "text": "\"text\": \"\\\"product or services some instances placeholder\\\",\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 1188,
+      "text": "\"text\": \"\\\"product or services some instances placeholder\\\",\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 1193,
+      "text": "\"text\": \"\\\"product or services some instances placeholder\\\",\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 1198,
+      "text": "\"text\": \"\\\"product or services some instances placeholder\\\",\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 1203,
+      "text": "\"text\": \"\\\"product or services some instances placeholder\\\",\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 1208,
+      "text": "\"text\": \"\\\"product or services some instances placeholder\\\",\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 1213,
+      "text": "\"text\": \"rdfs:comment \\\"A placeholder for all official public holidays at the gr:Location. This allows specifying the opening hours on public holidays. If a given day is a public holiday, this specification supersedes the opening hours for the respective day of the week.\\\"@en ;\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 1218,
+      "text": "\"text\": \"rdfs:comment \\\"\\\"\\\"This states that an actual product instance (gr:Individual) or a placeholder instance for multiple, unidentified such instances (gr:SomeItems) is one occurence of a particular gr:ProductOrServiceModel.\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 1223,
+      "text": "\"text\": \"rdfs:label \\\"Product or services some instances placeholder (DEPRECATED)\\\"@en ;\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 1228,
+      "text": "\"text\": \"rdfs:comment \\\"\\\"\\\"A placeholder instance for unknown instances of a mass-produced commodity. This is used as a computationally cheap work-around for such instances that are not individually exposed on the Web but just stated to exist (i.e., which are existentially quantified).\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 1233,
+      "text": "\"text\": \"rdfs:comment \\\"\\\"\\\"The superclass of all classes describing products or services types, either by nature or purpose. Examples for such subclasses are \\\"TV set\\\", \\\"vacuum cleaner\\\", etc. An instance of this class can be either an actual product or service (gr:Individual), a placeholder instance for unknown instances of a mass-produced commodity (gr:SomeItems), or a model / prototype specification (gr:ProductOrServiceModel). When in doubt, use gr:SomeItems.\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 1238,
+      "text": "\"text\": \"c) dummyCellPhone123 as a placeholder for actual instances of a certain kind of cell phones (gr:SomeItems)\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 1243,
+      "text": "\"text\": \"This is a stub class, representing the set of all temporal reference systems.\\\"\\\"\\\"@en ;\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 1248,
+      "text": "\"text\": \"This is a stub class, representing the set of all temporal reference systems.\\\"\\\"\\\"@en ;\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 1253,
+      "text": "\"text\": \"skos:note \\\"An ontology for time zone descriptions was described in [owl-time-20060927] and provided as RDF in a separate namespace tzont:. However, that ontology was incomplete in scope, and the example datasets were selective. Furthermore, since the use of a class from an external ontology as the range of an ObjectProperty in OWL-Time creates a dependency, reference to the time zone class has been replaced with the 'stub' class in the normative part of this version of OWL-Time.\\\"@en ;"
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 1258,
+      "text": "\"text\": \"\\\"product or services some instances placeholder\\\",\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 1263,
+      "text": "\"text\": \"\\\"Product Or Services Some Instances Placeholder\\\",\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 1268,
+      "text": "\"text\": \"placeholder=\\\"rdfs:label or full URI...\\\"\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 1273,
+      "text": "\"text\": \"placeholder={newValType === 'uri' ? 'http://...' : 'value...'}\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 1278,
+      "text": "\"text\": \"<input type=\\\"text\\\" placeholder=\\\"Search nodes...\\\" value={searchTerm} onChange={e => setSearchTerm(e.target.value)}\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 1283,
+      "text": "\"text\": \"placeholder=\\\"Ask about ontologies...\\\"\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 1288,
+      "text": "\"text\": \"placeholder=\\\"Class name...\\\"\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 1293,
+      "text": "\"text\": \"{/* Graph canvas placeholder */}\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 1298,
+      "text": "\"text\": \"Expected: Dark-themed window with toolbar, graph placeholder, chat panel, status bar\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 1303,
+      "text": "\"text\": \"Replace graph placeholder div with:\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 1308,
+      "text": "\"text\": \"// Replace graph placeholder:\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 1313,
+      "text": "\"text\": \"placeholder=\\\"Class name...\\\"\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 1318,
+      "text": "\"text\": \"placeholder=\\\"Ask about ontologies...\\\"\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 1323,
+      "text": "\"text\": \"Replace the chat placeholder in Layout.tsx:\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 1328,
+      "text": "\"text\": \"// Replace the chat panel placeholder div content:\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 1333,
+      "text": "\"text\": \"// Replace inspector placeholder:\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 1338,
+      "text": "\"text\": \"**Step 2: Create stub lib.rs so it compiles**\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 1343,
+      "text": "\"text\": \"Add a shared setup helper and stub the `match` arms (just print `{\\\"error\\\":\\\"not implemented\\\"}` for now \\u2014 we'll fill them in Tasks 2\\u20136):\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 1348,
+      "text": "\"text\": \"Expected: FAIL \\u2014 subcommands return `not implemented`.\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 1353,
+      "text": "\"text\": \"Add new concise benchmark section with the HermiT/Pellet/OO comparison table (numbers TBD after running). Keep existing detailed benchmarks below as \\\"Detailed Benchmark Methodology\\\".\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 1358,
+      "text": "\"text\": \"*   *Lab:* Executing the `wasm4pm` stream-2 stub bindings via the `src/swarm.rs` cognition swarm.\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 1363,
+      "text": "\"text\": \"*   **L6 High-Speed Kernels:** Represented by the `wasm4pm` stream-2 stub bindings (POWL and cognition kernels) and the `src/manufacturing/` pipeline that targets AtomVM, Erlang, and Rust.\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 1368,
+      "text": "\"text\": \"*   **Weeks 10-12: The `wasm4pm` Lab:** Integrating and evaluating the stream-2 stub bindings. Profiling kernel execution speed.\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 1373,
+      "text": "\"text\": \"*   **Wasm Runtime:** WasmEdge runtime configured with the `open-ontologies` `wasm4pm` stream-2 stub bindings.\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 1378,
+      "text": "\"text\": \"placeholder=\\\"e.g. Sunday evenings, weekday mornings\\\"\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 1383,
+      "text": "\"text\": \"placeholder=\\\"Anything else we should know?\\\"\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 1388,
+      "text": "\"text\": \"placeholder: \\\"{{ fcomment | trim }}\\\",\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 1393,
+      "text": "\"text\": \"<Text style={styles.placeholder}>\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 1398,
+      "text": "\"text\": \"placeholder: { fontSize: 14, color: '#666', fontStyle: 'italic' },\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 1403,
+      "text": "\"text\": \"/// Generated stub \\u2014 wired to src/cmds/{{ name | trim | replace(from=\\\"-\\\", to=\\\"_\\\") }}.rs\""
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 1416,
+      "text": "\"ref\": \"origin/agent/finish-wip-20260730\","
+    },
+    {
+      "path": ".wip/audit.json",
+      "line": 1420,
+      "text": "\"subject\": \"chore: retrigger WIP sweep\""
     },
     {
       "path": "packages/declarations.d.ts",
@@ -1403,7 +4278,7 @@
       "text": "/// Generated stub \u2014 wired to src/cmds/{{ name | trim | replace(from=\"-\", to=\"_\") }}.rs"
     }
   ],
-  "zero_byte_files": [],
+  "zero_byte_tracked_or_present": [],
   "branches": [
     {
       "ref": "origin/ontostar-integration",
@@ -1414,10 +4289,10 @@
     },
     {
       "ref": "origin/agent/finish-wip-20260730",
-      "ahead": 3,
+      "ahead": 4,
       "behind": 3,
-      "tip": "bd2e835328737e1b46c679154a5af810eefdde67",
-      "subject": "chore: retrigger WIP sweep"
+      "tip": "5c40fb4a5cf3b5ae3de80625f0c4777ab4f70021",
+      "subject": "chore: record WIP audit receipt"
     },
     {
       "ref": "origin/agent/chatmangpt-namespace-26.7.29",
@@ -1460,13 +4335,13 @@
     {
       "command": "cargo metadata --locked --format-version 1 --no-deps",
       "exit": 0,
-      "seconds": 1.16,
+      "seconds": 1.18,
       "tail": "[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"requirements_ontology_load\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/requirements_ontology_load.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"requirements_small_e2e\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/requirements_small_e2e.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"retention_worker\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/retention_worker.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"revops_counterfactual\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/revops_counterfactual.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"revops_ctq_admission\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/revops_ctq_admission.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"revops_e2e_inproc\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/revops_e2e_inproc.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"revops_e2e_with_real_groq\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/revops_e2e_with_real_groq.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"revops_negative\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/revops_negative.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"revops_old_ai_stations\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/revops_old_ai_stations.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"round4_admission_op_bypass\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/round4_admission_op_bypass.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"round4_align_dry_run\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/round4_align_dry_run.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"round4_no_bypass_red_team\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/round4_no_bypass_red_team.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"round5_ast_red_team\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/round5_ast_red_team.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"round5_ast_red_team_sabotage\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/round5_ast_red_team_sabotage.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"saboteur_a11_temporal_validity_load_bearing\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/saboteur_a11_temporal_validity_load_bearing.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"saboteur_a12_dependency_closure_load_bearing\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/saboteur_a12_dependency_closure_load_bearing.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"saboteur_a13_replay_proof_load_bearing\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/saboteur_a13_replay_proof_load_bearing.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"saboteur_a9_provenance_chain_load_bearing\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/saboteur_a9_provenance_chain_load_bearing.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"saboteur_llm_authority_creep\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/saboteur_llm_authority_creep.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"saboteur_meta\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/saboteur_meta.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"saboteur_verifier_corrupt_receipt\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/saboteur_verifier_corrupt_receipt.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"schema_test\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/schema_test.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"secret_grep_ratchet\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/secret_grep_ratchet.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"secret_hygiene\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/secret_hygiene.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"server_roundtrip_test\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/server_roundtrip_test.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"shacl_check_test\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/shacl_check_test.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"shacl_shared_receipt\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/shacl_shared_receipt.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"shacl_test\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/shacl_test.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"shaped_translator_e2e\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/shaped_translator_e2e.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"socket_test\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/socket_test.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"solution_manufacturing_e2e\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/solution_manufacturing_e2e.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"sql_ingest_handler\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/sql_ingest_handler.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"sqlsource_test\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/sqlsource_test.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"state_v2_test\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/state_v2_test.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"structembed_test\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/structembed_test.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"tableaux_test\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/tableaux_test.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"tenant_isolation_audit\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/tenant_isolation_audit.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"terraform_loop_test\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/terraform_loop_test.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"three_layer_integration_test\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/three_layer_integration_test.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"threshold_real\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/threshold_real.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"toolfilter_test\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/toolfilter_test.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"vecstore_test\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/vecstore_test.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"wb1_subprocess_timeout\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/wb1_subprocess_timeout.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"workflow_discover_real\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/workflow_discover_real.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"zoela_route_conformance\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/tests/zoela_route_conformance.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},{\"kind\":[\"bench\"],\"crate_types\":[\"bin\"],\"name\":\"admission_bench\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/benches/admission_bench.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":false},{\"kind\":[\"bench\"],\"crate_types\":[\"bin\"],\"name\":\"manufacturing_bench\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/benches/manufacturing_bench.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":false},{\"kind\":[\"bench\"],\"crate_types\":[\"bin\"],\"name\":\"receipts_bench\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/benches/receipts_bench.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":false},{\"kind\":[\"bench\"],\"crate_types\":[\"bin\"],\"name\":\"swarm_bench\",\"src_path\":\"/home/runner/work/open-ontologies/open-ontologies/benches/swarm_bench.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":false}],\"features\":{\"bincode\":[\"dep:bincode\"],\"default\":[],\"duckdb\":[\"dep:duckdb\"],\"embeddings\":[\"tract-onnx\",\"tokenizers\"],\"instant-distance\":[\"dep:instant-distance\"],\"mcpp\":[\"dep:mcpp-core\"],\"postgres\":[\"sqlx\"],\"sql\":[\"postgres\",\"duckdb\"],\"sqlx\":[\"dep:sqlx\"],\"tokenizers\":[\"dep:tokenizers\"],\"tract-onnx\":[\"dep:tract-onnx\"]},\"manifest_path\":\"/home/runner/work/open-ontologies/open-ontologies/Cargo.toml\",\"metadata\":null,\"publish\":null,\"authors\":[],\"categories\":[],\"keywords\":[],\"readme\":\"README.md\",\"repository\":\"https://github.com/fabio-rovai/open-ontologies\",\"homepage\":null,\"documentation\":null,\"edition\":\"2024\",\"links\":null,\"default_run\":null,\"rust_version\":null}],\"workspace_members\":[\"path+file:///home/runner/work/open-ontologies/open-ontologies#26.5.13\"],\"workspace_default_members\":[\"path+file:///home/runner/work/open-ontologies/open-ontologies#26.5.13\"],\"resolve\":null,\"target_directory\":\"/home/runner/work/open-ontologies/open-ontologies/target\",\"build_directory\":\"/home/runner/work/open-ontologies/open-ontologies/target\",\"version\":1,\"workspace_root\":\"/home/runner/work/open-ontologies/open-ontologies\",\"metadata\":null}\n\n"
     },
     {
       "command": "cargo check --locked --all-targets",
       "exit": 101,
-      "seconds": 0.61,
+      "seconds": 0.58,
       "tail": "\nerror: failed to parse lock file at: /home/runner/work/open-ontologies/open-ontologies/Cargo.lock\n\nCaused by:\n  package `oxrdf` is specified twice in the lockfile\n"
     }
   ]
