@@ -1,2 +1,3 @@
 base=0015d52790facbb769aaa5341825b5671acc492e
-purpose=run-all-precursors
+candidate=d3dbafdb88b7eea6030cb33c4bd9fdde9ead255a
+purpose=validate-post-stub-cleanup
