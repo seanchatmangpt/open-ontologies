@@ -34,38 +34,33 @@ SELECT
 WHERE {
   # Seed concrete resource individuals via VALUES since resource.ttl is schema-only.
   # Each row represents one zoe:Resource individual with its matching metadata.
-  VALUES (
-    ?r
-    ?lbl
-    ?catLabel
-    ?cap
-    ?eligNote
-    ?routeNote
-  ) {
-    (
-      zoe:resource-food-dry-goods
-      "Dry Goods Food Box"
-      "Food Resource"
-      "50"
-      "No minimum age. No consent required."
-      "Food Need Route|Community Outreach Route"
-    )
-    (
-      zoe:resource-benevolence-emergency-fund
-      "Emergency Benevolence Fund"
-      "Benevolence Fund"
-      "5000"
-      "Minimum age: 18. Requires signed consent."
-      "Benevolence Route"
-    )
-    (
-      zoe:resource-volunteer-care-hours
-      "Care Volunteer Hours"
-      "Volunteer Time Resource"
-      "20"
-      "No minimum age. Pastoral assignment required."
-      "Pastoral Care Route|Crisis Response Route"
-    )
+  {
+    {
+      BIND(zoe:resource-food-dry-goods AS ?r)
+      BIND("Dry Goods Food Box" AS ?lbl)
+      BIND("Food Resource" AS ?catLabel)
+      BIND("50" AS ?cap)
+      BIND("No minimum age. No consent required." AS ?eligNote)
+      BIND("Food Need Route|Community Outreach Route" AS ?routeNote)
+    }
+    UNION
+    {
+      BIND(zoe:resource-benevolence-emergency-fund AS ?r)
+      BIND("Emergency Benevolence Fund" AS ?lbl)
+      BIND("Benevolence Fund" AS ?catLabel)
+      BIND("5000" AS ?cap)
+      BIND("Minimum age: 18. Requires signed consent." AS ?eligNote)
+      BIND("Benevolence Route" AS ?routeNote)
+    }
+    UNION
+    {
+      BIND(zoe:resource-volunteer-care-hours AS ?r)
+      BIND("Care Volunteer Hours" AS ?lbl)
+      BIND("Volunteer Time Resource" AS ?catLabel)
+      BIND("20" AS ?cap)
+      BIND("No minimum age. Pastoral assignment required." AS ?eligNote)
+      BIND("Pastoral Care Route|Crisis Response Route" AS ?routeNote)
+    }
   }
 
   BIND(STR(?r)      AS ?resource_iri)
