@@ -1,0 +1,46 @@
+name: WIP Exact-Head Core Boundary
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wip-exact-head-${{ github.event.pull_request.head.sha }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    if: github.event.pull_request.head.ref == 'agent/finish-wip-20260730'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - name: Check out immutable PR head
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+      - name: Prove exact candidate identity
+        shell: bash
+        env:
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          observed="$(git rev-parse HEAD)"
+          test "$observed" = "$EXPECTED_HEAD"
+          test -z "$(git status --porcelain)"
+      - name: Verify constitutional boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tools/verify_ggen_standards.py
+      - name: Verify locked dependency and compile boundaries
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo metadata --locked --format-version 1 --no-deps >/dev/null
+          cargo check --locked --all-targets
+          cargo check --locked --all-targets --all-features
