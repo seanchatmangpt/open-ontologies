@@ -3486,8 +3486,8 @@ dependencies = [
 
 [[package]]
 name = "prolog8"
-version = "26.7.23"
-source = "git+https://github.com/seanchatmangpt/wasm4pm#f1d4d7ac8b2f9a0265be82991487766eb35b4675"
+version = "26.6.25"
+source = "git+https://github.com/seanchatmangpt/wasm4pm?rev=057d5ba24e10c70036fc4742ede55318c7fe6949#057d5ba24e10c70036fc4742ede55318c7fe6949"
 dependencies = [
  "blake3",
  "serde",
@@ -5559,8 +5559,8 @@ dependencies = [
 
 [[package]]
 name = "wasm4pm"
-version = "26.7.23"
-source = "git+https://github.com/seanchatmangpt/wasm4pm#f1d4d7ac8b2f9a0265be82991487766eb35b4675"
+version = "26.6.25"
+source = "git+https://github.com/seanchatmangpt/wasm4pm?rev=057d5ba24e10c70036fc4742ede55318c7fe6949#057d5ba24e10c70036fc4742ede55318c7fe6949"
 dependencies = [
  "blake3",
  "chrono",
@@ -5594,15 +5594,17 @@ dependencies = [
 
 [[package]]
 name = "wasm4pm-cognition"
-version = "26.7.23"
-source = "git+https://github.com/seanchatmangpt/wasm4pm#f1d4d7ac8b2f9a0265be82991487766eb35b4675"
+version = "26.6.25"
+source = "git+https://github.com/seanchatmangpt/wasm4pm?rev=057d5ba24e10c70036fc4742ede55318c7fe6949#057d5ba24e10c70036fc4742ede55318c7fe6949"
 dependencies = [
  "blake3",
+ "ed25519-dalek",
  "hex",
  "indexmap",
  "once_cell",
  "prolog8",
  "rand 0.8.7",
+ "rand_core 0.6.4",
  "regex",
  "serde",
  "serde_json",

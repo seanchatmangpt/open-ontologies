@@ -1889,4 +1889,3 @@ pub struct OntoOntostarAttestInput {
     /// external signer within the local `TrustedKeys` set.
     pub key_fpr: String,
 }
-

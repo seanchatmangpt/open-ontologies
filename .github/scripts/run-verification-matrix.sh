@@ -20,7 +20,7 @@ step "3/7: cargo test --tests --no-fail-fast"
 cargo test --locked --tests --no-fail-fast
 
 step "4/7: dead-parameter gate"
-cargo test --locked --test dead_param_gate
+cargo test --locked --test dead_param_gate_test
 
 step "5/7: cargo clippy --all-targets -- -D warnings"
 cargo clippy --locked --all-targets --all-features -- -D warnings

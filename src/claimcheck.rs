@@ -189,8 +189,12 @@ struct TokenSet {
 }
 
 impl TokenSet {
-    fn build(pairs: &[(String, String)], ids: &HashMap<String, u32>,
-             descendants: &[Vec<u32>], n: usize) -> Self {
+    fn build(
+        pairs: &[(String, String)],
+        ids: &HashMap<String, u32>,
+        descendants: &[Vec<u32>],
+        n: usize,
+    ) -> Self {
         let m = pairs.len();
         let mut pair_left = Vec::with_capacity(m);
         let mut pair_right = Vec::with_capacity(m);
@@ -207,19 +211,32 @@ impl TokenSet {
                 bits_set(&mut r_tokens[c as usize], k);
             }
         }
-        Self { pair_left, pair_right, l_tokens, r_tokens }
+        Self {
+            pair_left,
+            pair_right,
+            l_tokens,
+            r_tokens,
+        }
     }
 
     /// Two-hop join over this token set. Returns the witnessing axiom.
-    fn incompatible<'a>(&'a self, names: &'a [String], ai: usize, bi: usize)
-        -> Option<(&'a str, &'a str)> {
+    fn incompatible<'a>(
+        &'a self,
+        names: &'a [String],
+        ai: usize,
+        bi: usize,
+    ) -> Option<(&'a str, &'a str)> {
         if let Some(k) = bits_first_common(&self.l_tokens[ai], &self.r_tokens[bi]) {
-            return Some((names[self.pair_left[k] as usize].as_str(),
-                         names[self.pair_right[k] as usize].as_str()));
+            return Some((
+                names[self.pair_left[k] as usize].as_str(),
+                names[self.pair_right[k] as usize].as_str(),
+            ));
         }
         if let Some(k) = bits_first_common(&self.r_tokens[ai], &self.l_tokens[bi]) {
-            return Some((names[self.pair_right[k] as usize].as_str(),
-                         names[self.pair_left[k] as usize].as_str()));
+            return Some((
+                names[self.pair_right[k] as usize].as_str(),
+                names[self.pair_left[k] as usize].as_str(),
+            ));
         }
         None
     }
@@ -283,21 +300,28 @@ impl Index {
         let hard = TokenSet::build(&raw.disjoint, &ids, &descendants, n);
         let assumed = TokenSet::build(&raw.assumed_disjoint, &ids, &descendants, n);
 
-        Self { ids, names, hard, assumed }
+        Self {
+            ids,
+            names,
+            hard,
+            assumed,
+        }
     }
 
     /// The entailed two-hop join. `Some` means PROVEN incompatible; drives
     /// rejections. Symmetric by construction: both orientations are tested.
     fn incompatible(&self, a: &str, b: &str) -> Option<(&str, &str)> {
         let (&ai, &bi) = (self.ids.get(a)?, self.ids.get(b)?);
-        self.hard.incompatible(&self.names, ai as usize, bi as usize)
+        self.hard
+            .incompatible(&self.names, ai as usize, bi as usize)
     }
 
     /// The assumed two-hop join. `Some` means the pair conflicts with a
     /// VETTED ASSUMPTION, not an entailment; drives warnings only.
     fn assumed_incompatible(&self, a: &str, b: &str) -> Option<(&str, &str)> {
         let (&ai, &bi) = (self.ids.get(a)?, self.ids.get(b)?);
-        self.assumed.incompatible(&self.names, ai as usize, bi as usize)
+        self.assumed
+            .incompatible(&self.names, ai as usize, bi as usize)
     }
 }
 
@@ -356,7 +380,11 @@ impl CompiledOntology {
     /// inferred closure including reflexive pairs; reflexivity is enforced
     /// here anyway, since the join relies on `A ⊒ A`.
     pub fn load_subsumptions(&self, pairs: &[(String, String)]) -> Result<usize> {
-        self.raw.write().unwrap().subsumptions.extend_from_slice(pairs);
+        self.raw
+            .write()
+            .unwrap()
+            .subsumptions
+            .extend_from_slice(pairs);
         self.invalidate();
         Ok(pairs.len())
     }
@@ -375,25 +403,41 @@ impl CompiledOntology {
     /// on a zero-disjointness ontology gets its verification value from
     /// vocabulary checks plus this tier.
     pub fn load_assumed_disjoint(&self, pairs: &[(String, String)]) -> Result<usize> {
-        self.raw.write().unwrap().assumed_disjoint.extend_from_slice(pairs);
+        self.raw
+            .write()
+            .unwrap()
+            .assumed_disjoint
+            .extend_from_slice(pairs);
         self.invalidate();
         Ok(pairs.len())
     }
 
     pub fn load_declared_classes(&self, iris: &[String]) -> Result<usize> {
-        self.raw.write().unwrap().declared_classes.extend(iris.iter().cloned());
+        self.raw
+            .write()
+            .unwrap()
+            .declared_classes
+            .extend(iris.iter().cloned());
         self.invalidate();
         Ok(iris.len())
     }
 
     pub fn load_declared_props(&self, iris: &[String]) -> Result<usize> {
-        self.raw.write().unwrap().declared_props.extend(iris.iter().cloned());
+        self.raw
+            .write()
+            .unwrap()
+            .declared_props
+            .extend(iris.iter().cloned());
         self.invalidate();
         Ok(iris.len())
     }
 
     pub fn load_functional(&self, iris: &[String]) -> Result<usize> {
-        self.raw.write().unwrap().functional.extend(iris.iter().cloned());
+        self.raw
+            .write()
+            .unwrap()
+            .functional
+            .extend(iris.iter().cloned());
         self.invalidate();
         Ok(iris.len())
     }
@@ -669,10 +713,17 @@ mod tests {
     fn fixture() -> CompiledOntology {
         let c = CompiledOntology::new().unwrap();
         c.load_declared_classes(&[
-            iri("Margherita"), iri("MeatyPizza"), iri("VegetarianPizza"),
-            iri("CheeseyPizza"), iri("American"), iri("AmericanHot"), iri("NamedPizza"),
-        ]).unwrap();
-        c.load_declared_props(&[iri("hasBase"), iri("hasTopping")]).unwrap();
+            iri("Margherita"),
+            iri("MeatyPizza"),
+            iri("VegetarianPizza"),
+            iri("CheeseyPizza"),
+            iri("American"),
+            iri("AmericanHot"),
+            iri("NamedPizza"),
+        ])
+        .unwrap();
+        c.load_declared_props(&[iri("hasBase"), iri("hasTopping")])
+            .unwrap();
         c.load_subsumptions(&[
             // reflexive
             (iri("Margherita"), iri("Margherita")),
@@ -689,11 +740,13 @@ mod tests {
             (iri("American"), iri("NamedPizza")),
             (iri("AmericanHot"), iri("MeatyPizza")),
             (iri("AmericanHot"), iri("NamedPizza")),
-        ]).unwrap();
+        ])
+        .unwrap();
         c.load_disjoint(&[
             (iri("VegetarianPizza"), iri("MeatyPizza")),
             (iri("American"), iri("AmericanHot")),
-        ]).unwrap();
+        ])
+        .unwrap();
         c.load_functional(&[iri("hasBase")]).unwrap();
         c
     }
@@ -701,7 +754,10 @@ mod tests {
     #[test]
     fn empty_store_never_claims_consistency() {
         let c = CompiledOntology::new().unwrap();
-        let claim = Claim { types: vec![("x".into(), iri("Margherita"))], ..Default::default() };
+        let claim = Claim {
+            types: vec![("x".into(), iri("Margherita"))],
+            ..Default::default()
+        };
         assert_eq!(c.check(&claim).unwrap().verdict, Verdict::Undetermined);
     }
 
@@ -712,7 +768,10 @@ mod tests {
     fn two_hop_join_catches_inferred_disjointness() {
         let c = fixture();
         let claim = Claim {
-            types: vec![("x".into(), iri("Margherita")), ("x".into(), iri("MeatyPizza"))],
+            types: vec![
+                ("x".into(), iri("Margherita")),
+                ("x".into(), iri("MeatyPizza")),
+            ],
             ..Default::default()
         };
         let r = c.check(&claim).unwrap();
@@ -726,7 +785,10 @@ mod tests {
     fn join_is_symmetric() {
         let c = fixture();
         let claim = Claim {
-            types: vec![("x".into(), iri("MeatyPizza")), ("x".into(), iri("Margherita"))],
+            types: vec![
+                ("x".into(), iri("MeatyPizza")),
+                ("x".into(), iri("Margherita")),
+            ],
             ..Default::default()
         };
         assert_eq!(c.check(&claim).unwrap().verdict, Verdict::Rejected);
@@ -739,7 +801,10 @@ mod tests {
         // is enough; the join has to climb both.
         let c = fixture();
         let claim = Claim {
-            types: vec![("x".into(), iri("Margherita")), ("x".into(), iri("American"))],
+            types: vec![
+                ("x".into(), iri("Margherita")),
+                ("x".into(), iri("American")),
+            ],
             ..Default::default()
         };
         assert_eq!(c.check(&claim).unwrap().verdict, Verdict::Rejected);
@@ -751,20 +816,30 @@ mod tests {
     fn clean_join_is_undetermined_not_consistent() {
         let c = fixture();
         let claim = Claim {
-            types: vec![("x".into(), iri("Margherita")), ("x".into(), iri("CheeseyPizza"))],
+            types: vec![
+                ("x".into(), iri("Margherita")),
+                ("x".into(), iri("CheeseyPizza")),
+            ],
             ..Default::default()
         };
         let r = c.check(&claim).unwrap();
         assert_eq!(r.verdict, Verdict::Undetermined, "{r:?}");
         assert!(r.violations.is_empty());
-        assert_eq!(r.residual_pairs.len(), 1, "the undecided pair must be reported");
+        assert_eq!(
+            r.residual_pairs.len(),
+            1,
+            "the undecided pair must be reported"
+        );
     }
 
     #[test]
     fn residual_can_be_discharged_by_tier_two() {
         let c = fixture();
         let claim = Claim {
-            types: vec![("x".into(), iri("Margherita")), ("x".into(), iri("CheeseyPizza"))],
+            types: vec![
+                ("x".into(), iri("Margherita")),
+                ("x".into(), iri("CheeseyPizza")),
+            ],
             ..Default::default()
         };
         let r = c.check(&claim).unwrap().confirm_residual();
@@ -776,11 +851,18 @@ mod tests {
     fn confirming_residual_never_rescues_a_rejection() {
         let c = fixture();
         let claim = Claim {
-            types: vec![("x".into(), iri("Margherita")), ("x".into(), iri("MeatyPizza"))],
+            types: vec![
+                ("x".into(), iri("Margherita")),
+                ("x".into(), iri("MeatyPizza")),
+            ],
             ..Default::default()
         };
         let r = c.check(&claim).unwrap().confirm_residual();
-        assert_eq!(r.verdict, Verdict::Rejected, "a rejection must survive confirmation");
+        assert_eq!(
+            r.verdict,
+            Verdict::Rejected,
+            "a rejection must survive confirmation"
+        );
     }
 
     #[test]
@@ -818,7 +900,10 @@ mod tests {
             ],
         };
         let r = c.check(&claim).unwrap();
-        assert!(r.violations.iter().any(|v| v.check == "functionality"), "{r:?}");
+        assert!(
+            r.violations.iter().any(|v| v.check == "functionality"),
+            "{r:?}"
+        );
     }
 
     #[test]
@@ -849,7 +934,8 @@ mod tests {
         fn compatible(&self, a: &str, b: &str) -> Result<Option<bool>> {
             *self.calls.borrow_mut() += 1;
             let hit = |v: &Vec<(String, String)>| {
-                v.iter().any(|(x, y)| (x == a && y == b) || (x == b && y == a))
+                v.iter()
+                    .any(|(x, y)| (x == a && y == b) || (x == b && y == a))
             };
             if hit(&self.undecidable) {
                 return Ok(None);
@@ -858,8 +944,15 @@ mod tests {
         }
     }
 
-    fn oracle(incompatible: Vec<(String, String)>, undecidable: Vec<(String, String)>) -> MockOracle {
-        MockOracle { incompatible, undecidable, calls: std::cell::RefCell::new(0) }
+    fn oracle(
+        incompatible: Vec<(String, String)>,
+        undecidable: Vec<(String, String)>,
+    ) -> MockOracle {
+        MockOracle {
+            incompatible,
+            undecidable,
+            calls: std::cell::RefCell::new(0),
+        }
     }
 
     #[test]
@@ -867,7 +960,10 @@ mod tests {
         let c = fixture();
         let o = oracle(vec![(iri("Margherita"), iri("CheeseyPizza"))], vec![]);
         let claim = Claim {
-            types: vec![("x".into(), iri("Margherita")), ("x".into(), iri("CheeseyPizza"))],
+            types: vec![
+                ("x".into(), iri("Margherita")),
+                ("x".into(), iri("CheeseyPizza")),
+            ],
             ..Default::default()
         };
         // Tier 1 alone cannot see this.
@@ -882,10 +978,16 @@ mod tests {
         let c = fixture();
         let o = oracle(vec![], vec![]);
         let claim = Claim {
-            types: vec![("x".into(), iri("Margherita")), ("x".into(), iri("CheeseyPizza"))],
+            types: vec![
+                ("x".into(), iri("Margherita")),
+                ("x".into(), iri("CheeseyPizza")),
+            ],
             ..Default::default()
         };
-        assert_eq!(c.check_with_oracle(&claim, &o).unwrap().verdict, Verdict::Consistent);
+        assert_eq!(
+            c.check_with_oracle(&claim, &o).unwrap().verdict,
+            Verdict::Consistent
+        );
     }
 
     #[test]
@@ -893,11 +995,18 @@ mod tests {
         let c = fixture();
         let o = oracle(vec![], vec![(iri("Margherita"), iri("CheeseyPizza"))]);
         let claim = Claim {
-            types: vec![("x".into(), iri("Margherita")), ("x".into(), iri("CheeseyPizza"))],
+            types: vec![
+                ("x".into(), iri("Margherita")),
+                ("x".into(), iri("CheeseyPizza")),
+            ],
             ..Default::default()
         };
         let r = c.check_with_oracle(&claim, &o).unwrap();
-        assert_eq!(r.verdict, Verdict::Undetermined, "an undecided oracle must not yield Consistent");
+        assert_eq!(
+            r.verdict,
+            Verdict::Undetermined,
+            "an undecided oracle must not yield Consistent"
+        );
         assert_eq!(r.residual_pairs.len(), 1);
     }
 
@@ -906,13 +1015,20 @@ mod tests {
         let c = fixture();
         let o = oracle(vec![], vec![]);
         let claim = Claim {
-            types: vec![("x".into(), iri("Margherita")), ("x".into(), iri("CheeseyPizza"))],
+            types: vec![
+                ("x".into(), iri("Margherita")),
+                ("x".into(), iri("CheeseyPizza")),
+            ],
             ..Default::default()
         };
         c.check_with_oracle(&claim, &o).unwrap();
         let after_first = *o.calls.borrow();
         c.check_with_oracle(&claim, &o).unwrap();
-        assert_eq!(*o.calls.borrow(), after_first, "second check must hit the cache");
+        assert_eq!(
+            *o.calls.borrow(),
+            after_first,
+            "second check must hit the cache"
+        );
     }
 
     #[test]
@@ -920,12 +1036,19 @@ mod tests {
         let c = fixture();
         let o = oracle(vec![], vec![]);
         let claim = Claim {
-            types: vec![("x".into(), iri("Margherita")), ("x".into(), iri("MeatyPizza"))],
+            types: vec![
+                ("x".into(), iri("Margherita")),
+                ("x".into(), iri("MeatyPizza")),
+            ],
             ..Default::default()
         };
         let r = c.check_with_oracle(&claim, &o).unwrap();
         assert_eq!(r.verdict, Verdict::Rejected);
-        assert_eq!(*o.calls.borrow(), 0, "a sound tier-1 rejection must not consult tier 2");
+        assert_eq!(
+            *o.calls.borrow(),
+            0,
+            "a sound tier-1 rejection must not consult tier 2"
+        );
     }
 
     #[test]
@@ -933,14 +1056,16 @@ mod tests {
         let c = fixture();
         let o = oracle(vec![(iri("Margherita"), iri("CheeseyPizza"))], vec![]);
         let claim = Claim {
-            types: vec![("x".into(), iri("Margherita")), ("x".into(), iri("CheeseyPizza"))],
+            types: vec![
+                ("x".into(), iri("Margherita")),
+                ("x".into(), iri("CheeseyPizza")),
+            ],
             ..Default::default()
         };
         c.check_with_oracle(&claim, &o).unwrap();
         // Tier 1 alone should now settle it, with no oracle involved.
         assert_eq!(c.check(&claim).unwrap().verdict, Verdict::Rejected);
     }
-
 
     // ── assumed-disjointness WARN tier ──────────────────────────────────
 
@@ -950,13 +1075,21 @@ mod tests {
         // Vetted assumption: Margherita and CheeseyPizza "should" be disjoint
         // (deliberately false in reality — assumptions are not entailments,
         // and the machinery must treat them accordingly).
-        c.load_assumed_disjoint(&[(iri("Margherita"), iri("CheeseyPizza"))]).unwrap();
+        c.load_assumed_disjoint(&[(iri("Margherita"), iri("CheeseyPizza"))])
+            .unwrap();
         let claim = Claim {
-            types: vec![("x".into(), iri("Margherita")), ("x".into(), iri("CheeseyPizza"))],
+            types: vec![
+                ("x".into(), iri("Margherita")),
+                ("x".into(), iri("CheeseyPizza")),
+            ],
             ..Default::default()
         };
         let r = c.check(&claim).unwrap();
-        assert_eq!(r.verdict, Verdict::Undetermined, "assumption must not reject: {r:?}");
+        assert_eq!(
+            r.verdict,
+            Verdict::Undetermined,
+            "assumption must not reject: {r:?}"
+        );
         assert_eq!(r.warnings.len(), 1, "{r:?}");
         assert_eq!(r.warnings[0].check, "disjointness_assumed");
         assert!(r.warnings[0].detail.contains("not entailed"));
@@ -968,23 +1101,34 @@ mod tests {
     fn assumed_tier_climbs_the_hierarchy() {
         let c = fixture();
         // Assumption at superclass level must warn for subclasses.
-        c.load_assumed_disjoint(&[(iri("NamedPizza"), iri("CheeseyPizza"))]).unwrap();
+        c.load_assumed_disjoint(&[(iri("NamedPizza"), iri("CheeseyPizza"))])
+            .unwrap();
         let claim = Claim {
             // Margherita ⊑ NamedPizza (inferred), so the assumption applies.
-            types: vec![("x".into(), iri("Margherita")), ("x".into(), iri("CheeseyPizza"))],
+            types: vec![
+                ("x".into(), iri("Margherita")),
+                ("x".into(), iri("CheeseyPizza")),
+            ],
             ..Default::default()
         };
         let r = c.check(&claim).unwrap();
         assert_eq!(r.warnings.len(), 1, "{r:?}");
-        assert!(r.warnings[0].detail.contains("NamedPizza"), "witness must name the assumed axiom: {r:?}");
+        assert!(
+            r.warnings[0].detail.contains("NamedPizza"),
+            "witness must name the assumed axiom: {r:?}"
+        );
     }
 
     #[test]
     fn hard_rejection_takes_precedence_over_assumed() {
         let c = fixture();
-        c.load_assumed_disjoint(&[(iri("Margherita"), iri("MeatyPizza"))]).unwrap();
+        c.load_assumed_disjoint(&[(iri("Margherita"), iri("MeatyPizza"))])
+            .unwrap();
         let claim = Claim {
-            types: vec![("x".into(), iri("Margherita")), ("x".into(), iri("MeatyPizza"))],
+            types: vec![
+                ("x".into(), iri("Margherita")),
+                ("x".into(), iri("MeatyPizza")),
+            ],
             ..Default::default()
         };
         let r = c.check(&claim).unwrap();
@@ -996,10 +1140,14 @@ mod tests {
     #[test]
     fn oracle_confirmed_consistency_keeps_the_warning() {
         let c = fixture();
-        c.load_assumed_disjoint(&[(iri("Margherita"), iri("CheeseyPizza"))]).unwrap();
+        c.load_assumed_disjoint(&[(iri("Margherita"), iri("CheeseyPizza"))])
+            .unwrap();
         let o = oracle(vec![], vec![]);
         let claim = Claim {
-            types: vec![("x".into(), iri("Margherita")), ("x".into(), iri("CheeseyPizza"))],
+            types: vec![
+                ("x".into(), iri("Margherita")),
+                ("x".into(), iri("CheeseyPizza")),
+            ],
             ..Default::default()
         };
         let r = c.check_with_oracle(&claim, &o).unwrap();
@@ -1018,11 +1166,17 @@ mod tests {
         let c = fixture();
         let claims: Vec<Claim> = vec![
             Claim {
-                types: vec![("x".into(), iri("Margherita")), ("x".into(), iri("MeatyPizza"))],
+                types: vec![
+                    ("x".into(), iri("Margherita")),
+                    ("x".into(), iri("MeatyPizza")),
+                ],
                 ..Default::default()
             },
             Claim {
-                types: vec![("x".into(), iri("Margherita")), ("x".into(), iri("CheeseyPizza"))],
+                types: vec![
+                    ("x".into(), iri("Margherita")),
+                    ("x".into(), iri("CheeseyPizza")),
+                ],
                 ..Default::default()
             },
             Claim {
@@ -1042,7 +1196,10 @@ mod tests {
     fn batch_is_deterministic_under_parallelism() {
         let c = fixture();
         let claim = Claim {
-            types: vec![("x".into(), iri("Margherita")), ("x".into(), iri("MeatyPizza"))],
+            types: vec![
+                ("x".into(), iri("Margherita")),
+                ("x".into(), iri("MeatyPizza")),
+            ],
             ..Default::default()
         };
         let claims: Vec<Claim> = (0..1000).map(|_| claim.clone()).collect();

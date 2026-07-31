@@ -2751,7 +2751,10 @@ impl OpenOntologiesServer {
             .unwrap_or_else(|e| format!(r#"{{"error":"{}"}}"#, e))
     }
 
-    #[tool(name = "onto_vocab_check", description = "Closed-world vocabulary check on a Turtle DATA graph: verify that every predicate and every rdf:type class used in the data is actually DECLARED in the loaded ontology. Catches hallucinated/undeclared terms — e.g. an LLM emitting `ies:hasDeparturePort` when the ontology only defines `ies:scheduledDeparturePort`. This is the gate open-world SHACL structurally CANNOT provide: SHACL silently ignores predicates it has no shape for, so a graph full of invented terms still reports conforms=true. Only IRIs whose namespace belongs to the ontology (plus any passed in `namespaces`) are policed; standard rdf/rdfs/owl/xsd/sh vocabulary and your instance-data IRIs are never flagged. Returns {conforms, hallucinated_terms, checked_namespaces}. Companion to `onto_shacl` (open-world structural validation of data) and `onto_shacl_check` (checks proposed SHACL shapes); run this on generated data to catch fabricated vocabulary before it enters the store.")]
+    #[tool(
+        name = "onto_vocab_check",
+        description = "Closed-world vocabulary check on a Turtle DATA graph: verify that every predicate and every rdf:type class used in the data is actually DECLARED in the loaded ontology. Catches hallucinated/undeclared terms — e.g. an LLM emitting `ies:hasDeparturePort` when the ontology only defines `ies:scheduledDeparturePort`. This is the gate open-world SHACL structurally CANNOT provide: SHACL silently ignores predicates it has no shape for, so a graph full of invented terms still reports conforms=true. Only IRIs whose namespace belongs to the ontology (plus any passed in `namespaces`) are policed; standard rdf/rdfs/owl/xsd/sh vocabulary and your instance-data IRIs are never flagged. Returns {conforms, hallucinated_terms, checked_namespaces}. Companion to `onto_shacl` (open-world structural validation of data) and `onto_shacl_check` (checks proposed SHACL shapes); run this on generated data to catch fabricated vocabulary before it enters the store."
+    )]
     async fn onto_vocab_check(&self, Parameters(input): Parameters<OntoVocabCheckInput>) -> String {
         let data = if input.inline.unwrap_or(false) {
             input.data.clone()
@@ -2766,7 +2769,10 @@ impl OpenOntologiesServer {
             .unwrap_or_else(|e| format!(r#"{{"error":"{}"}}"#, e))
     }
 
-    #[tool(name = "onto_align_flora", description = "End-to-end FLORA alignment (#38). Takes the currently-loaded graph as source and a Turtle string for target, enumerates plausible class-pairs (pre-filtered by shared label tokens), extracts the four FLORA signals per pair (label Jaccard, parent overlap, sibling overlap, datatype overlap) from the structural neighbourhood, runs the 10-rule Mamdani inference engine, and returns only the accept-verdict pairs. Companion to `onto_align_fuzzy` (per-pair adjudication when you already have signals).")]
+    #[tool(
+        name = "onto_align_flora",
+        description = "End-to-end FLORA alignment (#38). Takes the currently-loaded graph as source and a Turtle string for target, enumerates plausible class-pairs (pre-filtered by shared label tokens), extracts the four FLORA signals per pair (label Jaccard, parent overlap, sibling overlap, datatype overlap) from the structural neighbourhood, runs the 10-rule Mamdani inference engine, and returns only the accept-verdict pairs. Companion to `onto_align_fuzzy` (per-pair adjudication when you already have signals)."
+    )]
     async fn onto_align_flora(&self, Parameters(input): Parameters<OntoAlignFloraInput>) -> String {
         let target = std::sync::Arc::new(crate::graph::GraphStore::new());
         if let Err(e) = target.load_turtle(&input.target_ttl, None) {
@@ -4053,7 +4059,10 @@ impl OpenOntologiesServer {
                     }
                 }
             }
-            Err(e) => format!(r#"{{"ok":false,"error":"{}","hint":"Check the error details and retry. Consult the tool description for required parameters."}}"#, e),
+            Err(e) => format!(
+                r#"{{"ok":false,"error":"{}","hint":"Check the error details and retry. Consult the tool description for required parameters."}}"#,
+                e
+            ),
         }
     }
 
@@ -4875,7 +4884,10 @@ impl OpenOntologiesServer {
                 "mapping_fields": mapping.mappings.len(),
             })
             .to_string(),
-            Err(e) => format!(r#"{{"ok":false,"error":"Failed to load triples into store: {}","hint":"Try onto_clear to reset the store, then retry onto_sql_ingest."}}"#, e),
+            Err(e) => format!(
+                r#"{{"ok":false,"error":"Failed to load triples into store: {}","hint":"Try onto_clear to reset the store, then retry onto_sql_ingest."}}"#,
+                e
+            ),
         }
     }
 
@@ -5399,28 +5411,7 @@ impl OpenOntologiesServer {
                 }
             };
 
-        if class_labels.is_empty() {
-            return r#"{"ok":false,"error":"No OWL classes found in the loaded ontology. onto_embed requires at least one owl:Class.","hint":"Load an ontology with owl:Class declarations using onto_load, then retry onto_embed."}"#.to_string();
-        }
-
-        let trainer = crate::structembed::StructuralTrainer::new(struct_dim, struct_epochs, 0.01);
-        let struct_embeddings = match trainer.train(&self.graph) {
-            Ok(e) => e,
-            Err(e) => return format!(r#"{{"ok":false,"error":"Structural embedding training failed: {}","hint":"Try reducing struct_epochs (default 100) or struct_dim (default 32) to decrease memory pressure, then retry onto_embed."}}"#, e),
-        };
-
-        let mut embedded_count = 0;
-        let mut errors: Vec<String> = Vec::new();
-
-        // R7 WD-1 — sanitize each class label through the embed-label
-        // boundary before it reaches the embedding provider. The
-        // 256-byte cap is enforced; labels exceeding it are recorded
-        // as errors and the IRI is skipped (no embedding written).
-        for (iri, label) in &class_labels {
-            let label_input = match crate::llm_input::LlmInput::sanitize(
-                label,
-                crate::llm_input::LlmInputKind::EmbedLabel,
-            ) {
+            let parsed: serde_json::Value = match serde_json::from_str(&result) {
                 Ok(v) => v,
                 Err(e) => {
                     return format!(
@@ -5429,18 +5420,23 @@ impl OpenOntologiesServer {
                     );
                 }
             };
-            // Compute the text embedding (may await an HTTP call) BEFORE
-            // locking the non-Send VecStore mutex.
-            match embedder.embed_input(&label_input).await {
-                Ok(text_vec) => {
-                    let struct_vec = struct_embeddings.get(iri)
-                        .cloned()
-                        .unwrap_or_else(|| vec![0.0; struct_dim]);
-                    let mut vecstore = self.vecstore.lock().unwrap();
-                    vecstore.upsert(iri, &text_vec, &struct_vec);
-                    embedded_count += 1;
-                    if used_description {
-                        enriched_count += 1;
+
+            let mut class_labels: std::collections::HashMap<String, String> =
+                std::collections::HashMap::new();
+            if let Some(rows) = parsed["results"].as_array() {
+                for row in rows {
+                    if let Some(iri) = row["class"].as_str() {
+                        let iri = iri.trim_matches(|c| c == '<' || c == '>').to_string();
+                        let label = row["label"]
+                            .as_str()
+                            .map(|s| s.trim_matches('"').to_string())
+                            .unwrap_or_else(|| {
+                                iri.rsplit_once('#')
+                                    .or_else(|| iri.rsplit_once('/'))
+                                    .map(|(_, n)| n.to_string())
+                                    .unwrap_or_else(|| iri.clone())
+                            });
+                        class_labels.insert(iri, label);
                     }
                 }
             }

@@ -4,8 +4,8 @@
 //! `OpenOntologiesServer` and is transparent unless the `mcpp` feature is
 //! enabled AND `MCPP_SIGNING_KEY_PATH` is set at startup.
 //!
-//! With gating active, every successful tool call is admitted through
-//! `ProofWriter::admit()` and the JSON response gains an `"mcpp"` field:
+//! With gating active, every successful tool call receives a canonical
+//! BLAKE3 + Ed25519 proof envelope and the JSON response gains an `"mcpp"` field:
 //!
 //! ```json
 //! { "ok": true, "thresholds": [], "mcpp": { "verdict": "accepted", ... } }
@@ -220,8 +220,8 @@ pub struct ProofGatedServer<H: ServerHandler> {
 impl<H: ServerHandler> ProofGatedServer<H> {
     /// Wrap `inner` with proof gating backed by `db` and `signing_key`.
     ///
-    /// Every successful tool call will be admitted through `ProofWriter::admit()`
-    /// and the JSON response gains an `"mcpp"` field with verdict and receipt hash.
+    /// Every successful tool call receives a canonical BLAKE3 + Ed25519 envelope,
+    /// and the JSON response gains an `"mcpp"` field with its receipt and signature.
     ///
     /// # Examples
     ///
@@ -235,7 +235,7 @@ impl<H: ServerHandler> ProofGatedServer<H> {
     ///
     /// let db = StateDb::open(Path::new(":memory:")).unwrap();
     /// let server = OpenOntologiesServer::new(db.clone());
-    /// let signing_key = ed25519_dalek::SigningKey::generate(&mut rand::rngs::OsRng);
+    /// let signing_key = ed25519_dalek::SigningKey::from_bytes(&[7_u8; 32]);
     /// let gated = ProofGatedServer::new(server, db, signing_key);
     /// // `gated.inner` holds the wrapped server.
     /// let _registry = gated.inner.registry();
@@ -299,45 +299,51 @@ impl<H: ServerHandler> ServerHandler for ProofGatedServer<H> {
         context: RequestContext<RoleServer>,
     ) -> Result<CallToolResult, ErrorData> {
         use chrono::Utc;
-use ed25519_dalek::Signer;
-use ulid::Ulid;
+        use ed25519_dalek::Signer;
+        use ulid::Ulid;
 
-let tool_name = request.name.clone();
-let scope_token = format!("mcpp-{}-{}", tool_name, Ulid::new());
-let started = Utc::now();
+        let tool_name = request.name.clone();
+        let scope_token = format!("mcpp-{}-{}", tool_name, Ulid::new());
+        let started = Utc::now();
 
-emit_invocation_event(&self.db, &scope_token, &tool_name)
-    .map_err(|e| ErrorData::internal_error(format!("mcpp: ocel emit failed: {e}"), None))?;
+        emit_invocation_event(&self.db, &scope_token, &tool_name)
+            .map_err(|e| ErrorData::internal_error(format!("mcpp: ocel emit failed: {e}"), None))?;
 
-let result = self.inner.call_tool(request, context).await?;
-let text = extract_text(&result);
-let result_json: serde_json::Value =
-    serde_json::from_str(&text).unwrap_or(serde_json::Value::Null);
-let ok = result_json.get("ok").and_then(|v| v.as_bool()).unwrap_or(false);
-if !ok {
-    return Ok(result);
-}
+        let result = self.inner.call_tool(request, context).await?;
+        let text = extract_text(&result);
+        let result_json: serde_json::Value =
+            serde_json::from_str(&text).unwrap_or(serde_json::Value::Null);
+        let ok = result_json
+            .get("ok")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
+        if !ok {
+            return Ok(result);
+        }
 
-let ocel_bytes = collect_ocel(&self.db, &scope_token, started)
-    .map_err(|e| ErrorData::internal_error(format!("mcpp: ocel collect failed: {e}"), None))?;
-let canonical = serde_json::to_vec(&serde_json::json!({
-    "protocol": "mcpp-compat/v1",
-    "route": "ontology",
-    "tool": tool_name,
-    "scope_token": scope_token,
-    "tool_result": result_json,
-    "ocel_blake3": blake3::hash(&ocel_bytes).to_hex().to_string(),
-}))
-.map_err(|e| ErrorData::internal_error(format!("mcpp: canonicalization failed: {e}"), None))?;
-let receipt_hash = blake3::hash(&canonical).to_hex().to_string();
-let signature_hex = hex::encode(self.signing_key.sign(&canonical).to_bytes());
+        let ocel_bytes = collect_ocel(&self.db, &scope_token, started).map_err(|e| {
+            ErrorData::internal_error(format!("mcpp: ocel collect failed: {e}"), None)
+        })?;
+        let canonical = serde_json::to_vec(&serde_json::json!({
+            "protocol": "mcpp-compat/v1",
+            "route": "ontology",
+            "tool": tool_name,
+            "scope_token": scope_token,
+            "tool_result": result_json,
+            "ocel_blake3": blake3::hash(&ocel_bytes).to_hex().to_string(),
+        }))
+        .map_err(|e| {
+            ErrorData::internal_error(format!("mcpp: canonicalization failed: {e}"), None)
+        })?;
+        let receipt_hash = blake3::hash(&canonical).to_hex().to_string();
+        let signature_hex = hex::encode(self.signing_key.sign(&canonical).to_bytes());
 
-Ok(augment_with_proof(
-    result,
-    &scope_token,
-    &receipt_hash,
-    &signature_hex,
-))
+        Ok(augment_with_proof(
+            result,
+            &scope_token,
+            &receipt_hash,
+            &signature_hex,
+        ))
     }
 }
 
@@ -398,7 +404,7 @@ fn emit_invocation_event(db: &StateDb, scope_token: &str, tool_name: &str) -> an
 }
 
 /// Collect all OCEL events tagged with `scope_token` at or after `since`
-/// and wrap them as `OcelEvidence` for mcpp's `AdmissionEvidence`.
+/// and encode them as deterministic OCEL evidence bytes.
 /// The `db.conn()` guard is scoped to an inner block.
 #[cfg(feature = "mcpp")]
 fn collect_ocel(

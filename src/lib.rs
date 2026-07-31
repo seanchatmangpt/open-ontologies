@@ -22,10 +22,10 @@ pub use defects::{DefectClass, Deviation};
 pub mod align;
 pub mod align_fuzzy;
 pub mod borderline_loop;
-pub mod claimcheck;
 pub mod civex;
 #[cfg(feature = "causal-pywhy")]
 pub mod civex_pywhy;
+pub mod claimcheck;
 pub mod classify_el;
 pub mod clinical;
 pub mod coevolve;

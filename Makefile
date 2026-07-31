@@ -12,7 +12,7 @@ lint:
 	cargo clippy -- -D warnings
 
 # R6 WB — dead-param + gate-fn-discard scanner. Replaces the shell+grep
-# version (tools/dead-param-gate.sh, deleted) with a syn::Visit AST scan.
+# version (the deleted shell scanner) with a syn::Visit AST scan.
 # Source-level pass closes B1 false-positive set; companion expanded.rs
 # scan (when target/expanded.rs is present from `make expand`) closes B3
 # (macro_rules-laundered let _ = $p; patterns crossing crate boundaries).

@@ -223,7 +223,8 @@ mod tests {
         assert_eq!(v["conforms"], false, "should flag undeclared term: {out}");
         let bad = v["hallucinated_terms"].as_array().unwrap();
         assert!(
-            bad.iter().any(|t| t.as_str().unwrap().ends_with("hasDeparturePort")),
+            bad.iter()
+                .any(|t| t.as_str().unwrap().ends_with("hasDeparturePort")),
             "hasDeparturePort should be flagged: {out}"
         );
     }
@@ -238,6 +239,9 @@ mod tests {
         "#;
         let out = check_data_vocab(&onto(), data, &[]).unwrap();
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
-        assert_eq!(v["conforms"], true, "instance IRIs must not be policed: {out}");
+        assert_eq!(
+            v["conforms"], true,
+            "instance IRIs must not be policed: {out}"
+        );
     }
 }
