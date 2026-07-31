@@ -1,9 +1,8 @@
 # WIP audit
 
-Base: `0d553c77e86ae252ee627b5e11843a08f3b36ee5`
-Audit branch: `95605bf37b30b495fe9b3dec21b632a7b4770745`
+Base: `2d10a8a299694f7c2b9f2c141a610525a645139b`
 
-## Marker findings (4965)
+## Marker findings (10645)
 
 - `CHANGELOG.md:76` — `revoked_principals` table lands (TODO marker in code). New
 - `CHANGELOG.md:323` — TODO(R6) — same disease, deferred fix template.
@@ -39,682 +38,482 @@ Audit branch: `95605bf37b30b495fe9b3dec21b632a7b4770745`
 - `tests/admission_real_replay.rs:62` — !conf.run_id.starts_with("stub-run-"),
 - `tests/admission_real_replay.rs:63` — "verdict came from NoopPowlReplay stub, not PowlBridge: run_id={}",
 - `.wip/audit.md:1` — # WIP audit
-- `.wip/audit.md:7` — - `CHANGELOG.md:76` — `revoked_principals` table lands (TODO marker in code). New
-- `.wip/audit.md:8` — - `CHANGELOG.md:323` — TODO(R6) — same disease, deferred fix template.
-- `.wip/audit.md:9` — - `CHANGELOG.md:357` — `TODO(R6 §15.A9)`, `TODO(R6 §15.A11)`, `TODO(R6 §15.A12)` comments
-- `.wip/audit.md:10` — - `CHANGELOG.md:678` — - `engine="groq_pm4py"` subprocess transport — MCP handlers now spawn the real DSPy/pm4py-backed translator instead of the in-process stub.
-- `.wip/audit.md:11` — - `CHANGELOG.md:774` — - [`ee90af9`](../../commit/ee90af9) `fix(no-stub): wire ingest/map/extend/push format params; add named-graph push; remove dead cfg`
-- `.wip/audit.md:12` — - `CHANGELOG.md:794` — - [`e4db225`](../../commit/e4db225) `ontostar(R3): wire PowlBridgeReplay into admission gate, replace stub`
-- `.wip/audit.md:13` — - `CHANGELOG.md:804` — - `PowlBridgeReplay` replaces the noop stub in the admission gate.
-- `.wip/audit.md:14` — - `DISSERTATION.md:46` — *   **L6 High-Speed Kernels:** Represented by `wasm4pm` stream-2 stub bindings and the `src/manufacturing/` pipeline.
-- `.wip/audit.md:15` — - `IMPLEMENTATION_SUMMARY.md:142` — ## What's NOT Implemented (Vision 2030 Future Layers)
-- `.wip/audit.md:16` — - `Cargo.toml:86` — todo = "deny"
-- `.wip/audit.md:17` — - `ontology/alignment-notes.md:109` — `OcelObjectType` is a typing class for OCEL 2.0 instances (e.g. Order, Item, Package). In the current TTL it is a vocabulary stub — the actual object type individuals (Order, Item, etc.) are not defined. The enforcer correctly flags it as orphaned.
-- `.wip/audit.md:18` — - `tests/end_to_end_governed_release.rs:8` — //!   5. assert Admitted(receipt) with non-stub fitness
-- `.wip/audit.md:19` — - `tests/end_to_end_governed_release.rs:68` — //    fitness, not a stub 1.0).
-- `.wip/audit.md:20` — - `tests/end_to_end_governed_release.rs:78` — !conf.run_id.starts_with("stub-run-"),
-- `.wip/audit.md:21` — - `tests/end_to_end_governed_release.rs:79` — "verdict came from the stub, not the real PowlBridge: {}",
-- `.wip/audit.md:22` — - `tests/ratchet_red_team.rs:43` — let msg = "evaluate_admission(stub) called";
-- `.wip/audit.md:23` — - `tests/portability_codegen.rs:94` — let receipt = build_test_receipt(b"some-artifact-placeholder");
-- `.wip/audit.md:24` — - `tests/saboteur_meta.rs:5` — //! output is structurally distinct from a hypothetical "stub that
-- `.wip/audit.md:25` — - `tests/adversarial_jtbd_test.rs:114` — Either the format was silently ignored (soft stub) or auto-detection hid the override.\n\
-- `.wip/audit.md:26` — - `tests/saboteur_a9_provenance_chain_load_bearing.rs:27` — //! R5 WB-1's TODO comment at admission.rs:660-662 carried A9 forward
-- `.wip/audit.md:27` — - `tests/three_layer_integration_test.rs:2` — //! (#43 Dynamics → #44 Causal hookup → #45 Planner stub).
-- `.wip/audit.md:28` — - `tests/three_layer_integration_test.rs:57` — // The Planner stub must read from the same SQLite store that
-- `.wip/audit.md:29` — - `tests/manufacturing_validators.rs:191` — // 64-char WO hash literal with a placeholder of equal length.
-- `.wip/audit.md:30` — - `tests/manufacturing_validators.rs:192` — let placeholder: String = "f".repeat(wo_hash.len());
-- `.wip/audit.md:31` — - `tests/manufacturing_validators.rs:194` — f.contents = f.contents.replace(&wo_hash, &placeholder);
-- `.wip/audit.md:32` — - `tests/ed25519_attestation.rs:3` — //! Replaces the digest-equality tautology stub with cryptographic
-- `.wip/audit.md:33` — - `tests/ggen_revops_pipeline.rs:37` — /// the ggen pipeline produced a populated file rather than an empty stub.
-- `.wip/audit.md:34` — - `tests/ggen_pipeline_real.rs:25` — /// 1. generated.rs exists and contains the expected stub modules.
-- `.wip/audit.md:35` — - `tests/admission_real_replay.rs:2` — //! `PowlBridgeReplay`, not the `NoopPowlReplay` stub.
-- `.wip/audit.md:36` — - `tests/admission_real_replay.rs:59` — // The bridge — not the stub — produced this verdict. The stub would
-- `.wip/audit.md:37` — - `tests/admission_real_replay.rs:60` — // have returned the literal {fitness: 1.0, run_id: "stub-run-..."}.
-- `.wip/audit.md:38` — - `tests/admission_real_replay.rs:62` — !conf.run_id.starts_with("stub-run-"),
-- `.wip/audit.md:39` — - `tests/admission_real_replay.rs:63` — "verdict came from NoopPowlReplay stub, not PowlBridge: run_id={}",
-- `.wip/audit.md:40` — - `.wip/audit.md:1` — # WIP audit
-- `.wip/audit.md:41` — - `.wip/audit.md:7` — - `CHANGELOG.md:76` — `revoked_principals` table lands (TODO marker in code). New
-- `.wip/audit.md:42` — - `.wip/audit.md:8` — - `CHANGELOG.md:323` — TODO(R6) — same disease, deferred fix template.
-- `.wip/audit.md:43` — - `.wip/audit.md:9` — - `CHANGELOG.md:357` — `TODO(R6 §15.A9)`, `TODO(R6 §15.A11)`, `TODO(R6 §15.A12)` comments
-- `.wip/audit.md:44` — - `.wip/audit.md:10` — - `CHANGELOG.md:678` — - `engine="groq_pm4py"` subprocess transport — MCP handlers now spawn the real DSPy/pm4py-backed translator instead of the in-process stub.
-- `.wip/audit.md:45` — - `.wip/audit.md:11` — - `CHANGELOG.md:774` — - [`ee90af9`](../../commit/ee90af9) `fix(no-stub): wire ingest/map/extend/push format params; add named-graph push; remove dead cfg`
-- `.wip/audit.md:46` — - `.wip/audit.md:12` — - `CHANGELOG.md:794` — - [`e4db225`](../../commit/e4db225) `ontostar(R3): wire PowlBridgeReplay into admission gate, replace stub`
-- `.wip/audit.md:47` — - `.wip/audit.md:13` — - `CHANGELOG.md:804` — - `PowlBridgeReplay` replaces the noop stub in the admission gate.
-- `.wip/audit.md:48` — - `.wip/audit.md:14` — - `DISSERTATION.md:46` — *   **L6 High-Speed Kernels:** Represented by `wasm4pm` stream-2 stub bindings and the `src/manufacturing/` pipeline.
-- `.wip/audit.md:49` — - `.wip/audit.md:15` — - `IMPLEMENTATION_SUMMARY.md:142` — ## What's NOT Implemented (Vision 2030 Future Layers)
-- `.wip/audit.md:50` — - `.wip/audit.md:16` — - `Cargo.toml:86` — todo = "deny"
-- `.wip/audit.md:51` — - `.wip/audit.md:17` — - `ontology/alignment-notes.md:109` — `OcelObjectType` is a typing class for OCEL 2.0 instances (e.g. Order, Item, Package). In the current TTL it is a vocabulary stub — the actual object type individuals (Order, Item, etc.) are not defined. The enforcer correctly flags it as orphaned.
-- `.wip/audit.md:52` — - `.wip/audit.md:18` — - `tests/end_to_end_governed_release.rs:8` — //!   5. assert Admitted(receipt) with non-stub fitness
-- `.wip/audit.md:53` — - `.wip/audit.md:19` — - `tests/end_to_end_governed_release.rs:68` — //    fitness, not a stub 1.0).
-- `.wip/audit.md:54` — - `.wip/audit.md:20` — - `tests/end_to_end_governed_release.rs:78` — !conf.run_id.starts_with("stub-run-"),
-- `.wip/audit.md:55` — - `.wip/audit.md:21` — - `tests/end_to_end_governed_release.rs:79` — "verdict came from the stub, not the real PowlBridge: {}",
-- `.wip/audit.md:56` — - `.wip/audit.md:22` — - `tests/ratchet_red_team.rs:43` — let msg = "evaluate_admission(stub) called";
-- `.wip/audit.md:57` — - `.wip/audit.md:23` — - `tests/portability_codegen.rs:94` — let receipt = build_test_receipt(b"some-artifact-placeholder");
-- `.wip/audit.md:58` — - `.wip/audit.md:24` — - `tests/saboteur_meta.rs:5` — //! output is structurally distinct from a hypothetical "stub that
-- `.wip/audit.md:59` — - `.wip/audit.md:25` — - `tests/adversarial_jtbd_test.rs:114` — Either the format was silently ignored (soft stub) or auto-detection hid the override.\n\
-- `.wip/audit.md:60` — - `.wip/audit.md:26` — - `tests/saboteur_a9_provenance_chain_load_bearing.rs:27` — //! R5 WB-1's TODO comment at admission.rs:660-662 carried A9 forward
-- `.wip/audit.md:61` — - `.wip/audit.md:27` — - `tests/three_layer_integration_test.rs:2` — //! (#43 Dynamics → #44 Causal hookup → #45 Planner stub).
-- `.wip/audit.md:62` — - `.wip/audit.md:28` — - `tests/three_layer_integration_test.rs:57` — // The Planner stub must read from the same SQLite store that
-- `.wip/audit.md:63` — - `.wip/audit.md:29` — - `tests/manufacturing_validators.rs:191` — // 64-char WO hash literal with a placeholder of equal length.
-- `.wip/audit.md:64` — - `.wip/audit.md:30` — - `tests/manufacturing_validators.rs:192` — let placeholder: String = "f".repeat(wo_hash.len());
-- `.wip/audit.md:65` — - `.wip/audit.md:31` — - `tests/manufacturing_validators.rs:194` — f.contents = f.contents.replace(&wo_hash, &placeholder);
-- `.wip/audit.md:66` — - `.wip/audit.md:32` — - `tests/ed25519_attestation.rs:3` — //! Replaces the digest-equality tautology stub with cryptographic
-- `.wip/audit.md:67` — - `.wip/audit.md:33` — - `tests/ggen_revops_pipeline.rs:37` — /// the ggen pipeline produced a populated file rather than an empty stub.
-- `.wip/audit.md:68` — - `.wip/audit.md:34` — - `tests/ggen_pipeline_real.rs:25` — /// 1. generated.rs exists and contains the expected stub modules.
-- `.wip/audit.md:69` — - `.wip/audit.md:35` — - `tests/admission_real_replay.rs:2` — //! `PowlBridgeReplay`, not the `NoopPowlReplay` stub.
-- `.wip/audit.md:70` — - `.wip/audit.md:36` — - `tests/admission_real_replay.rs:59` — // The bridge — not the stub — produced this verdict. The stub would
-- `.wip/audit.md:71` — - `.wip/audit.md:37` — - `tests/admission_real_replay.rs:60` — // have returned the literal {fitness: 1.0, run_id: "stub-run-..."}.
-- `.wip/audit.md:72` — - `.wip/audit.md:38` — - `tests/admission_real_replay.rs:62` — !conf.run_id.starts_with("stub-run-"),
-- `.wip/audit.md:73` — - `.wip/audit.md:39` — - `tests/admission_real_replay.rs:63` — "verdict came from NoopPowlReplay stub, not PowlBridge: run_id={}",
-- `.wip/audit.md:74` — - `.wip/audit.md:40` — - `.wip/audit.md:1` — # WIP audit
-- `.wip/audit.md:75` — - `.wip/audit.md:41` — - `.wip/audit.md:8` — - `CHANGELOG.md:76` — `revoked_principals` table lands (TODO marker in code). New
-- `.wip/audit.md:76` — - `.wip/audit.md:42` — - `.wip/audit.md:9` — - `CHANGELOG.md:323` — TODO(R6) — same disease, deferred fix template.
-- `.wip/audit.md:77` — - `.wip/audit.md:43` — - `.wip/audit.md:10` — - `CHANGELOG.md:357` — `TODO(R6 §15.A9)`, `TODO(R6 §15.A11)`, `TODO(R6 §15.A12)` comments
-- `.wip/audit.md:78` — - `.wip/audit.md:44` — - `.wip/audit.md:11` — - `CHANGELOG.md:678` — - `engine="groq_pm4py"` subprocess transport — MCP handlers now spawn the real DSPy/pm4py-backed translator instead of the in-process stub.
-- `.wip/audit.md:79` — - `.wip/audit.md:45` — - `.wip/audit.md:12` — - `CHANGELOG.md:774` — - [`ee90af9`](../../commit/ee90af9) `fix(no-stub): wire ingest/map/extend/push format params; add named-graph push; remove dead cfg`
-- `.wip/audit.md:80` — - `.wip/audit.md:46` — - `.wip/audit.md:13` — - `CHANGELOG.md:794` — - [`e4db225`](../../commit/e4db225) `ontostar(R3): wire PowlBridgeReplay into admission gate, replace stub`
-- `.wip/audit.md:81` — - `.wip/audit.md:47` — - `.wip/audit.md:14` — - `CHANGELOG.md:804` — - `PowlBridgeReplay` replaces the noop stub in the admission gate.
-- `.wip/audit.md:82` — - `.wip/audit.md:48` — - `.wip/audit.md:15` — - `DISSERTATION.md:46` — *   **L6 High-Speed Kernels:** Represented by `wasm4pm` stream-2 stub bindings and the `src/manufacturing/` pipeline.
-- `.wip/audit.md:83` — - `.wip/audit.md:49` — - `.wip/audit.md:16` — - `IMPLEMENTATION_SUMMARY.md:142` — ## What's NOT Implemented (Vision 2030 Future Layers)
-- `.wip/audit.md:84` — - `.wip/audit.md:50` — - `.wip/audit.md:17` — - `Cargo.toml:86` — todo = "deny"
-- `.wip/audit.md:85` — - `.wip/audit.md:51` — - `.wip/audit.md:18` — - `ontology/alignment-notes.md:109` — `OcelObjectType` is a typing class for OCEL 2.0 instances (e.g. Order, Item, Package). In the current TTL it is a vocabulary stub — the actual object type individuals (Order, Item, etc.) are not defined. The enforcer correctly flags it as orphaned.
-- `.wip/audit.md:86` — - `.wip/audit.md:52` — - `.wip/audit.md:19` — - `tests/end_to_end_governed_release.rs:8` — //!   5. assert Admitted(receipt) with non-stub fitness
-- `.wip/audit.md:87` — - `.wip/audit.md:53` — - `.wip/audit.md:20` — - `tests/end_to_end_governed_release.rs:68` — //    fitness, not a stub 1.0).
-- `.wip/audit.md:88` — - `.wip/audit.md:54` — - `.wip/audit.md:21` — - `tests/end_to_end_governed_release.rs:78` — !conf.run_id.starts_with("stub-run-"),
-- `.wip/audit.md:89` — - `.wip/audit.md:55` — - `.wip/audit.md:22` — - `tests/end_to_end_governed_release.rs:79` — "verdict came from the stub, not the real PowlBridge: {}",
-- `.wip/audit.md:90` — - `.wip/audit.md:56` — - `.wip/audit.md:23` — - `tests/ratchet_red_team.rs:43` — let msg = "evaluate_admission(stub) called";
-- `.wip/audit.md:91` — - `.wip/audit.md:57` — - `.wip/audit.md:24` — - `tests/portability_codegen.rs:94` — let receipt = build_test_receipt(b"some-artifact-placeholder");
-- `.wip/audit.md:92` — - `.wip/audit.md:58` — - `.wip/audit.md:25` — - `tests/saboteur_meta.rs:5` — //! output is structurally distinct from a hypothetical "stub that
-- `.wip/audit.md:93` — - `.wip/audit.md:59` — - `.wip/audit.md:26` — - `tests/adversarial_jtbd_test.rs:114` — Either the format was silently ignored (soft stub) or auto-detection hid the override.\n\
-- `.wip/audit.md:94` — - `.wip/audit.md:60` — - `.wip/audit.md:27` — - `tests/saboteur_a9_provenance_chain_load_bearing.rs:27` — //! R5 WB-1's TODO comment at admission.rs:660-662 carried A9 forward
-- `.wip/audit.md:95` — - `.wip/audit.md:61` — - `.wip/audit.md:28` — - `tests/three_layer_integration_test.rs:2` — //! (#43 Dynamics → #44 Causal hookup → #45 Planner stub).
-- `.wip/audit.md:96` — - `.wip/audit.md:62` — - `.wip/audit.md:29` — - `tests/three_layer_integration_test.rs:57` — // The Planner stub must read from the same SQLite store that
-- `.wip/audit.md:97` — - `.wip/audit.md:63` — - `.wip/audit.md:30` — - `tests/manufacturing_validators.rs:191` — // 64-char WO hash literal with a placeholder of equal length.
-- `.wip/audit.md:98` — - `.wip/audit.md:64` — - `.wip/audit.md:31` — - `tests/manufacturing_validators.rs:192` — let placeholder: String = "f".repeat(wo_hash.len());
-- `.wip/audit.md:99` — - `.wip/audit.md:65` — - `.wip/audit.md:32` — - `tests/manufacturing_validators.rs:194` — f.contents = f.contents.replace(&wo_hash, &placeholder);
-- `.wip/audit.md:100` — - `.wip/audit.md:66` — - `.wip/audit.md:33` — - `tests/ed25519_attestation.rs:3` — //! Replaces the digest-equality tautology stub with cryptographic
-- `.wip/audit.md:101` — - `.wip/audit.md:67` — - `.wip/audit.md:34` — - `tests/ggen_revops_pipeline.rs:37` — /// the ggen pipeline produced a populated file rather than an empty stub.
-- `.wip/audit.md:102` — - `.wip/audit.md:68` — - `.wip/audit.md:35` — - `tests/ggen_pipeline_real.rs:25` — /// 1. generated.rs exists and contains the expected stub modules.
-- `.wip/audit.md:103` — - `.wip/audit.md:69` — - `.wip/audit.md:36` — - `tests/admission_real_replay.rs:2` — //! `PowlBridgeReplay`, not the `NoopPowlReplay` stub.
-- `.wip/audit.md:104` — - `.wip/audit.md:70` — - `.wip/audit.md:37` — - `tests/admission_real_replay.rs:59` — // The bridge — not the stub — produced this verdict. The stub would
-- `.wip/audit.md:105` — - `.wip/audit.md:71` — - `.wip/audit.md:38` — - `tests/admission_real_replay.rs:60` — // have returned the literal {fitness: 1.0, run_id: "stub-run-..."}.
-- `.wip/audit.md:106` — - `.wip/audit.md:72` — - `.wip/audit.md:39` — - `tests/admission_real_replay.rs:62` — !conf.run_id.starts_with("stub-run-"),
-- `.wip/audit.md:107` — - `.wip/audit.md:73` — - `.wip/audit.md:40` — - `tests/admission_real_replay.rs:63` — "verdict came from NoopPowlReplay stub, not PowlBridge: run_id={}",
-- `.wip/audit.md:108` — - `.wip/audit.md:74` — - `.wip/audit.md:41` — - `packages/declarations.d.ts:29` — placeholder?: string;
-- `.wip/audit.md:109` — - `.wip/audit.md:75` — - `.wip/audit.md:42` — - `src/server.rs:75` — /// (Stream-2 stub path; not backed by real POWL replay). 6 occurrences.
-- `.wip/audit.md:110` — - `.wip/audit.md:76` — - `.wip/audit.md:43` — - `src/server.rs:1008` — // TODO(R3 Task B): replace tenant_id fallback with
-- `.wip/audit.md:111` — - `.wip/audit.md:77` — - `.wip/audit.md:44` — - `src/server.rs:2551` — #[tool(name = "onto_policy_register", description = "Register an ARGOS-style policy rule (#40, ISWC 2025 WOP). `effect` is `\"allow\"` or `\"deny\"`; `condition` is a SPARQL ASK that can use the `{target}` placeholder. Pairs with `onto_policy_check` and `onto_certify_action` — CIVeX gates causal risk, ARGOS gates authorisation.")]
-- `.wip/audit.md:112` — - `.wip/audit.md:78` — - `.wip/audit.md:46` — - `src/server.rs:2996` — #[tool(name = "onto_plan_compile_pddl", description = "Compile a PDDL domain from registered Dynamics action schemas (#43) plus a problem instance from the loaded graph and a goal Turtle slice (#45 Planner stub). Returns {domain, problem, translation_notes}. The actual planner (Fast Downward) is wrapped client-side per the LLM-Modulo convention — this primitive only emits the PDDL. Lossy in the v0.4 stub: only ASK-shape SPARQ
-- `.wip/audit.md:113` — - `.wip/audit.md:79` — - `.wip/audit.md:47` — - `src/server.rs:5605` — // TODO(stream1-4): Streams 1-4 are not yet merged on this branch. The
-- `.wip/audit.md:114` — - `.wip/audit.md:80` — - `.wip/audit.md:48` — - `src/server.rs:5859` — // TODO(stream1): replace with self.onto_declare_workflow(...).
-- `.wip/audit.md:115` — - `.wip/audit.md:81` — - `.wip/audit.md:49` — - `src/server.rs:5981` — // Load scope row (Stream 5 stub schema).
-- `.wip/audit.md:116` — - `.wip/audit.md:82` — - `.wip/audit.md:50` — - `src/server.rs:5986` — // delta — not a placeholder.
-- `.wip/audit.md:117` — - `.wip/audit.md:83` — - `.wip/audit.md:51` — - `src/server.rs:6830` — // stub (NoopPowlReplay) or the real wasm4pm bridge.  The stub
-- `.wip/audit.md:118` — - `.wip/audit.md:84` — - `.wip/audit.md:52` — - `src/server.rs:6831` — // prefixes every run_id with "stub-run-" so callers and auditors
-- `.wip/audit.md:119` — - `.wip/audit.md:85` — - `.wip/audit.md:53` — - `src/server.rs:6832` — // can distinguish stub-path admissions from production-verified
-- `.wip/audit.md:120` — - `.wip/audit.md:86` — - `.wip/audit.md:54` — - `src/server.rs:6836` — let powl_stub = receipt.record.conformance_run_id.starts_with("stub-run-");
-- `.wip/audit.md:121` — - `.wip/audit.md:87` — - `.wip/audit.md:55` — - `src/server.rs:6844` — // integrated (stream-2 stub); CTQ admission skipped the real
-- `.wip/audit.md:122` — - `.wip/audit.md:88` — - `.wip/audit.md:56` — - `src/server.rs:7709` — /// TODO(R3 Task B): replace `is_admin_principal` with the canonical
-- `.wip/audit.md:123` — - `.wip/audit.md:89` — - `.wip/audit.md:57` — - `src/server.rs:7999` — /// TODO(R3 Task B): switch the INSERT target to `revoked_principals`
-- `.wip/audit.md:124` — - `.wip/audit.md:90` — - `.wip/audit.md:58` — - `src/ocel_store.rs:478` — // Make sure the conformance_runs table exists. The Stream-3 stub
-- `.wip/audit.md:125` — - `.wip/audit.md:91` — - `.wip/audit.md:59` — - `src/embed.rs:59` — /// let placeholder: Vec<f32> = vec![0.0; BGE_SMALL_DIM];
-- `.wip/audit.md:126` — - `.wip/audit.md:92` — - `.wip/audit.md:60` — - `src/embed.rs:60` — /// assert_eq!(placeholder.len(), BGE_SMALL_DIM);
-- `.wip/audit.md:127` — - `.wip/audit.md:93` — - `.wip/audit.md:61` — - `src/cell8.rs:17` — //! ## Phase 10 stub status
-- `.wip/audit.md:128` — - `.wip/audit.md:94` — - `.wip/audit.md:62` — - `src/policy.rs:27` — /// SPARQL ASK. Can use the placeholder `{target}` which is substituted
-- `.wip/audit.md:129` — - `.wip/audit.md:95` — - `.wip/audit.md:63` — - `src/attestation.rs:3` — //! Replaces the Phase-10 A10 tautology stub (which compared
-- `.wip/audit.md:130` — - `.wip/audit.md:96` — - `.wip/audit.md:64` — - `src/cell_ready.rs:54` — /// Stream-2-stub stand-in for `wasm4pm`'s POWL arena handle. Stream 2
-- `.wip/audit.md:131` — - `.wip/audit.md:97` — - `.wip/audit.md:65` — - `src/cell_ready.rs:221` — // ── Real Ed25519 attestation (replaces the A10 tautology stub) ──
-- `.wip/audit.md:132` — - `.wip/audit.md:98` — - `.wip/audit.md:66` — - `src/plan_pddl.rs:1` — //! Planner stub (#45) — PDDL emission from Dynamics action schemas.
-- `.wip/audit.md:133` — - `.wip/audit.md:99` — - `.wip/audit.md:67` — - `src/plan_pddl.rs:9` — //! ## Bounded scope (v0.4 stub)
-- `.wip/audit.md:134` — - `.wip/audit.md:100` — - `.wip/audit.md:68` — - `src/plan_pddl.rs:24` — //! paper is the anchor for the rigorous version; this stub is a sand-table.
-- `.wip/audit.md:135` — - `.wip/audit.md:101` — - `.wip/audit.md:69` — - `src/plan_pddl.rs:34` — /// stub couldn't fully encode and that was preserved as a PDDL comment.
-- `.wip/audit.md:136` — - `.wip/audit.md:102` — - `.wip/audit.md:70` — - `src/plan_pddl.rs:75` — /// Translate a triple position (placeholder `<{x}>`, full IRI `<...>`, or bare
-- `.wip/audit.md:137` — - `.wip/audit.md:103` — - `.wip/audit.md:71` — - `src/plan_pddl.rs:196` — // Problem stub — empty init/goal; the MCP layer fills in init from the
-- `.wip/audit.md:138` — - `.wip/audit.md:104` — - `.wip/audit.md:72` — - `src/defects.rs:49` — /// (replaces the digest-equality tautology stub). Forward-compatible —
-- `.wip/audit.md:139` — - `.wip/audit.md:105` — - `.wip/audit.md:73` — - `src/defects.rs:203` — /// matches the artifact bit-for-bit. (Phase-10 stub: digest-equality
-- `.wip/audit.md:140` — - `.wip/audit.md:106` — - `.wip/audit.md:74` — - `src/state.rs:173` — -- ─── OntoStar Stream 1 stub migrations (authoritative copies live in Stream 1) ──
-- `.wip/audit.md:141` — - `.wip/audit.md:107` — - `.wip/audit.md:75` — - `src/state.rs:252` — -- the §28 hidden-WIP leak. (Verified: no DELETE statement in
-- `.wip/audit.md:142` — - `.wip/audit.md:108` — - `.wip/audit.md:76` — - `src/plan_classical.rs:25` — //! NOT fall back to a silent stub.
-- `.wip/audit.md:143` — - `.wip/audit.md:109` — - `.wip/audit.md:77` — - `src/socket_windows.rs:5` — /// Windows stub for the Unix domain socket adapter.
-- `.wip/audit.md:144` — - `.wip/audit.md:110` — - `.wip/audit.md:78` — - `src/admission.rs:5` — //!    (TODO Stream 2: replace [`PowlReplay`] stub with the real bridge),
-- `.wip/audit.md:145` — - `.wip/audit.md:111` — - `.wip/audit.md:79` — - `src/admission.rs:225` — /// TODO(R3 Task B): switch from `revoked_sessions` fallback to the
-- `.wip/audit.md:146` — - `.wip/audit.md:112` — - `.wip/audit.md:80` — - `src/admission.rs:525` — /// Stream-2-stub trait. The real implementation lives in `powl_bridge.rs`
-- `.wip/audit.md:147` — - `.wip/audit.md:113` — - `.wip/audit.md:81` — - `src/admission.rs:529` — /// TODO(stream-2): swap to the wasm4pm-backed bridge. This stub MUST be
-- `.wip/audit.md:148` — - `.wip/audit.md:114` — - `.wip/audit.md:82` — - `src/admission.rs:538` — /// flag distinguishes placeholder results from production-grade evidence.
-- `.wip/audit.md:149` — - `.wip/audit.md:115` — - `.wip/audit.md:83` — - `src/admission.rs:569` — /// `true` when this result was produced by the stream-2 stub
-- `.wip/audit.md:150` — - `.wip/audit.md:116` — - `.wip/audit.md:84` — - `src/admission.rs:576` — /// external operators and auditors can distinguish stub-path
-- `.wip/audit.md:151` — - `.wip/audit.md:117` — - `.wip/audit.md:85` — - `src/admission.rs:595` — /// assert!(!pass.is_stub,             "pass() produces non-stub evidence");
-- `.wip/audit.md:152` — - `.wip/audit.md:118` — - `.wip/audit.md:86` — - `src/admission.rs:623` — /// assert!(!fail.is_stub,             "fail() produces non-stub evidence");
-- `.wip/audit.md:153` — - `.wip/audit.md:119` — - `.wip/audit.md:87` — - `src/admission.rs:684` — /// Returns `true` when this result was produced by the stream-2 stub
-- `.wip/audit.md:154` — - `.wip/audit.md:120` — - `.wip/audit.md:88` — - `src/admission.rs:687` — /// Stub results have `fitness = 1.0` and `precision = 1.0` as placeholders
-- `.wip/audit.md:155` — - `.wip/audit.md:121` — - `.wip/audit.md:89` — - `src/admission.rs:690` — /// # Auto-instinct: stub results produced by NoopPowlReplay always conform
-- `.wip/audit.md:156` — - `.wip/audit.md:122` — - `.wip/audit.md:90` — - `src/admission.rs:698` — /// // Auto-instinct: stub results are always conformant (placeholder 1.0/1.0).
-- `.wip/audit.md:157` — - `.wip/audit.md:123` — - `.wip/audit.md:91` — - `src/admission.rs:700` — /// assert!(stub_result.is_conformant(),  "stub result must report conformance");
-- `.wip/audit.md:158` — - `.wip/audit.md:124` — - `.wip/audit.md:92` — - `src/admission.rs:702` — /// // A hand-crafted non-stub conforming result is not a stub.
-- `.wip/audit.md:159` — - `.wip/audit.md:125` — - `.wip/audit.md:93` — - `src/admission.rs:711` — /// **Stream-2 stub.** Returns a perfect-fit verdict. Retained because some
-- `.wip/audit.md:160` — - `.wip/audit.md:126` — - `.wip/audit.md:94` — - `src/admission.rs:724` — /// // Stub always reports perfect fitness and precision — these are
-- `.wip/audit.md:161` — - `.wip/audit.md:127` — - `.wip/audit.md:95` — - `src/admission.rs:739` — /// Marker string placed in the codebase to locate every stream-2 stub site.
-- `.wip/audit.md:162` — - `.wip/audit.md:128` — - `.wip/audit.md:96` — - `src/admission.rs:742` — /// remaining match indicates a stub that was not replaced with the real
-- `.wip/audit.md:163` — - `.wip/audit.md:129` — - `.wip/audit.md:97` — - `src/admission.rs:750` — /// // The value is a recognisable TODO tag, not a semver.
-- `.wip/audit.md:164` — - `.wip/audit.md:130` — - `.wip/audit.md:98` — - `src/admission.rs:751` — /// assert!(STREAM3_STUB_POWL_REPLAY_MARKER.starts_with("TODO"));
-- `.wip/audit.md:165` — - `.wip/audit.md:131` — - `.wip/audit.md:99` — - `src/admission.rs:754` — pub const STREAM3_STUB_POWL_REPLAY_MARKER: &str = "TODO(stream-2): replace NoopPowlReplay";
-- `.wip/audit.md:166` — - `.wip/audit.md:132` — - `.wip/audit.md:100` — - `src/admission.rs:833` — /// OCEL event attribute key indicating the POWL replay used a stub
-- `.wip/audit.md:167` — - `.wip/audit.md:133` — - `.wip/audit.md:101` — - `src/admission.rs:913` — // POWL replay is not yet integrated (stream-2 stub);
-- `.wip/audit.md:168` — - `.wip/audit.md:134` — - `.wip/audit.md:102` — - `src/admission.rs:916` — // `"stub-run-"` run_id prefix allow downstream consumers to
-- `.wip/audit.md:169` — - `.wip/audit.md:135` — - `.wip/audit.md:103` — - `src/admission.rs:922` — run_id: format!("stub-run-{}", scope_token),
-- `.wip/audit.md:170` — - `.wip/audit.md:136` — - `.wip/audit.md:104` — - `src/admission.rs:1427` — // Run conformance via wasm4pm bridge (or stub).
-- `.wip/audit.md:171` — - `.wip/audit.md:137` — - `.wip/audit.md:105` — - `src/admission.rs:1462` — // self-attests with the same hash (placeholder until ed25519-dalek
-- `.wip/audit.md:172` — - `.wip/audit.md:138` — - `.wip/audit.md:106` — - `src/admission.rs:2226` — // Run the stub migration on its own (it is a no-op SQL string but keep
-- `.wip/audit.md:173` — - `.wip/audit.md:139` — - `.wip/audit.md:107` — - `src/admission.rs:2243` — // Surface stub status in the OCEL witness so a process miner who sees
-- `.wip/audit.md:174` — - `.wip/audit.md:140` — - `.wip/audit.md:108` — - `src/admission.rs:2244` — // only the event log can flag stub-path runs without parsing run_id.
-- `.wip/audit.md:175` — - `.wip/audit.md:141` — - `.wip/audit.md:109` — - `src/admission.rs:2287` — // placeholder values from NoopPowlReplay (stream-2 stub
-- `.wip/audit.md:176` — - `.wip/audit.md:142` — - `.wip/audit.md:110` — - `src/admission.rs:2289` — // stub-path conformance runs as production evidence.
-- `.wip/audit.md:177` — - `.wip/audit.md:143` — - `.wip/audit.md:111` — - `src/retention.rs:369` — // This is a placeholder for receipt-file artifacts — see
-- `.wip/audit.md:178` — - `.wip/audit.md:144` — - `.wip/audit.md:112` — - `src/retention.rs:415` — /// implementation is a defined no-op placeholder — returns `0` until a
-- `.wip/audit.md:179` — - `.wip/audit.md:145` — - `.wip/audit.md:113` — - `src/retention.rs:429` — /// // Placeholder implementation always reports zero orphans pruned.
-- `.wip/audit.md:180` — - `.wip/audit.md:146` — - `.wip/audit.md:114` — - `src/receipts.rs:243` — /// stub migration in `STREAM3_STUB_MIGRATION`.
-- `.wip/audit.md:181` — - `.wip/audit.md:147` — - `.wip/audit.md:115` — - `docs/01-architecture.md:55` — `PowlBridgeReplay` parses declared POWL strings via the `wasm4pm` crate, projects the OCEL trace tagged with `scope_token`, and returns a fitness/precision verdict. Production admission uses this; a `NoopPowlReplay` stub remains for gate-semantics unit tests that need a deterministic pass-through. Defects: `ReplayFailed`, `SkippedTask`, `ExtraTask`, `WrongOrder`, `CapabilityZero`, `ReplayDivergence`.
-- `.wip/audit.md:182` — - `.wip/audit.md:148` — - `.wip/audit.md:116` — - `docs/05-receipt-chain.md:20` — pub signature: Option<Vec<u8>>,      // Ed25519 (Phase 10 stub-of-record)
-- `.wip/audit.md:183` — - `.wip/audit.md:149` — - `.wip/audit.md:117` — - `docs/07-phase-history.md:11` — Commits `33feda7`, `e4db225`. Replaced the `NoopPowlReplay` stub with `PowlBridgeReplay::new(store)` in production-path admission. The gap closed: 12 admission tests had been validating against a fitness=1.0 stub. Production now routes through `wasm4pm` for every admission; only four gate-semantics tests retain the noop with an explicit `// INTENTIONAL` annotation.
-- `.wip/audit.md:184` — - `.wip/audit.md:150` — - `.wip/audit.md:118` — - `docs/04-defect-taxonomy.md:38` — | `attestation_missing` | `AttestationMissing` | Cell8 A10 `ExternalAttestation` conjunct fails | Stub digest mismatch | `tests/cell8_thirteen_gates.rs` |
-- `.wip/audit.md:185` — - `.wip/audit.md:151` — - `.wip/audit.md:119` — - `docs/ies-ecosystem.md:204` — | IES Top (ToLO) | ~22 | TBD | TBD | TBD | TBD | TBD |
-- `.wip/audit.md:186` — - `.wip/audit.md:152` — - `.wip/audit.md:120` — - `docs/ies-ecosystem.md:205` — | IES Core | ~131 | TBD | TBD | TBD | TBD | TBD |
-- `.wip/audit.md:187` — - `.wip/audit.md:153` — - `.wip/audit.md:121` — - `docs/00-overview.md:34` — - **Receipts prove.** Every admitted operation produces a `ProductionRecord`, a chained `Receipt` (BLAKE3 over canonical bytes, Ed25519-signed in Phase 10's stub-of-record form), and an `admission_granted` OCEL event. Denied operations produce `admission_denied` with a typed `defect` attribute. No claim of success exists outside this chain.
-- `.wip/audit.md:188` — - `.wip/audit.md:154` — - `.wip/audit.md:122` — - `docs/00-overview.md:38` — The Phase 6 audit found 25 silently-broken CLI tests, 12 stub-validated admission tests, 21 dead defect variants, and 5 textual-ratchet bypass patterns. Phases 7–11 closed every finding fix-forward. The system now refuses to claim a feature works unless the receipt and the OCEL event log prove it ran. That refusal is the product.
-- `.wip/audit.md:189` — - `.wip/audit.md:155` — - `.wip/audit.md:123` — - `.github/workflows/wip-sweep.yml:1` — name: WIP Sweep
-- `.wip/audit.md:190` — - `.wip/audit.md:156` — - `.wip/audit.md:124` — - `.github/workflows/wip-sweep.yml:5` — branches: [agent/finish-wip-20260730]
-- `.wip/audit.md:191` — - `.wip/audit.md:157` — - `.wip/audit.md:125` — - `.github/workflows/wip-sweep.yml:6` — paths: [.github/wip-trigger]
-- `.wip/audit.md:192` — - `.wip/audit.md:158` — - `.wip/audit.md:126` — - `.github/workflows/wip-sweep.yml:18` — ref: agent/finish-wip-20260730
-- `.wip/audit.md:193` — - `.wip/audit.md:159` — - `.wip/audit.md:127` — - `.github/workflows/wip-sweep.yml:21` — - name: Inventory WIP and executable gates
-- `.wip/audit.md:194` — - `.wip/audit.md:160` — - `.wip/audit.md:128` — - `.github/workflows/wip-sweep.yml:26` — mkdir -p .wip
-- `.wip/audit.md:195` — - `.wip/audit.md:161` — - `.wip/audit.md:129` — - `.github/workflows/wip-sweep.yml:33` — marker_re = re.compile(r'(?i)\b(TODO|FIXME|XXX|HACK|WIP|TBD|NOT[ _-]?IMPLEMENTED|PLACEHOLDER|STUB)\b|todo!\s*\(|unimplemented!\s*\(')
-- `.wip/audit.md:196` — - `.wip/audit.md:162` — - `.wip/audit.md:130` — - `.github/workflows/wip-sweep.yml:109` — Path('.wip/audit.json').write_text(json.dumps(audit,indent=2))
-- `.wip/audit.md:197` — - `.wip/audit.md:163` — - `.wip/audit.md:131` — - `.github/workflows/wip-sweep.yml:111` — lines=['# WIP audit','',f"Base: `{audit['base_sha']}`",'']
-- `.wip/audit.md:198` — - `.wip/audit.md:164` — - `.wip/audit.md:132` — - `.github/workflows/wip-sweep.yml:128` — Path('.wip/audit.md').write_text('\n'.join(lines)+'\n')
-- `.wip/audit.md:199` — - `.wip/audit.md:165` — - `.wip/audit.md:133` — - `.github/workflows/wip-sweep.yml:137` — git add .wip/audit.json .wip/audit.md
-- `.wip/audit.md:200` — - `.wip/audit.md:166` — - `.wip/audit.md:134` — - `.github/workflows/wip-sweep.yml:138` — git commit -m 'chore: record WIP audit receipt'
-- `.wip/audit.md:201` — - `.wip/audit.md:167` — - `.wip/audit.md:135` — - `.github/workflows/wip-sweep.yml:139` — git push origin HEAD:agent/finish-wip-20260730
-- `.wip/audit.md:202` — - `.wip/audit.md:168` — - `.wip/audit.md:136` — - `ontology/zoela/core.ttl:181` — # § 3  Forward-declared stub classes for future modules
-- `.wip/audit.md:203` — - `.wip/audit.md:169` — - `.wip/audit.md:137` — - `ontology/zoela/core.ttl:209` — # § 3b  Forward-declared stub classes for newly-created modules
-- `.wip/audit.md:204` — - `.wip/audit.md:170` — - `.wip/audit.md:138` — - `case-studies/jc3iedm-ies4-crosswalk/README.md:39` — 4. **Use a placeholder JC3IEDM IRI namespace.** STANAG 5525 doesn't issue canonical web IRIs; this sketch uses `http://example.org/jc3iedm/` as a placeholder. A real implementation would use NATO/MIP-issued IRIs.
-- `.wip/audit.md:205` — - `.wip/audit.md:171` — - `.wip/audit.md:139` — - `case-studies/jc3iedm-ies4-crosswalk/crosswalk.ttl:11` — # Placeholder JC3IEDM namespace — STANAG 5525 has no canonical web IRIs.
-- `.wip/audit.md:206` — - `.wip/audit.md:172` — - `.wip/audit.md:140` — - `case-studies/mcp-ies-rag-demo/README.md:81` — - Uses a placeholder `demo:roleIn` helper property. A production IES4 implementation would use the canonical `ies:MemberState` + `ies:isMemberOf` pattern. The shortcut keeps the demo Turtle readable.
-- `.wip/audit.md:207` — - `.wip/audit.md:173` — - `.wip/audit.md:141` — - `case-studies/zero-emission-aviation/demo/index.html:163` — <input id="search" type="search" autocomplete="off" placeholder="e.g. ZeroAvia, H2GEAR, electrolysis" aria-describedby="search-help" />
-- `.wip/audit.md:208` — - `.wip/audit.md:174` — - `.wip/audit.md:142` — - `case-studies/verifiabench/results/multi_per_task_Qwen2.5-3B-Instruct-4bit.json:602` — "output": "```turtle\n<biolink:MTOR> <biolink:is_involved_in> <GO:0008150>\n```\n\nNote: The Gene Ontology (GO) term `GO:0008150` is not a real term for 'regulation of cell growth'. A correct representation would use a specific GO term for 'regulation of cell growth', but since one is not provided, I've used a placeholder here. If you have a specific GO term in
-- `.wip/audit.md:209` — - `.wip/audit.md:175` — - `.wip/audit.md:143` — - `case-studies/verifiabench/results/multi_per_task_Qwen2.5-3B-Instruct-4bit.json:624` — "output": "```turtle\n@prefix bio: <http://biolink.info/vocabulary/> .\n<http://biolink.info/gene/ESR1> bio:involved_in bio:signal_transduction_process.\n<http://biolink.info/gene/ESR1> bio:is_a bio:Gene.\n<http://purl.obolinguistics.org/obo/GO_0008155> bio:is_a bio:Biological_process.\n```\n\nNote: The GO term `GO:0008155` is not a real Gene Ontology term. For
-- `.wip/audit.md:210` — - `.wip/audit.md:176` — - `.wip/audit.md:144` — - `case-studies/skills-england-esco-crosswalk/pipeline/fetch_esco.py:48` — todo = [o for o in occs if o["stdCode"] not in done]
-- `.wip/audit.md:211` — - `.wip/audit.md:177` — - `.wip/audit.md:145` — - `case-studies/skills-england-esco-crosswalk/pipeline/fetch_esco.py:49` — print(f"{len(todo)} to fetch ({len(done)} cached)")
-- `.wip/audit.md:212` — - `.wip/audit.md:178` — - `.wip/audit.md:146` — - `case-studies/skills-england-esco-crosswalk/pipeline/fetch_esco.py:51` — for i, o in enumerate(todo):
-- `.wip/audit.md:213` — - `.wip/audit.md:179` — - `.wip/audit.md:147` — - `case-studies/skills-england-esco-crosswalk/pipeline/fetch_esco.py:60` — print(f"{i}/{len(todo)}")
-- `.wip/audit.md:214` — - `.wip/audit.md:180` — - `.wip/audit.md:148` — - `case-studies/heritage-aerial/pipeline/build-stac.py:138` — # An always-present placeholder for the primary image asset (the scan is
-- `.wip/audit.md:215` — - `.wip/audit.md:181` — - `.wip/audit.md:149` — - `case-studies/heritage-aerial/demo/index.html:32` — #detail .placeholder { color: #999; font-style: italic; font-size: 0.9em; }
-- `.wip/audit.md:216` — - `.wip/audit.md:182` — - `.wip/audit.md:150` — - `case-studies/heritage-aerial/demo/index.html:73` — <p class="placeholder">Click any marker on the map to view its NAPH metadata.</p>
-- `.wip/audit.md:217` — - `.wip/audit.md:183` — - `.wip/audit.md:151` — - `case-studies/heritage-aerial/demo/index.html:191` — document.getElementById('detail').innerHTML = `<p class="placeholder">Could not load IIIF manifest: ${err.message}<br><br>Make sure you're serving this from a local HTTP server (not file://) and that <code>../reports/iiif-collection-manifest.json</code> exists.</p>`;
-- `.wip/audit.md:218` — - `.wip/audit.md:184` — - `.wip/audit.md:152` — - `case-studies/heritage-aerial/demo/real.html:30` — #detail .placeholder { color: #999; font-style: italic; font-size: 0.9em; }
-- `.wip/audit.md:219` — - `.wip/audit.md:185` — - `.wip/audit.md:153` — - `case-studies/heritage-aerial/demo/real.html:61` — <div id="detail"><p class="placeholder">Click any footprint to view its NAPH metadata.</p></div>
-- `.wip/audit.md:220` — - `.wip/audit.md:186` — - `.wip/audit.md:154` — - `case-studies/heritage-aerial/demo/real.html:138` — load().catch(err=>{ document.getElementById('detail').innerHTML=`<p class="placeholder">Could not load manifest: ${err.message}. Serve over HTTP, not file://.</p>`; });
-- `.wip/audit.md:221` — - `.wip/audit.md:187` — - `.wip/audit.md:155` — - `case-studies/heritage-aerial/docs/red-team-report.md:83` — **Status:** documented in the docs but not implemented. The CQ2 expected results table notes "(requires GeoSPARQL)" but doesn't say this means *not Oxigraph*.
-- `.wip/audit.md:222` — - `.wip/audit.md:188` — - `.wip/audit.md:156` — - `case-studies/heritage-aerial/docs/red-team-report.md:124` — 2. Add a stub IIIF Image API in the demo pipeline that serves placeholder images so manifests fully resolve
-- `.wip/audit.md:223` — - `.wip/audit.md:189` — - `.wip/audit.md:157` — - `case-studies/heritage-aerial/pipeline/scrapers/napl_opencanada.py:284` — for stub in stubs:
-- `.wip/audit.md:224` — - `.wip/audit.md:190` — - `.wip/audit.md:158` — - `case-studies/heritage-aerial/pipeline/scrapers/napl_opencanada.py:286` — detail = dataset_detail(stub["id"])
-- `.wip/audit.md:225` — - `.wip/audit.md:191` — - `.wip/audit.md:159` — - `case-studies/heritage-aerial/pipeline/scrapers/napl_opencanada.py:288` — print(f"# {stub['id']}: fetch failed: {e}", file=sys.stderr)
-- `.wip/audit.md:226` — - `.wip/audit.md:192` — - `.wip/audit.md:160` — - `case-studies/heritage-aerial/pipeline/scrapers/__init__.py:9` — - NCAPAirPhotoFinderScraper — Angular SPA, requires Playwright/manual JSON capture (stub)
-- `.wip/audit.md:227` — - `.wip/audit.md:193` — - `.wip/audit.md:161` — - `case-studies/heritage-aerial/pipeline/scrapers/__init__.py:10` — - USGSEarthExplorerScraper — M2M API, requires registration (stub)
-- `.wip/audit.md:228` — - `.wip/audit.md:194` — - `.wip/audit.md:162` — - `case-studies/heritage-aerial/pipeline/scrapers/usgs_earthexplorer.py:3` — USGS Earth Explorer M2M API Adapter — STUB.
-- `.wip/audit.md:229` — - `.wip/audit.md:195` — - `.wip/audit.md:163` — - `case-studies/heritage-aerial/pipeline/scrapers/usgs_earthexplorer.py:42` — description="USGS Earth Explorer NAPH adapter (STUB — requires USGS credentials)."
-- `.wip/audit.md:230` — - `.wip/audit.md:196` — - `.wip/audit.md:164` — - `case-studies/heritage-aerial/pipeline/scrapers/usgs_earthexplorer.py:53` — print("# USGS Earth Explorer M2M adapter — STUB", file=sys.stderr)
-- `.wip/audit.md:231` — - `.wip/audit.md:197` — - `.wip/audit.md:165` — - `case-studies/heritage-aerial/deliverables/06-knowledge-transfer/external-integrations.md:3` — For each NAPH gap previously marked "stub" or "skipped (external API)", this document maps to the existing open-source implementation worth adopting rather than rebuilding. Status as of 2026-05.
-- `.wip/audit.md:232` — - `.wip/audit.md:198` — - `.wip/audit.md:166` — - `case-studies/heritage-aerial/deliverables/06-knowledge-transfer/external-integrations.md:32` — # See pipeline/scrapers/usgs_earthexplorer.py — fill in the TODO sections
-- `.wip/audit.md:233` — - `.wip/audit.md:199` — - `.wip/audit.md:167` — - `case-studies/heritage-aerial/deliverables/06-knowledge-transfer/external-integrations.md:59` — 3. Update [`pipeline/iiif-bridge.py`](../../pipeline/iiif-bridge.py) so the `service.id` URLs point at your Cantaloupe instance instead of placeholder URLs
-- `.wip/audit.md:234` — - `.wip/audit.md:200` — - `.wip/audit.md:168` — - `case-studies/heritage-aerial/deliverables/06-knowledge-transfer/external-integrations.md:144` — 2. Replace [`pipeline/scrapers/ncap_airphotofinder.py`](../../pipeline/scrapers/ncap_airphotofinder.py) stub with API client
-- `.wip/audit.md:235` — - `.wip/audit.md:201` — - `.wip/audit.md:169` — - `case-studies/heritage-aerial/deliverables/06-knowledge-transfer/maintenance-runbook.md:33` — - Mailing list / forum: tbd
-- `.wip/audit.md:236` — - `.wip/audit.md:202` — - `.wip/audit.md:170` — - `case-studies/heritage-aerial/deliverables/04-adoption-guidance/transition-guides/baseline-to-enhanced.md:57` — naph:flightAltitude 0.0 ;  # placeholder — flag as unknown
-- `.wip/audit.md:237` — - `.wip/audit.md:203` — - `.wip/audit.md:171` — - `deploy/helm/values.yaml:58` — # If empty, the chart creates an empty placeholder Secret you must populate
-- `.wip/audit.md:238` — - `.wip/audit.md:204` — - `.wip/audit.md:172` — - `packages/utils/crypto.ts:5` — // In production this delegates to a BLAKE3 WASM module; this stub provides
-- `.wip/audit.md:239` — - `.wip/audit.md:205` — - `.wip/audit.md:173` — - `packages/utils/crypto.ts:9` — // Stub implementation — replace with wasm-blake3 or native binding in app workspace
-- `.wip/audit.md:240` — - `.wip/audit.md:206` — - `.wip/audit.md:174` — - `packages/forms/zoela.tsx:28` — placeholder: "Integer priority for ordering push cards in the notification tray; lower values appear first.",
-- `.wip/audit.md:241` — - `.wip/audit.md:207` — - `.wip/audit.md:175` — - `packages/forms/zoela.tsx:35` — placeholder: "Expo deep-link URI the card action button navigates to when tapped.",
-- `.wip/audit.md:242` — - `.wip/audit.md:208` — - `.wip/audit.md:176` — - `packages/forms/zoela.tsx:42` — placeholder: "Label for the primary call-to-action button rendered on the push card (e.g. 'View Details', 'Accept Request').",
-- `.wip/audit.md:243` — - `.wip/audit.md:209` — - `.wip/audit.md:177` — - `packages/forms/zoela.tsx:49` — placeholder: "Main body text of the push card, describing the action or update in detail.",
-- `.wip/audit.md:244` — - `.wip/audit.md:210` — - `.wip/audit.md:178` — - `packages/forms/zoela.tsx:56` — placeholder: "Secondary line of text below the card title, providing route or ministry context.",
-- `.wip/audit.md:245` — - `.wip/audit.md:211` — - `.wip/audit.md:179` — - `packages/forms/zoela.tsx:63` — placeholder: "Primary headline text displayed on the push card in the notification tray.",
-- `.wip/audit.md:246` — - `.wip/audit.md:212` — - `.wip/audit.md:180` — - `packages/forms/zoela.tsx:84` — placeholder: "Expo deep-link URI that opens the relevant screen in ZOE LA Mobile when the notification is tapped.",
-- `.wip/audit.md:247` — - `.wip/audit.md:213` — - `.wip/audit.md:181` — - `packages/forms/zoela.tsx:91` — placeholder: "Category identifier from the NotificationCategoryScheme, used to route and filter notifications in the app.",
-- `.wip/audit.md:248` — - `.wip/audit.md:214` — - `.wip/audit.md:182` — - `packages/forms/zoela.tsx:98` — placeholder: "Full body text of the push notification providing context and call-to-action.",
-- `.wip/audit.md:249` — - `.wip/audit.md:215` — - `.wip/audit.md:183` — - `packages/forms/zoela.tsx:105` — placeholder: "Short headline text of the push notification, displayed in the device notification shade.",
-- `.wip/audit.md:250` — - `.wip/audit.md:216` — - `.wip/audit.md:184` — - `packages/forms/connectGroupInterestForm.tsx:38` — placeholder="e.g. Sunday evenings, weekday mornings"
-- `.wip/audit.md:251` — - `.wip/audit.md:217` — - `.wip/audit.md:185` — - `packages/forms/connectGroupInterestForm.tsx:56` — placeholder="Anything else we should know?"
-- `.wip/audit.md:252` — - `.wip/audit.md:218` — - `.wip/audit.md:186` — - `packages/screens/adminDetailScreen.tsx:21` — <Text style={styles.placeholder}>
-- `.wip/audit.md:253` — - `.wip/audit.md:219` — - `.wip/audit.md:187` — - `packages/screens/adminDetailScreen.tsx:33` — placeholder: { fontSize: 14, color: '#666', fontStyle: 'italic' },
-- `.wip/audit.md:254` — - `.wip/audit.md:220` — - `.wip/audit.md:188` — - `src/a2a/router.rs:43` — "task_id": "a2a-task-placeholder",
-- `.wip/audit.md:255` — - `.wip/audit.md:221` — - `.wip/audit.md:189` — - `src/workflows/mod.rs:23` — //! confirming they are not placeholder stubs:
-- `.wip/audit.md:256` — - `.wip/audit.md:222` — - `.wip/audit.md:190` — - `src/workflows/builtin.rs:87` — //   TODO(wasm4pm POWL v2): use CG=(...) once Choice Graphs land upstream
-- `.wip/audit.md:257` — - `.wip/audit.md:223` — - `.wip/audit.md:191` — - `src/workflows/builtin.rs:133` — // CG{...} → XOR for now (TODO above).
-- `.wip/audit.md:258` — - `.wip/audit.md:224` — - `.wip/audit.md:192` — - `src/workflows/builtin.rs:156` — // step (the alphabet still matches). TODO: revisit when POWL gains
-- `.wip/audit.md:259` — - `.wip/audit.md:225` — - `.wip/audit.md:193` — - `src/cmds/generated.rs:20` — /// Generated stub — wired to src/cmds/doctor.rs
-- `.wip/audit.md:260` — - `.wip/audit.md:226` — - `.wip/audit.md:194` — - `src/cmds/generated.rs:39` — /// Generated stub — wired to src/cmds/thesis.rs
-- `.wip/audit.md:261` — - `.wip/audit.md:227` — - `.wip/audit.md:195` — - `src/cmds/generated.rs:58` — /// Generated stub — wired to src/cmds/marketplace.rs
-- `.wip/audit.md:262` — - `.wip/audit.md:228` — - `.wip/audit.md:196` — - `src/cmds/generated.rs:77` — /// Generated stub — wired to src/cmds/clinical.rs
-- `.wip/audit.md:263` — - `.wip/audit.md:229` — - `.wip/audit.md:197` — - `src/cmds/generated.rs:96` — /// Generated stub — wired to src/cmds/alignment.rs
-- `.wip/audit.md:264` — - `.wip/audit.md:230` — - `.wip/audit.md:198` — - `src/cmds/generated.rs:115` — /// Generated stub — wired to src/cmds/governance.rs
-- `.wip/audit.md:265` — - `.wip/audit.md:231` — - `.wip/audit.md:199` — - `src/cmds/generated.rs:134` — /// Generated stub — wired to src/cmds/data.rs
-- `.wip/audit.md:266` — - `.wip/audit.md:232` — - `.wip/audit.md:200` — - `src/cmds/generated.rs:153` — /// Generated stub — wired to src/cmds/server.rs
-- `.wip/audit.md:267` — - `.wip/audit.md:233` — - `.wip/audit.md:201` — - `src/cmds/generated.rs:172` — /// Generated stub — wired to src/cmds/ontology.rs
-- `.wip/audit.md:268` — - `.wip/audit.md:234` — - `.wip/audit.md:202` — - `src/cmds/thesis.rs:250` — // Stub: return empty claim/evidence packets.
-- `.wip/audit.md:269` — - `.wip/audit.md:235` — - `.wip/audit.md:203` — - `src/cmds/thesis.rs:261` — message: format!("Extraction stub for source_id={} — real LLM call TBD", source_id),
-- `.wip/audit.md:270` — - `.wip/audit.md:236` — - `.wip/audit.md:204` — - `src/cmds/thesis.rs:293` — // Stub: run lightweight validation check
-- `.wip/audit.md:271` — - `.wip/audit.md:237` — - `.wip/audit.md:205` — - `src/cmds/thesis.rs:307` — message: "Audit stub — SHACL validation TBD".to_string(),
-- `.wip/audit.md:272` — - `.wip/audit.md:238` — - `.wip/audit.md:206` — - `src/cmds/thesis.rs:317` — // Stub: run chapter routing SPARQL CONSTRUCT
-- `.wip/audit.md:273` — - `.wip/audit.md:239` — - `.wip/audit.md:207` — - `src/cmds/thesis.rs:329` — message: "Route stub — SPARQL CONSTRUCT TBD".to_string(),
-- `.wip/audit.md:274` — - `.wip/audit.md:240` — - `.wip/audit.md:208` — - `src/cmds/thesis.rs:342` — // Stub: render markdown thesis
-- `.wip/audit.md:275` — - `.wip/audit.md:241` — - `.wip/audit.md:209` — - `src/cmds/thesis.rs:370` — // Stub: run full pipeline
-- `.wip/audit.md:276` — - `.wip/audit.md:242` — - `.wip/audit.md:210` — - `src/cmds/thesis.rs:416` — // Check 2: Thesis shapes file (stub: always pass)
-- `.wip/audit.md:277` — - `.wip/audit.md:243` — - `.wip/audit.md:211` — - `src/cmds/thesis.rs:423` — // Check 3: Gemini connectivity (stub: assume pass)
-- `.wip/audit.md:278` — - `.wip/audit.md:244` — - `.wip/audit.md:212` — - `src/cmds/thesis.rs:427` — "Gemini 3.1 Flash reachable (stub)".to_string(),
-- `.wip/audit.md:279` — - `.wip/audit.md:245` — - `.wip/audit.md:213` — - `src/cmds/thesis.rs:444` — /// Stub: "Interactive flow TBD; see onto thesis wizard"
-- `.wip/audit.md:280` — - `.wip/audit.md:246` — - `.wip/audit.md:214` — - `src/cmds/thesis.rs:449` — // Stub: interactive prompts TBD
-- `.wip/audit.md:281` — - `.wip/audit.md:247` — - `.wip/audit.md:215` — - `src/cmds/thesis.rs:452` — "message": "Interactive wizard stub — prompts for input files, source metadata, chapter structure TBD"
-- `.wip/audit.md:282` — - `.wip/audit.md:248` — - `.wip/audit.md:216` — - `src/cmds/thesis.rs:462` — // Stub: trace provenance
-- `.wip/audit.md:283` — - `.wip/audit.md:249` — - `.wip/audit.md:217` — - `supabase/migrations/20260518000004_zoela_ocel_events.sql:21` — receipt_hash TEXT,                           -- SHA-256 hex digest (Web Crypto stub)
-- `.wip/audit.md:284` — - `.wip/audit.md:250` — - `.wip/audit.md:218` — - `benchmark/oaei/README.md:39` — | **Open Ontologies** | **TBD** | **TBD** |
-- `.wip/audit.md:285` — - `.wip/audit.md:251` — - `.wip/audit.md:219` — - `benchmark/reference/ies4.ttl:2516` — This is a very simple placeholder for an area of IES that is likely to grow in the future. For now, it can be used to group together a number of elements (using isPartOf relationship) to assert that they share the same truth - i.e. in one possible scenario, all of them were true. The same Element may exist in more than one PossibleWorld - i.e. scenarios may share elements. For version 4.1.0 of IES, PossibleWo
-- `.wip/audit.md:286` — - `.wip/audit.md:252` — - `.wip/audit.md:220` — - `benchmark/ontoaxiom/results/condition_d/goodrelations.json:16` — ["Product Or Services Some Instances Placeholder", "Product Or Service"],
-- `.wip/audit.md:287` — - `.wip/audit.md:253` — - `.wip/audit.md:221` — - `benchmark/ontoaxiom/results/condition_d/goodrelations_extracted.json:16` — ["Product or services some instances placeholder (DEPRECATED)", "Product or service"],
-- `.wip/audit.md:288` — - `.wip/audit.md:254` — - `.wip/audit.md:222` — - `benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json:9999` — "product or services some instances placeholder",
-- `.wip/audit.md:289` — - `.wip/audit.md:255` — - `.wip/audit.md:223` — - `benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json:10114` — "product or services some instances placeholder"
-- `.wip/audit.md:290` — - `.wip/audit.md:256` — - `.wip/audit.md:224` — - `benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json:10214` — "product or services some instances placeholder"
-- `.wip/audit.md:291` — - `.wip/audit.md:257` — - `.wip/audit.md:225` — - `benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json:10310` — "product or services some instances placeholder"
-- `.wip/audit.md:292` — - `.wip/audit.md:258` — - `.wip/audit.md:226` — - `benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json:10402` — "product or services some instances placeholder"
-- `.wip/audit.md:293` — - `.wip/audit.md:259` — - `.wip/audit.md:227` — - `benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json:10490` — "product or services some instances placeholder"
-- `.wip/audit.md:294` — - `.wip/audit.md:260` — - `.wip/audit.md:228` — - `benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json:10574` — "product or services some instances placeholder"
-- `.wip/audit.md:295` — - `.wip/audit.md:261` — - `.wip/audit.md:229` — - `benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json:10654` — "product or services some instances placeholder"
-- `.wip/audit.md:296` — - `.wip/audit.md:262` — - `.wip/audit.md:230` — - `benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json:10730` — "product or services some instances placeholder"
-- `.wip/audit.md:297` — - `.wip/audit.md:263` — - `.wip/audit.md:231` — - `benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json:10802` — "product or services some instances placeholder"
-- `.wip/audit.md:298` — - `.wip/audit.md:264` — - `.wip/audit.md:232` — - `benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json:10870` — "product or services some instances placeholder"
-- `.wip/audit.md:299` — - `.wip/audit.md:265` — - `.wip/audit.md:233` — - `benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json:10934` — "product or services some instances placeholder"
-- `.wip/audit.md:300` — - `.wip/audit.md:266` — - `.wip/audit.md:234` — - `benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json:10994` — "product or services some instances placeholder"
-- `.wip/audit.md:301` — - `.wip/audit.md:267` — - `.wip/audit.md:235` — - `benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json:11050` — "product or services some instances placeholder"
-- `.wip/audit.md:302` — - `.wip/audit.md:268` — - `.wip/audit.md:236` — - `benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json:11102` — "product or services some instances placeholder"
-- `.wip/audit.md:303` — - `.wip/audit.md:269` — - `.wip/audit.md:237` — - `benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json:11150` — "product or services some instances placeholder"
-- `.wip/audit.md:304` — - `.wip/audit.md:270` — - `.wip/audit.md:238` — - `benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json:11194` — "product or services some instances placeholder"
-- `.wip/audit.md:305` — - `.wip/audit.md:271` — - `.wip/audit.md:239` — - `benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json:11234` — "product or services some instances placeholder"
-- `.wip/audit.md:306` — - `.wip/audit.md:272` — - `.wip/audit.md:240` — - `benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json:11270` — "product or services some instances placeholder"
-- `.wip/audit.md:307` — - `.wip/audit.md:273` — - `.wip/audit.md:241` — - `benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json:11302` — "product or services some instances placeholder"
-- `.wip/audit.md:308` — - `.wip/audit.md:274` — - `.wip/audit.md:242` — - `benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json:11333` — "product or services some instances placeholder",
-- `.wip/audit.md:309` — - `.wip/audit.md:275` — - `.wip/audit.md:243` — - `benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json:11337` — "product or services some instances placeholder",
-- `.wip/audit.md:310` — - `.wip/audit.md:276` — - `.wip/audit.md:244` — - `benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json:11341` — "product or services some instances placeholder",
-- `.wip/audit.md:311` — - `.wip/audit.md:277` — - `.wip/audit.md:245` — - `benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json:11345` — "product or services some instances placeholder",
-- `.wip/audit.md:312` — - `.wip/audit.md:278` — - `.wip/audit.md:246` — - `benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json:11349` — "product or services some instances placeholder",
-- `.wip/audit.md:313` — - `.wip/audit.md:279` — - `.wip/audit.md:247` — - `benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json:11353` — "product or services some instances placeholder",
-- `.wip/audit.md:314` — - `.wip/audit.md:280` — - `.wip/audit.md:248` — - `benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json:11357` — "product or services some instances placeholder",
-- `.wip/audit.md:315` — - `.wip/audit.md:281` — - `.wip/audit.md:249` — - `benchmark/ontoaxiom/data/ontoaxiom/ontologies/goodrelations.ttl:205` — rdfs:comment "A placeholder for all official public holidays at the gr:Location. This allows specifying the opening hours on public holidays. If a given day is a public holiday, this specification supersedes the opening hours for the respective day of the week."@en ;
-- `.wip/audit.md:316` — - `.wip/audit.md:282` — - `.wip/audit.md:250` — - `benchmark/ontoaxiom/data/ontoaxiom/ontologies/goodrelations.ttl:622` — rdfs:comment """This states that an actual product instance (gr:Individual) or a placeholder instance for multiple, unidentified such instances (gr:SomeItems) is one occurence of a particular gr:ProductOrServiceModel.
-- `.wip/audit.md:317` — - `.wip/audit.md:283` — - `.wip/audit.md:251` — - `benchmark/ontoaxiom/data/ontoaxiom/ontologies/goodrelations.ttl:1060` — rdfs:label "Product or services some instances placeholder (DEPRECATED)"@en ;
-- `.wip/audit.md:318` — - `.wip/audit.md:284` — - `.wip/audit.md:252` — - `benchmark/ontoaxiom/data/ontoaxiom/ontologies/goodrelations.ttl:1434` — rdfs:comment """A placeholder instance for unknown instances of a mass-produced commodity. This is used as a computationally cheap work-around for such instances that are not individually exposed on the Web but just stated to exist (i.e., which are existentially quantified).
-- `.wip/audit.md:319` — - `.wip/audit.md:285` — - `.wip/audit.md:253` — - `benchmark/ontoaxiom/data/ontoaxiom/ontologies/goodrelations.ttl:1859` — rdfs:comment """The superclass of all classes describing products or services types, either by nature or purpose. Examples for such subclasses are "TV set", "vacuum cleaner", etc. An instance of this class can be either an actual product or service (gr:Individual), a placeholder instance for unknown instances of a mass-produced commodity (gr:SomeItems), or a model / prototyp
-- `.wip/audit.md:320` — - `.wip/audit.md:286` — - `.wip/audit.md:254` — - `benchmark/ontoaxiom/data/ontoaxiom/ontologies/goodrelations.ttl:1864` — c) dummyCellPhone123 as a placeholder for actual instances of a certain kind of cell phones (gr:SomeItems)
-- `.wip/audit.md:321` — - `.wip/audit.md:287` — - `.wip/audit.md:255` — - `benchmark/ontoaxiom/data/ontoaxiom/ontologies/time.ttl:434` — This is a stub class, representing the set of all temporal reference systems."""@en ;
-- `.wip/audit.md:322` — - `.wip/audit.md:288` — - `.wip/audit.md:256` — - `benchmark/ontoaxiom/data/ontoaxiom/ontologies/time.ttl:438` — This is a stub class, representing the set of all temporal reference systems."""@en ;
-- `.wip/audit.md:323` — - `.wip/audit.md:289` — - `.wip/audit.md:257` — - `benchmark/ontoaxiom/data/ontoaxiom/ontologies/time.ttl:547` — skos:note "An ontology for time zone descriptions was described in [owl-time-20060927] and provided as RDF in a separate namespace tzont:. However, that ontology was incomplete in scope, and the example datasets were selective. Furthermore, since the use of a class from an external ontology as the range of an ObjectProperty in OWL-Time creates a dependency, reference to the time zone 
-- `.wip/audit.md:324` — - `.wip/audit.md:290` — - `.wip/audit.md:258` — - `benchmark/ontoaxiom/data/ontoaxiom/classes/goodrelations_classes.json:29` — "product or services some instances placeholder",
-- `.wip/audit.md:325` — - `.wip/audit.md:291` — - `.wip/audit.md:259` — - `benchmark/ontoaxiom/data/ontoaxiom/subclassof/goodrelations_subclassof.json:55` — "Product Or Services Some Instances Placeholder",
-- `.wip/audit.md:326` — - `.wip/audit.md:292` — - `.wip/audit.md:260` — - `studio/src/components/PropertyInspector.tsx:292` — placeholder="rdfs:label or full URI..."
-- `.wip/audit.md:327` — - `.wip/audit.md:293` — - `.wip/audit.md:261` — - `studio/src/components/PropertyInspector.tsx:339` — placeholder={newValType === 'uri' ? 'http://...' : 'value...'}
-- `.wip/audit.md:328` — - `.wip/audit.md:294` — - `.wip/audit.md:262` — - `studio/src/components/TreeView.tsx:511` — <input type="text" placeholder="Search nodes..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
-- `.wip/audit.md:329` — - `.wip/audit.md:295` — - `.wip/audit.md:263` — - `studio/src/components/ChatPanel.tsx:147` — placeholder="Ask about ontologies..."
-- `.wip/audit.md:330` — - `.wip/audit.md:296` — - `.wip/audit.md:264` — - `studio/src/components/AddClassDialog.tsx:38` — placeholder="Class name..."
-- `.wip/audit.md:331` — - `.wip/audit.md:297` — - `.wip/audit.md:265` — - `studio/docs/plans/2026-03-14-tauri-implementation-plan.md:155` — {/* Graph canvas placeholder */}
-- `.wip/audit.md:332` — - `.wip/audit.md:298` — - `.wip/audit.md:266` — - `studio/docs/plans/2026-03-14-tauri-implementation-plan.md:213` — Expected: Dark-themed window with toolbar, graph placeholder, chat panel, status bar
-- `.wip/audit.md:333` — - `.wip/audit.md:299` — - `.wip/audit.md:267` — - `studio/docs/plans/2026-03-14-tauri-implementation-plan.md:924` — Replace graph placeholder div with:
-- `.wip/audit.md:334` — - `.wip/audit.md:300` — - `.wip/audit.md:268` — - `studio/docs/plans/2026-03-14-tauri-implementation-plan.md:933` — // Replace graph placeholder:
-- `.wip/audit.md:335` — - `.wip/audit.md:301` — - `.wip/audit.md:269` — - `studio/docs/plans/2026-03-14-tauri-implementation-plan.md:990` — placeholder="Class name..."
-- `.wip/audit.md:336` — - `.wip/audit.md:302` — - `.wip/audit.md:270` — - `studio/docs/plans/2026-03-14-tauri-implementation-plan.md:1901` — placeholder="Ask about ontologies..."
-- `.wip/audit.md:337` — - `.wip/audit.md:303` — - `.wip/audit.md:271` — - `studio/docs/plans/2026-03-14-tauri-implementation-plan.md:1963` — Replace the chat placeholder in Layout.tsx:
-- `.wip/audit.md:338` — - `.wip/audit.md:304` — - `.wip/audit.md:272` — - `studio/docs/plans/2026-03-14-tauri-implementation-plan.md:1968` — // Replace the chat panel placeholder div content:
-- `.wip/audit.md:339` — - `.wip/audit.md:305` — - `.wip/audit.md:273` — - `studio/docs/plans/2026-03-14-tauri-implementation-plan.md:2131` — // Replace inspector placeholder:
-- `.wip/audit.md:340` — - `.wip/audit.md:306` — - `.wip/audit.md:274` — - `docs/plans/2026-03-09-standalone-mcp-server-plan.md:86` — **Step 2: Create stub lib.rs so it compiles**
-- `.wip/audit.md:341` — - `.wip/audit.md:307` — - `.wip/audit.md:275` — - `docs/plans/2026-03-12-infrastructure-positioning-plan.md:262` — Add a shared setup helper and stub the `match` arms (just print `{"error":"not implemented"}` for now — we'll fill them in Tasks 2–6):
-- `.wip/audit.md:342` — - `.wip/audit.md:308` — - `.wip/audit.md:276` — - `docs/plans/2026-03-12-infrastructure-positioning-plan.md:369` — Expected: FAIL — subcommands return `not implemented`.
-- `.wip/audit.md:343` — - `.wip/audit.md:309` — - `.wip/audit.md:277` — - `docs/plans/2026-03-12-infrastructure-positioning-plan.md:1571` — Add new concise benchmark section with the HermiT/Pellet/OO comparison table (numbers TBD after running). Keep existing detailed benchmarks below as "Detailed Benchmark Methodology".
-- `.wip/audit.md:344` — - `.wip/audit.md:310` — - `.wip/audit.md:278` — - `docs/research/PHD_PROGRAM.md:37` — *   *Lab:* Executing the `wasm4pm` stream-2 stub bindings via the `src/swarm.rs` cognition swarm.
-- `.wip/audit.md:345` — - `.wip/audit.md:311` — - `.wip/audit.md:279` — - `docs/research/CODEBASE_MAPPING.md:11` — *   **L6 High-Speed Kernels:** Represented by the `wasm4pm` stream-2 stub bindings (POWL and cognition kernels) and the `src/manufacturing/` pipeline that targets AtomVM, Erlang, and Rust.
-- `.wip/audit.md:346` — - `.wip/audit.md:312` — - `.wip/audit.md:280` — - `docs/research/SYLLABI.md:114` — *   **Weeks 10-12: The `wasm4pm` Lab:** Integrating and evaluating the stream-2 stub bindings. Profiling kernel execution speed.
-- `.wip/audit.md:347` — - `.wip/audit.md:313` — - `.wip/audit.md:281` — - `docs/research/materials/EDGE_LAB_SPEC.md:14` — *   **Wasm Runtime:** WasmEdge runtime configured with the `open-ontologies` `wasm4pm` stream-2 stub bindings.
-- `.wip/audit.md:348` — - `.wip/audit.md:314` — - `.wip/audit.md:282` — - `.specify/templates/zoela/connect-group-interest-form.tera:38` — placeholder="e.g. Sunday evenings, weekday mornings"
-- `.wip/audit.md:349` — - `.wip/audit.md:315` — - `.wip/audit.md:283` — - `.specify/templates/zoela/connect-group-interest-form.tera:56` — placeholder="Anything else we should know?"
-- `.wip/audit.md:350` — - `.wip/audit.md:316` — - `.wip/audit.md:284` — - `.specify/templates/zoela/react-hook-form.tera:69` — placeholder: "{{ fcomment | trim }}",
-- `.wip/audit.md:351` — - `.wip/audit.md:317` — - `.wip/audit.md:285` — - `.specify/templates/zoela/admin-detail-screen.tera:42` — <Text style={styles.placeholder}>
-- `.wip/audit.md:352` — - `.wip/audit.md:318` — - `.wip/audit.md:286` — - `.specify/templates/zoela/admin-detail-screen.tera:54` — placeholder: { fontSize: 14, color: '#666', fontStyle: 'italic' },
-- `.wip/audit.md:353` — - `.wip/audit.md:319` — - `.wip/audit.md:287` — - `.specify/templates/cli/cmds.rs.tera:49` — /// Generated stub — wired to src/cmds/{{ name | trim | replace(from="-", to="_") }}.rs
-- `.wip/audit.md:354` — - `.wip/audit.md:320` — - `.wip/audit.md:295` — - `origin/agent/finish-wip-20260730` — ahead 3, behind 3, `bd2e83532873` — chore: retrigger WIP sweep
-- `.wip/audit.md:355` — - `.wip/audit.md:321` — - `.wip/audit.json:8` — "text": "`revoked_principals` table lands (TODO marker in code). New"
-- `.wip/audit.md:356` — - `.wip/audit.md:322` — - `.wip/audit.json:13` — "text": "TODO(R6) \u2014 same disease, deferred fix template."
-- `.wip/audit.md:357` — - `.wip/audit.md:323` — - `.wip/audit.json:18` — "text": "`TODO(R6 \u00a715.A9)`, `TODO(R6 \u00a715.A11)`, `TODO(R6 \u00a715.A12)` comments"
-- `.wip/audit.md:358` — - `.wip/audit.md:324` — - `.wip/audit.json:23` — "text": "- `engine=\"groq_pm4py\"` subprocess transport \u2014 MCP handlers now spawn the real DSPy/pm4py-backed translator instead of the in-process stub."
-- `.wip/audit.md:359` — - `.wip/audit.md:325` — - `.wip/audit.json:28` — "text": "- [`ee90af9`](../../commit/ee90af9) `fix(no-stub): wire ingest/map/extend/push format params; add named-graph push; remove dead cfg`"
-- `.wip/audit.md:360` — - `.wip/audit.md:326` — - `.wip/audit.json:33` — "text": "- [`e4db225`](../../commit/e4db225) `ontostar(R3): wire PowlBridgeReplay into admission gate, replace stub`"
-- `.wip/audit.md:361` — - `.wip/audit.md:327` — - `.wip/audit.json:38` — "text": "- `PowlBridgeReplay` replaces the noop stub in the admission gate."
-- `.wip/audit.md:362` — - `.wip/audit.md:328` — - `.wip/audit.json:43` — "text": "*   **L6 High-Speed Kernels:** Represented by `wasm4pm` stream-2 stub bindings and the `src/manufacturing/` pipeline."
-- `.wip/audit.md:363` — - `.wip/audit.md:329` — - `.wip/audit.json:48` — "text": "## What's NOT Implemented (Vision 2030 Future Layers)"
-- `.wip/audit.md:364` — - `.wip/audit.md:330` — - `.wip/audit.json:53` — "text": "todo = \"deny\""
-- `.wip/audit.md:365` — - `.wip/audit.md:331` — - `.wip/audit.json:58` — "text": "`OcelObjectType` is a typing class for OCEL 2.0 instances (e.g. Order, Item, Package). In the current TTL it is a vocabulary stub \u2014 the actual object type individuals (Order, Item, etc.) are not defined. The enforcer correctly flags it as orphaned."
-- `.wip/audit.md:366` — - `.wip/audit.md:332` — - `.wip/audit.json:63` — "text": "//!   5. assert Admitted(receipt) with non-stub fitness"
-- `.wip/audit.md:367` — - `.wip/audit.md:333` — - `.wip/audit.json:68` — "text": "//    fitness, not a stub 1.0)."
-- `.wip/audit.md:368` — - `.wip/audit.md:334` — - `.wip/audit.json:73` — "text": "!conf.run_id.starts_with(\"stub-run-\"),"
-- `.wip/audit.md:369` — - `.wip/audit.md:335` — - `.wip/audit.json:78` — "text": "\"verdict came from the stub, not the real PowlBridge: {}\","
-- `.wip/audit.md:370` — - `.wip/audit.md:336` — - `.wip/audit.json:83` — "text": "let msg = \"evaluate_admission(stub) called\";"
-- `.wip/audit.md:371` — - `.wip/audit.md:337` — - `.wip/audit.json:88` — "text": "let receipt = build_test_receipt(b\"some-artifact-placeholder\");"
-- `.wip/audit.md:372` — - `.wip/audit.md:338` — - `.wip/audit.json:93` — "text": "//! output is structurally distinct from a hypothetical \"stub that"
-- `.wip/audit.md:373` — - `.wip/audit.md:339` — - `.wip/audit.json:98` — "text": "Either the format was silently ignored (soft stub) or auto-detection hid the override.\\n\\"
-- `.wip/audit.md:374` — - `.wip/audit.md:340` — - `.wip/audit.json:103` — "text": "//! R5 WB-1's TODO comment at admission.rs:660-662 carried A9 forward"
-- `.wip/audit.md:375` — - `.wip/audit.md:341` — - `.wip/audit.json:108` — "text": "//! (#43 Dynamics \u2192 #44 Causal hookup \u2192 #45 Planner stub)."
-- `.wip/audit.md:376` — - `.wip/audit.md:342` — - `.wip/audit.json:113` — "text": "// The Planner stub must read from the same SQLite store that"
-- `.wip/audit.md:377` — - `.wip/audit.md:343` — - `.wip/audit.json:118` — "text": "// 64-char WO hash literal with a placeholder of equal length."
-- `.wip/audit.md:378` — - `.wip/audit.md:344` — - `.wip/audit.json:123` — "text": "let placeholder: String = \"f\".repeat(wo_hash.len());"
-- `.wip/audit.md:379` — - `.wip/audit.md:345` — - `.wip/audit.json:128` — "text": "f.contents = f.contents.replace(&wo_hash, &placeholder);"
-- `.wip/audit.md:380` — - `.wip/audit.md:346` — - `.wip/audit.json:133` — "text": "//! Replaces the digest-equality tautology stub with cryptographic"
-- `.wip/audit.md:381` — - `.wip/audit.md:347` — - `.wip/audit.json:138` — "text": "/// the ggen pipeline produced a populated file rather than an empty stub."
-- `.wip/audit.md:382` — - `.wip/audit.md:348` — - `.wip/audit.json:143` — "text": "/// 1. generated.rs exists and contains the expected stub modules."
-- `.wip/audit.md:383` — - `.wip/audit.md:349` — - `.wip/audit.json:148` — "text": "//! `PowlBridgeReplay`, not the `NoopPowlReplay` stub."
-- `.wip/audit.md:384` — - `.wip/audit.md:350` — - `.wip/audit.json:153` — "text": "// The bridge \u2014 not the stub \u2014 produced this verdict. The stub would"
-- `.wip/audit.md:385` — - `.wip/audit.md:351` — - `.wip/audit.json:158` — "text": "// have returned the literal {fitness: 1.0, run_id: \"stub-run-...\"}."
-- `.wip/audit.md:386` — - `.wip/audit.md:352` — - `.wip/audit.json:163` — "text": "!conf.run_id.starts_with(\"stub-run-\"),"
-- `.wip/audit.md:387` — - `.wip/audit.md:353` — - `.wip/audit.json:168` — "text": "\"verdict came from NoopPowlReplay stub, not PowlBridge: run_id={}\","
-- `.wip/audit.md:388` — - `.wip/audit.md:354` — - `.wip/audit.json:173` — "text": "placeholder?: string;"
-- `.wip/audit.md:389` — - `.wip/audit.md:355` — - `.wip/audit.json:178` — "text": "/// (Stream-2 stub path; not backed by real POWL replay). 6 occurrences."
-- `.wip/audit.md:390` — - `.wip/audit.md:356` — - `.wip/audit.json:183` — "text": "// TODO(R3 Task B): replace tenant_id fallback with"
-- `.wip/audit.md:391` — - `.wip/audit.md:357` — - `.wip/audit.json:188` — "text": "#[tool(name = \"onto_policy_register\", description = \"Register an ARGOS-style policy rule (#40, ISWC 2025 WOP). `effect` is `\\\"allow\\\"` or `\\\"deny\\\"`; `condition` is a SPARQL ASK that can use the `{target}` placeholder. Pairs with `onto_policy_check` and `onto_certify_action` \u2014 CIVeX gates causal risk, ARGOS gates authorisation.\")]"
-- `.wip/audit.md:392` — - `.wip/audit.md:358` — - `.wip/audit.json:198` — "text": "#[tool(name = \"onto_plan_compile_pddl\", description = \"Compile a PDDL domain from registered Dynamics action schemas (#43) plus a problem instance from the loaded graph and a goal Turtle slice (#45 Planner stub). Returns {domain, problem, translation_notes}. The actual planner (Fast Downward) is wrapped client-side per the LLM-Modulo convention \u2014 this primitive only emits the PDDL. Lossy in the v0.4 stub: only ASK-shape SPARQL pr
-- `.wip/audit.md:393` — - `.wip/audit.md:359` — - `.wip/audit.json:203` — "text": "// TODO(stream1-4): Streams 1-4 are not yet merged on this branch. The"
-- `.wip/audit.md:394` — - `.wip/audit.md:360` — - `.wip/audit.json:208` — "text": "// TODO(stream1): replace with self.onto_declare_workflow(...)."
-- `.wip/audit.md:395` — - `.wip/audit.md:361` — - `.wip/audit.json:213` — "text": "// Load scope row (Stream 5 stub schema)."
-- `.wip/audit.md:396` — - `.wip/audit.md:362` — - `.wip/audit.json:218` — "text": "// delta \u2014 not a placeholder."
-- `.wip/audit.md:397` — - `.wip/audit.md:363` — - `.wip/audit.json:223` — "text": "// stub (NoopPowlReplay) or the real wasm4pm bridge.  The stub"
-- `.wip/audit.md:398` — - `.wip/audit.md:364` — - `.wip/audit.json:228` — "text": "// prefixes every run_id with \"stub-run-\" so callers and auditors"
-- `.wip/audit.md:399` — - `.wip/audit.md:365` — - `.wip/audit.json:233` — "text": "// can distinguish stub-path admissions from production-verified"
-- `.wip/audit.md:400` — - `.wip/audit.md:366` — - `.wip/audit.json:238` — "text": "let powl_stub = receipt.record.conformance_run_id.starts_with(\"stub-run-\");"
-- `.wip/audit.md:401` — - `.wip/audit.md:367` — - `.wip/audit.json:243` — "text": "// integrated (stream-2 stub); CTQ admission skipped the real"
-- `.wip/audit.md:402` — - `.wip/audit.md:368` — - `.wip/audit.json:248` — "text": "/// TODO(R3 Task B): replace `is_admin_principal` with the canonical"
-- `.wip/audit.md:403` — - `.wip/audit.md:369` — - `.wip/audit.json:253` — "text": "/// TODO(R3 Task B): switch the INSERT target to `revoked_principals`"
-- `.wip/audit.md:404` — - `.wip/audit.md:370` — - `.wip/audit.json:258` — "text": "// Make sure the conformance_runs table exists. The Stream-3 stub"
-- `.wip/audit.md:405` — - `.wip/audit.md:371` — - `.wip/audit.json:263` — "text": "/// let placeholder: Vec<f32> = vec![0.0; BGE_SMALL_DIM];"
-- `.wip/audit.md:406` — - `.wip/audit.md:372` — - `.wip/audit.json:268` — "text": "/// assert_eq!(placeholder.len(), BGE_SMALL_DIM);"
-- `.wip/audit.md:407` — - `.wip/audit.md:373` — - `.wip/audit.json:273` — "text": "//! ## Phase 10 stub status"
-- `.wip/audit.md:408` — - `.wip/audit.md:374` — - `.wip/audit.json:278` — "text": "/// SPARQL ASK. Can use the placeholder `{target}` which is substituted"
-- `.wip/audit.md:409` — - `.wip/audit.md:375` — - `.wip/audit.json:283` — "text": "//! Replaces the Phase-10 A10 tautology stub (which compared"
-- `.wip/audit.md:410` — - `.wip/audit.md:376` — - `.wip/audit.json:288` — "text": "/// Stream-2-stub stand-in for `wasm4pm`'s POWL arena handle. Stream 2"
-- `.wip/audit.md:411` — - `.wip/audit.md:377` — - `.wip/audit.json:293` — "text": "// \u2500\u2500 Real Ed25519 attestation (replaces the A10 tautology stub) \u2500\u2500"
-- `.wip/audit.md:412` — - `.wip/audit.md:378` — - `.wip/audit.json:298` — "text": "//! Planner stub (#45) \u2014 PDDL emission from Dynamics action schemas."
-- `.wip/audit.md:413` — - `.wip/audit.md:379` — - `.wip/audit.json:303` — "text": "//! ## Bounded scope (v0.4 stub)"
-- `.wip/audit.md:414` — - `.wip/audit.md:380` — - `.wip/audit.json:308` — "text": "//! paper is the anchor for the rigorous version; this stub is a sand-table."
-- `.wip/audit.md:415` — - `.wip/audit.md:381` — - `.wip/audit.json:313` — "text": "/// stub couldn't fully encode and that was preserved as a PDDL comment."
-- `.wip/audit.md:416` — - `.wip/audit.md:382` — - `.wip/audit.json:318` — "text": "/// Translate a triple position (placeholder `<{x}>`, full IRI `<...>`, or bare"
-- `.wip/audit.md:417` — - `.wip/audit.md:383` — - `.wip/audit.json:323` — "text": "// Problem stub \u2014 empty init/goal; the MCP layer fills in init from the"
-- `.wip/audit.md:418` — - `.wip/audit.md:384` — - `.wip/audit.json:328` — "text": "/// (replaces the digest-equality tautology stub). Forward-compatible \u2014"
-- `.wip/audit.md:419` — - `.wip/audit.md:385` — - `.wip/audit.json:333` — "text": "/// matches the artifact bit-for-bit. (Phase-10 stub: digest-equality"
-- `.wip/audit.md:420` — - `.wip/audit.md:386` — - `.wip/audit.json:338` — "text": "-- \u2500\u2500\u2500 OntoStar Stream 1 stub migrations (authoritative copies live in Stream 1) \u2500\u2500"
-- `.wip/audit.md:421` — - `.wip/audit.md:387` — - `.wip/audit.json:343` — "text": "-- the \u00a728 hidden-WIP leak. (Verified: no DELETE statement in"
-- `.wip/audit.md:422` — - `.wip/audit.md:388` — - `.wip/audit.json:348` — "text": "//! NOT fall back to a silent stub."
-- `.wip/audit.md:423` — - `.wip/audit.md:389` — - `.wip/audit.json:353` — "text": "/// Windows stub for the Unix domain socket adapter."
-- `.wip/audit.md:424` — - `.wip/audit.md:390` — - `.wip/audit.json:358` — "text": "//!    (TODO Stream 2: replace [`PowlReplay`] stub with the real bridge),"
-- `.wip/audit.md:425` — - `.wip/audit.md:391` — - `.wip/audit.json:363` — "text": "/// TODO(R3 Task B): switch from `revoked_sessions` fallback to the"
-- `.wip/audit.md:426` — - `.wip/audit.md:392` — - `.wip/audit.json:368` — "text": "/// Stream-2-stub trait. The real implementation lives in `powl_bridge.rs`"
-- `.wip/audit.md:427` — - `.wip/audit.md:393` — - `.wip/audit.json:373` — "text": "/// TODO(stream-2): swap to the wasm4pm-backed bridge. This stub MUST be"
-- `.wip/audit.md:428` — - `.wip/audit.md:394` — - `.wip/audit.json:378` — "text": "/// flag distinguishes placeholder results from production-grade evidence."
-- `.wip/audit.md:429` — - `.wip/audit.md:395` — - `.wip/audit.json:383` — "text": "/// `true` when this result was produced by the stream-2 stub"
-- `.wip/audit.md:430` — - `.wip/audit.md:396` — - `.wip/audit.json:388` — "text": "/// external operators and auditors can distinguish stub-path"
-- `.wip/audit.md:431` — - `.wip/audit.md:397` — - `.wip/audit.json:393` — "text": "/// assert!(!pass.is_stub,             \"pass() produces non-stub evidence\");"
-- `.wip/audit.md:432` — - `.wip/audit.md:398` — - `.wip/audit.json:398` — "text": "/// assert!(!fail.is_stub,             \"fail() produces non-stub evidence\");"
-- `.wip/audit.md:433` — - `.wip/audit.md:399` — - `.wip/audit.json:403` — "text": "/// Returns `true` when this result was produced by the stream-2 stub"
-- `.wip/audit.md:434` — - `.wip/audit.md:400` — - `.wip/audit.json:408` — "text": "/// Stub results have `fitness = 1.0` and `precision = 1.0` as placeholders"
-- `.wip/audit.md:435` — - `.wip/audit.md:401` — - `.wip/audit.json:413` — "text": "/// # Auto-instinct: stub results produced by NoopPowlReplay always conform"
-- `.wip/audit.md:436` — - `.wip/audit.md:402` — - `.wip/audit.json:418` — "text": "/// // Auto-instinct: stub results are always conformant (placeholder 1.0/1.0)."
-- `.wip/audit.md:437` — - `.wip/audit.md:403` — - `.wip/audit.json:423` — "text": "/// assert!(stub_result.is_conformant(),  \"stub result must report conformance\");"
-- `.wip/audit.md:438` — - `.wip/audit.md:404` — - `.wip/audit.json:428` — "text": "/// // A hand-crafted non-stub conforming result is not a stub."
-- `.wip/audit.md:439` — - `.wip/audit.md:405` — - `.wip/audit.json:433` — "text": "/// **Stream-2 stub.** Returns a perfect-fit verdict. Retained because some"
-- `.wip/audit.md:440` — - `.wip/audit.md:406` — - `.wip/audit.json:438` — "text": "/// // Stub always reports perfect fitness and precision \u2014 these are"
-- `.wip/audit.md:441` — - `.wip/audit.md:407` — - `.wip/audit.json:443` — "text": "/// Marker string placed in the codebase to locate every stream-2 stub site."
-- `.wip/audit.md:442` — - `.wip/audit.md:408` — - `.wip/audit.json:448` — "text": "/// remaining match indicates a stub that was not replaced with the real"
-- `.wip/audit.md:443` — - `.wip/audit.md:409` — - `.wip/audit.json:453` — "text": "/// // The value is a recognisable TODO tag, not a semver."
-- `.wip/audit.md:444` — - `.wip/audit.md:410` — - `.wip/audit.json:458` — "text": "/// assert!(STREAM3_STUB_POWL_REPLAY_MARKER.starts_with(\"TODO\"));"
-- `.wip/audit.md:445` — - `.wip/audit.md:411` — - `.wip/audit.json:463` — "text": "pub const STREAM3_STUB_POWL_REPLAY_MARKER: &str = \"TODO(stream-2): replace NoopPowlReplay\";"
-- `.wip/audit.md:446` — - `.wip/audit.md:412` — - `.wip/audit.json:468` — "text": "/// OCEL event attribute key indicating the POWL replay used a stub"
-- `.wip/audit.md:447` — - `.wip/audit.md:413` — - `.wip/audit.json:473` — "text": "// POWL replay is not yet integrated (stream-2 stub);"
-- `.wip/audit.md:448` — - `.wip/audit.md:414` — - `.wip/audit.json:478` — "text": "// `\"stub-run-\"` run_id prefix allow downstream consumers to"
-- `.wip/audit.md:449` — - `.wip/audit.md:415` — - `.wip/audit.json:483` — "text": "run_id: format!(\"stub-run-{}\", scope_token),"
-- `.wip/audit.md:450` — - `.wip/audit.md:416` — - `.wip/audit.json:488` — "text": "// Run conformance via wasm4pm bridge (or stub)."
-- `.wip/audit.md:451` — - `.wip/audit.md:417` — - `.wip/audit.json:493` — "text": "// self-attests with the same hash (placeholder until ed25519-dalek"
-- `.wip/audit.md:452` — - `.wip/audit.md:418` — - `.wip/audit.json:498` — "text": "// Run the stub migration on its own (it is a no-op SQL string but keep"
-- `.wip/audit.md:453` — - `.wip/audit.md:419` — - `.wip/audit.json:503` — "text": "// Surface stub status in the OCEL witness so a process miner who sees"
-- `.wip/audit.md:454` — - `.wip/audit.md:420` — - `.wip/audit.json:508` — "text": "// only the event log can flag stub-path runs without parsing run_id."
-- `.wip/audit.md:455` — - `.wip/audit.md:421` — - `.wip/audit.json:513` — "text": "// placeholder values from NoopPowlReplay (stream-2 stub"
-- `.wip/audit.md:456` — - `.wip/audit.md:422` — - `.wip/audit.json:518` — "text": "// stub-path conformance runs as production evidence."
-- `.wip/audit.md:457` — - `.wip/audit.md:423` — - `.wip/audit.json:523` — "text": "// This is a placeholder for receipt-file artifacts \u2014 see"
-- `.wip/audit.md:458` — - `.wip/audit.md:424` — - `.wip/audit.json:528` — "text": "/// implementation is a defined no-op placeholder \u2014 returns `0` until a"
-- `.wip/audit.md:459` — - `.wip/audit.md:425` — - `.wip/audit.json:533` — "text": "/// // Placeholder implementation always reports zero orphans pruned."
-- `.wip/audit.md:460` — - `.wip/audit.md:426` — - `.wip/audit.json:538` — "text": "/// stub migration in `STREAM3_STUB_MIGRATION`."
-- `.wip/audit.md:461` — - `.wip/audit.md:427` — - `.wip/audit.json:543` — "text": "`PowlBridgeReplay` parses declared POWL strings via the `wasm4pm` crate, projects the OCEL trace tagged with `scope_token`, and returns a fitness/precision verdict. Production admission uses this; a `NoopPowlReplay` stub remains for gate-semantics unit tests that need a deterministic pass-through. Defects: `ReplayFailed`, `SkippedTask`, `ExtraTask`, `WrongOrder`, `CapabilityZero`, `ReplayDivergence`."
-- `.wip/audit.md:462` — - `.wip/audit.md:428` — - `.wip/audit.json:548` — "text": "pub signature: Option<Vec<u8>>,      // Ed25519 (Phase 10 stub-of-record)"
-- `.wip/audit.md:463` — - `.wip/audit.md:429` — - `.wip/audit.json:553` — "text": "Commits `33feda7`, `e4db225`. Replaced the `NoopPowlReplay` stub with `PowlBridgeReplay::new(store)` in production-path admission. The gap closed: 12 admission tests had been validating against a fitness=1.0 stub. Production now routes through `wasm4pm` for every admission; only four gate-semantics tests retain the noop with an explicit `// INTENTIONAL` annotation."
-- `.wip/audit.md:464` — - `.wip/audit.md:430` — - `.wip/audit.json:558` — "text": "| `attestation_missing` | `AttestationMissing` | Cell8 A10 `ExternalAttestation` conjunct fails | Stub digest mismatch | `tests/cell8_thirteen_gates.rs` |"
-- `.wip/audit.md:465` — - `.wip/audit.md:431` — - `.wip/audit.json:563` — "text": "| IES Top (ToLO) | ~22 | TBD | TBD | TBD | TBD | TBD |"
-- `.wip/audit.md:466` — - `.wip/audit.md:432` — - `.wip/audit.json:568` — "text": "| IES Core | ~131 | TBD | TBD | TBD | TBD | TBD |"
-- `.wip/audit.md:467` — - `.wip/audit.md:433` — - `.wip/audit.json:573` — "text": "- **Receipts prove.** Every admitted operation produces a `ProductionRecord`, a chained `Receipt` (BLAKE3 over canonical bytes, Ed25519-signed in Phase 10's stub-of-record form), and an `admission_granted` OCEL event. Denied operations produce `admission_denied` with a typed `defect` attribute. No claim of success exists outside this chain."
-- `.wip/audit.md:468` — - `.wip/audit.md:434` — - `.wip/audit.json:578` — "text": "The Phase 6 audit found 25 silently-broken CLI tests, 12 stub-validated admission tests, 21 dead defect variants, and 5 textual-ratchet bypass patterns. Phases 7\u201311 closed every finding fix-forward. The system now refuses to claim a feature works unless the receipt and the OCEL event log prove it ran. That refusal is the product."
-- `.wip/audit.md:469` — - `.wip/audit.md:435` — - `.wip/audit.json:581` — "path": ".github/workflows/wip-sweep.yml",
-- `.wip/audit.md:470` — - `.wip/audit.md:436` — - `.wip/audit.json:583` — "text": "name: WIP Sweep"
-- `.wip/audit.md:471` — - `.wip/audit.md:437` — - `.wip/audit.json:586` — "path": ".github/workflows/wip-sweep.yml",
-- `.wip/audit.md:472` — - `.wip/audit.md:438` — - `.wip/audit.json:588` — "text": "branches: [agent/finish-wip-20260730]"
-- `.wip/audit.md:473` — - `.wip/audit.md:439` — - `.wip/audit.json:591` — "path": ".github/workflows/wip-sweep.yml",
-- `.wip/audit.md:474` — - `.wip/audit.md:440` — - `.wip/audit.json:593` — "text": "paths: [.github/wip-trigger]"
-- `.wip/audit.md:475` — - `.wip/audit.md:441` — - `.wip/audit.json:596` — "path": ".github/workflows/wip-sweep.yml",
-- `.wip/audit.md:476` — - `.wip/audit.md:442` — - `.wip/audit.json:598` — "text": "ref: agent/finish-wip-20260730"
-- `.wip/audit.md:477` — - `.wip/audit.md:443` — - `.wip/audit.json:601` — "path": ".github/workflows/wip-sweep.yml",
-- `.wip/audit.md:478` — - `.wip/audit.md:444` — - `.wip/audit.json:603` — "text": "- name: Inventory WIP and executable gates"
-- `.wip/audit.md:479` — - `.wip/audit.md:445` — - `.wip/audit.json:606` — "path": ".github/workflows/wip-sweep.yml",
-- `.wip/audit.md:480` — - `.wip/audit.md:446` — - `.wip/audit.json:608` — "text": "mkdir -p .wip"
-- `.wip/audit.md:481` — - `.wip/audit.md:447` — - `.wip/audit.json:611` — "path": ".github/workflows/wip-sweep.yml",
-- `.wip/audit.md:482` — - `.wip/audit.md:448` — - `.wip/audit.json:613` — "text": "marker_re = re.compile(r'(?i)\\b(TODO|FIXME|XXX|HACK|WIP|TBD|NOT[ _-]?IMPLEMENTED|PLACEHOLDER|STUB)\\b|todo!\\s*\\(|unimplemented!\\s*\\(')"
-- `.wip/audit.md:483` — - `.wip/audit.md:449` — - `.wip/audit.json:616` — "path": ".github/workflows/wip-sweep.yml",
-- `.wip/audit.md:484` — - `.wip/audit.md:450` — - `.wip/audit.json:618` — "text": "Path('.wip/audit.json').write_text(json.dumps(audit,indent=2))"
-- `.wip/audit.md:485` — - `.wip/audit.md:451` — - `.wip/audit.json:621` — "path": ".github/workflows/wip-sweep.yml",
-- `.wip/audit.md:486` — - `.wip/audit.md:452` — - `.wip/audit.json:623` — "text": "lines=['# WIP audit','',f\"Base: `{audit['base_sha']}`\",'']"
-- `.wip/audit.md:487` — - `.wip/audit.md:453` — - `.wip/audit.json:626` — "path": ".github/workflows/wip-sweep.yml",
-- `.wip/audit.md:488` — - `.wip/audit.md:454` — - `.wip/audit.json:628` — "text": "Path('.wip/audit.md').write_text('\\n'.join(lines)+'\\n')"
-- `.wip/audit.md:489` — - `.wip/audit.md:455` — - `.wip/audit.json:631` — "path": ".github/workflows/wip-sweep.yml",
-- `.wip/audit.md:490` — - `.wip/audit.md:456` — - `.wip/audit.json:633` — "text": "git add .wip/audit.json .wip/audit.md"
-- `.wip/audit.md:491` — - `.wip/audit.md:457` — - `.wip/audit.json:636` — "path": ".github/workflows/wip-sweep.yml",
-- `.wip/audit.md:492` — - `.wip/audit.md:458` — - `.wip/audit.json:638` — "text": "git commit -m 'chore: record WIP audit receipt'"
-- `.wip/audit.md:493` — - `.wip/audit.md:459` — - `.wip/audit.json:641` — "path": ".github/workflows/wip-sweep.yml",
-- `.wip/audit.md:494` — - `.wip/audit.md:460` — - `.wip/audit.json:643` — "text": "git push origin HEAD:agent/finish-wip-20260730"
-- `.wip/audit.md:495` — - `.wip/audit.md:461` — - `.wip/audit.json:648` — "text": "# \u00a7 3  Forward-declared stub classes for future modules"
-- `.wip/audit.md:496` — - `.wip/audit.md:462` — - `.wip/audit.json:653` — "text": "# \u00a7 3b  Forward-declared stub classes for newly-created modules"
-- `.wip/audit.md:497` — - `.wip/audit.md:463` — - `.wip/audit.json:658` — "text": "4. **Use a placeholder JC3IEDM IRI namespace.** STANAG 5525 doesn't issue canonical web IRIs; this sketch uses `http://example.org/jc3iedm/` as a placeholder. A real implementation would use NATO/MIP-issued IRIs."
-- `.wip/audit.md:498` — - `.wip/audit.md:464` — - `.wip/audit.json:663` — "text": "# Placeholder JC3IEDM namespace \u2014 STANAG 5525 has no canonical web IRIs."
-- `.wip/audit.md:499` — - `.wip/audit.md:465` — - `.wip/audit.json:668` — "text": "- Uses a placeholder `demo:roleIn` helper property. A production IES4 implementation would use the canonical `ies:MemberState` + `ies:isMemberOf` pattern. The shortcut keeps the demo Turtle readable."
-- `.wip/audit.md:500` — - `.wip/audit.md:466` — - `.wip/audit.json:673` — "text": "<input id=\"search\" type=\"search\" autocomplete=\"off\" placeholder=\"e.g. ZeroAvia, H2GEAR, electrolysis\" aria-describedby=\"search-help\" />"
-- `.wip/audit.md:501` — - `.wip/audit.md:467` — - `.wip/audit.json:678` — "text": "\"output\": \"```turtle\\n<biolink:MTOR> <biolink:is_involved_in> <GO:0008150>\\n```\\n\\nNote: The Gene Ontology (GO) term `GO:0008150` is not a real term for 'regulation of cell growth'. A correct representation would use a specific GO term for 'regulation of cell growth', but since one is not provided, I've used a placeholder here. If you have a specific GO term in mind, please provide it, and I can adjust the Turtle accordingly.\""
-- `.wip/audit.md:502` — - `.wip/audit.md:468` — - `.wip/audit.json:683` — "text": "\"output\": \"```turtle\\n@prefix bio: <http://biolink.info/vocabulary/> .\\n<http://biolink.info/gene/ESR1> bio:involved_in bio:signal_transduction_process.\\n<http://biolink.info/gene/ESR1> bio:is_a bio:Gene.\\n<http://purl.obolinguistics.org/obo/GO_0008155> bio:is_a bio:Biological_process.\\n```\\n\\nNote: The GO term `GO:0008155` is not a real Gene Ontology term. For the purpose of this example, I used `GO:0008155` as a placeholder f
-- `.wip/audit.md:503` — - `.wip/audit.md:469` — - `.wip/audit.json:688` — "text": "todo = [o for o in occs if o[\"stdCode\"] not in done]"
-- `.wip/audit.md:504` — - `.wip/audit.md:470` — - `.wip/audit.json:693` — "text": "print(f\"{len(todo)} to fetch ({len(done)} cached)\")"
-- `.wip/audit.md:505` — - `.wip/audit.md:471` — - `.wip/audit.json:698` — "text": "for i, o in enumerate(todo):"
-- `.wip/audit.md:506` — - `.wip/audit.md:472` — - `.wip/audit.json:703` — "text": "print(f\"{i}/{len(todo)}\")"
-- `.wip/audit.md:515` — - `origin/agent/finish-wip-20260730` — ahead 5, behind 3, `25fa5091ec7c` — chore: record WIP audit receipt
-- `.wip/audit.json:8` — "text": "`revoked_principals` table lands (TODO marker in code). New"
-- `.wip/audit.json:13` — "text": "TODO(R6) \u2014 same disease, deferred fix template."
-- `.wip/audit.json:18` — "text": "`TODO(R6 \u00a715.A9)`, `TODO(R6 \u00a715.A11)`, `TODO(R6 \u00a715.A12)` comments"
-- `.wip/audit.json:23` — "text": "- `engine=\"groq_pm4py\"` subprocess transport \u2014 MCP handlers now spawn the real DSPy/pm4py-backed translator instead of the in-process stub."
-- `.wip/audit.json:28` — "text": "- [`ee90af9`](../../commit/ee90af9) `fix(no-stub): wire ingest/map/extend/push format params; add named-graph push; remove dead cfg`"
-- `.wip/audit.json:33` — "text": "- [`e4db225`](../../commit/e4db225) `ontostar(R3): wire PowlBridgeReplay into admission gate, replace stub`"
-- `.wip/audit.json:38` — "text": "- `PowlBridgeReplay` replaces the noop stub in the admission gate."
-- `.wip/audit.json:43` — "text": "*   **L6 High-Speed Kernels:** Represented by `wasm4pm` stream-2 stub bindings and the `src/manufacturing/` pipeline."
-- `.wip/audit.json:48` — "text": "## What's NOT Implemented (Vision 2030 Future Layers)"
-- `.wip/audit.json:53` — "text": "todo = \"deny\""
-- `.wip/audit.json:58` — "text": "`OcelObjectType` is a typing class for OCEL 2.0 instances (e.g. Order, Item, Package). In the current TTL it is a vocabulary stub \u2014 the actual object type individuals (Order, Item, etc.) are not defined. The enforcer correctly flags it as orphaned."
-- `.wip/audit.json:63` — "text": "//!   5. assert Admitted(receipt) with non-stub fitness"
-- `.wip/audit.json:68` — "text": "//    fitness, not a stub 1.0)."
-- `.wip/audit.json:73` — "text": "!conf.run_id.starts_with(\"stub-run-\"),"
-- `.wip/audit.json:78` — "text": "\"verdict came from the stub, not the real PowlBridge: {}\","
-- `.wip/audit.json:83` — "text": "let msg = \"evaluate_admission(stub) called\";"
-- `.wip/audit.json:88` — "text": "let receipt = build_test_receipt(b\"some-artifact-placeholder\");"
-- `.wip/audit.json:93` — "text": "//! output is structurally distinct from a hypothetical \"stub that"
-- `.wip/audit.json:98` — "text": "Either the format was silently ignored (soft stub) or auto-detection hid the override.\\n\\"
-- `.wip/audit.json:103` — "text": "//! R5 WB-1's TODO comment at admission.rs:660-662 carried A9 forward"
-- `.wip/audit.json:108` — "text": "//! (#43 Dynamics \u2192 #44 Causal hookup \u2192 #45 Planner stub)."
-- `.wip/audit.json:113` — "text": "// The Planner stub must read from the same SQLite store that"
-- `.wip/audit.json:118` — "text": "// 64-char WO hash literal with a placeholder of equal length."
-- `.wip/audit.json:123` — "text": "let placeholder: String = \"f\".repeat(wo_hash.len());"
-- `.wip/audit.json:128` — "text": "f.contents = f.contents.replace(&wo_hash, &placeholder);"
-- `.wip/audit.json:133` — "text": "//! Replaces the digest-equality tautology stub with cryptographic"
-- `.wip/audit.json:138` — "text": "/// the ggen pipeline produced a populated file rather than an empty stub."
-- `.wip/audit.json:143` — "text": "/// 1. generated.rs exists and contains the expected stub modules."
-- `.wip/audit.json:148` — "text": "//! `PowlBridgeReplay`, not the `NoopPowlReplay` stub."
-- `.wip/audit.json:153` — "text": "// The bridge \u2014 not the stub \u2014 produced this verdict. The stub would"
-- `.wip/audit.json:158` — "text": "// have returned the literal {fitness: 1.0, run_id: \"stub-run-...\"}."
-- `.wip/audit.json:163` — "text": "!conf.run_id.starts_with(\"stub-run-\"),"
-- `.wip/audit.json:168` — "text": "\"verdict came from NoopPowlReplay stub, not PowlBridge: run_id={}\","
-- `.wip/audit.json:171` — "path": ".wip/audit.md",
-- `.wip/audit.json:173` — "text": "# WIP audit"
-- `.wip/audit.json:176` — "path": ".wip/audit.md",
-- `.wip/audit.json:178` — "text": "- `CHANGELOG.md:76` \u2014 `revoked_principals` table lands (TODO marker in code). New"
-- `.wip/audit.json:181` — "path": ".wip/audit.md",
-- `.wip/audit.json:183` — "text": "- `CHANGELOG.md:323` \u2014 TODO(R6) \u2014 same disease, deferred fix template."
-- `.wip/audit.json:186` — "path": ".wip/audit.md",
-- `.wip/audit.json:188` — "text": "- `CHANGELOG.md:357` \u2014 `TODO(R6 \u00a715.A9)`, `TODO(R6 \u00a715.A11)`, `TODO(R6 \u00a715.A12)` comments"
-- `.wip/audit.json:191` — "path": ".wip/audit.md",
-- `.wip/audit.json:193` — "text": "- `CHANGELOG.md:678` \u2014 - `engine=\"groq_pm4py\"` subprocess transport \u2014 MCP handlers now spawn the real DSPy/pm4py-backed translator instead of the in-process stub."
-- `.wip/audit.json:196` — "path": ".wip/audit.md",
-- `.wip/audit.json:198` — "text": "- `CHANGELOG.md:774` \u2014 - [`ee90af9`](../../commit/ee90af9) `fix(no-stub): wire ingest/map/extend/push format params; add named-graph push; remove dead cfg`"
-- `.wip/audit.json:201` — "path": ".wip/audit.md",
-- `.wip/audit.json:203` — "text": "- `CHANGELOG.md:794` \u2014 - [`e4db225`](../../commit/e4db225) `ontostar(R3): wire PowlBridgeReplay into admission gate, replace stub`"
-- `.wip/audit.json:206` — "path": ".wip/audit.md",
-- `.wip/audit.json:208` — "text": "- `CHANGELOG.md:804` \u2014 - `PowlBridgeReplay` replaces the noop stub in the admission gate."
-- `.wip/audit.json:211` — "path": ".wip/audit.md",
-- `.wip/audit.json:213` — "text": "- `DISSERTATION.md:46` \u2014 *   **L6 High-Speed Kernels:** Represented by `wasm4pm` stream-2 stub bindings and the `src/manufacturing/` pipeline."
-- `.wip/audit.json:216` — "path": ".wip/audit.md",
-- `.wip/audit.json:218` — "text": "- `IMPLEMENTATION_SUMMARY.md:142` \u2014 ## What's NOT Implemented (Vision 2030 Future Layers)"
-- `.wip/audit.json:221` — "path": ".wip/audit.md",
-- `.wip/audit.json:223` — "text": "- `Cargo.toml:86` \u2014 todo = \"deny\""
-- `.wip/audit.json:226` — "path": ".wip/audit.md",
-- `.wip/audit.json:228` — "text": "- `ontology/alignment-notes.md:109` \u2014 `OcelObjectType` is a typing class for OCEL 2.0 instances (e.g. Order, Item, Package). In the current TTL it is a vocabulary stub \u2014 the actual object type individuals (Order, Item, etc.) are not defined. The enforcer correctly flags it as orphaned."
-- `.wip/audit.json:231` — "path": ".wip/audit.md",
-- `.wip/audit.json:233` — "text": "- `tests/end_to_end_governed_release.rs:8` \u2014 //!   5. assert Admitted(receipt) with non-stub fitness"
-- `.wip/audit.json:236` — "path": ".wip/audit.md",
-- `.wip/audit.json:238` — "text": "- `tests/end_to_end_governed_release.rs:68` \u2014 //    fitness, not a stub 1.0)."
-- `.wip/audit.json:241` — "path": ".wip/audit.md",
-- `.wip/audit.json:243` — "text": "- `tests/end_to_end_governed_release.rs:78` \u2014 !conf.run_id.starts_with(\"stub-run-\"),"
-- `.wip/audit.json:246` — "path": ".wip/audit.md",
-- `.wip/audit.json:248` — "text": "- `tests/end_to_end_governed_release.rs:79` \u2014 \"verdict came from the stub, not the real PowlBridge: {}\","
-- `.wip/audit.json:251` — "path": ".wip/audit.md",
-- `.wip/audit.json:253` — "text": "- `tests/ratchet_red_team.rs:43` \u2014 let msg = \"evaluate_admission(stub) called\";"
-- `.wip/audit.json:256` — "path": ".wip/audit.md",
-- `.wip/audit.json:258` — "text": "- `tests/portability_codegen.rs:94` \u2014 let receipt = build_test_receipt(b\"some-artifact-placeholder\");"
-- `.wip/audit.json:261` — "path": ".wip/audit.md",
-- `.wip/audit.json:263` — "text": "- `tests/saboteur_meta.rs:5` \u2014 //! output is structurally distinct from a hypothetical \"stub that"
-- `.wip/audit.json:266` — "path": ".wip/audit.md",
-- `.wip/audit.json:268` — "text": "- `tests/adversarial_jtbd_test.rs:114` \u2014 Either the format was silently ignored (soft stub) or auto-detection hid the override.\\n\\"
-- `.wip/audit.json:271` — "path": ".wip/audit.md",
-- `.wip/audit.json:273` — "text": "- `tests/saboteur_a9_provenance_chain_load_bearing.rs:27` \u2014 //! R5 WB-1's TODO comment at admission.rs:660-662 carried A9 forward"
-- `.wip/audit.json:276` — "path": ".wip/audit.md",
-- `.wip/audit.json:278` — "text": "- `tests/three_layer_integration_test.rs:2` \u2014 //! (#43 Dynamics \u2192 #44 Causal hookup \u2192 #45 Planner stub)."
-- `.wip/audit.json:281` — "path": ".wip/audit.md",
-- `.wip/audit.json:283` — "text": "- `tests/three_layer_integration_test.rs:57` \u2014 // The Planner stub must read from the same SQLite store that"
-- `.wip/audit.json:286` — "path": ".wip/audit.md",
-- `.wip/audit.json:288` — "text": "- `tests/manufacturing_validators.rs:191` \u2014 // 64-char WO hash literal with a placeholder of equal length."
-- `.wip/audit.json:291` — "path": ".wip/audit.md",
-- `.wip/audit.json:293` — "text": "- `tests/manufacturing_validators.rs:192` \u2014 let placeholder: String = \"f\".repeat(wo_hash.len());"
-- `.wip/audit.json:296` — "path": ".wip/audit.md",
-- `.wip/audit.json:298` — "text": "- `tests/manufacturing_validators.rs:194` \u2014 f.contents = f.contents.replace(&wo_hash, &placeholder);"
-- `.wip/audit.json:301` — "path": ".wip/audit.md",
-- `.wip/audit.json:303` — "text": "- `tests/ed25519_attestation.rs:3` \u2014 //! Replaces the digest-equality tautology stub with cryptographic"
-- `.wip/audit.json:306` — "path": ".wip/audit.md",
-- `.wip/audit.json:308` — "text": "- `tests/ggen_revops_pipeline.rs:37` \u2014 /// the ggen pipeline produced a populated file rather than an empty stub."
-- `.wip/audit.json:311` — "path": ".wip/audit.md",
-- `.wip/audit.json:313` — "text": "- `tests/ggen_pipeline_real.rs:25` \u2014 /// 1. generated.rs exists and contains the expected stub modules."
-- `.wip/audit.json:316` — "path": ".wip/audit.md",
-- `.wip/audit.json:318` — "text": "- `tests/admission_real_replay.rs:2` \u2014 //! `PowlBridgeReplay`, not the `NoopPowlReplay` stub."
-- `.wip/audit.json:321` — "path": ".wip/audit.md",
-- `.wip/audit.json:323` — "text": "- `tests/admission_real_replay.rs:59` \u2014 // The bridge \u2014 not the stub \u2014 produced this verdict. The stub would"
-- `.wip/audit.json:326` — "path": ".wip/audit.md",
-- `.wip/audit.json:328` — "text": "- `tests/admission_real_replay.rs:60` \u2014 // have returned the literal {fitness: 1.0, run_id: \"stub-run-...\"}."
-- `.wip/audit.json:331` — "path": ".wip/audit.md",
-- `.wip/audit.json:333` — "text": "- `tests/admission_real_replay.rs:62` \u2014 !conf.run_id.starts_with(\"stub-run-\"),"
-- `.wip/audit.json:336` — "path": ".wip/audit.md",
-- `.wip/audit.json:338` — "text": "- `tests/admission_real_replay.rs:63` \u2014 \"verdict came from NoopPowlReplay stub, not PowlBridge: run_id={}\","
-- `.wip/audit.json:341` — "path": ".wip/audit.md",
-- `.wip/audit.json:343` — "text": "- `.wip/audit.md:1` \u2014 # WIP audit"
-- `.wip/audit.json:346` — "path": ".wip/audit.md",
-- `.wip/audit.json:348` — "text": "- `.wip/audit.md:8` \u2014 - `CHANGELOG.md:76` \u2014 `revoked_principals` table lands (TODO marker in code). New"
-- `.wip/audit.json:351` — "path": ".wip/audit.md",
-- `.wip/audit.json:353` — "text": "- `.wip/audit.md:9` \u2014 - `CHANGELOG.md:323` \u2014 TODO(R6) \u2014 same disease, deferred fix template."
-- `.wip/audit.json:356` — "path": ".wip/audit.md",
-- `.wip/audit.json:358` — "text": "- `.wip/audit.md:10` \u2014 - `CHANGELOG.md:357` \u2014 `TODO(R6 \u00a715.A9)`, `TODO(R6 \u00a715.A11)`, `TODO(R6 \u00a715.A12)` comments"
-- `.wip/audit.json:361` — "path": ".wip/audit.md",
-- `.wip/audit.json:363` — "text": "- `.wip/audit.md:11` \u2014 - `CHANGELOG.md:678` \u2014 - `engine=\"groq_pm4py\"` subprocess transport \u2014 MCP handlers now spawn the real DSPy/pm4py-backed translator instead of the in-process stub."
-- `.wip/audit.json:366` — "path": ".wip/audit.md",
-- `.wip/audit.json:368` — "text": "- `.wip/audit.md:12` \u2014 - `CHANGELOG.md:774` \u2014 - [`ee90af9`](../../commit/ee90af9) `fix(no-stub): wire ingest/map/extend/push format params; add named-graph push; remove dead cfg`"
-- `.wip/audit.json:371` — "path": ".wip/audit.md",
-- `.wip/audit.json:373` — "text": "- `.wip/audit.md:13` \u2014 - `CHANGELOG.md:794` \u2014 - [`e4db225`](../../commit/e4db225) `ontostar(R3): wire PowlBridgeReplay into admission gate, replace stub`"
-- `.wip/audit.json:376` — "path": ".wip/audit.md",
-- `.wip/audit.json:378` — "text": "- `.wip/audit.md:14` \u2014 - `CHANGELOG.md:804` \u2014 - `PowlBridgeReplay` replaces the noop stub in the admission gate."
-- `.wip/audit.json:381` — "path": ".wip/audit.md",
-- `.wip/audit.json:383` — "text": "- `.wip/audit.md:15` \u2014 - `DISSERTATION.md:46` \u2014 *   **L6 High-Speed Kernels:** Represented by `wasm4pm` stream-2 stub bindings and the `src/manufacturing/` pipeline."
-- `.wip/audit.json:386` — "path": ".wip/audit.md",
-- `.wip/audit.json:388` — "text": "- `.wip/audit.md:16` \u2014 - `IMPLEMENTATION_SUMMARY.md:142` \u2014 ## What's NOT Implemented (Vision 2030 Future Layers)"
-- `.wip/audit.json:391` — "path": ".wip/audit.md",
-- `.wip/audit.json:393` — "text": "- `.wip/audit.md:17` \u2014 - `Cargo.toml:86` \u2014 todo = \"deny\""
-- `.wip/audit.json:396` — "path": ".wip/audit.md",
-- `.wip/audit.json:398` — "text": "- `.wip/audit.md:18` \u2014 - `ontology/alignment-notes.md:109` \u2014 `OcelObjectType` is a typing class for OCEL 2.0 instances (e.g. Order, Item, Package). In the current TTL it is a vocabulary stub \u2014 the actual object type individuals (Order, Item, etc.) are not defined. The enforcer correctly flags it as orphaned."
-- `.wip/audit.json:401` — "path": ".wip/audit.md",
-- `.wip/audit.json:403` — "text": "- `.wip/audit.md:19` \u2014 - `tests/end_to_end_governed_release.rs:8` \u2014 //!   5. assert Admitted(receipt) with non-stub fitness"
-- `.wip/audit.json:406` — "path": ".wip/audit.md",
-- `.wip/audit.json:408` — "text": "- `.wip/audit.md:20` \u2014 - `tests/end_to_end_governed_release.rs:68` \u2014 //    fitness, not a stub 1.0)."
-- `.wip/audit.json:411` — "path": ".wip/audit.md",
-- `.wip/audit.json:413` — "text": "- `.wip/audit.md:21` \u2014 - `tests/end_to_end_governed_release.rs:78` \u2014 !conf.run_id.starts_with(\"stub-run-\"),"
-- `.wip/audit.json:416` — "path": ".wip/audit.md",
-- `.wip/audit.json:418` — "text": "- `.wip/audit.md:22` \u2014 - `tests/end_to_end_governed_release.rs:79` \u2014 \"verdict came from the stub, not the real PowlBridge: {}\","
-- `.wip/audit.json:421` — "path": ".wip/audit.md",
-- `.wip/audit.json:423` — "text": "- `.wip/audit.md:23` \u2014 - `tests/ratchet_red_team.rs:43` \u2014 let msg = \"evaluate_admission(stub) called\";"
-- `.wip/audit.json:426` — "path": ".wip/audit.md",
-- `.wip/audit.json:428` — "text": "- `.wip/audit.md:24` \u2014 - `tests/portability_codegen.rs:94` \u2014 let receipt = build_test_receipt(b\"some-artifact-placeholder\");"
-- `.wip/audit.json:431` — "path": ".wip/audit.md",
-- `.wip/audit.json:433` — "text": "- `.wip/audit.md:25` \u2014 - `tests/saboteur_meta.rs:5` \u2014 //! output is structurally distinct from a hypothetical \"stub that"
-- `.wip/audit.json:436` — "path": ".wip/audit.md",
-- `.wip/audit.json:438` — "text": "- `.wip/audit.md:26` \u2014 - `tests/adversarial_jtbd_test.rs:114` \u2014 Either the format was silently ignored (soft stub) or auto-detection hid the override.\\n\\"
-- `.wip/audit.json:441` — "path": ".wip/audit.md",
-- `.wip/audit.json:443` — "text": "- `.wip/audit.md:27` \u2014 - `tests/saboteur_a9_provenance_chain_load_bearing.rs:27` \u2014 //! R5 WB-1's TODO comment at admission.rs:660-662 carried A9 forward"
-- `.wip/audit.json:446` — "path": ".wip/audit.md",
-- `.wip/audit.json:448` — "text": "- `.wip/audit.md:28` \u2014 - `tests/three_layer_integration_test.rs:2` \u2014 //! (#43 Dynamics \u2192 #44 Causal hookup \u2192 #45 Planner stub)."
-- `.wip/audit.json:451` — "path": ".wip/audit.md",
-- `.wip/audit.json:453` — "text": "- `.wip/audit.md:29` \u2014 - `tests/three_layer_integration_test.rs:57` \u2014 // The Planner stub must read from the same SQLite store that"
-- `.wip/audit.json:456` — "path": ".wip/audit.md",
-- `.wip/audit.json:458` — "text": "- `.wip/audit.md:30` \u2014 - `tests/manufacturing_validators.rs:191` \u2014 // 64-char WO hash literal with a placeholder of equal length."
-- `.wip/audit.json:461` — "path": ".wip/audit.md",
-- `.wip/audit.json:463` — "text": "- `.wip/audit.md:31` \u2014 - `tests/manufacturing_validators.rs:192` \u2014 let placeholder: String = \"f\".repeat(wo_hash.len());"
-- `.wip/audit.json:466` — "path": ".wip/audit.md",
-- `.wip/audit.json:468` — "text": "- `.wip/audit.md:32` \u2014 - `tests/manufacturing_validators.rs:194` \u2014 f.contents = f.contents.replace(&wo_hash, &placeholder);"
-- `.wip/audit.json:471` — "path": ".wip/audit.md",
-- `.wip/audit.json:473` — "text": "- `.wip/audit.md:33` \u2014 - `tests/ed25519_attestation.rs:3` \u2014 //! Replaces the digest-equality tautology stub with cryptographic"
-- `.wip/audit.json:476` — "path": ".wip/audit.md",
-- `.wip/audit.json:478` — "text": "- `.wip/audit.md:34` \u2014 - `tests/ggen_revops_pipeline.rs:37` \u2014 /// the ggen pipeline produced a populated file rather than an empty stub."
-- `.wip/audit.json:481` — "path": ".wip/audit.md",
-- `.wip/audit.json:483` — "text": "- `.wip/audit.md:35` \u2014 - `tests/ggen_pipeline_real.rs:25` \u2014 /// 1. generated.rs exists and contains the expected stub modules."
-- `.wip/audit.json:486` — "path": ".wip/audit.md",
-- `.wip/audit.json:488` — "text": "- `.wip/audit.md:36` \u2014 - `tests/admission_real_replay.rs:2` \u2014 //! `PowlBridgeReplay`, not the `NoopPowlReplay` stub."
-- `.wip/audit.json:491` — "path": ".wip/audit.md",
-- `.wip/audit.json:493` — "text": "- `.wip/audit.md:37` \u2014 - `tests/admission_real_replay.rs:59` \u2014 // The bridge \u2014 not the stub \u2014 produced this verdict. The stub would"
-- `.wip/audit.json:496` — "path": ".wip/audit.md",
-- `.wip/audit.json:498` — "text": "- `.wip/audit.md:38` \u2014 - `tests/admission_real_replay.rs:60` \u2014 // have returned the literal {fitness: 1.0, run_id: \"stub-run-...\"}."
-- … 4265 additional findings in `audit.json`
+- `.wip/audit.md:8` — - `CHANGELOG.md:76` — `revoked_principals` table lands (TODO marker in code). New
+- `.wip/audit.md:9` — - `CHANGELOG.md:323` — TODO(R6) — same disease, deferred fix template.
+- `.wip/audit.md:10` — - `CHANGELOG.md:357` — `TODO(R6 §15.A9)`, `TODO(R6 §15.A11)`, `TODO(R6 §15.A12)` comments
+- `.wip/audit.md:11` — - `CHANGELOG.md:678` — - `engine="groq_pm4py"` subprocess transport — MCP handlers now spawn the real DSPy/pm4py-backed translator instead of the in-process stub.
+- `.wip/audit.md:12` — - `CHANGELOG.md:774` — - [`ee90af9`](../../commit/ee90af9) `fix(no-stub): wire ingest/map/extend/push format params; add named-graph push; remove dead cfg`
+- `.wip/audit.md:13` — - `CHANGELOG.md:794` — - [`e4db225`](../../commit/e4db225) `ontostar(R3): wire PowlBridgeReplay into admission gate, replace stub`
+- `.wip/audit.md:14` — - `CHANGELOG.md:804` — - `PowlBridgeReplay` replaces the noop stub in the admission gate.
+- `.wip/audit.md:15` — - `DISSERTATION.md:46` — *   **L6 High-Speed Kernels:** Represented by `wasm4pm` stream-2 stub bindings and the `src/manufacturing/` pipeline.
+- `.wip/audit.md:16` — - `IMPLEMENTATION_SUMMARY.md:142` — ## What's NOT Implemented (Vision 2030 Future Layers)
+- `.wip/audit.md:17` — - `Cargo.toml:86` — todo = "deny"
+- `.wip/audit.md:18` — - `ontology/alignment-notes.md:109` — `OcelObjectType` is a typing class for OCEL 2.0 instances (e.g. Order, Item, Package). In the current TTL it is a vocabulary stub — the actual object type individuals (Order, Item, etc.) are not defined. The enforcer correctly flags it as orphaned.
+- `.wip/audit.md:19` — - `tests/end_to_end_governed_release.rs:8` — //!   5. assert Admitted(receipt) with non-stub fitness
+- `.wip/audit.md:20` — - `tests/end_to_end_governed_release.rs:68` — //    fitness, not a stub 1.0).
+- `.wip/audit.md:21` — - `tests/end_to_end_governed_release.rs:78` — !conf.run_id.starts_with("stub-run-"),
+- `.wip/audit.md:22` — - `tests/end_to_end_governed_release.rs:79` — "verdict came from the stub, not the real PowlBridge: {}",
+- `.wip/audit.md:23` — - `tests/ratchet_red_team.rs:43` — let msg = "evaluate_admission(stub) called";
+- `.wip/audit.md:24` — - `tests/portability_codegen.rs:94` — let receipt = build_test_receipt(b"some-artifact-placeholder");
+- `.wip/audit.md:25` — - `tests/saboteur_meta.rs:5` — //! output is structurally distinct from a hypothetical "stub that
+- `.wip/audit.md:26` — - `tests/adversarial_jtbd_test.rs:114` — Either the format was silently ignored (soft stub) or auto-detection hid the override.\n\
+- `.wip/audit.md:27` — - `tests/saboteur_a9_provenance_chain_load_bearing.rs:27` — //! R5 WB-1's TODO comment at admission.rs:660-662 carried A9 forward
+- `.wip/audit.md:28` — - `tests/three_layer_integration_test.rs:2` — //! (#43 Dynamics → #44 Causal hookup → #45 Planner stub).
+- `.wip/audit.md:29` — - `tests/three_layer_integration_test.rs:57` — // The Planner stub must read from the same SQLite store that
+- `.wip/audit.md:30` — - `tests/manufacturing_validators.rs:191` — // 64-char WO hash literal with a placeholder of equal length.
+- `.wip/audit.md:31` — - `tests/manufacturing_validators.rs:192` — let placeholder: String = "f".repeat(wo_hash.len());
+- `.wip/audit.md:32` — - `tests/manufacturing_validators.rs:194` — f.contents = f.contents.replace(&wo_hash, &placeholder);
+- `.wip/audit.md:33` — - `tests/ed25519_attestation.rs:3` — //! Replaces the digest-equality tautology stub with cryptographic
+- `.wip/audit.md:34` — - `tests/ggen_revops_pipeline.rs:37` — /// the ggen pipeline produced a populated file rather than an empty stub.
+- `.wip/audit.md:35` — - `tests/ggen_pipeline_real.rs:25` — /// 1. generated.rs exists and contains the expected stub modules.
+- `.wip/audit.md:36` — - `tests/admission_real_replay.rs:2` — //! `PowlBridgeReplay`, not the `NoopPowlReplay` stub.
+- `.wip/audit.md:37` — - `tests/admission_real_replay.rs:59` — // The bridge — not the stub — produced this verdict. The stub would
+- `.wip/audit.md:38` — - `tests/admission_real_replay.rs:60` — // have returned the literal {fitness: 1.0, run_id: "stub-run-..."}.
+- `.wip/audit.md:39` — - `tests/admission_real_replay.rs:62` — !conf.run_id.starts_with("stub-run-"),
+- `.wip/audit.md:40` — - `tests/admission_real_replay.rs:63` — "verdict came from NoopPowlReplay stub, not PowlBridge: run_id={}",
+- `.wip/audit.md:41` — - `.wip/audit.md:1` — # WIP audit
+- `.wip/audit.md:42` — - `.wip/audit.md:7` — - `CHANGELOG.md:76` — `revoked_principals` table lands (TODO marker in code). New
+- `.wip/audit.md:43` — - `.wip/audit.md:8` — - `CHANGELOG.md:323` — TODO(R6) — same disease, deferred fix template.
+- `.wip/audit.md:44` — - `.wip/audit.md:9` — - `CHANGELOG.md:357` — `TODO(R6 §15.A9)`, `TODO(R6 §15.A11)`, `TODO(R6 §15.A12)` comments
+- `.wip/audit.md:45` — - `.wip/audit.md:10` — - `CHANGELOG.md:678` — - `engine="groq_pm4py"` subprocess transport — MCP handlers now spawn the real DSPy/pm4py-backed translator instead of the in-process stub.
+- `.wip/audit.md:46` — - `.wip/audit.md:11` — - `CHANGELOG.md:774` — - [`ee90af9`](../../commit/ee90af9) `fix(no-stub): wire ingest/map/extend/push format params; add named-graph push; remove dead cfg`
+- `.wip/audit.md:47` — - `.wip/audit.md:12` — - `CHANGELOG.md:794` — - [`e4db225`](../../commit/e4db225) `ontostar(R3): wire PowlBridgeReplay into admission gate, replace stub`
+- `.wip/audit.md:48` — - `.wip/audit.md:13` — - `CHANGELOG.md:804` — - `PowlBridgeReplay` replaces the noop stub in the admission gate.
+- `.wip/audit.md:49` — - `.wip/audit.md:14` — - `DISSERTATION.md:46` — *   **L6 High-Speed Kernels:** Represented by `wasm4pm` stream-2 stub bindings and the `src/manufacturing/` pipeline.
+- `.wip/audit.md:50` — - `.wip/audit.md:15` — - `IMPLEMENTATION_SUMMARY.md:142` — ## What's NOT Implemented (Vision 2030 Future Layers)
+- `.wip/audit.md:51` — - `.wip/audit.md:16` — - `Cargo.toml:86` — todo = "deny"
+- `.wip/audit.md:52` — - `.wip/audit.md:17` — - `ontology/alignment-notes.md:109` — `OcelObjectType` is a typing class for OCEL 2.0 instances (e.g. Order, Item, Package). In the current TTL it is a vocabulary stub — the actual object type individuals (Order, Item, etc.) are not defined. The enforcer correctly flags it as orphaned.
+- `.wip/audit.md:53` — - `.wip/audit.md:18` — - `tests/end_to_end_governed_release.rs:8` — //!   5. assert Admitted(receipt) with non-stub fitness
+- `.wip/audit.md:54` — - `.wip/audit.md:19` — - `tests/end_to_end_governed_release.rs:68` — //    fitness, not a stub 1.0).
+- `.wip/audit.md:55` — - `.wip/audit.md:20` — - `tests/end_to_end_governed_release.rs:78` — !conf.run_id.starts_with("stub-run-"),
+- `.wip/audit.md:56` — - `.wip/audit.md:21` — - `tests/end_to_end_governed_release.rs:79` — "verdict came from the stub, not the real PowlBridge: {}",
+- `.wip/audit.md:57` — - `.wip/audit.md:22` — - `tests/ratchet_red_team.rs:43` — let msg = "evaluate_admission(stub) called";
+- `.wip/audit.md:58` — - `.wip/audit.md:23` — - `tests/portability_codegen.rs:94` — let receipt = build_test_receipt(b"some-artifact-placeholder");
+- `.wip/audit.md:59` — - `.wip/audit.md:24` — - `tests/saboteur_meta.rs:5` — //! output is structurally distinct from a hypothetical "stub that
+- `.wip/audit.md:60` — - `.wip/audit.md:25` — - `tests/adversarial_jtbd_test.rs:114` — Either the format was silently ignored (soft stub) or auto-detection hid the override.\n\
+- `.wip/audit.md:61` — - `.wip/audit.md:26` — - `tests/saboteur_a9_provenance_chain_load_bearing.rs:27` — //! R5 WB-1's TODO comment at admission.rs:660-662 carried A9 forward
+- `.wip/audit.md:62` — - `.wip/audit.md:27` — - `tests/three_layer_integration_test.rs:2` — //! (#43 Dynamics → #44 Causal hookup → #45 Planner stub).
+- `.wip/audit.md:63` — - `.wip/audit.md:28` — - `tests/three_layer_integration_test.rs:57` — // The Planner stub must read from the same SQLite store that
+- `.wip/audit.md:64` — - `.wip/audit.md:29` — - `tests/manufacturing_validators.rs:191` — // 64-char WO hash literal with a placeholder of equal length.
+- `.wip/audit.md:65` — - `.wip/audit.md:30` — - `tests/manufacturing_validators.rs:192` — let placeholder: String = "f".repeat(wo_hash.len());
+- `.wip/audit.md:66` — - `.wip/audit.md:31` — - `tests/manufacturing_validators.rs:194` — f.contents = f.contents.replace(&wo_hash, &placeholder);
+- `.wip/audit.md:67` — - `.wip/audit.md:32` — - `tests/ed25519_attestation.rs:3` — //! Replaces the digest-equality tautology stub with cryptographic
+- `.wip/audit.md:68` — - `.wip/audit.md:33` — - `tests/ggen_revops_pipeline.rs:37` — /// the ggen pipeline produced a populated file rather than an empty stub.
+- `.wip/audit.md:69` — - `.wip/audit.md:34` — - `tests/ggen_pipeline_real.rs:25` — /// 1. generated.rs exists and contains the expected stub modules.
+- `.wip/audit.md:70` — - `.wip/audit.md:35` — - `tests/admission_real_replay.rs:2` — //! `PowlBridgeReplay`, not the `NoopPowlReplay` stub.
+- `.wip/audit.md:71` — - `.wip/audit.md:36` — - `tests/admission_real_replay.rs:59` — // The bridge — not the stub — produced this verdict. The stub would
+- `.wip/audit.md:72` — - `.wip/audit.md:37` — - `tests/admission_real_replay.rs:60` — // have returned the literal {fitness: 1.0, run_id: "stub-run-..."}.
+- `.wip/audit.md:73` — - `.wip/audit.md:38` — - `tests/admission_real_replay.rs:62` — !conf.run_id.starts_with("stub-run-"),
+- `.wip/audit.md:74` — - `.wip/audit.md:39` — - `tests/admission_real_replay.rs:63` — "verdict came from NoopPowlReplay stub, not PowlBridge: run_id={}",
+- `.wip/audit.md:75` — - `.wip/audit.md:40` — - `.wip/audit.md:1` — # WIP audit
+- `.wip/audit.md:76` — - `.wip/audit.md:41` — - `.wip/audit.md:7` — - `CHANGELOG.md:76` — `revoked_principals` table lands (TODO marker in code). New
+- `.wip/audit.md:77` — - `.wip/audit.md:42` — - `.wip/audit.md:8` — - `CHANGELOG.md:323` — TODO(R6) — same disease, deferred fix template.
+- `.wip/audit.md:78` — - `.wip/audit.md:43` — - `.wip/audit.md:9` — - `CHANGELOG.md:357` — `TODO(R6 §15.A9)`, `TODO(R6 §15.A11)`, `TODO(R6 §15.A12)` comments
+- `.wip/audit.md:79` — - `.wip/audit.md:44` — - `.wip/audit.md:10` — - `CHANGELOG.md:678` — - `engine="groq_pm4py"` subprocess transport — MCP handlers now spawn the real DSPy/pm4py-backed translator instead of the in-process stub.
+- `.wip/audit.md:80` — - `.wip/audit.md:45` — - `.wip/audit.md:11` — - `CHANGELOG.md:774` — - [`ee90af9`](../../commit/ee90af9) `fix(no-stub): wire ingest/map/extend/push format params; add named-graph push; remove dead cfg`
+- `.wip/audit.md:81` — - `.wip/audit.md:46` — - `.wip/audit.md:12` — - `CHANGELOG.md:794` — - [`e4db225`](../../commit/e4db225) `ontostar(R3): wire PowlBridgeReplay into admission gate, replace stub`
+- `.wip/audit.md:82` — - `.wip/audit.md:47` — - `.wip/audit.md:13` — - `CHANGELOG.md:804` — - `PowlBridgeReplay` replaces the noop stub in the admission gate.
+- `.wip/audit.md:83` — - `.wip/audit.md:48` — - `.wip/audit.md:14` — - `DISSERTATION.md:46` — *   **L6 High-Speed Kernels:** Represented by `wasm4pm` stream-2 stub bindings and the `src/manufacturing/` pipeline.
+- `.wip/audit.md:84` — - `.wip/audit.md:49` — - `.wip/audit.md:15` — - `IMPLEMENTATION_SUMMARY.md:142` — ## What's NOT Implemented (Vision 2030 Future Layers)
+- `.wip/audit.md:85` — - `.wip/audit.md:50` — - `.wip/audit.md:16` — - `Cargo.toml:86` — todo = "deny"
+- `.wip/audit.md:86` — - `.wip/audit.md:51` — - `.wip/audit.md:17` — - `ontology/alignment-notes.md:109` — `OcelObjectType` is a typing class for OCEL 2.0 instances (e.g. Order, Item, Package). In the current TTL it is a vocabulary stub — the actual object type individuals (Order, Item, etc.) are not defined. The enforcer correctly flags it as orphaned.
+- `.wip/audit.md:87` — - `.wip/audit.md:52` — - `.wip/audit.md:18` — - `tests/end_to_end_governed_release.rs:8` — //!   5. assert Admitted(receipt) with non-stub fitness
+- `.wip/audit.md:88` — - `.wip/audit.md:53` — - `.wip/audit.md:19` — - `tests/end_to_end_governed_release.rs:68` — //    fitness, not a stub 1.0).
+- `.wip/audit.md:89` — - `.wip/audit.md:54` — - `.wip/audit.md:20` — - `tests/end_to_end_governed_release.rs:78` — !conf.run_id.starts_with("stub-run-"),
+- `.wip/audit.md:90` — - `.wip/audit.md:55` — - `.wip/audit.md:21` — - `tests/end_to_end_governed_release.rs:79` — "verdict came from the stub, not the real PowlBridge: {}",
+- `.wip/audit.md:91` — - `.wip/audit.md:56` — - `.wip/audit.md:22` — - `tests/ratchet_red_team.rs:43` — let msg = "evaluate_admission(stub) called";
+- `.wip/audit.md:92` — - `.wip/audit.md:57` — - `.wip/audit.md:23` — - `tests/portability_codegen.rs:94` — let receipt = build_test_receipt(b"some-artifact-placeholder");
+- `.wip/audit.md:93` — - `.wip/audit.md:58` — - `.wip/audit.md:24` — - `tests/saboteur_meta.rs:5` — //! output is structurally distinct from a hypothetical "stub that
+- `.wip/audit.md:94` — - `.wip/audit.md:59` — - `.wip/audit.md:25` — - `tests/adversarial_jtbd_test.rs:114` — Either the format was silently ignored (soft stub) or auto-detection hid the override.\n\
+- `.wip/audit.md:95` — - `.wip/audit.md:60` — - `.wip/audit.md:26` — - `tests/saboteur_a9_provenance_chain_load_bearing.rs:27` — //! R5 WB-1's TODO comment at admission.rs:660-662 carried A9 forward
+- `.wip/audit.md:96` — - `.wip/audit.md:61` — - `.wip/audit.md:27` — - `tests/three_layer_integration_test.rs:2` — //! (#43 Dynamics → #44 Causal hookup → #45 Planner stub).
+- `.wip/audit.md:97` — - `.wip/audit.md:62` — - `.wip/audit.md:28` — - `tests/three_layer_integration_test.rs:57` — // The Planner stub must read from the same SQLite store that
+- `.wip/audit.md:98` — - `.wip/audit.md:63` — - `.wip/audit.md:29` — - `tests/manufacturing_validators.rs:191` — // 64-char WO hash literal with a placeholder of equal length.
+- `.wip/audit.md:99` — - `.wip/audit.md:64` — - `.wip/audit.md:30` — - `tests/manufacturing_validators.rs:192` — let placeholder: String = "f".repeat(wo_hash.len());
+- `.wip/audit.md:100` — - `.wip/audit.md:65` — - `.wip/audit.md:31` — - `tests/manufacturing_validators.rs:194` — f.contents = f.contents.replace(&wo_hash, &placeholder);
+- `.wip/audit.md:101` — - `.wip/audit.md:66` — - `.wip/audit.md:32` — - `tests/ed25519_attestation.rs:3` — //! Replaces the digest-equality tautology stub with cryptographic
+- `.wip/audit.md:102` — - `.wip/audit.md:67` — - `.wip/audit.md:33` — - `tests/ggen_revops_pipeline.rs:37` — /// the ggen pipeline produced a populated file rather than an empty stub.
+- `.wip/audit.md:103` — - `.wip/audit.md:68` — - `.wip/audit.md:34` — - `tests/ggen_pipeline_real.rs:25` — /// 1. generated.rs exists and contains the expected stub modules.
+- `.wip/audit.md:104` — - `.wip/audit.md:69` — - `.wip/audit.md:35` — - `tests/admission_real_replay.rs:2` — //! `PowlBridgeReplay`, not the `NoopPowlReplay` stub.
+- `.wip/audit.md:105` — - `.wip/audit.md:70` — - `.wip/audit.md:36` — - `tests/admission_real_replay.rs:59` — // The bridge — not the stub — produced this verdict. The stub would
+- `.wip/audit.md:106` — - `.wip/audit.md:71` — - `.wip/audit.md:37` — - `tests/admission_real_replay.rs:60` — // have returned the literal {fitness: 1.0, run_id: "stub-run-..."}.
+- `.wip/audit.md:107` — - `.wip/audit.md:72` — - `.wip/audit.md:38` — - `tests/admission_real_replay.rs:62` — !conf.run_id.starts_with("stub-run-"),
+- `.wip/audit.md:108` — - `.wip/audit.md:73` — - `.wip/audit.md:39` — - `tests/admission_real_replay.rs:63` — "verdict came from NoopPowlReplay stub, not PowlBridge: run_id={}",
+- `.wip/audit.md:109` — - `.wip/audit.md:74` — - `.wip/audit.md:40` — - `.wip/audit.md:1` — # WIP audit
+- `.wip/audit.md:110` — - `.wip/audit.md:75` — - `.wip/audit.md:41` — - `.wip/audit.md:8` — - `CHANGELOG.md:76` — `revoked_principals` table lands (TODO marker in code). New
+- `.wip/audit.md:111` — - `.wip/audit.md:76` — - `.wip/audit.md:42` — - `.wip/audit.md:9` — - `CHANGELOG.md:323` — TODO(R6) — same disease, deferred fix template.
+- `.wip/audit.md:112` — - `.wip/audit.md:77` — - `.wip/audit.md:43` — - `.wip/audit.md:10` — - `CHANGELOG.md:357` — `TODO(R6 §15.A9)`, `TODO(R6 §15.A11)`, `TODO(R6 §15.A12)` comments
+- `.wip/audit.md:113` — - `.wip/audit.md:78` — - `.wip/audit.md:44` — - `.wip/audit.md:11` — - `CHANGELOG.md:678` — - `engine="groq_pm4py"` subprocess transport — MCP handlers now spawn the real DSPy/pm4py-backed translator instead of the in-process stub.
+- `.wip/audit.md:114` — - `.wip/audit.md:79` — - `.wip/audit.md:45` — - `.wip/audit.md:12` — - `CHANGELOG.md:774` — - [`ee90af9`](../../commit/ee90af9) `fix(no-stub): wire ingest/map/extend/push format params; add named-graph push; remove dead cfg`
+- `.wip/audit.md:115` — - `.wip/audit.md:80` — - `.wip/audit.md:46` — - `.wip/audit.md:13` — - `CHANGELOG.md:794` — - [`e4db225`](../../commit/e4db225) `ontostar(R3): wire PowlBridgeReplay into admission gate, replace stub`
+- `.wip/audit.md:116` — - `.wip/audit.md:81` — - `.wip/audit.md:47` — - `.wip/audit.md:14` — - `CHANGELOG.md:804` — - `PowlBridgeReplay` replaces the noop stub in the admission gate.
+- `.wip/audit.md:117` — - `.wip/audit.md:82` — - `.wip/audit.md:48` — - `.wip/audit.md:15` — - `DISSERTATION.md:46` — *   **L6 High-Speed Kernels:** Represented by `wasm4pm` stream-2 stub bindings and the `src/manufacturing/` pipeline.
+- `.wip/audit.md:118` — - `.wip/audit.md:83` — - `.wip/audit.md:49` — - `.wip/audit.md:16` — - `IMPLEMENTATION_SUMMARY.md:142` — ## What's NOT Implemented (Vision 2030 Future Layers)
+- `.wip/audit.md:119` — - `.wip/audit.md:84` — - `.wip/audit.md:50` — - `.wip/audit.md:17` — - `Cargo.toml:86` — todo = "deny"
+- `.wip/audit.md:120` — - `.wip/audit.md:85` — - `.wip/audit.md:51` — - `.wip/audit.md:18` — - `ontology/alignment-notes.md:109` — `OcelObjectType` is a typing class for OCEL 2.0 instances (e.g. Order, Item, Package). In the current TTL it is a vocabulary stub — the actual object type individuals (Order, Item, etc.) are not defined. The enforcer correctly flags it as orphaned.
+- `.wip/audit.md:121` — - `.wip/audit.md:86` — - `.wip/audit.md:52` — - `.wip/audit.md:19` — - `tests/end_to_end_governed_release.rs:8` — //!   5. assert Admitted(receipt) with non-stub fitness
+- `.wip/audit.md:122` — - `.wip/audit.md:87` — - `.wip/audit.md:53` — - `.wip/audit.md:20` — - `tests/end_to_end_governed_release.rs:68` — //    fitness, not a stub 1.0).
+- `.wip/audit.md:123` — - `.wip/audit.md:88` — - `.wip/audit.md:54` — - `.wip/audit.md:21` — - `tests/end_to_end_governed_release.rs:78` — !conf.run_id.starts_with("stub-run-"),
+- `.wip/audit.md:124` — - `.wip/audit.md:89` — - `.wip/audit.md:55` — - `.wip/audit.md:22` — - `tests/end_to_end_governed_release.rs:79` — "verdict came from the stub, not the real PowlBridge: {}",
+- `.wip/audit.md:125` — - `.wip/audit.md:90` — - `.wip/audit.md:56` — - `.wip/audit.md:23` — - `tests/ratchet_red_team.rs:43` — let msg = "evaluate_admission(stub) called";
+- `.wip/audit.md:126` — - `.wip/audit.md:91` — - `.wip/audit.md:57` — - `.wip/audit.md:24` — - `tests/portability_codegen.rs:94` — let receipt = build_test_receipt(b"some-artifact-placeholder");
+- `.wip/audit.md:127` — - `.wip/audit.md:92` — - `.wip/audit.md:58` — - `.wip/audit.md:25` — - `tests/saboteur_meta.rs:5` — //! output is structurally distinct from a hypothetical "stub that
+- `.wip/audit.md:128` — - `.wip/audit.md:93` — - `.wip/audit.md:59` — - `.wip/audit.md:26` — - `tests/adversarial_jtbd_test.rs:114` — Either the format was silently ignored (soft stub) or auto-detection hid the override.\n\
+- `.wip/audit.md:129` — - `.wip/audit.md:94` — - `.wip/audit.md:60` — - `.wip/audit.md:27` — - `tests/saboteur_a9_provenance_chain_load_bearing.rs:27` — //! R5 WB-1's TODO comment at admission.rs:660-662 carried A9 forward
+- `.wip/audit.md:130` — - `.wip/audit.md:95` — - `.wip/audit.md:61` — - `.wip/audit.md:28` — - `tests/three_layer_integration_test.rs:2` — //! (#43 Dynamics → #44 Causal hookup → #45 Planner stub).
+- `.wip/audit.md:131` — - `.wip/audit.md:96` — - `.wip/audit.md:62` — - `.wip/audit.md:29` — - `tests/three_layer_integration_test.rs:57` — // The Planner stub must read from the same SQLite store that
+- `.wip/audit.md:132` — - `.wip/audit.md:97` — - `.wip/audit.md:63` — - `.wip/audit.md:30` — - `tests/manufacturing_validators.rs:191` — // 64-char WO hash literal with a placeholder of equal length.
+- `.wip/audit.md:133` — - `.wip/audit.md:98` — - `.wip/audit.md:64` — - `.wip/audit.md:31` — - `tests/manufacturing_validators.rs:192` — let placeholder: String = "f".repeat(wo_hash.len());
+- `.wip/audit.md:134` — - `.wip/audit.md:99` — - `.wip/audit.md:65` — - `.wip/audit.md:32` — - `tests/manufacturing_validators.rs:194` — f.contents = f.contents.replace(&wo_hash, &placeholder);
+- `.wip/audit.md:135` — - `.wip/audit.md:100` — - `.wip/audit.md:66` — - `.wip/audit.md:33` — - `tests/ed25519_attestation.rs:3` — //! Replaces the digest-equality tautology stub with cryptographic
+- `.wip/audit.md:136` — - `.wip/audit.md:101` — - `.wip/audit.md:67` — - `.wip/audit.md:34` — - `tests/ggen_revops_pipeline.rs:37` — /// the ggen pipeline produced a populated file rather than an empty stub.
+- `.wip/audit.md:137` — - `.wip/audit.md:102` — - `.wip/audit.md:68` — - `.wip/audit.md:35` — - `tests/ggen_pipeline_real.rs:25` — /// 1. generated.rs exists and contains the expected stub modules.
+- `.wip/audit.md:138` — - `.wip/audit.md:103` — - `.wip/audit.md:69` — - `.wip/audit.md:36` — - `tests/admission_real_replay.rs:2` — //! `PowlBridgeReplay`, not the `NoopPowlReplay` stub.
+- `.wip/audit.md:139` — - `.wip/audit.md:104` — - `.wip/audit.md:70` — - `.wip/audit.md:37` — - `tests/admission_real_replay.rs:59` — // The bridge — not the stub — produced this verdict. The stub would
+- `.wip/audit.md:140` — - `.wip/audit.md:105` — - `.wip/audit.md:71` — - `.wip/audit.md:38` — - `tests/admission_real_replay.rs:60` — // have returned the literal {fitness: 1.0, run_id: "stub-run-..."}.
+- `.wip/audit.md:141` — - `.wip/audit.md:106` — - `.wip/audit.md:72` — - `.wip/audit.md:39` — - `tests/admission_real_replay.rs:62` — !conf.run_id.starts_with("stub-run-"),
+- `.wip/audit.md:142` — - `.wip/audit.md:107` — - `.wip/audit.md:73` — - `.wip/audit.md:40` — - `tests/admission_real_replay.rs:63` — "verdict came from NoopPowlReplay stub, not PowlBridge: run_id={}",
+- `.wip/audit.md:143` — - `.wip/audit.md:108` — - `.wip/audit.md:74` — - `.wip/audit.md:41` — - `packages/declarations.d.ts:29` — placeholder?: string;
+- `.wip/audit.md:144` — - `.wip/audit.md:109` — - `.wip/audit.md:75` — - `.wip/audit.md:42` — - `src/server.rs:75` — /// (Stream-2 stub path; not backed by real POWL replay). 6 occurrences.
+- `.wip/audit.md:145` — - `.wip/audit.md:110` — - `.wip/audit.md:76` — - `.wip/audit.md:43` — - `src/server.rs:1008` — // TODO(R3 Task B): replace tenant_id fallback with
+- `.wip/audit.md:146` — - `.wip/audit.md:111` — - `.wip/audit.md:77` — - `.wip/audit.md:44` — - `src/server.rs:2551` — #[tool(name = "onto_policy_register", description = "Register an ARGOS-style policy rule (#40, ISWC 2025 WOP). `effect` is `\"allow\"` or `\"deny\"`; `condition` is a SPARQL ASK that can use the `{target}` placeholder. Pairs with `onto_policy_check` and `onto_certify_action` — CIVeX gates causal risk, ARGOS gates authorisation.")]
+- `.wip/audit.md:147` — - `.wip/audit.md:112` — - `.wip/audit.md:78` — - `.wip/audit.md:46` — - `src/server.rs:2996` — #[tool(name = "onto_plan_compile_pddl", description = "Compile a PDDL domain from registered Dynamics action schemas (#43) plus a problem instance from the loaded graph and a goal Turtle slice (#45 Planner stub). Returns {domain, problem, translation_notes}. The actual planner (Fast Downward) is wrapped client-side per the LLM-Modulo convention — this primitive only emits the PDDL. Lossy in the v0.4 st
+- `.wip/audit.md:148` — - `.wip/audit.md:113` — - `.wip/audit.md:79` — - `.wip/audit.md:47` — - `src/server.rs:5605` — // TODO(stream1-4): Streams 1-4 are not yet merged on this branch. The
+- `.wip/audit.md:149` — - `.wip/audit.md:114` — - `.wip/audit.md:80` — - `.wip/audit.md:48` — - `src/server.rs:5859` — // TODO(stream1): replace with self.onto_declare_workflow(...).
+- `.wip/audit.md:150` — - `.wip/audit.md:115` — - `.wip/audit.md:81` — - `.wip/audit.md:49` — - `src/server.rs:5981` — // Load scope row (Stream 5 stub schema).
+- `.wip/audit.md:151` — - `.wip/audit.md:116` — - `.wip/audit.md:82` — - `.wip/audit.md:50` — - `src/server.rs:5986` — // delta — not a placeholder.
+- `.wip/audit.md:152` — - `.wip/audit.md:117` — - `.wip/audit.md:83` — - `.wip/audit.md:51` — - `src/server.rs:6830` — // stub (NoopPowlReplay) or the real wasm4pm bridge.  The stub
+- `.wip/audit.md:153` — - `.wip/audit.md:118` — - `.wip/audit.md:84` — - `.wip/audit.md:52` — - `src/server.rs:6831` — // prefixes every run_id with "stub-run-" so callers and auditors
+- `.wip/audit.md:154` — - `.wip/audit.md:119` — - `.wip/audit.md:85` — - `.wip/audit.md:53` — - `src/server.rs:6832` — // can distinguish stub-path admissions from production-verified
+- `.wip/audit.md:155` — - `.wip/audit.md:120` — - `.wip/audit.md:86` — - `.wip/audit.md:54` — - `src/server.rs:6836` — let powl_stub = receipt.record.conformance_run_id.starts_with("stub-run-");
+- `.wip/audit.md:156` — - `.wip/audit.md:121` — - `.wip/audit.md:87` — - `.wip/audit.md:55` — - `src/server.rs:6844` — // integrated (stream-2 stub); CTQ admission skipped the real
+- `.wip/audit.md:157` — - `.wip/audit.md:122` — - `.wip/audit.md:88` — - `.wip/audit.md:56` — - `src/server.rs:7709` — /// TODO(R3 Task B): replace `is_admin_principal` with the canonical
+- `.wip/audit.md:158` — - `.wip/audit.md:123` — - `.wip/audit.md:89` — - `.wip/audit.md:57` — - `src/server.rs:7999` — /// TODO(R3 Task B): switch the INSERT target to `revoked_principals`
+- `.wip/audit.md:159` — - `.wip/audit.md:124` — - `.wip/audit.md:90` — - `.wip/audit.md:58` — - `src/ocel_store.rs:478` — // Make sure the conformance_runs table exists. The Stream-3 stub
+- `.wip/audit.md:160` — - `.wip/audit.md:125` — - `.wip/audit.md:91` — - `.wip/audit.md:59` — - `src/embed.rs:59` — /// let placeholder: Vec<f32> = vec![0.0; BGE_SMALL_DIM];
+- `.wip/audit.md:161` — - `.wip/audit.md:126` — - `.wip/audit.md:92` — - `.wip/audit.md:60` — - `src/embed.rs:60` — /// assert_eq!(placeholder.len(), BGE_SMALL_DIM);
+- `.wip/audit.md:162` — - `.wip/audit.md:127` — - `.wip/audit.md:93` — - `.wip/audit.md:61` — - `src/cell8.rs:17` — //! ## Phase 10 stub status
+- `.wip/audit.md:163` — - `.wip/audit.md:128` — - `.wip/audit.md:94` — - `.wip/audit.md:62` — - `src/policy.rs:27` — /// SPARQL ASK. Can use the placeholder `{target}` which is substituted
+- `.wip/audit.md:164` — - `.wip/audit.md:129` — - `.wip/audit.md:95` — - `.wip/audit.md:63` — - `src/attestation.rs:3` — //! Replaces the Phase-10 A10 tautology stub (which compared
+- `.wip/audit.md:165` — - `.wip/audit.md:130` — - `.wip/audit.md:96` — - `.wip/audit.md:64` — - `src/cell_ready.rs:54` — /// Stream-2-stub stand-in for `wasm4pm`'s POWL arena handle. Stream 2
+- `.wip/audit.md:166` — - `.wip/audit.md:131` — - `.wip/audit.md:97` — - `.wip/audit.md:65` — - `src/cell_ready.rs:221` — // ── Real Ed25519 attestation (replaces the A10 tautology stub) ──
+- `.wip/audit.md:167` — - `.wip/audit.md:132` — - `.wip/audit.md:98` — - `.wip/audit.md:66` — - `src/plan_pddl.rs:1` — //! Planner stub (#45) — PDDL emission from Dynamics action schemas.
+- `.wip/audit.md:168` — - `.wip/audit.md:133` — - `.wip/audit.md:99` — - `.wip/audit.md:67` — - `src/plan_pddl.rs:9` — //! ## Bounded scope (v0.4 stub)
+- `.wip/audit.md:169` — - `.wip/audit.md:134` — - `.wip/audit.md:100` — - `.wip/audit.md:68` — - `src/plan_pddl.rs:24` — //! paper is the anchor for the rigorous version; this stub is a sand-table.
+- `.wip/audit.md:170` — - `.wip/audit.md:135` — - `.wip/audit.md:101` — - `.wip/audit.md:69` — - `src/plan_pddl.rs:34` — /// stub couldn't fully encode and that was preserved as a PDDL comment.
+- `.wip/audit.md:171` — - `.wip/audit.md:136` — - `.wip/audit.md:102` — - `.wip/audit.md:70` — - `src/plan_pddl.rs:75` — /// Translate a triple position (placeholder `<{x}>`, full IRI `<...>`, or bare
+- `.wip/audit.md:172` — - `.wip/audit.md:137` — - `.wip/audit.md:103` — - `.wip/audit.md:71` — - `src/plan_pddl.rs:196` — // Problem stub — empty init/goal; the MCP layer fills in init from the
+- `.wip/audit.md:173` — - `.wip/audit.md:138` — - `.wip/audit.md:104` — - `.wip/audit.md:72` — - `src/defects.rs:49` — /// (replaces the digest-equality tautology stub). Forward-compatible —
+- `.wip/audit.md:174` — - `.wip/audit.md:139` — - `.wip/audit.md:105` — - `.wip/audit.md:73` — - `src/defects.rs:203` — /// matches the artifact bit-for-bit. (Phase-10 stub: digest-equality
+- `.wip/audit.md:175` — - `.wip/audit.md:140` — - `.wip/audit.md:106` — - `.wip/audit.md:74` — - `src/state.rs:173` — -- ─── OntoStar Stream 1 stub migrations (authoritative copies live in Stream 1) ──
+- `.wip/audit.md:176` — - `.wip/audit.md:141` — - `.wip/audit.md:107` — - `.wip/audit.md:75` — - `src/state.rs:252` — -- the §28 hidden-WIP leak. (Verified: no DELETE statement in
+- `.wip/audit.md:177` — - `.wip/audit.md:142` — - `.wip/audit.md:108` — - `.wip/audit.md:76` — - `src/plan_classical.rs:25` — //! NOT fall back to a silent stub.
+- `.wip/audit.md:178` — - `.wip/audit.md:143` — - `.wip/audit.md:109` — - `.wip/audit.md:77` — - `src/socket_windows.rs:5` — /// Windows stub for the Unix domain socket adapter.
+- `.wip/audit.md:179` — - `.wip/audit.md:144` — - `.wip/audit.md:110` — - `.wip/audit.md:78` — - `src/admission.rs:5` — //!    (TODO Stream 2: replace [`PowlReplay`] stub with the real bridge),
+- `.wip/audit.md:180` — - `.wip/audit.md:145` — - `.wip/audit.md:111` — - `.wip/audit.md:79` — - `src/admission.rs:225` — /// TODO(R3 Task B): switch from `revoked_sessions` fallback to the
+- `.wip/audit.md:181` — - `.wip/audit.md:146` — - `.wip/audit.md:112` — - `.wip/audit.md:80` — - `src/admission.rs:525` — /// Stream-2-stub trait. The real implementation lives in `powl_bridge.rs`
+- `.wip/audit.md:182` — - `.wip/audit.md:147` — - `.wip/audit.md:113` — - `.wip/audit.md:81` — - `src/admission.rs:529` — /// TODO(stream-2): swap to the wasm4pm-backed bridge. This stub MUST be
+- `.wip/audit.md:183` — - `.wip/audit.md:148` — - `.wip/audit.md:114` — - `.wip/audit.md:82` — - `src/admission.rs:538` — /// flag distinguishes placeholder results from production-grade evidence.
+- `.wip/audit.md:184` — - `.wip/audit.md:149` — - `.wip/audit.md:115` — - `.wip/audit.md:83` — - `src/admission.rs:569` — /// `true` when this result was produced by the stream-2 stub
+- `.wip/audit.md:185` — - `.wip/audit.md:150` — - `.wip/audit.md:116` — - `.wip/audit.md:84` — - `src/admission.rs:576` — /// external operators and auditors can distinguish stub-path
+- `.wip/audit.md:186` — - `.wip/audit.md:151` — - `.wip/audit.md:117` — - `.wip/audit.md:85` — - `src/admission.rs:595` — /// assert!(!pass.is_stub,             "pass() produces non-stub evidence");
+- `.wip/audit.md:187` — - `.wip/audit.md:152` — - `.wip/audit.md:118` — - `.wip/audit.md:86` — - `src/admission.rs:623` — /// assert!(!fail.is_stub,             "fail() produces non-stub evidence");
+- `.wip/audit.md:188` — - `.wip/audit.md:153` — - `.wip/audit.md:119` — - `.wip/audit.md:87` — - `src/admission.rs:684` — /// Returns `true` when this result was produced by the stream-2 stub
+- `.wip/audit.md:189` — - `.wip/audit.md:154` — - `.wip/audit.md:120` — - `.wip/audit.md:88` — - `src/admission.rs:687` — /// Stub results have `fitness = 1.0` and `precision = 1.0` as placeholders
+- `.wip/audit.md:190` — - `.wip/audit.md:155` — - `.wip/audit.md:121` — - `.wip/audit.md:89` — - `src/admission.rs:690` — /// # Auto-instinct: stub results produced by NoopPowlReplay always conform
+- `.wip/audit.md:191` — - `.wip/audit.md:156` — - `.wip/audit.md:122` — - `.wip/audit.md:90` — - `src/admission.rs:698` — /// // Auto-instinct: stub results are always conformant (placeholder 1.0/1.0).
+- `.wip/audit.md:192` — - `.wip/audit.md:157` — - `.wip/audit.md:123` — - `.wip/audit.md:91` — - `src/admission.rs:700` — /// assert!(stub_result.is_conformant(),  "stub result must report conformance");
+- `.wip/audit.md:193` — - `.wip/audit.md:158` — - `.wip/audit.md:124` — - `.wip/audit.md:92` — - `src/admission.rs:702` — /// // A hand-crafted non-stub conforming result is not a stub.
+- `.wip/audit.md:194` — - `.wip/audit.md:159` — - `.wip/audit.md:125` — - `.wip/audit.md:93` — - `src/admission.rs:711` — /// **Stream-2 stub.** Returns a perfect-fit verdict. Retained because some
+- `.wip/audit.md:195` — - `.wip/audit.md:160` — - `.wip/audit.md:126` — - `.wip/audit.md:94` — - `src/admission.rs:724` — /// // Stub always reports perfect fitness and precision — these are
+- `.wip/audit.md:196` — - `.wip/audit.md:161` — - `.wip/audit.md:127` — - `.wip/audit.md:95` — - `src/admission.rs:739` — /// Marker string placed in the codebase to locate every stream-2 stub site.
+- `.wip/audit.md:197` — - `.wip/audit.md:162` — - `.wip/audit.md:128` — - `.wip/audit.md:96` — - `src/admission.rs:742` — /// remaining match indicates a stub that was not replaced with the real
+- `.wip/audit.md:198` — - `.wip/audit.md:163` — - `.wip/audit.md:129` — - `.wip/audit.md:97` — - `src/admission.rs:750` — /// // The value is a recognisable TODO tag, not a semver.
+- `.wip/audit.md:199` — - `.wip/audit.md:164` — - `.wip/audit.md:130` — - `.wip/audit.md:98` — - `src/admission.rs:751` — /// assert!(STREAM3_STUB_POWL_REPLAY_MARKER.starts_with("TODO"));
+- `.wip/audit.md:200` — - `.wip/audit.md:165` — - `.wip/audit.md:131` — - `.wip/audit.md:99` — - `src/admission.rs:754` — pub const STREAM3_STUB_POWL_REPLAY_MARKER: &str = "TODO(stream-2): replace NoopPowlReplay";
+- `.wip/audit.md:201` — - `.wip/audit.md:166` — - `.wip/audit.md:132` — - `.wip/audit.md:100` — - `src/admission.rs:833` — /// OCEL event attribute key indicating the POWL replay used a stub
+- `.wip/audit.md:202` — - `.wip/audit.md:167` — - `.wip/audit.md:133` — - `.wip/audit.md:101` — - `src/admission.rs:913` — // POWL replay is not yet integrated (stream-2 stub);
+- `.wip/audit.md:203` — - `.wip/audit.md:168` — - `.wip/audit.md:134` — - `.wip/audit.md:102` — - `src/admission.rs:916` — // `"stub-run-"` run_id prefix allow downstream consumers to
+- `.wip/audit.md:204` — - `.wip/audit.md:169` — - `.wip/audit.md:135` — - `.wip/audit.md:103` — - `src/admission.rs:922` — run_id: format!("stub-run-{}", scope_token),
+- `.wip/audit.md:205` — - `.wip/audit.md:170` — - `.wip/audit.md:136` — - `.wip/audit.md:104` — - `src/admission.rs:1427` — // Run conformance via wasm4pm bridge (or stub).
+- `.wip/audit.md:206` — - `.wip/audit.md:171` — - `.wip/audit.md:137` — - `.wip/audit.md:105` — - `src/admission.rs:1462` — // self-attests with the same hash (placeholder until ed25519-dalek
+- `.wip/audit.md:207` — - `.wip/audit.md:172` — - `.wip/audit.md:138` — - `.wip/audit.md:106` — - `src/admission.rs:2226` — // Run the stub migration on its own (it is a no-op SQL string but keep
+- `.wip/audit.md:208` — - `.wip/audit.md:173` — - `.wip/audit.md:139` — - `.wip/audit.md:107` — - `src/admission.rs:2243` — // Surface stub status in the OCEL witness so a process miner who sees
+- `.wip/audit.md:209` — - `.wip/audit.md:174` — - `.wip/audit.md:140` — - `.wip/audit.md:108` — - `src/admission.rs:2244` — // only the event log can flag stub-path runs without parsing run_id.
+- `.wip/audit.md:210` — - `.wip/audit.md:175` — - `.wip/audit.md:141` — - `.wip/audit.md:109` — - `src/admission.rs:2287` — // placeholder values from NoopPowlReplay (stream-2 stub
+- `.wip/audit.md:211` — - `.wip/audit.md:176` — - `.wip/audit.md:142` — - `.wip/audit.md:110` — - `src/admission.rs:2289` — // stub-path conformance runs as production evidence.
+- `.wip/audit.md:212` — - `.wip/audit.md:177` — - `.wip/audit.md:143` — - `.wip/audit.md:111` — - `src/retention.rs:369` — // This is a placeholder for receipt-file artifacts — see
+- `.wip/audit.md:213` — - `.wip/audit.md:178` — - `.wip/audit.md:144` — - `.wip/audit.md:112` — - `src/retention.rs:415` — /// implementation is a defined no-op placeholder — returns `0` until a
+- `.wip/audit.md:214` — - `.wip/audit.md:179` — - `.wip/audit.md:145` — - `.wip/audit.md:113` — - `src/retention.rs:429` — /// // Placeholder implementation always reports zero orphans pruned.
+- `.wip/audit.md:215` — - `.wip/audit.md:180` — - `.wip/audit.md:146` — - `.wip/audit.md:114` — - `src/receipts.rs:243` — /// stub migration in `STREAM3_STUB_MIGRATION`.
+- `.wip/audit.md:216` — - `.wip/audit.md:181` — - `.wip/audit.md:147` — - `.wip/audit.md:115` — - `docs/01-architecture.md:55` — `PowlBridgeReplay` parses declared POWL strings via the `wasm4pm` crate, projects the OCEL trace tagged with `scope_token`, and returns a fitness/precision verdict. Production admission uses this; a `NoopPowlReplay` stub remains for gate-semantics unit tests that need a deterministic pass-through. Defects: `ReplayFailed`, `SkippedTask`, `ExtraTask`, `WrongOrder`, `CapabilityZero`, `ReplayDive
+- `.wip/audit.md:217` — - `.wip/audit.md:182` — - `.wip/audit.md:148` — - `.wip/audit.md:116` — - `docs/05-receipt-chain.md:20` — pub signature: Option<Vec<u8>>,      // Ed25519 (Phase 10 stub-of-record)
+- `.wip/audit.md:218` — - `.wip/audit.md:183` — - `.wip/audit.md:149` — - `.wip/audit.md:117` — - `docs/07-phase-history.md:11` — Commits `33feda7`, `e4db225`. Replaced the `NoopPowlReplay` stub with `PowlBridgeReplay::new(store)` in production-path admission. The gap closed: 12 admission tests had been validating against a fitness=1.0 stub. Production now routes through `wasm4pm` for every admission; only four gate-semantics tests retain the noop with an explicit `// INTENTIONAL` annotation.
+- `.wip/audit.md:219` — - `.wip/audit.md:184` — - `.wip/audit.md:150` — - `.wip/audit.md:118` — - `docs/04-defect-taxonomy.md:38` — | `attestation_missing` | `AttestationMissing` | Cell8 A10 `ExternalAttestation` conjunct fails | Stub digest mismatch | `tests/cell8_thirteen_gates.rs` |
+- `.wip/audit.md:220` — - `.wip/audit.md:185` — - `.wip/audit.md:151` — - `.wip/audit.md:119` — - `docs/ies-ecosystem.md:204` — | IES Top (ToLO) | ~22 | TBD | TBD | TBD | TBD | TBD |
+- `.wip/audit.md:221` — - `.wip/audit.md:186` — - `.wip/audit.md:152` — - `.wip/audit.md:120` — - `docs/ies-ecosystem.md:205` — | IES Core | ~131 | TBD | TBD | TBD | TBD | TBD |
+- `.wip/audit.md:222` — - `.wip/audit.md:187` — - `.wip/audit.md:153` — - `.wip/audit.md:121` — - `docs/00-overview.md:34` — - **Receipts prove.** Every admitted operation produces a `ProductionRecord`, a chained `Receipt` (BLAKE3 over canonical bytes, Ed25519-signed in Phase 10's stub-of-record form), and an `admission_granted` OCEL event. Denied operations produce `admission_denied` with a typed `defect` attribute. No claim of success exists outside this chain.
+- `.wip/audit.md:223` — - `.wip/audit.md:188` — - `.wip/audit.md:154` — - `.wip/audit.md:122` — - `docs/00-overview.md:38` — The Phase 6 audit found 25 silently-broken CLI tests, 12 stub-validated admission tests, 21 dead defect variants, and 5 textual-ratchet bypass patterns. Phases 7–11 closed every finding fix-forward. The system now refuses to claim a feature works unless the receipt and the OCEL event log prove it ran. That refusal is the product.
+- `.wip/audit.md:224` — - `.wip/audit.md:189` — - `.wip/audit.md:155` — - `.wip/audit.md:123` — - `.github/workflows/wip-sweep.yml:1` — name: WIP Sweep
+- `.wip/audit.md:225` — - `.wip/audit.md:190` — - `.wip/audit.md:156` — - `.wip/audit.md:124` — - `.github/workflows/wip-sweep.yml:5` — branches: [agent/finish-wip-20260730]
+- `.wip/audit.md:226` — - `.wip/audit.md:191` — - `.wip/audit.md:157` — - `.wip/audit.md:125` — - `.github/workflows/wip-sweep.yml:6` — paths: [.github/wip-trigger]
+- `.wip/audit.md:227` — - `.wip/audit.md:192` — - `.wip/audit.md:158` — - `.wip/audit.md:126` — - `.github/workflows/wip-sweep.yml:18` — ref: agent/finish-wip-20260730
+- `.wip/audit.md:228` — - `.wip/audit.md:193` — - `.wip/audit.md:159` — - `.wip/audit.md:127` — - `.github/workflows/wip-sweep.yml:21` — - name: Inventory WIP and executable gates
+- `.wip/audit.md:229` — - `.wip/audit.md:194` — - `.wip/audit.md:160` — - `.wip/audit.md:128` — - `.github/workflows/wip-sweep.yml:26` — mkdir -p .wip
+- `.wip/audit.md:230` — - `.wip/audit.md:195` — - `.wip/audit.md:161` — - `.wip/audit.md:129` — - `.github/workflows/wip-sweep.yml:33` — marker_re = re.compile(r'(?i)\b(TODO|FIXME|XXX|HACK|WIP|TBD|NOT[ _-]?IMPLEMENTED|PLACEHOLDER|STUB)\b|todo!\s*\(|unimplemented!\s*\(')
+- `.wip/audit.md:231` — - `.wip/audit.md:196` — - `.wip/audit.md:162` — - `.wip/audit.md:130` — - `.github/workflows/wip-sweep.yml:109` — Path('.wip/audit.json').write_text(json.dumps(audit,indent=2))
+- `.wip/audit.md:232` — - `.wip/audit.md:197` — - `.wip/audit.md:163` — - `.wip/audit.md:131` — - `.github/workflows/wip-sweep.yml:111` — lines=['# WIP audit','',f"Base: `{audit['base_sha']}`",'']
+- `.wip/audit.md:233` — - `.wip/audit.md:198` — - `.wip/audit.md:164` — - `.wip/audit.md:132` — - `.github/workflows/wip-sweep.yml:128` — Path('.wip/audit.md').write_text('\n'.join(lines)+'\n')
+- `.wip/audit.md:234` — - `.wip/audit.md:199` — - `.wip/audit.md:165` — - `.wip/audit.md:133` — - `.github/workflows/wip-sweep.yml:137` — git add .wip/audit.json .wip/audit.md
+- `.wip/audit.md:235` — - `.wip/audit.md:200` — - `.wip/audit.md:166` — - `.wip/audit.md:134` — - `.github/workflows/wip-sweep.yml:138` — git commit -m 'chore: record WIP audit receipt'
+- `.wip/audit.md:236` — - `.wip/audit.md:201` — - `.wip/audit.md:167` — - `.wip/audit.md:135` — - `.github/workflows/wip-sweep.yml:139` — git push origin HEAD:agent/finish-wip-20260730
+- `.wip/audit.md:237` — - `.wip/audit.md:202` — - `.wip/audit.md:168` — - `.wip/audit.md:136` — - `ontology/zoela/core.ttl:181` — # § 3  Forward-declared stub classes for future modules
+- `.wip/audit.md:238` — - `.wip/audit.md:203` — - `.wip/audit.md:169` — - `.wip/audit.md:137` — - `ontology/zoela/core.ttl:209` — # § 3b  Forward-declared stub classes for newly-created modules
+- `.wip/audit.md:239` — - `.wip/audit.md:204` — - `.wip/audit.md:170` — - `.wip/audit.md:138` — - `case-studies/jc3iedm-ies4-crosswalk/README.md:39` — 4. **Use a placeholder JC3IEDM IRI namespace.** STANAG 5525 doesn't issue canonical web IRIs; this sketch uses `http://example.org/jc3iedm/` as a placeholder. A real implementation would use NATO/MIP-issued IRIs.
+- `.wip/audit.md:240` — - `.wip/audit.md:205` — - `.wip/audit.md:171` — - `.wip/audit.md:139` — - `case-studies/jc3iedm-ies4-crosswalk/crosswalk.ttl:11` — # Placeholder JC3IEDM namespace — STANAG 5525 has no canonical web IRIs.
+- `.wip/audit.md:241` — - `.wip/audit.md:206` — - `.wip/audit.md:172` — - `.wip/audit.md:140` — - `case-studies/mcp-ies-rag-demo/README.md:81` — - Uses a placeholder `demo:roleIn` helper property. A production IES4 implementation would use the canonical `ies:MemberState` + `ies:isMemberOf` pattern. The shortcut keeps the demo Turtle readable.
+- `.wip/audit.md:242` — - `.wip/audit.md:207` — - `.wip/audit.md:173` — - `.wip/audit.md:141` — - `case-studies/zero-emission-aviation/demo/index.html:163` — <input id="search" type="search" autocomplete="off" placeholder="e.g. ZeroAvia, H2GEAR, electrolysis" aria-describedby="search-help" />
+- `.wip/audit.md:243` — - `.wip/audit.md:208` — - `.wip/audit.md:174` — - `.wip/audit.md:142` — - `case-studies/verifiabench/results/multi_per_task_Qwen2.5-3B-Instruct-4bit.json:602` — "output": "```turtle\n<biolink:MTOR> <biolink:is_involved_in> <GO:0008150>\n```\n\nNote: The Gene Ontology (GO) term `GO:0008150` is not a real term for 'regulation of cell growth'. A correct representation would use a specific GO term for 'regulation of cell growth', but since one is not provided, I've used a placeholder here. If you ha
+- `.wip/audit.md:244` — - `.wip/audit.md:209` — - `.wip/audit.md:175` — - `.wip/audit.md:143` — - `case-studies/verifiabench/results/multi_per_task_Qwen2.5-3B-Instruct-4bit.json:624` — "output": "```turtle\n@prefix bio: <http://biolink.info/vocabulary/> .\n<http://biolink.info/gene/ESR1> bio:involved_in bio:signal_transduction_process.\n<http://biolink.info/gene/ESR1> bio:is_a bio:Gene.\n<http://purl.obolinguistics.org/obo/GO_0008155> bio:is_a bio:Biological_process.\n```\n\nNote: The GO term `GO:0008155` is not a real
+- `.wip/audit.md:245` — - `.wip/audit.md:210` — - `.wip/audit.md:176` — - `.wip/audit.md:144` — - `case-studies/skills-england-esco-crosswalk/pipeline/fetch_esco.py:48` — todo = [o for o in occs if o["stdCode"] not in done]
+- `.wip/audit.md:246` — - `.wip/audit.md:211` — - `.wip/audit.md:177` — - `.wip/audit.md:145` — - `case-studies/skills-england-esco-crosswalk/pipeline/fetch_esco.py:49` — print(f"{len(todo)} to fetch ({len(done)} cached)")
+- `.wip/audit.md:247` — - `.wip/audit.md:212` — - `.wip/audit.md:178` — - `.wip/audit.md:146` — - `case-studies/skills-england-esco-crosswalk/pipeline/fetch_esco.py:51` — for i, o in enumerate(todo):
+- `.wip/audit.md:248` — - `.wip/audit.md:213` — - `.wip/audit.md:179` — - `.wip/audit.md:147` — - `case-studies/skills-england-esco-crosswalk/pipeline/fetch_esco.py:60` — print(f"{i}/{len(todo)}")
+- `.wip/audit.md:249` — - `.wip/audit.md:214` — - `.wip/audit.md:180` — - `.wip/audit.md:148` — - `case-studies/heritage-aerial/pipeline/build-stac.py:138` — # An always-present placeholder for the primary image asset (the scan is
+- `.wip/audit.md:250` — - `.wip/audit.md:215` — - `.wip/audit.md:181` — - `.wip/audit.md:149` — - `case-studies/heritage-aerial/demo/index.html:32` — #detail .placeholder { color: #999; font-style: italic; font-size: 0.9em; }
+- `.wip/audit.md:251` — - `.wip/audit.md:216` — - `.wip/audit.md:182` — - `.wip/audit.md:150` — - `case-studies/heritage-aerial/demo/index.html:73` — <p class="placeholder">Click any marker on the map to view its NAPH metadata.</p>
+- `.wip/audit.md:252` — - `.wip/audit.md:217` — - `.wip/audit.md:183` — - `.wip/audit.md:151` — - `case-studies/heritage-aerial/demo/index.html:191` — document.getElementById('detail').innerHTML = `<p class="placeholder">Could not load IIIF manifest: ${err.message}<br><br>Make sure you're serving this from a local HTTP server (not file://) and that <code>../reports/iiif-collection-manifest.json</code> exists.</p>`;
+- `.wip/audit.md:253` — - `.wip/audit.md:218` — - `.wip/audit.md:184` — - `.wip/audit.md:152` — - `case-studies/heritage-aerial/demo/real.html:30` — #detail .placeholder { color: #999; font-style: italic; font-size: 0.9em; }
+- `.wip/audit.md:254` — - `.wip/audit.md:219` — - `.wip/audit.md:185` — - `.wip/audit.md:153` — - `case-studies/heritage-aerial/demo/real.html:61` — <div id="detail"><p class="placeholder">Click any footprint to view its NAPH metadata.</p></div>
+- `.wip/audit.md:255` — - `.wip/audit.md:220` — - `.wip/audit.md:186` — - `.wip/audit.md:154` — - `case-studies/heritage-aerial/demo/real.html:138` — load().catch(err=>{ document.getElementById('detail').innerHTML=`<p class="placeholder">Could not load manifest: ${err.message}. Serve over HTTP, not file://.</p>`; });
+- `.wip/audit.md:256` — - `.wip/audit.md:221` — - `.wip/audit.md:187` — - `.wip/audit.md:155` — - `case-studies/heritage-aerial/docs/red-team-report.md:83` — **Status:** documented in the docs but not implemented. The CQ2 expected results table notes "(requires GeoSPARQL)" but doesn't say this means *not Oxigraph*.
+- `.wip/audit.md:257` — - `.wip/audit.md:222` — - `.wip/audit.md:188` — - `.wip/audit.md:156` — - `case-studies/heritage-aerial/docs/red-team-report.md:124` — 2. Add a stub IIIF Image API in the demo pipeline that serves placeholder images so manifests fully resolve
+- `.wip/audit.md:258` — - `.wip/audit.md:223` — - `.wip/audit.md:189` — - `.wip/audit.md:157` — - `case-studies/heritage-aerial/pipeline/scrapers/napl_opencanada.py:284` — for stub in stubs:
+- `.wip/audit.md:259` — - `.wip/audit.md:224` — - `.wip/audit.md:190` — - `.wip/audit.md:158` — - `case-studies/heritage-aerial/pipeline/scrapers/napl_opencanada.py:286` — detail = dataset_detail(stub["id"])
+- `.wip/audit.md:260` — - `.wip/audit.md:225` — - `.wip/audit.md:191` — - `.wip/audit.md:159` — - `case-studies/heritage-aerial/pipeline/scrapers/napl_opencanada.py:288` — print(f"# {stub['id']}: fetch failed: {e}", file=sys.stderr)
+- `.wip/audit.md:261` — - `.wip/audit.md:226` — - `.wip/audit.md:192` — - `.wip/audit.md:160` — - `case-studies/heritage-aerial/pipeline/scrapers/__init__.py:9` — - NCAPAirPhotoFinderScraper — Angular SPA, requires Playwright/manual JSON capture (stub)
+- `.wip/audit.md:262` — - `.wip/audit.md:227` — - `.wip/audit.md:193` — - `.wip/audit.md:161` — - `case-studies/heritage-aerial/pipeline/scrapers/__init__.py:10` — - USGSEarthExplorerScraper — M2M API, requires registration (stub)
+- `.wip/audit.md:263` — - `.wip/audit.md:228` — - `.wip/audit.md:194` — - `.wip/audit.md:162` — - `case-studies/heritage-aerial/pipeline/scrapers/usgs_earthexplorer.py:3` — USGS Earth Explorer M2M API Adapter — STUB.
+- `.wip/audit.md:264` — - `.wip/audit.md:229` — - `.wip/audit.md:195` — - `.wip/audit.md:163` — - `case-studies/heritage-aerial/pipeline/scrapers/usgs_earthexplorer.py:42` — description="USGS Earth Explorer NAPH adapter (STUB — requires USGS credentials)."
+- `.wip/audit.md:265` — - `.wip/audit.md:230` — - `.wip/audit.md:196` — - `.wip/audit.md:164` — - `case-studies/heritage-aerial/pipeline/scrapers/usgs_earthexplorer.py:53` — print("# USGS Earth Explorer M2M adapter — STUB", file=sys.stderr)
+- `.wip/audit.md:266` — - `.wip/audit.md:231` — - `.wip/audit.md:197` — - `.wip/audit.md:165` — - `case-studies/heritage-aerial/deliverables/06-knowledge-transfer/external-integrations.md:3` — For each NAPH gap previously marked "stub" or "skipped (external API)", this document maps to the existing open-source implementation worth adopting rather than rebuilding. Status as of 2026-05.
+- `.wip/audit.md:267` — - `.wip/audit.md:232` — - `.wip/audit.md:198` — - `.wip/audit.md:166` — - `case-studies/heritage-aerial/deliverables/06-knowledge-transfer/external-integrations.md:32` — # See pipeline/scrapers/usgs_earthexplorer.py — fill in the TODO sections
+- `.wip/audit.md:268` — - `.wip/audit.md:233` — - `.wip/audit.md:199` — - `.wip/audit.md:167` — - `case-studies/heritage-aerial/deliverables/06-knowledge-transfer/external-integrations.md:59` — 3. Update [`pipeline/iiif-bridge.py`](../../pipeline/iiif-bridge.py) so the `service.id` URLs point at your Cantaloupe instance instead of placeholder URLs
+- `.wip/audit.md:269` — - `.wip/audit.md:234` — - `.wip/audit.md:200` — - `.wip/audit.md:168` — - `case-studies/heritage-aerial/deliverables/06-knowledge-transfer/external-integrations.md:144` — 2. Replace [`pipeline/scrapers/ncap_airphotofinder.py`](../../pipeline/scrapers/ncap_airphotofinder.py) stub with API client
+- `.wip/audit.md:270` — - `.wip/audit.md:235` — - `.wip/audit.md:201` — - `.wip/audit.md:169` — - `case-studies/heritage-aerial/deliverables/06-knowledge-transfer/maintenance-runbook.md:33` — - Mailing list / forum: tbd
+- `.wip/audit.md:271` — - `.wip/audit.md:236` — - `.wip/audit.md:202` — - `.wip/audit.md:170` — - `case-studies/heritage-aerial/deliverables/04-adoption-guidance/transition-guides/baseline-to-enhanced.md:57` — naph:flightAltitude 0.0 ;  # placeholder — flag as unknown
+- `.wip/audit.md:272` — - `.wip/audit.md:237` — - `.wip/audit.md:203` — - `.wip/audit.md:171` — - `deploy/helm/values.yaml:58` — # If empty, the chart creates an empty placeholder Secret you must populate
+- `.wip/audit.md:273` — - `.wip/audit.md:238` — - `.wip/audit.md:204` — - `.wip/audit.md:172` — - `packages/utils/crypto.ts:5` — // In production this delegates to a BLAKE3 WASM module; this stub provides
+- `.wip/audit.md:274` — - `.wip/audit.md:239` — - `.wip/audit.md:205` — - `.wip/audit.md:173` — - `packages/utils/crypto.ts:9` — // Stub implementation — replace with wasm-blake3 or native binding in app workspace
+- `.wip/audit.md:275` — - `.wip/audit.md:240` — - `.wip/audit.md:206` — - `.wip/audit.md:174` — - `packages/forms/zoela.tsx:28` — placeholder: "Integer priority for ordering push cards in the notification tray; lower values appear first.",
+- `.wip/audit.md:276` — - `.wip/audit.md:241` — - `.wip/audit.md:207` — - `.wip/audit.md:175` — - `packages/forms/zoela.tsx:35` — placeholder: "Expo deep-link URI the card action button navigates to when tapped.",
+- `.wip/audit.md:277` — - `.wip/audit.md:242` — - `.wip/audit.md:208` — - `.wip/audit.md:176` — - `packages/forms/zoela.tsx:42` — placeholder: "Label for the primary call-to-action button rendered on the push card (e.g. 'View Details', 'Accept Request').",
+- `.wip/audit.md:278` — - `.wip/audit.md:243` — - `.wip/audit.md:209` — - `.wip/audit.md:177` — - `packages/forms/zoela.tsx:49` — placeholder: "Main body text of the push card, describing the action or update in detail.",
+- `.wip/audit.md:279` — - `.wip/audit.md:244` — - `.wip/audit.md:210` — - `.wip/audit.md:178` — - `packages/forms/zoela.tsx:56` — placeholder: "Secondary line of text below the card title, providing route or ministry context.",
+- `.wip/audit.md:280` — - `.wip/audit.md:245` — - `.wip/audit.md:211` — - `.wip/audit.md:179` — - `packages/forms/zoela.tsx:63` — placeholder: "Primary headline text displayed on the push card in the notification tray.",
+- `.wip/audit.md:281` — - `.wip/audit.md:246` — - `.wip/audit.md:212` — - `.wip/audit.md:180` — - `packages/forms/zoela.tsx:84` — placeholder: "Expo deep-link URI that opens the relevant screen in ZOE LA Mobile when the notification is tapped.",
+- `.wip/audit.md:282` — - `.wip/audit.md:247` — - `.wip/audit.md:213` — - `.wip/audit.md:181` — - `packages/forms/zoela.tsx:91` — placeholder: "Category identifier from the NotificationCategoryScheme, used to route and filter notifications in the app.",
+- `.wip/audit.md:283` — - `.wip/audit.md:248` — - `.wip/audit.md:214` — - `.wip/audit.md:182` — - `packages/forms/zoela.tsx:98` — placeholder: "Full body text of the push notification providing context and call-to-action.",
+- `.wip/audit.md:284` — - `.wip/audit.md:249` — - `.wip/audit.md:215` — - `.wip/audit.md:183` — - `packages/forms/zoela.tsx:105` — placeholder: "Short headline text of the push notification, displayed in the device notification shade.",
+- `.wip/audit.md:285` — - `.wip/audit.md:250` — - `.wip/audit.md:216` — - `.wip/audit.md:184` — - `packages/forms/connectGroupInterestForm.tsx:38` — placeholder="e.g. Sunday evenings, weekday mornings"
+- `.wip/audit.md:286` — - `.wip/audit.md:251` — - `.wip/audit.md:217` — - `.wip/audit.md:185` — - `packages/forms/connectGroupInterestForm.tsx:56` — placeholder="Anything else we should know?"
+- `.wip/audit.md:287` — - `.wip/audit.md:252` — - `.wip/audit.md:218` — - `.wip/audit.md:186` — - `packages/screens/adminDetailScreen.tsx:21` — <Text style={styles.placeholder}>
+- `.wip/audit.md:288` — - `.wip/audit.md:253` — - `.wip/audit.md:219` — - `.wip/audit.md:187` — - `packages/screens/adminDetailScreen.tsx:33` — placeholder: { fontSize: 14, color: '#666', fontStyle: 'italic' },
+- `.wip/audit.md:289` — - `.wip/audit.md:254` — - `.wip/audit.md:220` — - `.wip/audit.md:188` — - `src/a2a/router.rs:43` — "task_id": "a2a-task-placeholder",
+- `.wip/audit.md:290` — - `.wip/audit.md:255` — - `.wip/audit.md:221` — - `.wip/audit.md:189` — - `src/workflows/mod.rs:23` — //! confirming they are not placeholder stubs:
+- `.wip/audit.md:291` — - `.wip/audit.md:256` — - `.wip/audit.md:222` — - `.wip/audit.md:190` — - `src/workflows/builtin.rs:87` — //   TODO(wasm4pm POWL v2): use CG=(...) once Choice Graphs land upstream
+- `.wip/audit.md:292` — - `.wip/audit.md:257` — - `.wip/audit.md:223` — - `.wip/audit.md:191` — - `src/workflows/builtin.rs:133` — // CG{...} → XOR for now (TODO above).
+- `.wip/audit.md:293` — - `.wip/audit.md:258` — - `.wip/audit.md:224` — - `.wip/audit.md:192` — - `src/workflows/builtin.rs:156` — // step (the alphabet still matches). TODO: revisit when POWL gains
+- `.wip/audit.md:294` — - `.wip/audit.md:259` — - `.wip/audit.md:225` — - `.wip/audit.md:193` — - `src/cmds/generated.rs:20` — /// Generated stub — wired to src/cmds/doctor.rs
+- `.wip/audit.md:295` — - `.wip/audit.md:260` — - `.wip/audit.md:226` — - `.wip/audit.md:194` — - `src/cmds/generated.rs:39` — /// Generated stub — wired to src/cmds/thesis.rs
+- `.wip/audit.md:296` — - `.wip/audit.md:261` — - `.wip/audit.md:227` — - `.wip/audit.md:195` — - `src/cmds/generated.rs:58` — /// Generated stub — wired to src/cmds/marketplace.rs
+- `.wip/audit.md:297` — - `.wip/audit.md:262` — - `.wip/audit.md:228` — - `.wip/audit.md:196` — - `src/cmds/generated.rs:77` — /// Generated stub — wired to src/cmds/clinical.rs
+- `.wip/audit.md:298` — - `.wip/audit.md:263` — - `.wip/audit.md:229` — - `.wip/audit.md:197` — - `src/cmds/generated.rs:96` — /// Generated stub — wired to src/cmds/alignment.rs
+- `.wip/audit.md:299` — - `.wip/audit.md:264` — - `.wip/audit.md:230` — - `.wip/audit.md:198` — - `src/cmds/generated.rs:115` — /// Generated stub — wired to src/cmds/governance.rs
+- `.wip/audit.md:300` — - `.wip/audit.md:265` — - `.wip/audit.md:231` — - `.wip/audit.md:199` — - `src/cmds/generated.rs:134` — /// Generated stub — wired to src/cmds/data.rs
+- `.wip/audit.md:301` — - `.wip/audit.md:266` — - `.wip/audit.md:232` — - `.wip/audit.md:200` — - `src/cmds/generated.rs:153` — /// Generated stub — wired to src/cmds/server.rs
+- `.wip/audit.md:302` — - `.wip/audit.md:267` — - `.wip/audit.md:233` — - `.wip/audit.md:201` — - `src/cmds/generated.rs:172` — /// Generated stub — wired to src/cmds/ontology.rs
+- `.wip/audit.md:303` — - `.wip/audit.md:268` — - `.wip/audit.md:234` — - `.wip/audit.md:202` — - `src/cmds/thesis.rs:250` — // Stub: return empty claim/evidence packets.
+- `.wip/audit.md:304` — - `.wip/audit.md:269` — - `.wip/audit.md:235` — - `.wip/audit.md:203` — - `src/cmds/thesis.rs:261` — message: format!("Extraction stub for source_id={} — real LLM call TBD", source_id),
+- `.wip/audit.md:305` — - `.wip/audit.md:270` — - `.wip/audit.md:236` — - `.wip/audit.md:204` — - `src/cmds/thesis.rs:293` — // Stub: run lightweight validation check
+- `.wip/audit.md:306` — - `.wip/audit.md:271` — - `.wip/audit.md:237` — - `.wip/audit.md:205` — - `src/cmds/thesis.rs:307` — message: "Audit stub — SHACL validation TBD".to_string(),
+- `.wip/audit.md:307` — - `.wip/audit.md:272` — - `.wip/audit.md:238` — - `.wip/audit.md:206` — - `src/cmds/thesis.rs:317` — // Stub: run chapter routing SPARQL CONSTRUCT
+- `.wip/audit.md:308` — - `.wip/audit.md:273` — - `.wip/audit.md:239` — - `.wip/audit.md:207` — - `src/cmds/thesis.rs:329` — message: "Route stub — SPARQL CONSTRUCT TBD".to_string(),
+- `.wip/audit.md:309` — - `.wip/audit.md:274` — - `.wip/audit.md:240` — - `.wip/audit.md:208` — - `src/cmds/thesis.rs:342` — // Stub: render markdown thesis
+- `.wip/audit.md:310` — - `.wip/audit.md:275` — - `.wip/audit.md:241` — - `.wip/audit.md:209` — - `src/cmds/thesis.rs:370` — // Stub: run full pipeline
+- `.wip/audit.md:311` — - `.wip/audit.md:276` — - `.wip/audit.md:242` — - `.wip/audit.md:210` — - `src/cmds/thesis.rs:416` — // Check 2: Thesis shapes file (stub: always pass)
+- `.wip/audit.md:312` — - `.wip/audit.md:277` — - `.wip/audit.md:243` — - `.wip/audit.md:211` — - `src/cmds/thesis.rs:423` — // Check 3: Gemini connectivity (stub: assume pass)
+- `.wip/audit.md:313` — - `.wip/audit.md:278` — - `.wip/audit.md:244` — - `.wip/audit.md:212` — - `src/cmds/thesis.rs:427` — "Gemini 3.1 Flash reachable (stub)".to_string(),
+- `.wip/audit.md:314` — - `.wip/audit.md:279` — - `.wip/audit.md:245` — - `.wip/audit.md:213` — - `src/cmds/thesis.rs:444` — /// Stub: "Interactive flow TBD; see onto thesis wizard"
+- `.wip/audit.md:315` — - `.wip/audit.md:280` — - `.wip/audit.md:246` — - `.wip/audit.md:214` — - `src/cmds/thesis.rs:449` — // Stub: interactive prompts TBD
+- `.wip/audit.md:316` — - `.wip/audit.md:281` — - `.wip/audit.md:247` — - `.wip/audit.md:215` — - `src/cmds/thesis.rs:452` — "message": "Interactive wizard stub — prompts for input files, source metadata, chapter structure TBD"
+- `.wip/audit.md:317` — - `.wip/audit.md:282` — - `.wip/audit.md:248` — - `.wip/audit.md:216` — - `src/cmds/thesis.rs:462` — // Stub: trace provenance
+- `.wip/audit.md:318` — - `.wip/audit.md:283` — - `.wip/audit.md:249` — - `.wip/audit.md:217` — - `supabase/migrations/20260518000004_zoela_ocel_events.sql:21` — receipt_hash TEXT,                           -- SHA-256 hex digest (Web Crypto stub)
+- `.wip/audit.md:319` — - `.wip/audit.md:284` — - `.wip/audit.md:250` — - `.wip/audit.md:218` — - `benchmark/oaei/README.md:39` — | **Open Ontologies** | **TBD** | **TBD** |
+- `.wip/audit.md:320` — - `.wip/audit.md:285` — - `.wip/audit.md:251` — - `.wip/audit.md:219` — - `benchmark/reference/ies4.ttl:2516` — This is a very simple placeholder for an area of IES that is likely to grow in the future. For now, it can be used to group together a number of elements (using isPartOf relationship) to assert that they share the same truth - i.e. in one possible scenario, all of them were true. The same Element may exist in more than one PossibleWorld - i.e. scenarios may share elements. For version 
+- `.wip/audit.md:321` — - `.wip/audit.md:286` — - `.wip/audit.md:252` — - `.wip/audit.md:220` — - `benchmark/ontoaxiom/results/condition_d/goodrelations.json:16` — ["Product Or Services Some Instances Placeholder", "Product Or Service"],
+- `.wip/audit.md:322` — - `.wip/audit.md:287` — - `.wip/audit.md:253` — - `.wip/audit.md:221` — - `benchmark/ontoaxiom/results/condition_d/goodrelations_extracted.json:16` — ["Product or services some instances placeholder (DEPRECATED)", "Product or service"],
+- `.wip/audit.md:323` — - `.wip/audit.md:288` — - `.wip/audit.md:254` — - `.wip/audit.md:222` — - `benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json:9999` — "product or services some instances placeholder",
+- `.wip/audit.md:324` — - `.wip/audit.md:289` — - `.wip/audit.md:255` — - `.wip/audit.md:223` — - `benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json:10114` — "product or services some instances placeholder"
+- `.wip/audit.md:325` — - `.wip/audit.md:290` — - `.wip/audit.md:256` — - `.wip/audit.md:224` — - `benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json:10214` — "product or services some instances placeholder"
+- `.wip/audit.md:326` — - `.wip/audit.md:291` — - `.wip/audit.md:257` — - `.wip/audit.md:225` — - `benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json:10310` — "product or services some instances placeholder"
+- `.wip/audit.md:327` — - `.wip/audit.md:292` — - `.wip/audit.md:258` — - `.wip/audit.md:226` — - `benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json:10402` — "product or services some instances placeholder"
+- `.wip/audit.md:328` — - `.wip/audit.md:293` — - `.wip/audit.md:259` — - `.wip/audit.md:227` — - `benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json:10490` — "product or services some instances placeholder"
+- `.wip/audit.md:329` — - `.wip/audit.md:294` — - `.wip/audit.md:260` — - `.wip/audit.md:228` — - `benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json:10574` — "product or services some instances placeholder"
+- `.wip/audit.md:330` — - `.wip/audit.md:295` — - `.wip/audit.md:261` — - `.wip/audit.md:229` — - `benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json:10654` — "product or services some instances placeholder"
+- `.wip/audit.md:331` — - `.wip/audit.md:296` — - `.wip/audit.md:262` — - `.wip/audit.md:230` — - `benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json:10730` — "product or services some instances placeholder"
+- `.wip/audit.md:332` — - `.wip/audit.md:297` — - `.wip/audit.md:263` — - `.wip/audit.md:231` — - `benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json:10802` — "product or services some instances placeholder"
+- `.wip/audit.md:333` — - `.wip/audit.md:298` — - `.wip/audit.md:264` — - `.wip/audit.md:232` — - `benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json:10870` — "product or services some instances placeholder"
+- `.wip/audit.md:334` — - `.wip/audit.md:299` — - `.wip/audit.md:265` — - `.wip/audit.md:233` — - `benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json:10934` — "product or services some instances placeholder"
+- `.wip/audit.md:335` — - `.wip/audit.md:300` — - `.wip/audit.md:266` — - `.wip/audit.md:234` — - `benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json:10994` — "product or services some instances placeholder"
+- `.wip/audit.md:336` — - `.wip/audit.md:301` — - `.wip/audit.md:267` — - `.wip/audit.md:235` — - `benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json:11050` — "product or services some instances placeholder"
+- `.wip/audit.md:337` — - `.wip/audit.md:302` — - `.wip/audit.md:268` — - `.wip/audit.md:236` — - `benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json:11102` — "product or services some instances placeholder"
+- `.wip/audit.md:338` — - `.wip/audit.md:303` — - `.wip/audit.md:269` — - `.wip/audit.md:237` — - `benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json:11150` — "product or services some instances placeholder"
+- `.wip/audit.md:339` — - `.wip/audit.md:304` — - `.wip/audit.md:270` — - `.wip/audit.md:238` — - `benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json:11194` — "product or services some instances placeholder"
+- `.wip/audit.md:340` — - `.wip/audit.md:305` — - `.wip/audit.md:271` — - `.wip/audit.md:239` — - `benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json:11234` — "product or services some instances placeholder"
+- `.wip/audit.md:341` — - `.wip/audit.md:306` — - `.wip/audit.md:272` — - `.wip/audit.md:240` — - `benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json:11270` — "product or services some instances placeholder"
+- `.wip/audit.md:342` — - `.wip/audit.md:307` — - `.wip/audit.md:273` — - `.wip/audit.md:241` — - `benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json:11302` — "product or services some instances placeholder"
+- `.wip/audit.md:343` — - `.wip/audit.md:308` — - `.wip/audit.md:274` — - `.wip/audit.md:242` — - `benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json:11333` — "product or services some instances placeholder",
+- `.wip/audit.md:344` — - `.wip/audit.md:309` — - `.wip/audit.md:275` — - `.wip/audit.md:243` — - `benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json:11337` — "product or services some instances placeholder",
+- `.wip/audit.md:345` — - `.wip/audit.md:310` — - `.wip/audit.md:276` — - `.wip/audit.md:244` — - `benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json:11341` — "product or services some instances placeholder",
+- `.wip/audit.md:346` — - `.wip/audit.md:311` — - `.wip/audit.md:277` — - `.wip/audit.md:245` — - `benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json:11345` — "product or services some instances placeholder",
+- `.wip/audit.md:347` — - `.wip/audit.md:312` — - `.wip/audit.md:278` — - `.wip/audit.md:246` — - `benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json:11349` — "product or services some instances placeholder",
+- `.wip/audit.md:348` — - `.wip/audit.md:313` — - `.wip/audit.md:279` — - `.wip/audit.md:247` — - `benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json:11353` — "product or services some instances placeholder",
+- `.wip/audit.md:349` — - `.wip/audit.md:314` — - `.wip/audit.md:280` — - `.wip/audit.md:248` — - `benchmark/ontoaxiom/data/results/oo_bare_qwen_results.json:11357` — "product or services some instances placeholder",
+- `.wip/audit.md:350` — - `.wip/audit.md:315` — - `.wip/audit.md:281` — - `.wip/audit.md:249` — - `benchmark/ontoaxiom/data/ontoaxiom/ontologies/goodrelations.ttl:205` — rdfs:comment "A placeholder for all official public holidays at the gr:Location. This allows specifying the opening hours on public holidays. If a given day is a public holiday, this specification supersedes the opening hours for the respective day of the week."@en ;
+- `.wip/audit.md:351` — - `.wip/audit.md:316` — - `.wip/audit.md:282` — - `.wip/audit.md:250` — - `benchmark/ontoaxiom/data/ontoaxiom/ontologies/goodrelations.ttl:622` — rdfs:comment """This states that an actual product instance (gr:Individual) or a placeholder instance for multiple, unidentified such instances (gr:SomeItems) is one occurence of a particular gr:ProductOrServiceModel.
+- `.wip/audit.md:352` — - `.wip/audit.md:317` — - `.wip/audit.md:283` — - `.wip/audit.md:251` — - `benchmark/ontoaxiom/data/ontoaxiom/ontologies/goodrelations.ttl:1060` — rdfs:label "Product or services some instances placeholder (DEPRECATED)"@en ;
+- `.wip/audit.md:353` — - `.wip/audit.md:318` — - `.wip/audit.md:284` — - `.wip/audit.md:252` — - `benchmark/ontoaxiom/data/ontoaxiom/ontologies/goodrelations.ttl:1434` — rdfs:comment """A placeholder instance for unknown instances of a mass-produced commodity. This is used as a computationally cheap work-around for such instances that are not individually exposed on the Web but just stated to exist (i.e., which are existentially quantified).
+- `.wip/audit.md:354` — - `.wip/audit.md:319` — - `.wip/audit.md:285` — - `.wip/audit.md:253` — - `benchmark/ontoaxiom/data/ontoaxiom/ontologies/goodrelations.ttl:1859` — rdfs:comment """The superclass of all classes describing products or services types, either by nature or purpose. Examples for such subclasses are "TV set", "vacuum cleaner", etc. An instance of this class can be either an actual product or service (gr:Individual), a placeholder instance for unknown instances of a mass-produced commodity (gr:SomeItems
+- `.wip/audit.md:355` — - `.wip/audit.md:320` — - `.wip/audit.md:286` — - `.wip/audit.md:254` — - `benchmark/ontoaxiom/data/ontoaxiom/ontologies/goodrelations.ttl:1864` — c) dummyCellPhone123 as a placeholder for actual instances of a certain kind of cell phones (gr:SomeItems)
+- `.wip/audit.md:356` — - `.wip/audit.md:321` — - `.wip/audit.md:287` — - `.wip/audit.md:255` — - `benchmark/ontoaxiom/data/ontoaxiom/ontologies/time.ttl:434` — This is a stub class, representing the set of all temporal reference systems."""@en ;
+- `.wip/audit.md:357` — - `.wip/audit.md:322` — - `.wip/audit.md:288` — - `.wip/audit.md:256` — - `benchmark/ontoaxiom/data/ontoaxiom/ontologies/time.ttl:438` — This is a stub class, representing the set of all temporal reference systems."""@en ;
+- `.wip/audit.md:358` — - `.wip/audit.md:323` — - `.wip/audit.md:289` — - `.wip/audit.md:257` — - `benchmark/ontoaxiom/data/ontoaxiom/ontologies/time.ttl:547` — skos:note "An ontology for time zone descriptions was described in [owl-time-20060927] and provided as RDF in a separate namespace tzont:. However, that ontology was incomplete in scope, and the example datasets were selective. Furthermore, since the use of a class from an external ontology as the range of an ObjectProperty in OWL-Time creates a dependency, ref
+- `.wip/audit.md:359` — - `.wip/audit.md:324` — - `.wip/audit.md:290` — - `.wip/audit.md:258` — - `benchmark/ontoaxiom/data/ontoaxiom/classes/goodrelations_classes.json:29` — "product or services some instances placeholder",
+- `.wip/audit.md:360` — - `.wip/audit.md:325` — - `.wip/audit.md:291` — - `.wip/audit.md:259` — - `benchmark/ontoaxiom/data/ontoaxiom/subclassof/goodrelations_subclassof.json:55` — "Product Or Services Some Instances Placeholder",
+- `.wip/audit.md:361` — - `.wip/audit.md:326` — - `.wip/audit.md:292` — - `.wip/audit.md:260` — - `studio/src/components/PropertyInspector.tsx:292` — placeholder="rdfs:label or full URI..."
+- `.wip/audit.md:362` — - `.wip/audit.md:327` — - `.wip/audit.md:293` — - `.wip/audit.md:261` — - `studio/src/components/PropertyInspector.tsx:339` — placeholder={newValType === 'uri' ? 'http://...' : 'value...'}
+- `.wip/audit.md:363` — - `.wip/audit.md:328` — - `.wip/audit.md:294` — - `.wip/audit.md:262` — - `studio/src/components/TreeView.tsx:511` — <input type="text" placeholder="Search nodes..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
+- `.wip/audit.md:364` — - `.wip/audit.md:329` — - `.wip/audit.md:295` — - `.wip/audit.md:263` — - `studio/src/components/ChatPanel.tsx:147` — placeholder="Ask about ontologies..."
+- `.wip/audit.md:365` — - `.wip/audit.md:330` — - `.wip/audit.md:296` — - `.wip/audit.md:264` — - `studio/src/components/AddClassDialog.tsx:38` — placeholder="Class name..."
+- `.wip/audit.md:366` — - `.wip/audit.md:331` — - `.wip/audit.md:297` — - `.wip/audit.md:265` — - `studio/docs/plans/2026-03-14-tauri-implementation-plan.md:155` — {/* Graph canvas placeholder */}
+- `.wip/audit.md:367` — - `.wip/audit.md:332` — - `.wip/audit.md:298` — - `.wip/audit.md:266` — - `studio/docs/plans/2026-03-14-tauri-implementation-plan.md:213` — Expected: Dark-themed window with toolbar, graph placeholder, chat panel, status bar
+- `.wip/audit.md:368` — - `.wip/audit.md:333` — - `.wip/audit.md:299` — - `.wip/audit.md:267` — - `studio/docs/plans/2026-03-14-tauri-implementation-plan.md:924` — Replace graph placeholder div with:
+- `.wip/audit.md:369` — - `.wip/audit.md:334` — - `.wip/audit.md:300` — - `.wip/audit.md:268` — - `studio/docs/plans/2026-03-14-tauri-implementation-plan.md:933` — // Replace graph placeholder:
+- `.wip/audit.md:370` — - `.wip/audit.md:335` — - `.wip/audit.md:301` — - `.wip/audit.md:269` — - `studio/docs/plans/2026-03-14-tauri-implementation-plan.md:990` — placeholder="Class name..."
+- `.wip/audit.md:371` — - `.wip/audit.md:336` — - `.wip/audit.md:302` — - `.wip/audit.md:270` — - `studio/docs/plans/2026-03-14-tauri-implementation-plan.md:1901` — placeholder="Ask about ontologies..."
+- `.wip/audit.md:372` — - `.wip/audit.md:337` — - `.wip/audit.md:303` — - `.wip/audit.md:271` — - `studio/docs/plans/2026-03-14-tauri-implementation-plan.md:1963` — Replace the chat placeholder in Layout.tsx:
+- `.wip/audit.md:373` — - `.wip/audit.md:338` — - `.wip/audit.md:304` — - `.wip/audit.md:272` — - `studio/docs/plans/2026-03-14-tauri-implementation-plan.md:1968` — // Replace the chat panel placeholder div content:
+- `.wip/audit.md:374` — - `.wip/audit.md:339` — - `.wip/audit.md:305` — - `.wip/audit.md:273` — - `studio/docs/plans/2026-03-14-tauri-implementation-plan.md:2131` — // Replace inspector placeholder:
+- `.wip/audit.md:375` — - `.wip/audit.md:340` — - `.wip/audit.md:306` — - `.wip/audit.md:274` — - `docs/plans/2026-03-09-standalone-mcp-server-plan.md:86` — **Step 2: Create stub lib.rs so it compiles**
+- `.wip/audit.md:376` — - `.wip/audit.md:341` — - `.wip/audit.md:307` — - `.wip/audit.md:275` — - `docs/plans/2026-03-12-infrastructure-positioning-plan.md:262` — Add a shared setup helper and stub the `match` arms (just print `{"error":"not implemented"}` for now — we'll fill them in Tasks 2–6):
+- `.wip/audit.md:377` — - `.wip/audit.md:342` — - `.wip/audit.md:308` — - `.wip/audit.md:276` — - `docs/plans/2026-03-12-infrastructure-positioning-plan.md:369` — Expected: FAIL — subcommands return `not implemented`.
+- `.wip/audit.md:378` — - `.wip/audit.md:343` — - `.wip/audit.md:309` — - `.wip/audit.md:277` — - `docs/plans/2026-03-12-infrastructure-positioning-plan.md:1571` — Add new concise benchmark section with the HermiT/Pellet/OO comparison table (numbers TBD after running). Keep existing detailed benchmarks below as "Detailed Benchmark Methodology".
+- `.wip/audit.md:379` — - `.wip/audit.md:344` — - `.wip/audit.md:310` — - `.wip/audit.md:278` — - `docs/research/PHD_PROGRAM.md:37` — *   *Lab:* Executing the `wasm4pm` stream-2 stub bindings via the `src/swarm.rs` cognition swarm.
+- `.wip/audit.md:380` — - `.wip/audit.md:345` — - `.wip/audit.md:311` — - `.wip/audit.md:279` — - `docs/research/CODEBASE_MAPPING.md:11` — *   **L6 High-Speed Kernels:** Represented by the `wasm4pm` stream-2 stub bindings (POWL and cognition kernels) and the `src/manufacturing/` pipeline that targets AtomVM, Erlang, and Rust.
+- `.wip/audit.md:381` — - `.wip/audit.md:346` — - `.wip/audit.md:312` — - `.wip/audit.md:280` — - `docs/research/SYLLABI.md:114` — *   **Weeks 10-12: The `wasm4pm` Lab:** Integrating and evaluating the stream-2 stub bindings. Profiling kernel execution speed.
+- `.wip/audit.md:382` — - `.wip/audit.md:347` — - `.wip/audit.md:313` — - `.wip/audit.md:281` — - `docs/research/materials/EDGE_LAB_SPEC.md:14` — *   **Wasm Runtime:** WasmEdge runtime configured with the `open-ontologies` `wasm4pm` stream-2 stub bindings.
+- `.wip/audit.md:383` — - `.wip/audit.md:348` — - `.wip/audit.md:314` — - `.wip/audit.md:282` — - `.specify/templates/zoela/connect-group-interest-form.tera:38` — placeholder="e.g. Sunday evenings, weekday mornings"
+- `.wip/audit.md:384` — - `.wip/audit.md:349` — - `.wip/audit.md:315` — - `.wip/audit.md:283` — - `.specify/templates/zoela/connect-group-interest-form.tera:56` — placeholder="Anything else we should know?"
+- `.wip/audit.md:385` — - `.wip/audit.md:350` — - `.wip/audit.md:316` — - `.wip/audit.md:284` — - `.specify/templates/zoela/react-hook-form.tera:69` — placeholder: "{{ fcomment | trim }}",
+- `.wip/audit.md:386` — - `.wip/audit.md:351` — - `.wip/audit.md:317` — - `.wip/audit.md:285` — - `.specify/templates/zoela/admin-detail-screen.tera:42` — <Text style={styles.placeholder}>
+- `.wip/audit.md:387` — - `.wip/audit.md:352` — - `.wip/audit.md:318` — - `.wip/audit.md:286` — - `.specify/templates/zoela/admin-detail-screen.tera:54` — placeholder: { fontSize: 14, color: '#666', fontStyle: 'italic' },
+- `.wip/audit.md:388` — - `.wip/audit.md:353` — - `.wip/audit.md:319` — - `.wip/audit.md:287` — - `.specify/templates/cli/cmds.rs.tera:49` — /// Generated stub — wired to src/cmds/{{ name | trim | replace(from="-", to="_") }}.rs
+- `.wip/audit.md:389` — - `.wip/audit.md:354` — - `.wip/audit.md:320` — - `.wip/audit.md:295` — - `origin/agent/finish-wip-20260730` — ahead 3, behind 3, `bd2e83532873` — chore: retrigger WIP sweep
+- `.wip/audit.md:390` — - `.wip/audit.md:355` — - `.wip/audit.md:321` — - `.wip/audit.json:8` — "text": "`revoked_principals` table lands (TODO marker in code). New"
+- `.wip/audit.md:391` — - `.wip/audit.md:356` — - `.wip/audit.md:322` — - `.wip/audit.json:13` — "text": "TODO(R6) \u2014 same disease, deferred fix template."
+- `.wip/audit.md:392` — - `.wip/audit.md:357` — - `.wip/audit.md:323` — - `.wip/audit.json:18` — "text": "`TODO(R6 \u00a715.A9)`, `TODO(R6 \u00a715.A11)`, `TODO(R6 \u00a715.A12)` comments"
+- `.wip/audit.md:393` — - `.wip/audit.md:358` — - `.wip/audit.md:324` — - `.wip/audit.json:23` — "text": "- `engine=\"groq_pm4py\"` subprocess transport \u2014 MCP handlers now spawn the real DSPy/pm4py-backed translator instead of the in-process stub."
+- `.wip/audit.md:394` — - `.wip/audit.md:359` — - `.wip/audit.md:325` — - `.wip/audit.json:28` — "text": "- [`ee90af9`](../../commit/ee90af9) `fix(no-stub): wire ingest/map/extend/push format params; add named-graph push; remove dead cfg`"
+- `.wip/audit.md:395` — - `.wip/audit.md:360` — - `.wip/audit.md:326` — - `.wip/audit.json:33` — "text": "- [`e4db225`](../../commit/e4db225) `ontostar(R3): wire PowlBridgeReplay into admission gate, replace stub`"
+- `.wip/audit.md:396` — - `.wip/audit.md:361` — - `.wip/audit.md:327` — - `.wip/audit.json:38` — "text": "- `PowlBridgeReplay` replaces the noop stub in the admission gate."
+- `.wip/audit.md:397` — - `.wip/audit.md:362` — - `.wip/audit.md:328` — - `.wip/audit.json:43` — "text": "*   **L6 High-Speed Kernels:** Represented by `wasm4pm` stream-2 stub bindings and the `src/manufacturing/` pipeline."
+- `.wip/audit.md:398` — - `.wip/audit.md:363` — - `.wip/audit.md:329` — - `.wip/audit.json:48` — "text": "## What's NOT Implemented (Vision 2030 Future Layers)"
+- `.wip/audit.md:399` — - `.wip/audit.md:364` — - `.wip/audit.md:330` — - `.wip/audit.json:53` — "text": "todo = \"deny\""
+- `.wip/audit.md:400` — - `.wip/audit.md:365` — - `.wip/audit.md:331` — - `.wip/audit.json:58` — "text": "`OcelObjectType` is a typing class for OCEL 2.0 instances (e.g. Order, Item, Package). In the current TTL it is a vocabulary stub \u2014 the actual object type individuals (Order, Item, etc.) are not defined. The enforcer correctly flags it as orphaned."
+- `.wip/audit.md:401` — - `.wip/audit.md:366` — - `.wip/audit.md:332` — - `.wip/audit.json:63` — "text": "//!   5. assert Admitted(receipt) with non-stub fitness"
+- `.wip/audit.md:402` — - `.wip/audit.md:367` — - `.wip/audit.md:333` — - `.wip/audit.json:68` — "text": "//    fitness, not a stub 1.0)."
+- `.wip/audit.md:403` — - `.wip/audit.md:368` — - `.wip/audit.md:334` — - `.wip/audit.json:73` — "text": "!conf.run_id.starts_with(\"stub-run-\"),"
+- `.wip/audit.md:404` — - `.wip/audit.md:369` — - `.wip/audit.md:335` — - `.wip/audit.json:78` — "text": "\"verdict came from the stub, not the real PowlBridge: {}\","
+- `.wip/audit.md:405` — - `.wip/audit.md:370` — - `.wip/audit.md:336` — - `.wip/audit.json:83` — "text": "let msg = \"evaluate_admission(stub) called\";"
+- `.wip/audit.md:406` — - `.wip/audit.md:371` — - `.wip/audit.md:337` — - `.wip/audit.json:88` — "text": "let receipt = build_test_receipt(b\"some-artifact-placeholder\");"
+- `.wip/audit.md:407` — - `.wip/audit.md:372` — - `.wip/audit.md:338` — - `.wip/audit.json:93` — "text": "//! output is structurally distinct from a hypothetical \"stub that"
+- `.wip/audit.md:408` — - `.wip/audit.md:373` — - `.wip/audit.md:339` — - `.wip/audit.json:98` — "text": "Either the format was silently ignored (soft stub) or auto-detection hid the override.\\n\\"
+- `.wip/audit.md:409` — - `.wip/audit.md:374` — - `.wip/audit.md:340` — - `.wip/audit.json:103` — "text": "//! R5 WB-1's TODO comment at admission.rs:660-662 carried A9 forward"
+- `.wip/audit.md:410` — - `.wip/audit.md:375` — - `.wip/audit.md:341` — - `.wip/audit.json:108` — "text": "//! (#43 Dynamics \u2192 #44 Causal hookup \u2192 #45 Planner stub)."
+- `.wip/audit.md:411` — - `.wip/audit.md:376` — - `.wip/audit.md:342` — - `.wip/audit.json:113` — "text": "// The Planner stub must read from the same SQLite store that"
+- `.wip/audit.md:412` — - `.wip/audit.md:377` — - `.wip/audit.md:343` — - `.wip/audit.json:118` — "text": "// 64-char WO hash literal with a placeholder of equal length."
+- `.wip/audit.md:413` — - `.wip/audit.md:378` — - `.wip/audit.md:344` — - `.wip/audit.json:123` — "text": "let placeholder: String = \"f\".repeat(wo_hash.len());"
+- `.wip/audit.md:414` — - `.wip/audit.md:379` — - `.wip/audit.md:345` — - `.wip/audit.json:128` — "text": "f.contents = f.contents.replace(&wo_hash, &placeholder);"
+- `.wip/audit.md:415` — - `.wip/audit.md:380` — - `.wip/audit.md:346` — - `.wip/audit.json:133` — "text": "//! Replaces the digest-equality tautology stub with cryptographic"
+- `.wip/audit.md:416` — - `.wip/audit.md:381` — - `.wip/audit.md:347` — - `.wip/audit.json:138` — "text": "/// the ggen pipeline produced a populated file rather than an empty stub."
+- `.wip/audit.md:417` — - `.wip/audit.md:382` — - `.wip/audit.md:348` — - `.wip/audit.json:143` — "text": "/// 1. generated.rs exists and contains the expected stub modules."
+- `.wip/audit.md:418` — - `.wip/audit.md:383` — - `.wip/audit.md:349` — - `.wip/audit.json:148` — "text": "//! `PowlBridgeReplay`, not the `NoopPowlReplay` stub."
+- `.wip/audit.md:419` — - `.wip/audit.md:384` — - `.wip/audit.md:350` — - `.wip/audit.json:153` — "text": "// The bridge \u2014 not the stub \u2014 produced this verdict. The stub would"
+- `.wip/audit.md:420` — - `.wip/audit.md:385` — - `.wip/audit.md:351` — - `.wip/audit.json:158` — "text": "// have returned the literal {fitness: 1.0, run_id: \"stub-run-...\"}."
+- `.wip/audit.md:421` — - `.wip/audit.md:386` — - `.wip/audit.md:352` — - `.wip/audit.json:163` — "text": "!conf.run_id.starts_with(\"stub-run-\"),"
+- `.wip/audit.md:422` — - `.wip/audit.md:387` — - `.wip/audit.md:353` — - `.wip/audit.json:168` — "text": "\"verdict came from NoopPowlReplay stub, not PowlBridge: run_id={}\","
+- `.wip/audit.md:423` — - `.wip/audit.md:388` — - `.wip/audit.md:354` — - `.wip/audit.json:173` — "text": "placeholder?: string;"
+- `.wip/audit.md:424` — - `.wip/audit.md:389` — - `.wip/audit.md:355` — - `.wip/audit.json:178` — "text": "/// (Stream-2 stub path; not backed by real POWL replay). 6 occurrences."
+- `.wip/audit.md:425` — - `.wip/audit.md:390` — - `.wip/audit.md:356` — - `.wip/audit.json:183` — "text": "// TODO(R3 Task B): replace tenant_id fallback with"
+- `.wip/audit.md:426` — - `.wip/audit.md:391` — - `.wip/audit.md:357` — - `.wip/audit.json:188` — "text": "#[tool(name = \"onto_policy_register\", description = \"Register an ARGOS-style policy rule (#40, ISWC 2025 WOP). `effect` is `\\\"allow\\\"` or `\\\"deny\\\"`; `condition` is a SPARQL ASK that can use the `{target}` placeholder. Pairs with `onto_policy_check` and `onto_certify_action` \u2014 CIVeX gates causal risk, ARGOS gates authorisation.\")]"
+- `.wip/audit.md:427` — - `.wip/audit.md:392` — - `.wip/audit.md:358` — - `.wip/audit.json:198` — "text": "#[tool(name = \"onto_plan_compile_pddl\", description = \"Compile a PDDL domain from registered Dynamics action schemas (#43) plus a problem instance from the loaded graph and a goal Turtle slice (#45 Planner stub). Returns {domain, problem, translation_notes}. The actual planner (Fast Downward) is wrapped client-side per the LLM-Modulo convention \u2014 this primitive only emits the PDDL. Lossy in the v0.4 stub: 
+- `.wip/audit.md:428` — - `.wip/audit.md:393` — - `.wip/audit.md:359` — - `.wip/audit.json:203` — "text": "// TODO(stream1-4): Streams 1-4 are not yet merged on this branch. The"
+- `.wip/audit.md:429` — - `.wip/audit.md:394` — - `.wip/audit.md:360` — - `.wip/audit.json:208` — "text": "// TODO(stream1): replace with self.onto_declare_workflow(...)."
+- `.wip/audit.md:430` — - `.wip/audit.md:395` — - `.wip/audit.md:361` — - `.wip/audit.json:213` — "text": "// Load scope row (Stream 5 stub schema)."
+- `.wip/audit.md:431` — - `.wip/audit.md:396` — - `.wip/audit.md:362` — - `.wip/audit.json:218` — "text": "// delta \u2014 not a placeholder."
+- `.wip/audit.md:432` — - `.wip/audit.md:397` — - `.wip/audit.md:363` — - `.wip/audit.json:223` — "text": "// stub (NoopPowlReplay) or the real wasm4pm bridge.  The stub"
+- `.wip/audit.md:433` — - `.wip/audit.md:398` — - `.wip/audit.md:364` — - `.wip/audit.json:228` — "text": "// prefixes every run_id with \"stub-run-\" so callers and auditors"
+- `.wip/audit.md:434` — - `.wip/audit.md:399` — - `.wip/audit.md:365` — - `.wip/audit.json:233` — "text": "// can distinguish stub-path admissions from production-verified"
+- `.wip/audit.md:435` — - `.wip/audit.md:400` — - `.wip/audit.md:366` — - `.wip/audit.json:238` — "text": "let powl_stub = receipt.record.conformance_run_id.starts_with(\"stub-run-\");"
+- `.wip/audit.md:436` — - `.wip/audit.md:401` — - `.wip/audit.md:367` — - `.wip/audit.json:243` — "text": "// integrated (stream-2 stub); CTQ admission skipped the real"
+- `.wip/audit.md:437` — - `.wip/audit.md:402` — - `.wip/audit.md:368` — - `.wip/audit.json:248` — "text": "/// TODO(R3 Task B): replace `is_admin_principal` with the canonical"
+- `.wip/audit.md:438` — - `.wip/audit.md:403` — - `.wip/audit.md:369` — - `.wip/audit.json:253` — "text": "/// TODO(R3 Task B): switch the INSERT target to `revoked_principals`"
+- `.wip/audit.md:439` — - `.wip/audit.md:404` — - `.wip/audit.md:370` — - `.wip/audit.json:258` — "text": "// Make sure the conformance_runs table exists. The Stream-3 stub"
+- `.wip/audit.md:440` — - `.wip/audit.md:405` — - `.wip/audit.md:371` — - `.wip/audit.json:263` — "text": "/// let placeholder: Vec<f32> = vec![0.0; BGE_SMALL_DIM];"
+- `.wip/audit.md:441` — - `.wip/audit.md:406` — - `.wip/audit.md:372` — - `.wip/audit.json:268` — "text": "/// assert_eq!(placeholder.len(), BGE_SMALL_DIM);"
+- `.wip/audit.md:442` — - `.wip/audit.md:407` — - `.wip/audit.md:373` — - `.wip/audit.json:273` — "text": "//! ## Phase 10 stub status"
+- `.wip/audit.md:443` — - `.wip/audit.md:408` — - `.wip/audit.md:374` — - `.wip/audit.json:278` — "text": "/// SPARQL ASK. Can use the placeholder `{target}` which is substituted"
+- `.wip/audit.md:444` — - `.wip/audit.md:409` — - `.wip/audit.md:375` — - `.wip/audit.json:283` — "text": "//! Replaces the Phase-10 A10 tautology stub (which compared"
+- `.wip/audit.md:445` — - `.wip/audit.md:410` — - `.wip/audit.md:376` — - `.wip/audit.json:288` — "text": "/// Stream-2-stub stand-in for `wasm4pm`'s POWL arena handle. Stream 2"
+- `.wip/audit.md:446` — - `.wip/audit.md:411` — - `.wip/audit.md:377` — - `.wip/audit.json:293` — "text": "// \u2500\u2500 Real Ed25519 attestation (replaces the A10 tautology stub) \u2500\u2500"
+- `.wip/audit.md:447` — - `.wip/audit.md:412` — - `.wip/audit.md:378` — - `.wip/audit.json:298` — "text": "//! Planner stub (#45) \u2014 PDDL emission from Dynamics action schemas."
+- `.wip/audit.md:448` — - `.wip/audit.md:413` — - `.wip/audit.md:379` — - `.wip/audit.json:303` — "text": "//! ## Bounded scope (v0.4 stub)"
+- `.wip/audit.md:449` — - `.wip/audit.md:414` — - `.wip/audit.md:380` — - `.wip/audit.json:308` — "text": "//! paper is the anchor for the rigorous version; this stub is a sand-table."
+- `.wip/audit.md:450` — - `.wip/audit.md:415` — - `.wip/audit.md:381` — - `.wip/audit.json:313` — "text": "/// stub couldn't fully encode and that was preserved as a PDDL comment."
+- `.wip/audit.md:451` — - `.wip/audit.md:416` — - `.wip/audit.md:382` — - `.wip/audit.json:318` — "text": "/// Translate a triple position (placeholder `<{x}>`, full IRI `<...>`, or bare"
+- `.wip/audit.md:452` — - `.wip/audit.md:417` — - `.wip/audit.md:383` — - `.wip/audit.json:323` — "text": "// Problem stub \u2014 empty init/goal; the MCP layer fills in init from the"
+- `.wip/audit.md:453` — - `.wip/audit.md:418` — - `.wip/audit.md:384` — - `.wip/audit.json:328` — "text": "/// (replaces the digest-equality tautology stub). Forward-compatible \u2014"
+- `.wip/audit.md:454` — - `.wip/audit.md:419` — - `.wip/audit.md:385` — - `.wip/audit.json:333` — "text": "/// matches the artifact bit-for-bit. (Phase-10 stub: digest-equality"
+- `.wip/audit.md:455` — - `.wip/audit.md:420` — - `.wip/audit.md:386` — - `.wip/audit.json:338` — "text": "-- \u2500\u2500\u2500 OntoStar Stream 1 stub migrations (authoritative copies live in Stream 1) \u2500\u2500"
+- `.wip/audit.md:456` — - `.wip/audit.md:421` — - `.wip/audit.md:387` — - `.wip/audit.json:343` — "text": "-- the \u00a728 hidden-WIP leak. (Verified: no DELETE statement in"
+- `.wip/audit.md:457` — - `.wip/audit.md:422` — - `.wip/audit.md:388` — - `.wip/audit.json:348` — "text": "//! NOT fall back to a silent stub."
+- `.wip/audit.md:458` — - `.wip/audit.md:423` — - `.wip/audit.md:389` — - `.wip/audit.json:353` — "text": "/// Windows stub for the Unix domain socket adapter."
+- `.wip/audit.md:459` — - `.wip/audit.md:424` — - `.wip/audit.md:390` — - `.wip/audit.json:358` — "text": "//!    (TODO Stream 2: replace [`PowlReplay`] stub with the real bridge),"
+- `.wip/audit.md:460` — - `.wip/audit.md:425` — - `.wip/audit.md:391` — - `.wip/audit.json:363` — "text": "/// TODO(R3 Task B): switch from `revoked_sessions` fallback to the"
+- `.wip/audit.md:461` — - `.wip/audit.md:426` — - `.wip/audit.md:392` — - `.wip/audit.json:368` — "text": "/// Stream-2-stub trait. The real implementation lives in `powl_bridge.rs`"
+- `.wip/audit.md:462` — - `.wip/audit.md:427` — - `.wip/audit.md:393` — - `.wip/audit.json:373` — "text": "/// TODO(stream-2): swap to the wasm4pm-backed bridge. This stub MUST be"
+- `.wip/audit.md:463` — - `.wip/audit.md:428` — - `.wip/audit.md:394` — - `.wip/audit.json:378` — "text": "/// flag distinguishes placeholder results from production-grade evidence."
+- `.wip/audit.md:464` — - `.wip/audit.md:429` — - `.wip/audit.md:395` — - `.wip/audit.json:383` — "text": "/// `true` when this result was produced by the stream-2 stub"
+- `.wip/audit.md:465` — - `.wip/audit.md:430` — - `.wip/audit.md:396` — - `.wip/audit.json:388` — "text": "/// external operators and auditors can distinguish stub-path"
+- `.wip/audit.md:466` — - `.wip/audit.md:431` — - `.wip/audit.md:397` — - `.wip/audit.json:393` — "text": "/// assert!(!pass.is_stub,             \"pass() produces non-stub evidence\");"
+- `.wip/audit.md:467` — - `.wip/audit.md:432` — - `.wip/audit.md:398` — - `.wip/audit.json:398` — "text": "/// assert!(!fail.is_stub,             \"fail() produces non-stub evidence\");"
+- `.wip/audit.md:468` — - `.wip/audit.md:433` — - `.wip/audit.md:399` — - `.wip/audit.json:403` — "text": "/// Returns `true` when this result was produced by the stream-2 stub"
+- `.wip/audit.md:469` — - `.wip/audit.md:434` — - `.wip/audit.md:400` — - `.wip/audit.json:408` — "text": "/// Stub results have `fitness = 1.0` and `precision = 1.0` as placeholders"
+- `.wip/audit.md:470` — - `.wip/audit.md:435` — - `.wip/audit.md:401` — - `.wip/audit.json:413` — "text": "/// # Auto-instinct: stub results produced by NoopPowlReplay always conform"
+- `.wip/audit.md:471` — - `.wip/audit.md:436` — - `.wip/audit.md:402` — - `.wip/audit.json:418` — "text": "/// // Auto-instinct: stub results are always conformant (placeholder 1.0/1.0)."
+- `.wip/audit.md:472` — - `.wip/audit.md:437` — - `.wip/audit.md:403` — - `.wip/audit.json:423` — "text": "/// assert!(stub_result.is_conformant(),  \"stub result must report conformance\");"
+- `.wip/audit.md:473` — - `.wip/audit.md:438` — - `.wip/audit.md:404` — - `.wip/audit.json:428` — "text": "/// // A hand-crafted non-stub conforming result is not a stub."
+- … 10145 additional findings in `audit.json`
 
 ## Zero-byte files (0)
 
 
 ## Non-main branches (3)
 
-- `origin/ontostar-integration` — ahead 72, behind 44, `ec2115642aa1` — docs: finalize final_proof.txt
-- `origin/agent/finish-wip-20260730` — ahead 6, behind 3, `95605bf37b30` — chore: record WIP audit receipt
-- `origin/agent/chatmangpt-namespace-26.7.29` — ahead 1, behind 95, `3a5defe909a9` — chore(namespace): bind open-ontologies to chatmangpt.com
+- `origin/ontostar-integration` — ahead 72, behind 45, `ec2115642aa1` — docs: finalize final_proof.txt
+- `origin/agent/finish-wip-20260730` — ahead 8, behind 4, `977d2747c56f` — chore: trigger bounded WIP repair
+- `origin/agent/chatmangpt-namespace-26.7.29` — ahead 1, behind 96, `3a5defe909a9` — chore(namespace): bind open-ontologies to chatmangpt.com
 
 ## Duplicate Cargo.lock packages (3)
 
@@ -725,14 +524,14 @@ Audit branch: `95605bf37b30b495fe9b3dec21b632a7b4770745`
 ## Executable gates
 
 ### `cargo metadata --locked --format-version 1 --no-deps`
-Exit: `0` in 1.47s
+Exit: `0` in 0.14s
 ```text
 home/runner/work/open-ontologies/open-ontologies/tests/shacl_shared_receipt.rs","edition":"2024","doc":false,"doctest":false,"test":true},{"kind":["test"],"crate_types":["bin"],"name":"shacl_test","src_path":"/home/runner/work/open-ontologies/open-ontologies/tests/shacl_test.rs","edition":"2024","doc":false,"doctest":false,"test":true},{"kind":["test"],"crate_types":["bin"],"name":"shaped_translator_e2e","src_path":"/home/runner/work/open-ontologies/open-ontologies/tests/shaped_translator_e2e.rs","edition":"2024","doc":false,"doctest":false,"test":true},{"kind":["test"],"crate_types":["bin"],"name":"socket_test","src_path":"/home/runner/work/open-ontologies/open-ontologies/tests/socket_test.rs","edition":"2024","doc":false,"doctest":false,"test":true},{"kind":["test"],"crate_types":["bin"],"name":"solution_manufacturing_e2e","src_path":"/home/runner/work/open-ontologies/open-ontologies/tests/solution_manufacturing_e2e.rs","edition":"2024","doc":false,"doctest":false,"test":true},{"kind":["test"],"crate_types":["bin"],"name":"sql_ingest_handler","src_path":"/home/runner/work/open-ontologies/open-ontologies/tests/sql_ingest_handler.rs","edition":"2024","doc":false,"doctest":false,"test":true},{"kind":["test"],"crate_types":["bin"],"name":"sqlsource_test","src_path":"/home/runner/work/open-ontologies/open-ontologies/tests/sqlsource_test.rs","edition":"2024","doc":false,"doctest":false,"test":true},{"kind":["test"],"crate_types":["bin"],"name":"state_v2_test","src_path":"/home/runner/work/open-ontologies/open-ontologies/tests/state_v2_test.rs","edition":"2024","doc":false,"doctest":false,"test":true},{"kind":["test"],"crate_types":["bin"],"name":"structembed_test","src_path":"/home/runner/work/open-ontologies/open-ontologies/tests/structembed_test.rs","edition":"2024","doc":false,"doctest":false,"test":true},{"kind":["test"],"crate_types":["bin"],"name":"tableaux_test","src_path":"/home/runner/work/open-ontologies/open-ontologies/tests/tableaux_test.rs","edition":"2024","doc":false,"doctest":false,"test":true},{"kind":["test"],"crate_types":["bin"],"name":"tenant_isolation_audit","src_path":"/home/runner/work/open-ontologies/open-ontologies/tests/tenant_isolation_audit.rs","edition":"2024","doc":false,"doctest":false,"test":true},{"kind":["test"],"crate_types":["bin"],"name":"terraform_loop_test","src_path":"/home/runner/work/open-ontologies/open-ontologies/tests/terraform_loop_test.rs","edition":"2024","doc":false,"doctest":false,"test":true},{"kind":["test"],"crate_types":["bin"],"name":"three_layer_integration_test","src_path":"/home/runner/work/open-ontologies/open-ontologies/tests/three_layer_integration_test.rs","edition":"2024","doc":false,"doctest":false,"test":true},{"kind":["test"],"crate_types":["bin"],"name":"threshold_real","src_path":"/home/runner/work/open-ontologies/open-ontologies/tests/threshold_real.rs","edition":"2024","doc":false,"doctest":false,"test":true},{"kind":["test"],"crate_types":["bin"],"name":"toolfilter_test","src_path":"/home/runner/work/open-ontologies/open-ontologies/tests/toolfilter_test.rs","edition":"2024","doc":false,"doctest":false,"test":true},{"kind":["test"],"crate_types":["bin"],"name":"vecstore_test","src_path":"/home/runner/work/open-ontologies/open-ontologies/tests/vecstore_test.rs","edition":"2024","doc":false,"doctest":false,"test":true},{"kind":["test"],"crate_types":["bin"],"name":"wb1_subprocess_timeout","src_path":"/home/runner/work/open-ontologies/open-ontologies/tests/wb1_subprocess_timeout.rs","edition":"2024","doc":false,"doctest":false,"test":true},{"kind":["test"],"crate_types":["bin"],"name":"workflow_discover_real","src_path":"/home/runner/work/open-ontologies/open-ontologies/tests/workflow_discover_real.rs","edition":"2024","doc":false,"doctest":false,"test":true},{"kind":["test"],"crate_types":["bin"],"name":"zoela_route_conformance","src_path":"/home/runner/work/open-ontologies/open-ontologies/tests/zoela_route_conformance.rs","edition":"2024","doc":false,"doctest":false,"test":true},{"kind":["bench"],"crate_types":["bin"],"name":"admission_bench","src_path":"/home/runner/work/open-ontologies/open-ontologies/benches/admission_bench.rs","edition":"2024","doc":false,"doctest":false,"test":false},{"kind":["bench"],"crate_types":["bin"],"name":"manufacturing_bench","src_path":"/home/runner/work/open-ontologies/open-ontologies/benches/manufacturing_bench.rs","edition":"2024","doc":false,"doctest":false,"test":false},{"kind":["bench"],"crate_types":["bin"],"name":"receipts_bench","src_path":"/home/runner/work/open-ontologies/open-ontologies/benches/receipts_bench.rs","edition":"2024","doc":false,"doctest":false,"test":false},{"kind":["bench"],"crate_types":["bin"],"name":"swarm_bench","src_path":"/home/runner/work/open-ontologies/open-ontologies/benches/swarm_bench.rs","edition":"2024","doc":false,"doctest":false,"test":false}],"features":{"bincode":["dep:bincode"],"default":[],"duckdb":["dep:duckdb"],"embeddings":["tract-onnx","tokenizers"],"instant-distance":["dep:instant-distance"],"mcpp":["dep:mcpp-core"],"postgres":["sqlx"],"sql":["postgres","duckdb"],"sqlx":["dep:sqlx"],"tokenizers":["dep:tokenizers"],"tract-onnx":["dep:tract-onnx"]},"manifest_path":"/home/runner/work/open-ontologies/open-ontologies/Cargo.toml","metadata":null,"publish":null,"authors":[],"categories":[],"keywords":[],"readme":"README.md","repository":"https://github.com/fabio-rovai/open-ontologies","homepage":null,"documentation":null,"edition":"2024","links":null,"default_run":null,"rust_version":null}],"workspace_members":["path+file:///home/runner/work/open-ontologies/open-ontologies#26.5.13"],"workspace_default_members":["path+file:///home/runner/work/open-ontologies/open-ontologies#26.5.13"],"resolve":null,"target_directory":"/home/runner/work/open-ontologies/open-ontologies/target","build_directory":"/home/runner/work/open-ontologies/open-ontologies/target","version":1,"workspace_root":"/home/runner/work/open-ontologies/open-ontologies","metadata":null}
 
 
 ```
 ### `cargo check --locked --all-targets`
-Exit: `101` in 0.56s
+Exit: `101` in 0.16s
 ```text
 
 error: failed to parse lock file at: /home/runner/work/open-ontologies/open-ontologies/Cargo.lock
