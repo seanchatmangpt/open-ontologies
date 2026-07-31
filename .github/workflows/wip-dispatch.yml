@@ -18,11 +18,11 @@ jobs:
     runs-on: ubuntu-22.04
     timeout-minutes: 120
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           ref: agent/finish-wip-20260730
           fetch-depth: 0
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:
           python-version: '3.12'
 
@@ -35,8 +35,7 @@ jobs:
 
           verifier = Path('tools/verify_ggen_standards.py')
           text = verifier.read_text()
-          start = text.index('def stale_dead_param_references(')
-          end = text.index('\n\ndef verify_contract', start)
+
           replacement = '''def dead_param_gate_findings(root: Path) -> list[dict[str, Any]]:
               wrapper = root / "tools" / "dead-param-gate.sh"
               findings: list[dict[str, Any]] = []
@@ -67,7 +66,12 @@ jobs:
               line[10:] if line.startswith('          ') else line
               for line in replacement.splitlines()
           )
-          text = text[:start] + replacement + text[end:]
+
+          if 'def dead_param_gate_findings(' not in text:
+              start = text.index('def stale_dead_param_references(')
+              end = text.index('\n\ndef verify_contract', start)
+              text = text[:start] + replacement + text[end:]
+
           old = '''    stale_refs = stale_dead_param_references(root)
               checks.append(
                   require(
@@ -78,7 +82,7 @@ jobs:
                   )
               )'''
           old = '\n'.join(
-              line[4:] if line.startswith('    ') else line
+              line[10:] if line.startswith('          ') else line
               for line in old.splitlines()
           )
           new = '''    gate_findings = dead_param_gate_findings(root)
@@ -91,20 +95,25 @@ jobs:
                   )
               )'''
           new = '\n'.join(
-              line[4:] if line.startswith('    ') else line
+              line[10:] if line.startswith('          ') else line
               for line in new.splitlines()
           )
-          if old not in text:
-              raise SystemExit('dead-parameter verification block not found')
-          verifier.write_text(text.replace(old, new))
+
+          if old in text:
+              text = text.replace(old, new)
+          elif new not in text:
+              raise SystemExit('neither legacy nor admitted dead-parameter verification block found')
+
+          verifier.write_text(text)
 
           red_team = Path('.github/scripts/test_red_team_traps.sh')
-          red_team.write_text(
-              red_team.read_text().replace(
-                  'tools/dead-param-gate.sh exits 1 with',
-                  'the delegated Rust AST test exits non-zero with',
+          if red_team.is_file():
+              red_team.write_text(
+                  red_team.read_text().replace(
+                      'tools/dead-param-gate.sh exits 1 with',
+                      'the delegated Rust AST test exits non-zero with',
+                  )
               )
-          )
           PY
           cargo fmt --all -- --check
           cargo generate-lockfile
@@ -115,7 +124,10 @@ jobs:
           set -euo pipefail
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add Cargo.lock tools/verify_ggen_standards.py tools/dead-param-gate.sh .github/scripts/test_red_team_traps.sh
+          git add Cargo.lock tools/verify_ggen_standards.py tools/dead-param-gate.sh
+          if [[ -f .github/scripts/test_red_team_traps.sh ]]; then
+            git add .github/scripts/test_red_team_traps.sh
+          fi
           if ! git diff --cached --quiet; then
             git commit -m 'fix: admit Rust dead-parameter compatibility boundary'
             git push origin HEAD:agent/finish-wip-20260730
