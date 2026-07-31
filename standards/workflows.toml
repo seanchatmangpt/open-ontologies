@@ -1,0 +1,48 @@
+schema = "chatmangpt.workflow-inventory/v1"
+standard = "ggen-v26.7.31"
+repository = "seanchatmangpt/open-ontologies"
+
+[[workflow]]
+id = "ggen-standards"
+path = ".github/workflows/ggen-standards.yml"
+semantic_owner = "AGENTS.md"
+output_owner = "target/standards/ggen-standards.json"
+standing_scope = "bounded_repository_contract"
+required_evidence = ["positive_witness", "negative_falsifier", "independent_verifier", "receipt_verification", "deterministic_replay"]
+retirement_condition = "superseded_by_a_newer_admitted_ggen_profile"
+
+[[workflow]]
+id = "verification-matrix"
+path = ".github/workflows/ci.yml"
+semantic_owner = ".github/scripts/run-verification-matrix.sh"
+output_owner = "github_actions_job_log"
+standing_scope = "default_feature_repository_build"
+required_evidence = ["locked_metadata", "compile", "tests", "clippy", "baseline_ratchets"]
+retirement_condition = "replaced_by_an_equivalent_exact_head_matrix"
+
+[[workflow]]
+id = "regression-gates"
+path = ".github/workflows/regression-gates.yml"
+semantic_owner = "Makefile"
+output_owner = "github_actions_job_log"
+standing_scope = "repository_regression"
+required_evidence = ["negative_falsifiers", "typed_refusals"]
+retirement_condition = "all_gates_have_named_successors"
+
+[[workflow]]
+id = "cascade"
+path = ".github/workflows/cascade.yml"
+semantic_owner = "Makefile"
+output_owner = "github_actions_job_log"
+standing_scope = "constitutional_cascade"
+required_evidence = ["no_bypass", "secret_scan", "model_authority_zero", "test_removal_ratchet"]
+retirement_condition = "cascade_contract_is_migrated_without_losing_any_ratchet"
+
+[[workflow]]
+id = "docker"
+path = ".github/workflows/docker.yml"
+semantic_owner = "Dockerfile"
+output_owner = "container_image_or_build_record"
+standing_scope = "container_startup"
+required_evidence = ["image_build", "binary_smoke_test"]
+retirement_condition = "container_distribution_is_removed"
