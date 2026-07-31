@@ -1,15 +1,20 @@
-.PHONY: build test lint audit check adversarial cell8-certify check-dead-params check-test-count check-test-removal-tag check-ast-audit expand expand-prereq bench bench-pizza bench-ontoaxiom bench-mushroom bench-vision bench-reasoner bench-oaei docker docker-run init serve serve-http clean clean-worktrees clean-worktrees-soft gc-build
+.PHONY: standards build test lint audit check adversarial cell8-certify check-dead-params check-test-count check-test-removal-tag check-ast-audit expand expand-prereq bench bench-pizza bench-ontoaxiom bench-mushroom bench-vision bench-reasoner bench-oaei docker docker-run init serve serve-http clean clean-worktrees clean-worktrees-soft gc-build
+
+# ─── Constitutional admission ────────────────────────────────────────────────
+
+standards:
+	python3 tools/verify_ggen_standards.py
 
 # ─── Development ─────────────────────────────────────────────────────────────
 
 build:
-	cargo build --release
+	cargo build --locked --release
 
 test:
-	cargo test
+	cargo test --locked
 
 lint:
-	cargo clippy -- -D warnings
+	cargo clippy --locked --all-targets -- -D warnings
 
 # R6 WB — dead-param + gate-fn-discard scanner. Replaces the shell+grep
 # version (tools/dead-param-gate.sh, deleted) with a syn::Visit AST scan.
@@ -17,7 +22,7 @@ lint:
 # scan (when target/expanded.rs is present from `make expand`) closes B3
 # (macro_rules-laundered let _ = $p; patterns crossing crate boundaries).
 check-dead-params:
-	cargo test --test dead_param_gate_test -- --test-threads=1
+	cargo test --locked --test dead_param_gate_test -- --test-threads=1
 
 check-test-count:
 	bash tools/check-test-count.sh
@@ -32,7 +37,7 @@ check-test-removal-tag:
 # wrapped admission, macro-laundered let _ = $p;, expanded.rs arm-count
 # drift) become red→green via this gate.
 check-ast-audit:
-	cargo test --test round5_ast_red_team --test round5_ast_red_team_sabotage --test derive_allowlist_audit -- --test-threads=1
+	cargo test --locked --test round5_ast_red_team --test round5_ast_red_team_sabotage --test derive_allowlist_audit -- --test-threads=1
 
 # R6 WB — `cargo expand` integration. Produces target/expanded.rs which
 # the AST audit's expanded_dispatch_arms_match_source_attributes test
@@ -50,7 +55,7 @@ expand-prereq:
 
 expand: expand-prereq
 	@mkdir -p target
-	cargo expand --lib > target/expanded.rs
+	cargo expand --locked --lib > target/expanded.rs
 	@test -s target/expanded.rs || (echo "expand produced empty target/expanded.rs" && exit 1)
 	@echo "✓ target/expanded.rs produced ($$(wc -l < target/expanded.rs) lines)"
 
@@ -58,15 +63,15 @@ verify-receipts:
 	@bash tools/verify-receipts.sh
 	@echo "✓ ggen receipt integrity verified"
 
-adversarial: check-dead-params check-test-count check-test-removal-tag check-ast-audit expand clean-worktrees-soft verify-receipts
-	cargo clippy -- -D clippy::todo -D clippy::unimplemented
-	cargo test --test adversarial_jtbd_test -- --test-threads=1
-	cargo test --test round5_ast_red_team expanded_dispatch_arms_match_source_attributes -- --test-threads=1
+adversarial: standards check-dead-params check-test-count check-test-removal-tag check-ast-audit expand clean-worktrees-soft verify-receipts
+	cargo clippy --locked --all-targets -- -D clippy::todo -D clippy::unimplemented
+	cargo test --locked --test adversarial_jtbd_test -- --test-threads=1
+	cargo test --locked --test round5_ast_red_team expanded_dispatch_arms_match_source_attributes -- --test-threads=1
 	@echo "✓ All adversarial JTBD gates passed"
 
 cell8-certify: adversarial
 	@echo "Generating Cell8 A1-A13 EARL certification report..."
-	@cargo test --test cell8_thirteen_gates -- --test-threads=1 2>&1 | grep -q "test result: ok"
+	@cargo test --locked --test cell8_thirteen_gates -- --test-threads=1 2>&1 | grep -q "test result: ok"
 	@python3 tools/emit-earl-report.py > cell8-final-assertion-report.ttl
 	@grep -c 'earl:passed' cell8-final-assertion-report.ttl | grep -qx '13'
 	@! grep -q 'earl:failed' cell8-final-assertion-report.ttl
@@ -75,7 +80,7 @@ cell8-certify: adversarial
 audit:
 	cargo audit
 
-check: check-dead-params check-ast-audit lint test audit verify-receipts
+check: standards check-dead-params check-ast-audit lint test audit verify-receipts
 
 # ─── Benchmarks ──────────────────────────────────────────────────────────────
 
@@ -117,48 +122,48 @@ docker-run:
 # ─── Release ─────────────────────────────────────────────────────────────────
 
 init:
-	cargo run --release -- init
+	cargo run --locked --release -- init
 
 # ─── ggen pipeline ─────────────────────────────────────────────────────────
 # Full regeneration: validate TTL → ggen sync → compile check → test.
 # Run after every edit to ontology/cli-open-ontologies.ttl.
 ggen-sync-full:
 	@echo "Step 1/4: validate source TTL..."
-	cargo run --release -- ontology validate --input ontology/cli-open-ontologies.ttl
+	cargo run --locked --release -- ontology validate --input ontology/cli-open-ontologies.ttl
 	@echo "Step 2/4: ggen sync..."
-	cargo run --release -- ggen sync
+	cargo run --locked --release -- ggen sync
 	@echo "Step 3/4: compile check..."
 	$(MAKE) check
 	@echo "Step 4/4: test suite..."
 	$(MAKE) test
 	@echo "✓ ggen-sync-full complete"
 
-# Quick setup verification — checks path deps, binary health, config.
+# Quick setup verification — checks dependency portability, binary health, config.
 verify-setup:
 	bash scripts/verify-setup.sh
 
 serve:
-	cargo run --release -- serve
+	cargo run --locked --release -- serve
 
 serve-http:
-	cargo run --release -- serve-http
+	cargo run --locked --release -- serve-http
 
 # ─── Thesis Manufacturing ──────────────────────────────────────────────────────
 
 .PHONY: thesis-doctor thesis-verify thesis-certify thesis-seed
 
 thesis-doctor:
-	cargo run --release -- thesis doctor
+	cargo run --locked --release -- thesis doctor
 
 thesis-verify:
-	cargo run --release -- thesis audit
+	cargo run --locked --release -- thesis audit
 
 thesis-certify:
-	cargo run --release -- thesis certify
+	cargo run --locked --release -- thesis certify
 
 thesis-seed:
-	cargo run --release -- thesis ingest docs/THESIS.md || true
-	cargo run --release -- thesis ingest docs/THESIS_V2.md || true
+	cargo run --locked --release -- thesis ingest docs/THESIS.md || true
+	cargo run --locked --release -- thesis ingest docs/THESIS_V2.md || true
 	@echo "✓ Thesis seed ingest complete"
 
 # ─── Cleanup ─────────────────────────────────────────────────────────────────
