@@ -16,14 +16,62 @@ WHERE {
       (GROUP_CONCAT(?aa; separator="|") AS ?autonomic_action_classes)
       (GROUP_CONCAT(?rh; separator="|") AS ?requires_human_approval)
     WHERE {
-      VALUES (?wc ?wl ?ms ?aa ?rh) {
-        ("CreateGroupInterestWorkOrder"    "Create Group Interest"    "cg-interest-expressed"    "A1" "false")
-        ("SendGroupInviteWorkOrder"        "Send Group Invite"        "cg-invite-sent"           "A2" "false")
-        ("AcceptGroupInviteWorkOrder"      "Accept Group Invite"      "cg-invite-accepted"       "A1" "false")
-        ("ReserveGroupSpotWorkOrder"       "Reserve Group Spot"       "cg-eligible-groups-found" "A2" "false")
-        ("RecordGroupAttendanceWorkOrder"  "Record Group Attendance"  "cg-first-meeting-attended" "A1" "false")
-        ("CreateGroupFollowUpWorkOrder"    "Create Group Follow-Up"   "cg-followup-completed"    "A1" "false")
-        ("CloseGroupJoinRouteWorkOrder"    "Close Group Join Route"   "cg-membership-active"     "A1" "false")
+      {
+        {
+          BIND("CreateGroupInterestWorkOrder" AS ?wc)
+          BIND("Create Group Interest" AS ?wl)
+          BIND("cg-interest-expressed" AS ?ms)
+          BIND("A1" AS ?aa)
+          BIND("false" AS ?rh)
+        }
+        UNION
+        {
+          BIND("SendGroupInviteWorkOrder" AS ?wc)
+          BIND("Send Group Invite" AS ?wl)
+          BIND("cg-invite-sent" AS ?ms)
+          BIND("A2" AS ?aa)
+          BIND("false" AS ?rh)
+        }
+        UNION
+        {
+          BIND("AcceptGroupInviteWorkOrder" AS ?wc)
+          BIND("Accept Group Invite" AS ?wl)
+          BIND("cg-invite-accepted" AS ?ms)
+          BIND("A1" AS ?aa)
+          BIND("false" AS ?rh)
+        }
+        UNION
+        {
+          BIND("ReserveGroupSpotWorkOrder" AS ?wc)
+          BIND("Reserve Group Spot" AS ?wl)
+          BIND("cg-eligible-groups-found" AS ?ms)
+          BIND("A2" AS ?aa)
+          BIND("false" AS ?rh)
+        }
+        UNION
+        {
+          BIND("RecordGroupAttendanceWorkOrder" AS ?wc)
+          BIND("Record Group Attendance" AS ?wl)
+          BIND("cg-first-meeting-attended" AS ?ms)
+          BIND("A1" AS ?aa)
+          BIND("false" AS ?rh)
+        }
+        UNION
+        {
+          BIND("CreateGroupFollowUpWorkOrder" AS ?wc)
+          BIND("Create Group Follow-Up" AS ?wl)
+          BIND("cg-followup-completed" AS ?ms)
+          BIND("A1" AS ?aa)
+          BIND("false" AS ?rh)
+        }
+        UNION
+        {
+          BIND("CloseGroupJoinRouteWorkOrder" AS ?wc)
+          BIND("Close Group Join Route" AS ?wl)
+          BIND("cg-membership-active" AS ?ms)
+          BIND("A1" AS ?aa)
+          BIND("false" AS ?rh)
+        }
       }
     }
   }
