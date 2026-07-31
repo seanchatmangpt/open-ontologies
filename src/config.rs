@@ -633,6 +633,50 @@ pub fn resolve_subprocess_timeout(cfg: &LlmConfig) -> std::time::Duration {
     std::time::Duration::from_secs(secs)
 }
 
+/// `[language]` — natural-language policy for ontology labels used in
+/// alignment / matching.
+#[derive(Debug, Default, Deserialize, Clone)]
+#[serde(default)]
+pub struct LanguageConfig {
+    /// Preferred natural-language tags (BCP-47, e.g. `["en", "cy"]`) for the
+    /// `rdfs:label` / `skos:prefLabel` / `skos:altLabel` values consulted by
+    /// `onto_align`. Untagged (plain or datatyped) literals are always kept.
+    ///
+    /// An empty list (the default) keeps **all** languages — i.e. fully
+    /// multilingual matching. This only pays off when paired with a
+    /// multilingual embedding model (the default `onto_embed` model is
+    /// multilingual), because cross-lingual matches (`Dog`↔`Chien`) are carried
+    /// by the embedding signal, not by string similarity.
+    ///
+    /// Override at runtime with `OPEN_ONTOLOGIES_LANGUAGES` (comma / colon /
+    /// semicolon separated, e.g. `OPEN_ONTOLOGIES_LANGUAGES=en,fr`).
+    #[serde(alias = "preferred_languages")]
+    pub preferred: Vec<String>,
+}
+
+/// Resolve the preferred-language policy.
+///
+/// Precedence: `OPEN_ONTOLOGIES_LANGUAGES` env var > config field. Entries are
+/// trimmed, lowercased, and emptied entries dropped. An empty result means
+/// "keep all languages" (multilingual mode).
+pub fn resolve_languages(cfg: &LanguageConfig) -> Vec<String> {
+    let from_env = std::env::var("OPEN_ONTOLOGIES_LANGUAGES").ok();
+    let raw: Vec<String> = match from_env {
+        Some(v) if !v.trim().is_empty() => v
+            .split([',', ':', ';'])
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .collect(),
+        _ => cfg
+            .preferred
+            .iter()
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .collect(),
+    };
+    raw.into_iter().map(|s| s.to_lowercase()).collect()
+}
+
 #[derive(Debug, Deserialize, Clone)]
 #[serde(default)]
 pub struct CacheConfig {

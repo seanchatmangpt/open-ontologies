@@ -80,6 +80,51 @@ pub const GRAPH_STAT_TRIPLES: &str = "triples";
 /// ```
 pub const GRAPH_STAT_CLASSES: &str = "classes";
 
+/// Optional HTTP authentication for remote SPARQL endpoints.
+///
+/// Enterprise triple stores gate their SPARQL Protocol endpoints behind auth:
+/// Stardog and Ontotext GraphDB accept HTTP Basic; token-secured deployments
+/// accept a Bearer token. Open stores (Apache Jena/Fuseki, Eclipse RDF4J,
+/// public Virtuoso) need none — leave this empty.
+#[derive(Default, Clone)]
+pub struct SparqlAuth {
+    /// HTTP Basic credentials as (username, password).
+    pub basic: Option<(String, String)>,
+    /// Bearer token (takes precedence over `basic` if both are set).
+    pub bearer: Option<String>,
+}
+
+impl SparqlAuth {
+    /// Build from optional username/password/token (e.g. tool inputs).
+    /// Returns a no-auth value when all are absent.
+    pub fn from_parts(
+        username: Option<String>,
+        password: Option<String>,
+        token: Option<String>,
+    ) -> Self {
+        let basic = match (username, password) {
+            (Some(u), Some(p)) => Some((u, p)),
+            (Some(u), None) => Some((u, String::new())),
+            _ => None,
+        };
+        SparqlAuth {
+            basic,
+            bearer: token,
+        }
+    }
+
+    /// Apply the configured auth to a request builder.
+    fn apply(&self, rb: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
+        if let Some(t) = &self.bearer {
+            rb.bearer_auth(t)
+        } else if let Some((u, p)) = &self.basic {
+            rb.basic_auth(u, Some(p))
+        } else {
+            rb
+        }
+    }
+}
+
 /// In-memory RDF graph store backed by Oxigraph.
 ///
 /// # Examples
@@ -301,7 +346,7 @@ impl GraphStore {
     /// ```
     pub fn load_file(&self, path: &str) -> anyhow::Result<usize> {
         let content = std::fs::read_to_string(path)?;
-        let format = Self::detect_format_sniffed(path, &content);
+        let format = Self::detect_format(path);
         let store = self.store.lock().unwrap();
         let reader = Cursor::new(content.as_bytes());
         let parser = RdfParser::from_format(format).for_reader(reader);
@@ -438,7 +483,7 @@ impl GraphStore {
     /// ```
     pub fn validate_file(path: &str) -> anyhow::Result<usize> {
         let content = std::fs::read_to_string(path)?;
-        let format = Self::detect_format_sniffed(path, &content);
+        let format = Self::detect_format(path);
         let reader = Cursor::new(content.as_bytes());
         let parser = RdfParser::from_format(format).for_reader(reader);
         let mut count = 0;
@@ -558,6 +603,51 @@ impl GraphStore {
         store.update(update)?;
         let after = store.len()?;
         Ok(after.saturating_sub(before))
+    }
+
+    /// Canonicalise the store's blank nodes via RDFC 1.0 (W3C Recommendation,
+    /// 21 May 2024) using SHA-256, returning a NEW `GraphStore` whose blank
+    /// nodes have deterministic `_:c14n<n>` identifiers derived from the graph
+    /// structure.
+    ///
+    /// This is the principled successor to per-callsite "filter `_:` IRIs out
+    /// of the SPARQL result set" — for any operation that depends on stable
+    /// identity across reparses (drift detection, hashing, signature
+    /// comparison), canonicalisation preserves the semantic content of
+    /// anonymous restriction classes / quoted axioms instead of dropping them.
+    ///
+    /// **Warning:** per the W3C spec, canonical IDs are a function of the
+    /// whole graph. Mutating one quad can shift many bnode IDs, so this
+    /// is poorly suited to producing minimal-diff outputs over arbitrary
+    /// edits. For drift detection specifically, the existing rename-pairing
+    /// logic in `drift.rs::detect()` will re-match shifted IDs via the
+    /// label/domain/range/hierarchy/individual signal ensemble, so the
+    /// net result is more informative than the previous "filter and forget"
+    /// approach (PR #14, @rustforrecess) that dropped bnode content entirely.
+    pub fn canonicalize_blank_nodes(&self) -> anyhow::Result<GraphStore> {
+        use oxigraph::model::Dataset;
+        use oxigraph::model::dataset::{CanonicalizationAlgorithm, CanonicalizationHashAlgorithm};
+
+        let store = self.store.lock().unwrap();
+        let mut dataset = Dataset::new();
+        for quad in store.iter() {
+            let q = quad?;
+            dataset.insert(&q);
+        }
+        drop(store);
+
+        dataset.canonicalize(CanonicalizationAlgorithm::Rdfc10 {
+            hash_algorithm: CanonicalizationHashAlgorithm::Sha256,
+        });
+
+        let new_gs = GraphStore::new();
+        {
+            let new_store = new_gs.store.lock().unwrap();
+            for quad in dataset.iter() {
+                new_store.insert(quad)?;
+            }
+        }
+        Ok(new_gs)
     }
 
     /// Serialize all triples in the store to a string in the given format.
@@ -717,38 +807,15 @@ impl GraphStore {
             lit.value().parse().unwrap_or(0)
         };
 
-        // Typed subsets: object vs datatype properties. The broad `prop_query`
-        // above also counts rdf:Property and implicit (subPropertyOf/domain/range)
-        // properties, so object + data need not sum to `properties` — but
-        // reporting the real datatype-property count is more honest than the
-        // previous hardcoded 0 (which showed e.g. Schema.org / FOAF as having no
-        // properties even though they declare hundreds).
-        let obj_prop_query = "SELECT (COUNT(DISTINCT ?p) AS ?count) WHERE {
-            ?p a <http://www.w3.org/2002/07/owl#ObjectProperty> .
-            FILTER(isIRI(?p)
-                && !STRSTARTS(STR(?p), \"http://www.w3.org/1999/02/22-rdf-syntax-ns#\")
-                && !STRSTARTS(STR(?p), \"http://www.w3.org/2000/01/rdf-schema#\")
-                && !STRSTARTS(STR(?p), \"http://www.w3.org/2002/07/owl#\"))
-        }";
-        let data_prop_query = "SELECT (COUNT(DISTINCT ?p) AS ?count) WHERE {
-            ?p a <http://www.w3.org/2002/07/owl#DatatypeProperty> .
-            FILTER(isIRI(?p)
-                && !STRSTARTS(STR(?p), \"http://www.w3.org/1999/02/22-rdf-syntax-ns#\")
-                && !STRSTARTS(STR(?p), \"http://www.w3.org/2000/01/rdf-schema#\")
-                && !STRSTARTS(STR(?p), \"http://www.w3.org/2002/07/owl#\"))
-        }";
-
         let classes = count_from_query(class_query);
         let props = count_from_query(prop_query);
-        let object_props = count_from_query(obj_prop_query);
-        let data_props = count_from_query(data_prop_query);
         let individuals = count_from_query(individual_query);
 
         Ok(serde_json::json!({
             "triples": total,
             "classes": classes,
-            "object_properties": object_props,
-            "data_properties": data_props,
+            "object_properties": props,
+            "data_properties": 0,
             "properties": props,
             "individuals": individuals
         })
@@ -1008,7 +1075,8 @@ impl GraphStore {
         for (name, value) in extra_headers {
             rb = rb.header(*name, *value);
         }
-        let resp = req.body(body).send().await?;
+        let rb = rb.body(body);
+        let resp = auth.apply(rb).send().await?;
         if !resp.status().is_success() {
             anyhow::bail!("SPARQL update returned HTTP {}", resp.status());
         }
@@ -1070,41 +1138,6 @@ impl GraphStore {
         } else {
             RdfFormat::Turtle
         }
-    }
-
-    /// Format detection that consults the file body, not just the extension.
-    ///
-    /// `.owl` is ambiguous in the wild: the extension says "an OWL ontology"
-    /// and says nothing about the serialisation. Both RDF/XML and Turtle are
-    /// routinely published as `.owl`, so trusting the extension alone makes a
-    /// perfectly valid file fail to parse. Sniff the first non-blank,
-    /// non-comment line and let the content decide.
-    fn detect_format_sniffed(path: &str, content: &str) -> RdfFormat {
-        let ext_format = Self::detect_format(path);
-
-        let head = content
-            .lines()
-            .map(str::trim)
-            .find(|l| !l.is_empty() && !l.starts_with('#'))
-            .unwrap_or("");
-
-        // XML declaration or an opening tag means RDF/XML regardless of name.
-        if head.starts_with("<?xml") || head.starts_with("<rdf:") || head.starts_with("<RDF") {
-            return RdfFormat::RdfXml;
-        }
-
-        // Turtle/TriG directives. `<` alone is not a signal: it also opens an
-        // N-Triples subject IRI, so only treat explicit directives as proof.
-        let is_turtle_directive = head.starts_with("@prefix")
-            || head.starts_with("@base")
-            || head.to_uppercase().starts_with("PREFIX ")
-            || head.to_uppercase().starts_with("BASE ");
-
-        if is_turtle_directive && matches!(ext_format, RdfFormat::RdfXml) {
-            return RdfFormat::Turtle;
-        }
-
-        ext_format
     }
 
     fn parse_format(name: &str) -> anyhow::Result<RdfFormat> {

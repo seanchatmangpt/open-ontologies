@@ -288,6 +288,12 @@ pub struct OntoPushInput {
     pub bypass_admission: Option<bool>,
     /// Required when `bypass_admission` is true.
     pub bypass_reason: Option<String>,
+    /// HTTP Basic username for authenticated endpoints (Stardog, GraphDB)
+    pub username: Option<String>,
+    /// HTTP Basic password for authenticated endpoints
+    pub password: Option<String>,
+    /// Bearer token for token-secured endpoints (overrides username/password)
+    pub token: Option<String>,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -402,20 +408,6 @@ pub struct OntoShaclCheckInput {
     pub shapes: String,
     /// If true, treat shapes as inline Turtle content (default false = file path).
     pub inline: Option<bool>,
-}
-
-#[derive(Deserialize, JsonSchema)]
-pub struct OntoVocabCheckInput {
-    /// Path to a Turtle DATA file OR inline Turtle content to check against the
-    /// currently loaded ontology. Every predicate and every `rdf:type` class used
-    /// in the data, whose namespace belongs to the ontology, must be DECLARED in
-    /// the ontology — otherwise it is reported as a hallucinated/undeclared term.
-    pub data: String,
-    /// If true, treat `data` as inline Turtle content (default false = file path).
-    pub inline: Option<bool>,
-    /// Optional extra namespaces to police, beyond the ontology's own namespaces
-    /// (e.g. an imported vocabulary you also want closed-world-checked).
-    pub namespaces: Option<Vec<String>>,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -690,6 +682,30 @@ pub struct OntoSqlIngestInput {
     pub bypass_admission: Option<bool>,
     /// Required when `bypass_admission` is true.
     pub bypass_reason: Option<String>,
+    /// CDC sync key — when set together with `watermark_column`, the server
+    /// records max(watermark_column) from this result set under this key,
+    /// so the next call can fetch via `onto_sql_sync_state` and filter only
+    /// new rows. Caller is responsible for writing the WHERE clause; the
+    /// server only stores state.
+    #[serde(default)]
+    pub sync_key: Option<String>,
+    /// CDC watermark column name — column to track the max value of for the
+    /// next sync. Typical values: `updated_at`, `modified_at`, `id` for
+    /// monotonic IDs (string-sorted, so zero-pad integers).
+    #[serde(default)]
+    pub watermark_column: Option<String>,
+}
+
+/// Input for `onto_sql_sync_state`.
+#[derive(Deserialize, JsonSchema)]
+pub struct OntoSqlSyncStateInput {
+    pub sync_key: String,
+}
+
+/// Input for `onto_sql_sync_reset`.
+#[derive(Deserialize, JsonSchema)]
+pub struct OntoSqlSyncResetInput {
+    pub sync_key: String,
 }
 
 /// Input for detecting alignment candidates between two ontologies.
@@ -740,6 +756,13 @@ pub struct OntoAlignInput {
     pub bypass_admission: Option<bool>,
     /// Required when `bypass_admission` is true.
     pub bypass_reason: Option<String>,
+    /// Fusion strategy for combining the per-signal scores into a confidence score.
+    /// One of "weighted_sum" (default — learned weights over the 7 signals, cold-start
+    /// equal-weighted) or "rrf" (Reciprocal Rank Fusion at k=60, validated by Agent-OM
+    /// at VLDB 2025). RRF doesn't need learned weights so it's a sensible cold-start
+    /// choice; the weighted_sum self-calibrates from `onto_align_feedback` over time.
+    #[serde(default)]
+    pub fusion: Option<String>,
 }
 
 /// Input for providing feedback on an alignment candidate to tune confidence weights.
@@ -1888,4 +1911,469 @@ pub struct OntoOntostarAttestInput {
     /// Key fingerprint hex (exactly 16 hex chars = 8 bytes) identifying the
     /// external signer within the local `TrustedKeys` set.
     pub key_fpr: String,
+}
+/// Input for the CIVeX-style action certification tool (`onto_certify_action`).
+/// Mirrors the paper's action frame structure plus the policy thresholds needed
+/// for the triage step. See `src/civex.rs` for the full semantic.
+#[derive(Deserialize, JsonSchema)]
+pub struct OntoCertifyActionInput {
+    /// Name of the state-changing onto_* tool whose execution this gates.
+    pub tool: String,
+    /// The IRIs being targeted by the proposed change.
+    pub target_iris: Vec<String>,
+    /// The proposed change as Turtle.
+    pub proposed_delta_ttl: String,
+    /// Utility metric name. One of "dependent_query_pass_rate" (default — caller
+    /// supplies `dependent_queries`), "triple_count_delta", "class_count_delta",
+    /// "property_count_delta".
+    #[serde(default = "default_utility_metric")]
+    pub utility_metric: String,
+    /// SPARQL queries that should remain answerable post-change. Used when
+    /// `utility_metric == "dependent_query_pass_rate"`.
+    #[serde(default)]
+    pub dependent_queries: Vec<String>,
+    /// Cost budget (triples-affected). Action is REJECTED if cost > this.
+    pub cost_threshold: u64,
+    /// Utility threshold for EXECUTE. LCB must clear this.
+    pub utility_threshold: f64,
+    /// Risk threshold. Hard reject if cost exceeds this (even within budget).
+    pub risk_threshold: u64,
+    /// Whether the action is reversible.
+    pub reversible: bool,
+    /// Authorise the EXPERIMENT verdict (caller commits to running a sandbox replay).
+    #[serde(default)]
+    pub allow_experiment: bool,
+    /// One-sided confidence level α for the LCB. Default 0.05.
+    #[serde(default = "default_alpha_pub")]
+    pub alpha: f64,
+    /// Optional name of a registered Dynamics action schema (#43) — echoed
+    /// into the certificate's assumptions so the audit trail is explicit
+    /// about which action was certified.
+    #[serde(default)]
+    pub action_schema_name: Option<String>,
+    /// Identification mode (#48, v0.5). One of `"structural"` (default,
+    /// the v0.4 behaviour) or `"do_calculus_backdoor"`. The latter only
+    /// takes effect when the server was built with the `causal-pywhy`
+    /// Cargo feature; otherwise the verifier silently falls back to
+    /// structural identification and records the reason in assumptions.
+    #[serde(default)]
+    pub identification_mode: Option<String>,
+}
+
+fn default_utility_metric() -> String {
+    "dependent_query_pass_rate".to_string()
+}
+
+fn default_alpha_pub() -> f64 {
+    0.05
+}
+
+/// Input for `onto_align_flora` (#38) — end-to-end FLORA alignment over
+/// every plausible class-pair across the loaded source and a caller-
+/// supplied target ontology (as Turtle).
+#[derive(Deserialize, JsonSchema)]
+pub struct OntoAlignFloraInput {
+    /// Target ontology as Turtle. The source side is the currently-loaded
+    /// graph.
+    pub target_ttl: String,
+    /// Lower threshold for FLORA verdict bucketing (default 0.4).
+    #[serde(default)]
+    pub low_threshold: Option<f64>,
+    /// Upper threshold (default 0.65).
+    #[serde(default)]
+    pub high_threshold: Option<f64>,
+}
+
+/// Input for `onto_align_fuzzy` (#38, FLORA ISWC 2025 Best Paper).
+#[derive(Deserialize, JsonSchema)]
+pub struct OntoAlignFuzzyInput {
+    /// Caller-supplied signals JSON: `{label_jaccard, parent_overlap,
+    /// sibling_overlap, datatype_overlap}` all in `[0, 1]`.
+    pub signals_json: String,
+    /// One of `"min"`, `"product"`, `"lukasiewicz"`. Default `"min"`.
+    #[serde(default)]
+    pub tnorm: Option<String>,
+    pub low_threshold: f64,
+    pub high_threshold: f64,
+}
+
+/// Input for `onto_policy_register` (#40, ARGOS ISWC 2025 WOP).
+#[derive(Deserialize, JsonSchema)]
+pub struct OntoPolicyRegisterInput {
+    pub name: String,
+    /// `"allow"` or `"deny"`.
+    pub effect: String,
+    /// SPARQL ASK (may include `{target}` placeholder).
+    pub condition: String,
+    #[serde(default)]
+    pub description: Option<String>,
+}
+
+/// Input for `onto_policy_check` (#40).
+#[derive(Deserialize, JsonSchema)]
+pub struct OntoPolicyCheckInput {
+    pub target_iris: Vec<String>,
+}
+
+/// Input for `eval_rag` (#41, mmRAG ISWC 2025).
+#[derive(Deserialize, JsonSchema)]
+pub struct OntoEvalRagInput {
+    /// JSON array `[{question_id, gold_iri, retrieved, generated_answer?,
+    /// gold_answer?, retrieved_text?}, ...]`.
+    pub qa_json: String,
+}
+
+/// Input for `eval_rag_mmrag` — parse a full mmRAG dataset JSON and score
+/// it in one call.
+#[derive(Deserialize, JsonSchema)]
+pub struct OntoEvalRagMmragInput {
+    /// JSON array of mmRAG records (see `MmRagRecord` in `src/eval_rag.rs`).
+    pub dataset_json: String,
+}
+
+/// Input for `onto_eval_alignment` (#31, OAEI-style P/R/F1).
+#[derive(Deserialize, JsonSchema)]
+pub struct OntoEvalAlignmentInput {
+    /// Reference alignment as JSON array of `{source, target, relation}`.
+    pub reference_json: String,
+    /// Computed alignment in the same shape.
+    pub computed_json: String,
+}
+
+/// Input for `onto_shape_combinatorics` (#36).
+#[derive(Deserialize, JsonSchema)]
+pub struct OntoShapeCombinatoricsInput {
+    pub class_iri: String,
+    #[serde(default)]
+    pub max_size: Option<usize>,
+}
+
+/// Input for `onto_shape_induce` — Kastor data-driven SHACL induction.
+#[derive(Deserialize, JsonSchema)]
+pub struct OntoShapeInduceInput {
+    pub class_iri: String,
+    /// Maximum subset size to enumerate (default 3, capped at 2^max for sanity).
+    #[serde(default)]
+    pub max_size: Option<usize>,
+    /// Return the top-k candidates by support × confidence (default 10).
+    #[serde(default)]
+    pub top_k: Option<usize>,
+    /// Filter: require this minimum support fraction (default 0.1).
+    #[serde(default)]
+    pub min_support: Option<f64>,
+    /// Filter: require this minimum confidence fraction (default 0.5).
+    #[serde(default)]
+    pub min_confidence: Option<f64>,
+}
+
+/// Input for `borderline_partition` (#37).
+#[derive(Deserialize, JsonSchema)]
+pub struct BorderlinePartitionInput {
+    /// JSON array `[{id, score, context?}, ...]`.
+    pub candidates_json: String,
+    pub low_threshold: f64,
+    pub high_threshold: f64,
+}
+
+/// Input for `borderline_record_verdict` (#37).
+#[derive(Deserialize, JsonSchema)]
+pub struct BorderlineRecordVerdictInput {
+    pub candidate_id: String,
+    #[serde(default)]
+    pub namespace: Option<String>,
+    /// Either "accept" or "reject".
+    pub verdict: String,
+    #[serde(default)]
+    pub rationale: Option<String>,
+}
+
+/// Input for `onto_extract_scaffold` (#28, OntoGPT SPIRES MCP-native).
+#[derive(Deserialize, JsonSchema)]
+pub struct OntoExtractScaffoldInput {
+    /// Class IRI to build the extraction prompt for.
+    pub class_iri: String,
+}
+
+/// Input for `onto_extract_validate` (#28 companion).
+#[derive(Deserialize, JsonSchema)]
+pub struct OntoExtractValidateInput {
+    /// The scaffold previously emitted by `onto_extract_scaffold` (JSON).
+    pub scaffold_json: String,
+    /// The LLM's extraction (must be a JSON array of objects).
+    pub extraction_json: String,
+}
+
+/// Input for `onto_cq_run` (#29, competency-question runner).
+#[derive(Deserialize, JsonSchema)]
+pub struct OntoCqRunInput {
+    /// Inline JSON array of competency questions
+    /// `[{id, question, sparql, expected_min_rows?}, ...]`.
+    pub cqs_json: String,
+}
+
+/// Input for `onto_verify_cq` (#39, LLM-assisted CQ verification).
+#[derive(Deserialize, JsonSchema)]
+pub struct OntoVerifyCqInput {
+    pub cq_id: String,
+    /// One of `"correct"`, `"incorrect"`, `"partial"`.
+    pub verdict: String,
+    #[serde(default)]
+    pub rationale: Option<String>,
+    #[serde(default)]
+    pub judge: Option<String>,
+}
+
+/// Input for `onto_cq_verdicts_list`.
+#[derive(Deserialize, JsonSchema)]
+pub struct OntoCqVerdictsListInput {
+    pub cq_id: String,
+}
+
+/// Input for `onto_owl_shacl_coevolve_incremental` (#33 follow-on).
+#[derive(Deserialize, JsonSchema)]
+pub struct OntoCoevolveIncrementalInput {
+    pub shapes_ttl: String,
+    /// IRIs that changed since the last validation (classes, properties).
+    /// Shapes whose dependencies don't intersect this set are skipped.
+    pub changed_iris: Vec<String>,
+    #[serde(default)]
+    pub profile: Option<String>,
+}
+
+/// Input for `onto_coevolve_dependency_graph` (#33 follow-on).
+#[derive(Deserialize, JsonSchema)]
+pub struct OntoCoevolveDepGraphInput {
+    pub shapes_ttl: String,
+}
+
+/// Input for `onto_segment_retrieve` (#34, SEMANTiCS 2025 GrOWL-RAG) —
+/// retrieve a TBox-slice neighbourhood for grounding LLM reasoning.
+#[derive(Deserialize, JsonSchema)]
+pub struct OntoSegmentRetrieveInput {
+    /// Seed IRIs whose neighbourhoods to extract.
+    pub seed_iris: Vec<String>,
+    /// BFS hop budget. Default 2.
+    #[serde(default)]
+    pub hops: Option<u32>,
+    /// When `true`, also include `?inst a <seed>` triples. Default `false`.
+    #[serde(default)]
+    pub include_abox: Option<bool>,
+}
+
+/// Input for `onto_owl_shacl_coevolve_check` (#33, K-CAP 2025) — validate
+/// SHACL shapes against the OWL closure of the loaded graph, not just the
+/// raw ABox.
+#[derive(Deserialize, JsonSchema)]
+pub struct OntoOwlShaclCoevolveInput {
+    /// SHACL shapes as Turtle.
+    pub shapes_ttl: String,
+    /// Reasoner profile. Default `"owl-rl"`.
+    #[serde(default)]
+    pub profile: Option<String>,
+}
+
+/// Input for `graph_projection_lossy_check` (#35) — audits whether a projected
+/// Turtle slice has dropped predicates/objects vs the full source neighbourhood
+/// of the seed IRIs.
+#[derive(Deserialize, JsonSchema)]
+pub struct GraphProjectionLossyCheckInput {
+    /// Seed IRIs whose neighbourhoods should be preserved by the projection.
+    pub source_iris: Vec<String>,
+    /// The projected Turtle slice that's being passed to a downstream consumer.
+    pub projected_ttl: String,
+}
+
+// ─── Full BC+ semantics (#43 follow-on) ─────────────────────────────────────
+
+/// Input for `onto_action_apply_concurrent` — fire a tick of concurrent
+/// action instances. The whole tick is atomic: if any pair of steps
+/// conflicts (one adds a triple another removes) OR any registered invariant
+/// fails post-tick, nothing is applied.
+#[derive(Deserialize, JsonSchema)]
+pub struct OntoActionApplyConcurrentInput {
+    pub steps: Vec<ConcurrentStepInput>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct ConcurrentStepInput {
+    pub action_name: String,
+    #[serde(default)]
+    pub bindings: std::collections::BTreeMap<String, String>,
+}
+
+/// Input for `onto_invariant_register` — persist a SPARQL ASK invariant
+/// (BC+ static causal law) that the graph must always satisfy.
+#[derive(Deserialize, JsonSchema)]
+pub struct OntoInvariantRegisterInput {
+    pub name: String,
+    /// SPARQL ASK query (or just the body inside `{ ... }`). Must return
+    /// `true` for the law to hold.
+    pub ask_query: String,
+    #[serde(default)]
+    pub description: Option<String>,
+}
+
+/// Input for `onto_invariant_remove`.
+#[derive(Deserialize, JsonSchema)]
+pub struct OntoInvariantRemoveInput {
+    pub name: String,
+}
+
+/// Input for `onto_default_register` — persist a BC+ default-value law.
+#[derive(Deserialize, JsonSchema)]
+pub struct OntoDefaultRegisterInput {
+    pub name: String,
+    /// SPARQL ASK that activates the default when it returns `true`.
+    pub condition_ask: String,
+    /// Triples to assert when the condition fires. Each entry is `[s, p, o]`.
+    pub defaults: Vec<Vec<String>>,
+    #[serde(default)]
+    pub description: Option<String>,
+}
+
+// ─── Dynamics layer (#43) — action schemas, applicability, apply ────────────
+
+/// Input for `onto_action_register` — persist an action schema by name.
+/// Schema is supplied as inline JSON matching `dynamics::ActionSchema`.
+#[derive(Deserialize, JsonSchema)]
+pub struct OntoActionRegisterInput {
+    /// Inline JSON for the action schema. Must deserialize into the structure:
+    /// `{ "name": "...", "parameters": [...], "preconditions": [...],
+    ///    "effects": [{"kind": "add_triple"|"remove_triple"|"add_class", ...}],
+    ///    "reversible": true|false, "description": "..." }`.
+    pub schema_json: String,
+}
+
+/// Input for `onto_action_applicable` — evaluate a registered action's
+/// preconditions against the loaded graph under the given parameter bindings.
+#[derive(Deserialize, JsonSchema)]
+pub struct OntoActionApplicableInput {
+    /// Name of a previously registered action schema.
+    pub action_name: String,
+    /// Bindings: `{ "param_name": "iri-or-literal" }`. Substituted into
+    /// precondition SPARQL via `{param_name}` placeholders.
+    pub bindings: std::collections::BTreeMap<String, String>,
+}
+
+/// Input for `onto_action_apply` — execute a registered action's effects,
+/// returning the KGCL patch and an IES4-style event IRI.
+#[derive(Deserialize, JsonSchema)]
+pub struct OntoActionApplyInput {
+    /// Name of a previously registered action schema.
+    pub action_name: String,
+    /// Parameter bindings (same shape as in `onto_action_applicable`).
+    pub bindings: std::collections::BTreeMap<String, String>,
+    /// If `true` (default), re-check preconditions before applying and abort
+    /// if they don't hold. Set `false` only if you have already certified the
+    /// action via `onto_certify_action`.
+    #[serde(default = "default_true")]
+    pub check_preconditions: bool,
+    /// Ramification (#47): if `Some(profile)`, run the reasoner after `apply`
+    /// to materialise downstream entailments. Accepted profiles: `"rdfs"`,
+    /// `"owl-rl"`, `"owl-rl-ext"`, `"owl-dl"`. `None` (default) skips
+    /// ramification — the literal effects land and that's it.
+    #[serde(default)]
+    pub ramify: Option<String>,
+    /// Non-deterministic outcomes (#49): when the registered schema has a
+    /// non-empty `outcomes` list, this seed makes the sample reproducible.
+    /// `None` (default) uses `SystemTime::now()` for non-reproducible
+    /// sampling. Ignored for deterministic schemas (empty `outcomes`).
+    #[serde(default)]
+    pub seed: Option<u64>,
+}
+
+fn default_true() -> bool {
+    true
+}
+
+/// Input for `onto_plan_classical` (#50, Planner #45 follow-up) — invoke
+/// Fast Downward as a subprocess on a precompiled PDDL domain + problem and
+/// return the parsed sas_plan.
+#[derive(Deserialize, JsonSchema)]
+pub struct OntoPlanClassicalInput {
+    /// PDDL domain text (as produced by `onto_plan_compile_pddl`).
+    pub domain: String,
+    /// PDDL problem text (as produced by `onto_plan_compile_pddl`).
+    pub problem: String,
+    /// Optional path to the Fast Downward binary (or wrapper script).
+    /// Resolution order: this field > `FAST_DOWNWARD_BIN` env var >
+    /// `fast-downward.py` on PATH.
+    #[serde(default)]
+    pub fast_downward_bin: Option<String>,
+    /// Fast Downward search-engine string (e.g. `"lama-first"`,
+    /// `"astar(lmcut())"`). Default `"lama-first"`.
+    #[serde(default)]
+    pub search: Option<String>,
+}
+
+/// Input for `onto_plan_validate` (#45 — LLM-Modulo validator) — check that
+/// a candidate plan (typically produced by a client-side solver) actually
+/// executes step-by-step against the loaded graph in a sandbox, without
+/// mutating the real store.
+#[derive(Deserialize, JsonSchema)]
+pub struct OntoPlanValidateInput {
+    /// Candidate plan: an ordered list of `{action_name, bindings}` steps.
+    /// `bindings` is a `{param_name: iri-or-literal}` map.
+    pub steps: Vec<PlanStepInput>,
+    /// Optional goal triples. Each is `[s, p, o]` in N-Triple-position form
+    /// (e.g. `["<http://ex.org/Cat>", "<http://www.w3.org/2000/01/rdf-schema#subClassOf>", "<http://ex.org/Animal>"]`).
+    /// Reported in `unsatisfied_goals` if any goal does not hold post-plan.
+    #[serde(default)]
+    pub goal_facts: Vec<Vec<String>>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct PlanStepInput {
+    pub action_name: String,
+    #[serde(default)]
+    pub bindings: std::collections::BTreeMap<String, String>,
+}
+
+/// Input for `onto_plan_compile_pddl` (#45 — Planner v0.6 stub) — emit a PDDL
+/// domain from registered action schemas plus a problem instance from the
+/// current graph + goal triples.
+#[derive(Deserialize, JsonSchema)]
+pub struct OntoPlanCompilePddlInput {
+    /// Domain name to embed in `(define (domain ...))`. Default `"ontology"`.
+    #[serde(default)]
+    pub domain_name: Option<String>,
+    /// Subset of registered action schema names to include. Omit / empty for
+    /// "include every registered schema".
+    #[serde(default)]
+    pub action_names: Vec<String>,
+    /// Goal triples in Turtle that must hold in the post-state.
+    #[serde(default)]
+    pub goal_ttl: Option<String>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn onto_embed_input_accepts_optional_descriptions_map() {
+        // GenOM enrichment: caller supplies {iri → description} mappings.
+        // The input must deserialize when the map is provided.
+        let json = serde_json::json!({
+            "struct_dim": 32,
+            "descriptions": {
+                "http://ex.org/Cat": "A domestic feline, kept as a companion animal.",
+                "http://ex.org/Dog": "A domestic canid, kept as a companion or working animal."
+            }
+        });
+        let parsed: OntoEmbedInput = serde_json::from_value(json).expect("deserialize");
+        let desc = parsed.descriptions.expect("descriptions field present");
+        assert_eq!(desc.len(), 2);
+        assert!(desc.get("http://ex.org/Cat").unwrap().contains("feline"));
+    }
+
+    #[test]
+    fn onto_embed_input_descriptions_default_is_none() {
+        // Existing callers that don't pass `descriptions` must still
+        // deserialize correctly (back-compat).
+        let json = serde_json::json!({});
+        let parsed: OntoEmbedInput = serde_json::from_value(json).expect("deserialize");
+        assert!(parsed.descriptions.is_none());
+        assert!(parsed.struct_dim.is_none());
+    }
 }

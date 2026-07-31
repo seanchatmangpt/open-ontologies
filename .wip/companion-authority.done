@@ -1,0 +1,3 @@
+authority=ec2115642aa12b41cffd9181c4fabe00cb767017
+paths=src/config.rs,src/inputs.rs,src/graph.rs,src/runtime.rs,src/projection_check.rs
+reason=restore coherent companion APIs retained by the newer server surface
