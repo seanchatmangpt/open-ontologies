@@ -1,0 +1,34 @@
+name: A2A Core Tool Boundary
+
+on:
+  pull_request:
+    paths:
+      - 'src/a2a/**'
+      - 'src/server.rs'
+      - 'src/inputs.rs'
+      - '.github/workflows/a2a-boundary.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: a2a-boundary-${{ github.head_ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    if: github.head_ref == 'agent/wip-a2a-closure'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - name: Check out exact A2A candidate
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: agent/wip-a2a-closure
+          fetch-depth: 0
+      - name: Verify real A2A handler witnesses and refusals
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo test --locked a2a::handler -- --nocapture
+          cargo check --locked --all-targets
