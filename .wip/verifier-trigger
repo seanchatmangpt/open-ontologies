@@ -1,3 +1,3 @@
 base=0015d52790facbb769aaa5341825b5671acc492e
-candidate=d3dbafdb88b7eea6030cb33c4bd9fdde9ead255a
-purpose=validate-post-stub-cleanup
+candidate=b07b0fdb3e6fd8c3774096a35b491e25f63bd8f4
+purpose=stable-exact-head-core-validation
