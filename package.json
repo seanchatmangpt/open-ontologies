@@ -2,7 +2,7 @@
   "name": "truex-monorepo",
   "private": true,
   "scripts": {
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --project tsconfig.truex.json --noEmit",
     "test": "jest --runInBand --testPathPattern=truex",
     "verify": "npm run typecheck && npm test"
   },
