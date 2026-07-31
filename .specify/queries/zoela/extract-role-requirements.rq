@@ -32,15 +32,94 @@ SELECT
   (GROUP_CONCAT(?req_training;    SEPARATOR="|") AS ?req_trainings)
   (GROUP_CONCAT(?req_bgc;         SEPARATOR="|") AS ?req_bgcs)
 WHERE {
-  VALUES (?role_code ?role_label ?perm_level ?can_view ?can_receipt ?can_assign ?req_training ?req_bgc) {
-    ("MEMBER"   "Member"                          "1" "false" "false" "false" "false" "false")
-    ("VOL"      "Volunteer"                       "2" "false" "false" "false" "true"  "false")
-    ("PARTNER"  "Partner Organization Rep"        "2" "false" "false" "false" "false" "false")
-    ("CARE"     "Care Team Member"                "3" "true"  "false" "false" "false" "true")
-    ("LEADER"   "Ministry Leader"                 "3" "true"  "false" "true"  "false" "false")
-    ("YTH-LEAD" "Youth Leader"                    "3" "true"  "false" "false" "true"  "true")
-    ("ADMIN"    "Administrator"                   "4" "true"  "true"  "true"  "false" "false")
-    ("PASTOR"   "Pastor"                          "5" "true"  "true"  "true"  "false" "false")
+  {
+    {
+      BIND("MEMBER" AS ?role_code)
+      BIND("Member" AS ?role_label)
+      BIND("1" AS ?perm_level)
+      BIND("false" AS ?can_view)
+      BIND("false" AS ?can_receipt)
+      BIND("false" AS ?can_assign)
+      BIND("false" AS ?req_training)
+      BIND("false" AS ?req_bgc)
+    }
+    UNION
+    {
+      BIND("VOL" AS ?role_code)
+      BIND("Volunteer" AS ?role_label)
+      BIND("2" AS ?perm_level)
+      BIND("false" AS ?can_view)
+      BIND("false" AS ?can_receipt)
+      BIND("false" AS ?can_assign)
+      BIND("true" AS ?req_training)
+      BIND("false" AS ?req_bgc)
+    }
+    UNION
+    {
+      BIND("PARTNER" AS ?role_code)
+      BIND("Partner Organization Rep" AS ?role_label)
+      BIND("2" AS ?perm_level)
+      BIND("false" AS ?can_view)
+      BIND("false" AS ?can_receipt)
+      BIND("false" AS ?can_assign)
+      BIND("false" AS ?req_training)
+      BIND("false" AS ?req_bgc)
+    }
+    UNION
+    {
+      BIND("CARE" AS ?role_code)
+      BIND("Care Team Member" AS ?role_label)
+      BIND("3" AS ?perm_level)
+      BIND("true" AS ?can_view)
+      BIND("false" AS ?can_receipt)
+      BIND("false" AS ?can_assign)
+      BIND("false" AS ?req_training)
+      BIND("true" AS ?req_bgc)
+    }
+    UNION
+    {
+      BIND("LEADER" AS ?role_code)
+      BIND("Ministry Leader" AS ?role_label)
+      BIND("3" AS ?perm_level)
+      BIND("true" AS ?can_view)
+      BIND("false" AS ?can_receipt)
+      BIND("true" AS ?can_assign)
+      BIND("false" AS ?req_training)
+      BIND("false" AS ?req_bgc)
+    }
+    UNION
+    {
+      BIND("YTH-LEAD" AS ?role_code)
+      BIND("Youth Leader" AS ?role_label)
+      BIND("3" AS ?perm_level)
+      BIND("true" AS ?can_view)
+      BIND("false" AS ?can_receipt)
+      BIND("false" AS ?can_assign)
+      BIND("true" AS ?req_training)
+      BIND("true" AS ?req_bgc)
+    }
+    UNION
+    {
+      BIND("ADMIN" AS ?role_code)
+      BIND("Administrator" AS ?role_label)
+      BIND("4" AS ?perm_level)
+      BIND("true" AS ?can_view)
+      BIND("true" AS ?can_receipt)
+      BIND("true" AS ?can_assign)
+      BIND("false" AS ?req_training)
+      BIND("false" AS ?req_bgc)
+    }
+    UNION
+    {
+      BIND("PASTOR" AS ?role_code)
+      BIND("Pastor" AS ?role_label)
+      BIND("5" AS ?perm_level)
+      BIND("true" AS ?can_view)
+      BIND("true" AS ?can_receipt)
+      BIND("true" AS ?can_assign)
+      BIND("false" AS ?req_training)
+      BIND("false" AS ?req_bgc)
+    }
   }
 }
 ORDER BY ?perm_level
