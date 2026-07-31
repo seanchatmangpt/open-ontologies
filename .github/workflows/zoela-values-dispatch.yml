@@ -1,7 +1,7 @@
 name: Zoela VALUES Authority Dispatch
 
 on:
-  pull_request:
+  pull_request_target:
     branches: [agent/finish-wip-20260730]
     types: [opened, synchronize, reopened]
 
@@ -14,13 +14,13 @@ concurrency:
 
 jobs:
   repair:
-    if: github.event.pull_request.head.ref == 'agent/wip-zoela-closure'
-    runs-on: ubuntu-24.04
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'agent/wip-zoela-closure'
+    runs-on: ubuntu-22.04
     steps:
-      - name: Check out exact Zoela branch
+      - name: Check out exact internal Zoela branch
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
-          ref: agent/wip-zoela-closure
+          ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
       - name: Normalize unsupported VALUES tables and activate rules
         shell: bash
