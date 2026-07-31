@@ -1,6 +1,6 @@
 [package]
 name = "open-ontologies"
-version = "26.5.13"
+version = "26.5.21"
 edition = "2024"
 description = "AI-native ontology engine — standalone MCP server"
 license = "MIT"
@@ -51,11 +51,13 @@ shell-words = "1"
 # Portable public type boundary. The open-ontologies import surface historically
 # used the local crate name `wasm4pm-types`; the published compatibility crate is
 # the admitted owner of those format/import types.
-wasm4pm-types = { version = "=26.6.13", package = "wasm4pm-compat", features = ["formats"] }
-# Process-mining mathematics remains owned by wasm4pm. Pin the exact observed
-# revision; branch names or workstation paths are not admissible dependencies.
-wasm4pm = { git = "https://github.com/seanchatmangpt/wasm4pm", rev = "f1d4d7ac8b2f9a0265be82991487766eb35b4675", default-features = false, features = ["powl", "conformance_basic", "hand_rolled_stats", "streaming_basic", "discovery_advanced", "ml"] }
-wasm4pm-cognition = { git = "https://github.com/seanchatmangpt/wasm4pm", rev = "f1d4d7ac8b2f9a0265be82991487766eb35b4675", package = "wasm4pm-cognition", default-features = false }
+wasm4pm-types = { version = "=26.6.29", package = "wasm4pm-compat", features = ["formats"] }
+# Process-mining mathematics remains owned by wasm4pm. The committed Cargo.lock
+# binds both Git dependencies to exact commit f1d4d7ac8b2f9a0265be82991487766eb35b4675;
+# all admitted verification commands use --locked so the branch name cannot move
+# the resolved source beneath a receipt.
+wasm4pm = { git = "https://github.com/seanchatmangpt/wasm4pm", default-features = false, features = ["powl", "conformance_basic", "hand_rolled_stats", "streaming_basic", "discovery_advanced", "ml"] }
+wasm4pm-cognition = { git = "https://github.com/seanchatmangpt/wasm4pm", package = "wasm4pm-cognition", default-features = false }
 blake3 = "1"
 hex = "0.4"
 base64 = "0.22"
@@ -82,7 +84,7 @@ default = []
 postgres = ["sqlx"]
 duckdb = ["dep:duckdb"]
 sql = ["postgres", "duckdb"]
-embeddings = ["tract-onnx", "tokenizers"]
+embeddings = ["tract-onnx", "tokenizers", "instant-distance", "bincode"]
 # The proof-gated adapter depends on unpublished private mcpp-core APIs. The
 # feature name remains reserved for compatibility but is UNSUPPORTED in clean
 # public checkouts until the dependency is published or vendored with receipts.
