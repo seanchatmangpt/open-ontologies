@@ -32,11 +32,13 @@ jobs:
           set -euo pipefail
           python3 - <<'PY'
           from pathlib import Path
+          from textwrap import dedent
 
           verifier = Path('tools/verify_ggen_standards.py')
-          text = verifier.read_text()
+          lines = verifier.read_text().splitlines()
 
-          replacement = '''def dead_param_gate_findings(root: Path) -> list[dict[str, Any]]:
+          replacement = dedent('''\
+          def dead_param_gate_findings(root: Path) -> list[dict[str, Any]]:
               wrapper = root / "tools" / "dead-param-gate.sh"
               findings: list[dict[str, Any]] = []
               if not wrapper.is_file():
@@ -61,50 +63,42 @@ jobs:
                           }
                       )
               return findings
-          '''
-          replacement = '\n'.join(
-              line[10:] if line.startswith('          ') else line
-              for line in replacement.splitlines()
+          ''').rstrip().splitlines()
+
+          if not any(line.startswith('def dead_param_gate_findings(') for line in lines):
+              start = next(i for i, line in enumerate(lines) if line.startswith('def stale_dead_param_references('))
+              end = next(i for i in range(start + 1, len(lines)) if lines[i].startswith('def verify_contract('))
+              lines[start:end] = replacement + ['']
+
+          legacy = next(
+              (i for i, line in enumerate(lines) if line.strip() == 'stale_refs = stale_dead_param_references(root)'),
+              None,
           )
-
-          if 'def dead_param_gate_findings(' not in text:
-              start = text.index('def stale_dead_param_references(')
-              end = text.index('\n\ndef verify_contract', start)
-              text = text[:start] + replacement + text[end:]
-
-          old = '''    stale_refs = stale_dead_param_references(root)
-              checks.append(
-                  require(
-                      not stale_refs,
-                      "GGEN-STD-CI-001",
-                      "CI invokes the admitted Rust dead-parameter gate rather than a deleted shell path",
-                      findings=stale_refs,
-                  )
-              )'''
-          old = '\n'.join(
-              line[10:] if line.startswith('          ') else line
-              for line in old.splitlines()
+          admitted = next(
+              (i for i, line in enumerate(lines) if line.strip() == 'gate_findings = dead_param_gate_findings(root)'),
+              None,
           )
-          new = '''    gate_findings = dead_param_gate_findings(root)
-              checks.append(
-                  require(
-                      not gate_findings,
-                      "GGEN-STD-CI-001",
-                      "dead-parameter compatibility wrapper delegates only to the admitted Rust AST gate",
-                      findings=gate_findings,
-                  )
-              )'''
-          new = '\n'.join(
-              line[10:] if line.startswith('          ') else line
-              for line in new.splitlines()
-          )
+          if legacy is not None:
+              end = next(
+                  i for i in range(legacy + 1, len(lines))
+                  if lines[i].startswith('    workflow = ')
+              )
+              lines[legacy:end] = [
+                  '    gate_findings = dead_param_gate_findings(root)',
+                  '    checks.append(',
+                  '        require(',
+                  '            not gate_findings,',
+                  '            "GGEN-STD-CI-001",',
+                  '            "dead-parameter compatibility wrapper delegates only to the admitted Rust AST gate",',
+                  '            findings=gate_findings,',
+                  '        )',
+                  '    )',
+                  '',
+              ]
+          elif admitted is None:
+              raise SystemExit('dead-parameter repository check not found')
 
-          if old in text:
-              text = text.replace(old, new)
-          elif new not in text:
-              raise SystemExit('neither legacy nor admitted dead-parameter verification block found')
-
-          verifier.write_text(text)
+          verifier.write_text('\n'.join(lines) + '\n')
 
           red_team = Path('.github/scripts/test_red_team_traps.sh')
           if red_team.is_file():
