@@ -1,0 +1,102 @@
+name: Zoela Manufacture and Typecheck
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/zoela-closure.yml'
+      - '.specify/queries/zoela/**'
+      - '.specify/templates/zoela/**'
+      - 'ontology/zoela/**'
+      - 'ontology/profiles/zoela-**'
+      - 'ontology/profiles/public-role-shapes.ttl'
+      - 'apps/mobile/**'
+      - 'packages/**'
+      - 'ggen.toml'
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/zoela-closure.yml'
+      - '.specify/queries/zoela/**'
+      - '.specify/templates/zoela/**'
+      - 'ontology/zoela/**'
+      - 'ontology/profiles/zoela-**'
+      - 'ontology/profiles/public-role-shapes.ttl'
+      - 'apps/mobile/**'
+      - 'packages/**'
+      - 'ggen.toml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: zoela-closure-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  manufacture:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 180
+    env:
+      GGEN_REV: dc9daf2b2a6f5b8991e75b7f3b715a3203f90d59
+      GGEN_TOOLCHAIN: nightly-2026-06-22
+      CARGO_TARGET_DIR: ${{ github.workspace }}/.cache/ggen-target
+      RUSTC_WRAPPER: ''
+    steps:
+      - name: Check out exact candidate
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+      - name: Check out exact ggen authority
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: seanchatmangpt/ggen
+          ref: dc9daf2b2a6f5b8991e75b7f3b715a3203f90d59
+          path: .ggen-tool
+          fetch-depth: 1
+      - name: Build exact ggen CLI authority
+        shell: bash
+        run: |
+          set -euo pipefail
+          rustup toolchain install "$GGEN_TOOLCHAIN" --profile minimal
+          cargo "+$GGEN_TOOLCHAIN" build \
+            --manifest-path .ggen-tool/Cargo.toml \
+            -p ggen-cli-lib \
+            --bin ggen
+          "$CARGO_TARGET_DIR/debug/ggen" --version
+      - name: Manufacture Zoela consequence twice
+        shell: bash
+        run: |
+          set -euo pipefail
+          GGEN="$CARGO_TARGET_DIR/debug/ggen"
+          "$GGEN" sync run --help | tee /tmp/ggen-sync-help.txt
+          if grep -q -- '--rule' /tmp/ggen-sync-help.txt; then
+            selector=(--rule zoela-mobile-zod)
+          elif grep -q -- '--only' /tmp/ggen-sync-help.txt; then
+            selector=(--only zoela-mobile-zod)
+          else
+            echo '::error::Exact ggen authority exposes no bounded rule selector; refusing full-repository actuation.'
+            exit 78
+          fi
+
+          "$GGEN" sync run --dry-run "${selector[@]}"
+          "$GGEN" sync run "${selector[@]}"
+          test -s packages/schemas/zoela.ts
+          first_hash="$(sha256sum packages/schemas/zoela.ts | cut -d' ' -f1)"
+          "$GGEN" sync run "${selector[@]}"
+          second_hash="$(sha256sum packages/schemas/zoela.ts | cut -d' ' -f1)"
+          test "$first_hash" = "$second_hash"
+          ! grep -Eq 'export (const|type) [A-Za-z0-9_]+ [A-Za-z0-9_ ]*Schema' packages/schemas/zoela.ts
+          ! grep -q 'Contribution Unit Shape' packages/schemas/zoela.ts
+          test ! -e generated/zoela/navigation.ts
+          printf 'ggen_rev=%s\nrule=zoela-mobile-zod\noutput_sha256=%s\nsecond_manufacture=byte_identical\n' \
+            "$GGEN_REV" "$second_hash" | tee /tmp/zoela-generation.receipt
+      - name: Typecheck Expo and manufactured packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          corepack enable
+          corepack prepare pnpm@9.15.4 --activate
+          pnpm --dir apps/mobile install --frozen-lockfile
+          ln -sfn apps/mobile/node_modules node_modules
+          pnpm --dir apps/mobile run typecheck
