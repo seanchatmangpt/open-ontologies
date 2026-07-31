@@ -5,8 +5,10 @@ on:
     branches: [main]
     paths:
       - 'AGENTS.md'
+      - 'RELEASE_STANDING.json'
       - '.chatmangpt/**'
       - 'standards/**'
+      - 'docs/architecture/GGEN_STANDARDS_V26_7_31.md'
       - 'tools/verify_ggen_standards.py'
       - 'Cargo.toml'
       - 'Cargo.lock'
@@ -34,18 +36,32 @@ env:
 
 jobs:
   constitutional-admission:
-    name: constitutional admission
+    name: constitutional admission and replay
     runs-on: ubuntu-24.04
     steps:
       - name: Check out exact candidate
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
-      - name: Verify bounded ggen contract
-        run: python3 tools/verify_ggen_standards.py --contract-only
+      - name: Manufacture bounded report twice
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/ggen-standards
+          python3 tools/verify_ggen_standards.py --contract-only --output /tmp/contract-1.json >/dev/null
+          python3 tools/verify_ggen_standards.py --contract-only --output /tmp/contract-2.json >/dev/null
+          cmp /tmp/contract-1.json /tmp/contract-2.json
+          cp /tmp/contract-1.json artifacts/ggen-standards/contract-report.json
+          sha256sum artifacts/ggen-standards/contract-report.json | tee artifacts/ggen-standards/contract-report.sha256
+      - name: Upload constitutional receipt
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: ggen-constitutional-${{ github.sha }}
+          path: artifacts/ggen-standards/
+          if-no-files-found: error
+          retention-days: 14
 
-  dependency-observation:
-    name: dependency observation
+  witness-and-falsifier:
+    name: positive witness and negative falsifiers
     runs-on: ubuntu-24.04
-    continue-on-error: true
     steps:
       - name: Check out exact candidate
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
@@ -53,10 +69,44 @@ jobs:
         uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4
         with:
           toolchain: 1.97.1
-      - name: Inventory local-only dependency use sites
+      - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32
+        with:
+          key: ggen-witness-falsifier
+      - name: Execute repository witness and adversarial mutations
+        run: cargo test --locked --test ggen_standards_contract -- --test-threads=1
+
+  repository-admission:
+    name: locked repository admission and replay
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out exact candidate
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Install pinned Rust toolchain
+        uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4
+        with:
+          toolchain: 1.97.1
+          components: clippy
+      - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32
+        with:
+          key: ggen-repository-admission
+      - name: Verify locked dependency graph
+        run: cargo metadata --locked --format-version 1 --no-deps >/dev/null
+      - name: Manufacture repository receipt twice
         shell: bash
         run: |
           set -euo pipefail
-          git grep -n -E 'wasm4pm_types|wasm4pm_algos|wasm4pm_cognition|wasm4pm::|mcpp_core|cfg\(feature = "mcpp"\)' -- '*.rs' '*.toml' '*.yml' '*.yaml' || true
-      - name: Observe locked dependency graph
-        run: cargo metadata --locked --format-version 1 --no-deps
+          mkdir -p artifacts/ggen-standards
+          python3 tools/verify_ggen_standards.py --output /tmp/repository-1.json >/dev/null
+          python3 tools/verify_ggen_standards.py --output /tmp/repository-2.json >/dev/null
+          cmp /tmp/repository-1.json /tmp/repository-2.json
+          cp /tmp/repository-1.json artifacts/ggen-standards/repository-report.json
+          sha256sum artifacts/ggen-standards/repository-report.json | tee artifacts/ggen-standards/repository-report.sha256
+      - name: Compile admitted default-feature boundary
+        run: cargo check --locked --all-targets
+      - name: Upload repository receipt
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: ggen-repository-${{ github.sha }}
+          path: artifacts/ggen-standards/
+          if-no-files-found: error
+          retention-days: 14
