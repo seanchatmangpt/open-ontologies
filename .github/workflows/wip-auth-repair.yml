@@ -1,0 +1,76 @@
+name: WIP Auth Repair
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: wip-auth-repair-${{ github.head_ref }}
+  cancel-in-progress: true
+
+jobs:
+  repair:
+    if: github.head_ref == 'agent/finish-wip-20260730'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: agent/finish-wip-20260730
+          fetch-depth: 0
+
+      - name: Admit onto_pull authentication boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('src/server.rs')
+          text = path.read_text()
+          function_start = text.index('    async fn onto_pull(')
+          function_end = text.index('\n    #[tool(\n        name = "onto_push"', function_start)
+          function = text[function_start:function_end]
+
+          auth = '''        let auth = SparqlAuth::from_parts(
+              input.username.clone(),
+              input.password.clone(),
+              input.token.clone(),
+          );
+
+          '''
+          if 'let auth = SparqlAuth::from_parts(' not in function:
+              anchor = '        use crate::graph::GraphStore;\n\n'
+              if anchor not in function:
+                  raise SystemExit('onto_pull GraphStore anchor not found')
+              function = function.replace(anchor, anchor + auth, 1)
+              text = text[:function_start] + function + text[function_end:]
+              path.write_text(text)
+          PY
+          cargo fmt --all
+
+      - name: Persist auth checkpoint
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          mkdir -p .wip
+          printf 'boundary=src/server.rs::onto_pull\nauthority=src/graph.rs::SparqlAuth::from_parts\n' > .wip/onto-pull-auth.done
+          git add src/server.rs .wip/onto-pull-auth.done
+          if ! git diff --cached --quiet; then
+            git commit -m 'fix: admit onto_pull authentication boundary'
+            git push origin HEAD:agent/finish-wip-20260730
+          fi
+
+      - name: Verify repaired compile boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo metadata --locked --format-version 1 --no-deps >/dev/null
+          cargo check --locked --all-targets
+          cargo check --locked --all-targets --all-features
