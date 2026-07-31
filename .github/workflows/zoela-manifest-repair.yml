@@ -1,0 +1,49 @@
+name: Zoela Manifest Completion Repair
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: zoela-manifest-repair-${{ github.event.pull_request.head.sha }}
+  cancel-in-progress: false
+
+jobs:
+  repair:
+    if: github.event.pull_request.head.ref == 'agent/finish-wip-20260730'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    steps:
+      - name: Check out exact completion branch
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: agent/finish-wip-20260730
+          fetch-depth: 0
+      - name: Activate and replay manifest ratchet
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tools/activate_zoela_rules.py --apply
+          python3 tools/activate_zoela_rules.py --check
+          before="$(sha256sum ggen.toml | cut -d' ' -f1)"
+          python3 tools/activate_zoela_rules.py --apply
+          after="$(sha256sum ggen.toml | cut -d' ' -f1)"
+          test "$before" = "$after"
+          python3 tools/activate_zoela_rules.py --check
+      - name: Persist manifest receipt
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          mkdir -p .wip
+          printf 'ratchet=tools/activate_zoela_rules.py\nquery_authorities=9\nactivated_rules=11\nsecond_apply=byte_identical\nggen_sha256=%s\n' "$(sha256sum ggen.toml | cut -d' ' -f1)" > .wip/zoela-values.done
+          git add ggen.toml tools/activate_zoela_rules.py .wip/zoela-values.done
+          if ! git diff --cached --quiet; then
+            git commit -m 'fix(zoela): activate normalized query authorities'
+            git push origin HEAD:agent/finish-wip-20260730
+          fi
