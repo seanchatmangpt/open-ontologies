@@ -22,14 +22,14 @@ jobs:
         with:
           ref: agent/finish-wip-20260730
           fetch-depth: 0
-      - name: Import reviewed transformer and apply source repair
+      - name: Activate admitted rules and replay ratchet
         shell: bash
         run: |
           set -euo pipefail
-          git fetch origin agent/wip-zoela-closure
-          git show FETCH_HEAD:tools/rewrite_zoela_values.py > tools/rewrite_zoela_values.py
-          python3 tools/rewrite_zoela_values.py --apply
-          python3 tools/rewrite_zoela_values.py --check
+          python3 tools/activate_zoela_rules.py --apply
+          python3 tools/activate_zoela_rules.py --check
+          python3 tools/activate_zoela_rules.py --apply
+          python3 tools/activate_zoela_rules.py --check
       - name: Persist completion source authority
         shell: bash
         run: |
@@ -37,9 +37,9 @@ jobs:
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           mkdir -p .wip
-          printf 'transformer=tools/rewrite_zoela_values.py\nquery_authorities=9\nactivated_rules=11\nratchet=pass\n' > .wip/zoela-values.done
-          git add ggen.toml tools/rewrite_zoela_values.py .specify/queries/zoela .wip/zoela-values.done
+          printf 'ratchet=tools/activate_zoela_rules.py\nquery_authorities=9\nactivated_rules=11\nsecond_apply=byte_identical\n' > .wip/zoela-values.done
+          git add ggen.toml tools/activate_zoela_rules.py .wip/zoela-values.done
           if ! git diff --cached --quiet; then
-            git commit -m 'fix(zoela): normalize VALUES authority and activate rules'
+            git commit -m 'fix(zoela): activate normalized query authorities'
             git push origin HEAD:agent/finish-wip-20260730
           fi
