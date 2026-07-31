@@ -9,6 +9,7 @@ import subprocess
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+SELF = Path(__file__).resolve().relative_to(ROOT)
 INCLUDED_PREFIXES = (
     "src/",
     "packages/",
@@ -58,6 +59,8 @@ def tracked_files() -> list[Path]:
             continue
         rel = Path(raw.decode("utf-8", errors="strict"))
         rel_text = rel.as_posix()
+        if rel == SELF:
+            continue
         if any(part in EXCLUDED_PARTS for part in rel.parts):
             continue
         if rel_text in INCLUDED_ROOTS or rel_text.startswith(INCLUDED_PREFIXES):
@@ -79,9 +82,22 @@ def main() -> int:
         for line_no, line in enumerate(text.splitlines(), start=1):
             for kind, pattern in HARD_PATTERNS.items():
                 if pattern.search(line):
-                    hard.append({"kind": kind, "path": rel.as_posix(), "line": line_no, "text": line.strip()[:240]})
+                    hard.append(
+                        {
+                            "kind": kind,
+                            "path": rel.as_posix(),
+                            "line": line_no,
+                            "text": line.strip()[:240],
+                        }
+                    )
             if SOFT_PATTERN.search(line):
-                soft.append({"path": rel.as_posix(), "line": line_no, "text": line.strip()[:240]})
+                soft.append(
+                    {
+                        "path": rel.as_posix(),
+                        "line": line_no,
+                        "text": line.strip()[:240],
+                    }
+                )
 
     report = {
         "schema": "open-ontologies.wip-inventory/v1",
