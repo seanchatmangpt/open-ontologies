@@ -134,7 +134,7 @@ Agent and model outputs are candidate-only. Any proposed external operation MUST
 A clean checkout is the build unit.
 
 - Absolute workstation paths in manifests, scripts, workflows, tests, or generated configuration are prohibited.
-- Git dependencies MUST be pinned to immutable revisions.
+- Git dependencies MUST resolve to immutable commit identities. This may be expressed by a manifest `rev`, or by the exact `precise` source recorded in committed `Cargo.lock` when every admitted command uses `--locked`.
 - Registry dependencies MUST resolve through the committed lockfile.
 - Private or unpublished dependencies MUST be vendored, published, or classified `UNSUPPORTED`; they MUST NOT be silently reached through a developer filesystem.
 - `Cargo.lock` MUST parse and MUST NOT contain duplicate `(name, version, source)` package identities.
