@@ -1,13 +1,17 @@
 pub mod a2a;
+pub mod actuation;
 pub mod admission;
 pub mod attestation;
+pub mod autoreceipt_law;
 pub mod batch;
 pub mod bootstrap;
 pub mod cache;
+pub mod care_followup;
 pub mod cell8;
 pub mod cell_ready;
 pub mod defects;
 pub mod error;
+pub mod ocel_manufacturer;
 pub mod production_record;
 pub mod receipts;
 pub mod workflows;
@@ -15,7 +19,6 @@ pub mod workflows;
 pub use defects::{DefectClass, Deviation};
 pub mod align;
 pub mod align_fuzzy;
-pub mod batch;
 pub mod borderline_loop;
 pub mod cache;
 /// Compiled claim verification (Tardygrada Layer 3 hot path).
@@ -79,37 +82,41 @@ pub mod embed;
 pub mod embed_remote;
 pub mod enforce;
 pub mod feedback;
+pub mod ggen_bridge;
+pub mod ghf;
 pub mod graph;
-#[cfg(feature = "embeddings")]
-pub mod hnsw_index;
+pub mod guide;
 pub mod ingest;
 pub mod inputs;
-pub mod kgcl;
-pub mod language;
 pub mod lineage;
 pub mod mapping;
 pub mod marketplace;
+pub mod mcpp_gate;
 pub mod monitor;
+pub mod ocel_store;
 pub mod ontology;
 pub mod plan;
-pub mod plan_classical;
-pub mod plan_pddl;
-pub mod plan_validate;
-#[cfg(feature = "embeddings")]
-pub mod poincare;
+pub mod powl_bridge;
 pub mod reason;
+pub mod receipt_archive;
+pub mod receipt_chain;
 pub mod registry;
 pub mod repo;
+pub mod retention;
 pub mod runtime;
 pub mod schema;
-pub mod segment_retrieve;
 pub mod server;
 pub mod shacl;
+pub mod state;
+pub mod tenant;
+pub mod thesis_doctor;
+
 #[cfg(unix)]
 pub mod socket;
 #[cfg(windows)]
 #[path = "socket_windows.rs"]
 pub mod socket;
+
 pub mod sql_sync;
 pub mod sqlsource;
 pub mod vocab_check;

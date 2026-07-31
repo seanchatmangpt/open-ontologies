@@ -1,3 +1,5 @@
+#![allow(clippy::all, unused)]
+
 //! Phase 2 — small-first E2E for Requirements Andon / CTQ Forge.
 //!
 //! Drives the full upstream chain in one test:
@@ -19,7 +21,7 @@ use open_ontologies::llm_input::{LlmInput, LlmInputKind};
 use open_ontologies::llm_translator::GroqTranslator;
 use open_ontologies::ocel_store::OcelStore;
 use open_ontologies::state::StateDb;
-use open_ontologies::workflows::{by_name, WorkflowScope};
+use open_ontologies::workflows::{WorkflowScope, by_name};
 use std::sync::Arc;
 use std::time::Duration;
 use tempfile::tempdir;
@@ -44,7 +46,15 @@ fn emit_stage(store: &OcelStore, session: &str, scope: &str, stage: &str, attrs:
         chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0)
     );
     store
-        .emit_event(event_id.as_str(), stage, &now, session, attrs, &[], Some(scope))
+        .emit_event(
+            event_id.as_str(),
+            stage,
+            &now,
+            session,
+            attrs,
+            &[],
+            Some(scope),
+        )
         .unwrap();
 }
 
@@ -157,7 +167,10 @@ async fn revops_complaint_to_admitted_work_order_secret_clean() {
         .translate_candidate_ctq(&source_voice_input)
         .await
         .expect("translation succeeds");
-    assert!(candidate.provisional, "translator must force provisional=true");
+    assert!(
+        candidate.provisional,
+        "translator must force provisional=true"
+    );
     let candidate_json = serde_json::to_string(&candidate).unwrap();
     let candidate_id = blake3::hash(candidate_json.as_bytes()).to_hex().to_string();
     emit_stage(
@@ -172,9 +185,18 @@ async fn revops_complaint_to_admitted_work_order_secret_clean() {
         session,
         &token,
         "llm_candidate_translated",
-        &[("candidate_ctq_id", &candidate_id[..16]), ("provisional", "true")],
+        &[
+            ("candidate_ctq_id", &candidate_id[..16]),
+            ("provisional", "true"),
+        ],
     );
-    emit_stage(&store, session, &token, "ctq_admitted", &[("ctq_text", &candidate.ctq_text)]);
+    emit_stage(
+        &store,
+        session,
+        &token,
+        "ctq_admitted",
+        &[("ctq_text", &candidate.ctq_text)],
+    );
     emit_stage(&store, session, &token, "verification_bound", &[]);
     emit_stage(&store, session, &token, "negative_case_bound", &[]);
     emit_stage(&store, session, &token, "control_plan_bound", &[]);
@@ -239,11 +261,10 @@ async fn revops_complaint_to_admitted_work_order_secret_clean() {
     );
 
     // ── 6. WorkOrderAdmitted (with counterfactual delta) ────────────────
-    let naked_craft = "Naked LLM would have written code without admitted CTQ, no measure, no negative case.";
-    let mfg_path =
-        "OntoStar admission required CTQ admission, verification binding, negative case, and control plan before any code may be admitted.";
-    let counterfactual_delta =
-        "Manufacturing path prevents unsupported booking classification; naked craft would have shipped a dashboard that calls every booking 'real' regardless of contract chain.";
+    let naked_craft =
+        "Naked LLM would have written code without admitted CTQ, no measure, no negative case.";
+    let mfg_path = "OntoStar admission required CTQ admission, verification binding, negative case, and control plan before any code may be admitted.";
+    let counterfactual_delta = "Manufacturing path prevents unsupported booking classification; naked craft would have shipped a dashboard that calls every booking 'real' regardless of contract chain.";
     let wo_canonical = format!(
         "ctq\u{1f}{}\u{1e}naked\u{1f}{}\u{1e}mfg\u{1f}{}\u{1e}delta\u{1f}{}",
         ctq_receipt.hex(),
@@ -256,8 +277,7 @@ async fn revops_complaint_to_admitted_work_order_secret_clean() {
         bytes: wo_canonical.as_bytes(),
     };
     // Re-read observed (it grew when CTQ admission persisted its events).
-    let observed_for_wo: Vec<String> =
-        store.observed_event_types_for_session(session).unwrap();
+    let observed_for_wo: Vec<String> = store.observed_event_types_for_session(session).unwrap();
     let wo_receipt = gate
         .evaluate(
             &token,
@@ -274,7 +294,11 @@ async fn revops_complaint_to_admitted_work_order_secret_clean() {
 
     // ── 7. All required RequirementsManufacturing stages observed ───────
     let final_observed: Vec<String> = store.observed_event_types_for_session(session).unwrap();
-    for required in &["requirement_proposed", "ctq_admitted", "work_order_admitted"] {
+    for required in &[
+        "requirement_proposed",
+        "ctq_admitted",
+        "work_order_admitted",
+    ] {
         assert!(
             final_observed.iter().any(|s| s == *required),
             "required stage `{required}` must appear in observed trace; got {:?}",
@@ -318,7 +342,10 @@ async fn revops_complaint_to_admitted_work_order_secret_clean() {
     //       different from naked craft on this scope ────────────────────
     assert!(naked_craft.len() > 10);
     assert!(mfg_path.len() > naked_craft.len() / 2);
-    assert!(counterfactual_delta.contains("classification") || counterfactual_delta.contains("contract"));
+    assert!(
+        counterfactual_delta.contains("classification")
+            || counterfactual_delta.contains("contract")
+    );
 
     // ── 10. Receipt chain receipts → all three are persisted ────────────
     assert_eq!(req_receipt.record.scope_token, token);

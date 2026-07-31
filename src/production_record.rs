@@ -96,12 +96,12 @@ use serde::{Deserialize, Serialize};
 ///
 /// // Pre-Level-5 JSON without the defects_taxonomy_version field.
 /// let legacy = r#"{
-///     "artifact_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+///     "artifact_hash": [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
 ///     "scope_token": "legacy",
-///     "declared_powl_hash": "0000000000000000000000000000000000000000000000000000000000000000",
-///     "ocel_canonical_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+///     "declared_powl_hash": [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+///     "ocel_canonical_hash": [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
 ///     "conformance_run_id": "run-0",
-///     "gate_config_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+///     "gate_config_hash": [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
 ///     "production_law_version": "ontostar-0.9.0",
 ///     "gates_passed": [],
 ///     "gates_refused": [],
@@ -441,19 +441,14 @@ mod serde_opt_sig {
     use super::{hex_n, parse_hex_n};
     use serde::{Deserialize, Deserializer, Serializer};
 
-    pub fn serialize<S: Serializer>(
-        v: &Option<[u8; 64]>,
-        s: S,
-    ) -> Result<S::Ok, S::Error> {
+    pub fn serialize<S: Serializer>(v: &Option<[u8; 64]>, s: S) -> Result<S::Ok, S::Error> {
         match v {
             Some(b) => s.serialize_some(&hex_n::<64>(b)),
             None => s.serialize_none(),
         }
     }
 
-    pub fn deserialize<'de, D: Deserializer<'de>>(
-        d: D,
-    ) -> Result<Option<[u8; 64]>, D::Error> {
+    pub fn deserialize<'de, D: Deserializer<'de>>(d: D) -> Result<Option<[u8; 64]>, D::Error> {
         let opt: Option<String> = Option::deserialize(d)?;
         match opt {
             Some(s) => parse_hex_n::<64>(&s)
@@ -468,19 +463,14 @@ mod serde_opt_fpr {
     use super::{hex_n, parse_hex_n};
     use serde::{Deserialize, Deserializer, Serializer};
 
-    pub fn serialize<S: Serializer>(
-        v: &Option<[u8; 8]>,
-        s: S,
-    ) -> Result<S::Ok, S::Error> {
+    pub fn serialize<S: Serializer>(v: &Option<[u8; 8]>, s: S) -> Result<S::Ok, S::Error> {
         match v {
             Some(b) => s.serialize_some(&hex_n::<8>(b)),
             None => s.serialize_none(),
         }
     }
 
-    pub fn deserialize<'de, D: Deserializer<'de>>(
-        d: D,
-    ) -> Result<Option<[u8; 8]>, D::Error> {
+    pub fn deserialize<'de, D: Deserializer<'de>>(d: D) -> Result<Option<[u8; 8]>, D::Error> {
         let opt: Option<String> = Option::deserialize(d)?;
         match opt {
             Some(s) => parse_hex_n::<8>(&s)

@@ -211,9 +211,13 @@ fn b4_arm_count_drift_caught() {
 fn extract_tool_names(file: &File) -> Vec<String> {
     let mut names = Vec::new();
     for item in &file.items {
-        let Item::Impl(item_impl) = item else { continue };
+        let Item::Impl(item_impl) = item else {
+            continue;
+        };
         for impl_item in &item_impl.items {
-            let syn::ImplItem::Fn(method) = impl_item else { continue };
+            let syn::ImplItem::Fn(method) = impl_item else {
+                continue;
+            };
             for attr in &method.attrs {
                 if !attr.path().is_ident("tool") {
                     continue;

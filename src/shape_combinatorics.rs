@@ -59,7 +59,11 @@ pub struct InductionReport {
 }
 
 /// Enumerate property-combination subsets up to `max_size` for a class.
-pub fn enumerate(graph: &Arc<GraphStore>, class_iri: &str, max_size: usize) -> anyhow::Result<LatticeReport> {
+pub fn enumerate(
+    graph: &Arc<GraphStore>,
+    class_iri: &str,
+    max_size: usize,
+) -> anyhow::Result<LatticeReport> {
     let max_size = if max_size == 0 { 3 } else { max_size };
     let q = format!(
         "SELECT DISTINCT ?p WHERE {{ ?p <http://www.w3.org/2000/01/rdf-schema#domain> <{}> }} LIMIT 100",
@@ -154,10 +158,7 @@ pub fn induce_shapes(
     // Count class instances.
     let class_count = count_query(
         graph,
-        &format!(
-            "SELECT (COUNT(?x) AS ?n) WHERE {{ ?x a <{}> }}",
-            class_iri
-        ),
+        &format!("SELECT (COUNT(?x) AS ?n) WHERE {{ ?x a <{}> }}", class_iri),
     )?;
 
     let mut candidates: Vec<CandidateShape> = Vec::new();
@@ -195,7 +196,11 @@ pub fn induce_shapes(
             shape_ttl,
         });
     }
-    candidates.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
+    candidates.sort_by(|a, b| {
+        b.score
+            .partial_cmp(&a.score)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
     candidates.truncate(top_k);
 
     let evaluated = lattice.subsets.iter().filter(|s| !s.is_empty()).count();
@@ -270,10 +275,7 @@ fn count_any_with_subset(graph: &Arc<GraphStore>, subset: &[String]) -> anyhow::
 fn render_shape_ttl(class_iri: &str, subset: &[String]) -> String {
     let mut out = String::new();
     out.push_str("@prefix sh: <http://www.w3.org/ns/shacl#> .\n");
-    out.push_str(&format!(
-        "<{}-shape> a sh:NodeShape ;\n",
-        class_iri
-    ));
+    out.push_str(&format!("<{}-shape> a sh:NodeShape ;\n", class_iri));
     out.push_str(&format!("  sh:targetClass <{}> ;\n", class_iri));
     for (i, p) in subset.iter().enumerate() {
         let prefix = if i + 1 == subset.len() { "" } else { " ;" };
@@ -371,15 +373,7 @@ mod tests {
     #[test]
     fn induce_shapes_returns_high_support_subsets() {
         let g = graph_with_class_and_instances();
-        let r = induce_shapes(
-            &g,
-            "http://ex.org/Person",
-            3,
-            10,
-            0.1,
-            0.5,
-        )
-        .unwrap();
+        let r = induce_shapes(&g, "http://ex.org/Person", 3, 10, 0.1, 0.5).unwrap();
         assert_eq!(r.class_instance_count, 3);
         // {name} has support 3/3 = 1.0; confidence 3/4 = 0.75 (Rex is not
         // a Person). Should be the top candidate.
@@ -397,35 +391,21 @@ mod tests {
     fn induce_shapes_filters_by_min_support() {
         let g = graph_with_class_and_instances();
         // {email} has support 0 (no Person instance has it).
-        let r = induce_shapes(
-            &g,
-            "http://ex.org/Person",
-            3,
-            10,
-            0.5,
-            0.0,
-        )
-        .unwrap();
+        let r = induce_shapes(&g, "http://ex.org/Person", 3, 10, 0.5, 0.0).unwrap();
         let email_in_shapes = r
             .shapes
             .iter()
             .any(|c| c.properties == vec!["http://ex.org/email".to_string()]);
-        assert!(!email_in_shapes,
-            "email has zero support, should be filtered by min_support=0.5");
+        assert!(
+            !email_in_shapes,
+            "email has zero support, should be filtered by min_support=0.5"
+        );
     }
 
     #[test]
     fn induce_shapes_renders_valid_shacl_turtle() {
         let g = graph_with_class_and_instances();
-        let r = induce_shapes(
-            &g,
-            "http://ex.org/Person",
-            2,
-            5,
-            0.1,
-            0.5,
-        )
-        .unwrap();
+        let r = induce_shapes(&g, "http://ex.org/Person", 2, 5, 0.1, 0.5).unwrap();
         let top = r.shapes.first().expect("at least one shape");
         assert!(top.shape_ttl.contains("sh:NodeShape"));
         assert!(top.shape_ttl.contains("sh:targetClass"));
@@ -434,29 +414,27 @@ mod tests {
         // Should parse as valid Turtle.
         let test_graph = Arc::new(GraphStore::new());
         let load_result = test_graph.load_turtle(&top.shape_ttl, None);
-        assert!(load_result.is_ok(),
+        assert!(
+            load_result.is_ok(),
             "induced shape Turtle should parse: error: {:?}\nturtle:\n{}",
-            load_result.err(), top.shape_ttl);
+            load_result.err(),
+            top.shape_ttl
+        );
     }
 
     #[test]
     fn induce_shapes_ranks_by_score_descending() {
         let g = graph_with_class_and_instances();
-        let r = induce_shapes(
-            &g,
-            "http://ex.org/Person",
-            3,
-            10,
-            0.1,
-            0.5,
-        )
-        .unwrap();
+        let r = induce_shapes(&g, "http://ex.org/Person", 3, 10, 0.1, 0.5).unwrap();
         // Score must be monotonically non-increasing.
         for w in r.shapes.windows(2) {
             assert!(
                 w[0].score >= w[1].score,
                 "shapes not ranked: {} < {} (props {:?} vs {:?})",
-                w[0].score, w[1].score, w[0].properties, w[1].properties
+                w[0].score,
+                w[1].score,
+                w[0].properties,
+                w[1].properties
             );
         }
     }
@@ -469,15 +447,7 @@ mod tests {
             None,
         )
         .unwrap();
-        let r = induce_shapes(
-            &g,
-            "http://ex.org/Empty",
-            3,
-            10,
-            0.1,
-            0.5,
-        )
-        .unwrap();
+        let r = induce_shapes(&g, "http://ex.org/Empty", 3, 10, 0.1, 0.5).unwrap();
         assert_eq!(r.class_instance_count, 0);
         // No support for any subset → empty result.
         assert!(r.shapes.is_empty());

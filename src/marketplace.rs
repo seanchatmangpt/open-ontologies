@@ -24,15 +24,15 @@ pub struct MarketplaceEntry {
     pub format: RdfFormat,
 }
 
-/// Curated catalogue of 32 standard W3C/ISO/industry ontologies.
+/// Curated catalogue of 33 standard W3C/ISO/industry ontologies.
 ///
 /// # Examples
 ///
 /// ```
 /// use open_ontologies::marketplace::CATALOGUE;
 ///
-/// // The catalogue must contain exactly 32 standard ontologies — pinned invariant.
-/// assert_eq!(CATALOGUE.len(), 32, "catalogue must have exactly 32 standard ontologies");
+/// // The catalogue must contain exactly 33 standard ontologies — pinned invariant.
+/// assert_eq!(CATALOGUE.len(), 33, "catalogue must have exactly 33 standard ontologies");
 ///
 /// // Every entry must have a non-empty id and url.
 /// for entry in CATALOGUE {
@@ -88,7 +88,6 @@ pub static CATALOGUE: &[MarketplaceEntry] = &[
         url: "https://www.w3.org/1999/02/22-rdf-syntax-ns",
         format: RdfFormat::Turtle,
     },
-
     // ── Upper ontology / Information Exchange ─────────────────────
     MarketplaceEntry {
         id: "ies-top",
@@ -138,7 +137,6 @@ pub static CATALOGUE: &[MarketplaceEntry] = &[
         url: "http://www.ontologydesignpatterns.org/ont/dul/DUL.owl",
         format: RdfFormat::Turtle,
     },
-
     // ── General ───────────────────────────────────────────────────
     MarketplaceEntry {
         id: "schema-org",
@@ -164,7 +162,6 @@ pub static CATALOGUE: &[MarketplaceEntry] = &[
         url: "https://www.w3.org/2009/08/skos-reference/skos.rdf",
         format: RdfFormat::RdfXml,
     },
-
     // ── Metadata ──────────────────────────────────────────────────
     MarketplaceEntry {
         id: "dc-elements",
@@ -206,7 +203,6 @@ pub static CATALOGUE: &[MarketplaceEntry] = &[
         url: "https://raw.githubusercontent.com/ewilderj/doap/master/schema/doap.rdf",
         format: RdfFormat::RdfXml,
     },
-
     // ── Provenance ────────────────────────────────────────────────
     MarketplaceEntry {
         id: "prov-o",
@@ -216,7 +212,6 @@ pub static CATALOGUE: &[MarketplaceEntry] = &[
         url: "https://www.w3.org/ns/prov-o.ttl",
         format: RdfFormat::Turtle,
     },
-
     // ── Temporal ──────────────────────────────────────────────────
     MarketplaceEntry {
         id: "owl-time",
@@ -226,7 +221,6 @@ pub static CATALOGUE: &[MarketplaceEntry] = &[
         url: "https://www.w3.org/2006/time.ttl",
         format: RdfFormat::Turtle,
     },
-
     // ── Organizations ─────────────────────────────────────────────
     MarketplaceEntry {
         id: "org",
@@ -236,7 +230,6 @@ pub static CATALOGUE: &[MarketplaceEntry] = &[
         url: "https://www.w3.org/ns/org.ttl",
         format: RdfFormat::Turtle,
     },
-
     // ── IoT / Sensors ─────────────────────────────────────────────
     MarketplaceEntry {
         id: "ssn",
@@ -254,7 +247,6 @@ pub static CATALOGUE: &[MarketplaceEntry] = &[
         url: "https://raw.githubusercontent.com/w3c/sdw-sosa-ssn/gh-pages/ssn/rdf/ontology/core/sosa.ttl",
         format: RdfFormat::Turtle,
     },
-
     // ── Geospatial ────────────────────────────────────────────────
     MarketplaceEntry {
         id: "geosparql",
@@ -272,7 +264,6 @@ pub static CATALOGUE: &[MarketplaceEntry] = &[
         url: "https://www.w3.org/ns/locn.ttl",
         format: RdfFormat::Turtle,
     },
-
     // ── Validation ────────────────────────────────────────────────
     MarketplaceEntry {
         id: "shacl",
@@ -282,7 +273,6 @@ pub static CATALOGUE: &[MarketplaceEntry] = &[
         url: "https://www.w3.org/ns/shacl.ttl",
         format: RdfFormat::Turtle,
     },
-
     // ── People / Contact ──────────────────────────────────────────
     MarketplaceEntry {
         id: "vcard",
@@ -292,7 +282,6 @@ pub static CATALOGUE: &[MarketplaceEntry] = &[
         url: "http://www.w3.org/2006/vcard/ns",
         format: RdfFormat::Turtle,
     },
-
     // ── Rights / Licensing ────────────────────────────────────────
     MarketplaceEntry {
         id: "odrl",
@@ -310,7 +299,6 @@ pub static CATALOGUE: &[MarketplaceEntry] = &[
         url: "https://creativecommons.org/schema.rdf",
         format: RdfFormat::RdfXml,
     },
-
     // ── Social ────────────────────────────────────────────────────
     MarketplaceEntry {
         id: "sioc",
@@ -320,7 +308,6 @@ pub static CATALOGUE: &[MarketplaceEntry] = &[
         url: "https://raw.githubusercontent.com/VisualDataWeb/OWL2VOWL/master/ontologies/sioc.rdf",
         format: RdfFormat::RdfXml,
     },
-
     // ── E-Government ──────────────────────────────────────────────
     MarketplaceEntry {
         id: "adms",
@@ -330,7 +317,6 @@ pub static CATALOGUE: &[MarketplaceEntry] = &[
         url: "https://www.w3.org/ns/adms.ttl",
         format: RdfFormat::Turtle,
     },
-
     // ── Commerce ──────────────────────────────────────────────────
     MarketplaceEntry {
         id: "goodrelations",
@@ -340,7 +326,6 @@ pub static CATALOGUE: &[MarketplaceEntry] = &[
         url: "http://www.heppnetz.de/ontologies/goodrelations/v1.owl",
         format: RdfFormat::RdfXml,
     },
-
     // ── Finance ───────────────────────────────────────────────────
     MarketplaceEntry {
         id: "fibo",
@@ -350,7 +335,6 @@ pub static CATALOGUE: &[MarketplaceEntry] = &[
         url: "https://spec.edmcouncil.org/fibo/ontology/master/latest/MetadataFIBO.rdf",
         format: RdfFormat::RdfXml,
     },
-
     // ── Science / Measurement ─────────────────────────────────────
     MarketplaceEntry {
         id: "qudt",
@@ -449,12 +433,23 @@ mod tests {
         // point at the dstl/IES4 archived repo at tag `v4.3.1`, NOT main
         // or any other branch (the whole point of the preset is reproducible
         // pinning).
-        let entry = find("ies-4.3.1").expect(
-            "ies-4.3.1 marketplace preset missing — was the entry removed by mistake?",
+        let entry = find("ies-4.3.1")
+            .expect("ies-4.3.1 marketplace preset missing — was the entry removed by mistake?");
+        assert!(
+            entry.url.contains("dstl/IES4"),
+            "url should reference the archived dstl/IES4 repo; got {}",
+            entry.url
         );
-        assert!(entry.url.contains("dstl/IES4"), "url should reference the archived dstl/IES4 repo; got {}", entry.url);
-        assert!(entry.url.contains("/v4.3.1/"), "url MUST pin to tag v4.3.1; got {}", entry.url);
-        assert!(entry.url.ends_with("ies4.ttl"), "expected Turtle artefact; got {}", entry.url);
+        assert!(
+            entry.url.contains("/v4.3.1/"),
+            "url MUST pin to tag v4.3.1; got {}",
+            entry.url
+        );
+        assert!(
+            entry.url.ends_with("ies4.ttl"),
+            "expected Turtle artefact; got {}",
+            entry.url
+        );
         assert!(matches!(entry.format, RdfFormat::Turtle));
         assert_eq!(entry.domain, "upper-ontology");
     }
@@ -468,7 +463,13 @@ mod tests {
         let frozen = find("ies-4.3.1").expect("frozen `ies-4.3.1` preset missing");
         assert_ne!(live.id, frozen.id);
         assert_ne!(live.url, frozen.url);
-        assert!(live.url.contains("IES-Org"), "live preset should point at IES-Org");
-        assert!(frozen.url.contains("dstl/IES4"), "frozen preset should point at archived dstl/IES4");
+        assert!(
+            live.url.contains("IES-Org"),
+            "live preset should point at IES-Org"
+        );
+        assert!(
+            frozen.url.contains("dstl/IES4"),
+            "frozen preset should point at archived dstl/IES4"
+        );
     }
 }

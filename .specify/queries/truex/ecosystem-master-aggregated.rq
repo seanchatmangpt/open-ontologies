@@ -1,0 +1,25 @@
+PREFIX truex: <https://open-ontologies.org/profile/truex#>
+PREFIX rdf:   <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX rdfs:  <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX skos:  <http://www.w3.org/2004/02/skos/core#>
+
+SELECT ?obligations ?packages ?rules ?failures ?derivations ?e2e_tests
+WHERE {
+  { SELECT (GROUP_CONCAT(DISTINCT ?l; SEPARATOR="|||") AS ?obligations) WHERE { ?o a truex:Obligation . ?o rdfs:label ?l } }
+  { SELECT (GROUP_CONCAT(DISTINCT ?pkg_d; SEPARATOR="|||") AS ?packages) WHERE { ?p a truex:Package . ?p truex:packageName ?pn ; truex:purpose ?pp . BIND(CONCAT(?pn, "@@@", ?pp) AS ?pkg_d) } }
+  { SELECT (GROUP_CONCAT(DISTINCT ?rule_d; SEPARATOR="|||") AS ?rules) WHERE { ?r a truex:Rule . ?r rdfs:label ?rl ; rdfs:comment ?rc . BIND(CONCAT(?rl, "@@@", ?rc) AS ?rule_d) } }
+  { SELECT (GROUP_CONCAT(DISTINCT ?fail_d; SEPARATOR="|||") AS ?failures) WHERE { ?f a truex:Failure . ?f rdfs:label ?fl ; skos:definition ?fd . BIND(CONCAT(?fl, "@@@", ?fd) AS ?fail_d) } }
+  { SELECT (GROUP_CONCAT(DISTINCT ?drv_d; SEPARATOR="|||") AS ?derivations) 
+    WHERE { 
+      ?drv a truex:DerivationRule . 
+      ?drv rdfs:label ?dl .
+      OPTIONAL { ?drv truex:activityPrefix ?ap }
+      OPTIONAL { ?drv truex:rawField ?rf }
+      OPTIONAL { ?drv truex:ocelField ?of }
+      BIND(COALESCE(?ap, "none") AS ?ap_v)
+      BIND(COALESCE(?rf, "none") AS ?rf_v)
+      BIND(COALESCE(?of, "none") AS ?of_v)
+      BIND(CONCAT(?dl, "@@@", ?ap_v, "@@@", ?rf_v, "@@@", ?of_v) AS ?drv_d)
+    } 
+  }
+}

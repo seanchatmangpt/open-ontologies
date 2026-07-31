@@ -21,19 +21,15 @@ use open_ontologies::cell_ready::{CellReadyInputs, PowlOpRef};
 use open_ontologies::state::StateDb;
 use open_ontologies::workflows::WorkflowScope;
 use tempfile::tempdir;
-use wasm4pm_cognition::breeds::{
-    BreedInput, Candidate, Case, Fact, Goal, Rule, StateAtom,
-};
+use wasm4pm_cognition::breeds::{BreedInput, Candidate, Case, Fact, Goal, Rule, StateAtom};
 
 /// 64-char lowercase hex string suitable for the `parse_hex32` parser
 /// in `cell_ready.rs`. Reused across baseline and deny-path tests.
-pub const HEX32: &str =
-    "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789";
+pub const HEX32: &str = "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789";
 
 /// A second distinct hex32 used to provoke A13 ReplayDivergence. Same
 /// length, different bytes — the deterministic equality check fails.
-pub const HEX32_OTHER: &str =
-    "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+pub const HEX32_OTHER: &str = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
 
 /// Open a fresh on-disk SQLite-backed StateDb in a temporary directory.
 /// The tempdir is intentionally leaked: the OS reclaims it at process
@@ -147,14 +143,10 @@ pub fn inputs_from_bag(bag: &Bag) -> CellReadyInputs<'_> {
     }));
     let provenance: &'static [String] =
         Box::leak(bag.provenance_evidence.clone().into_boxed_slice());
-    let granted: &'static [String] =
-        Box::leak(bag.granted_at_chain.clone().into_boxed_slice());
-    let admitted: &'static [String] =
-        Box::leak(bag.admitted_receipts.clone().into_boxed_slice());
-    let attestation: &'static str =
-        Box::leak(bag.external_attestation.clone().into_boxed_str());
-    let replay_hash: &'static str =
-        Box::leak(bag.replay_canonical_hash.clone().into_boxed_str());
+    let granted: &'static [String] = Box::leak(bag.granted_at_chain.clone().into_boxed_slice());
+    let admitted: &'static [String] = Box::leak(bag.admitted_receipts.clone().into_boxed_slice());
+    let attestation: &'static str = Box::leak(bag.external_attestation.clone().into_boxed_str());
+    let replay_hash: &'static str = Box::leak(bag.replay_canonical_hash.clone().into_boxed_str());
     CellReadyInputs {
         scope_token: &bag.scope_token,
         declared_powl: powl_ref,
@@ -193,10 +185,9 @@ pub fn inputs_from_bag(bag: &Bag) -> CellReadyInputs<'_> {
 /// goals, state) so Hearsay-II has real material to fuse over.
 pub fn small_revops_scenario() -> BreedInput {
     BreedInput {
-        intent:
-            "RevOps revenue leakage detection across the booking pipeline at \
+        intent: "RevOps revenue leakage detection across the booking pipeline at \
              Fortune-5 scale"
-                .to_string(),
+            .to_string(),
         candidates: vec![
             Candidate {
                 id: "centralized-revenue-engine".into(),
@@ -212,16 +203,28 @@ pub fn small_revops_scenario() -> BreedInput {
             },
         ],
         facts: vec![
-            Fact { key: "scale".into(), value: "billion".into() },
-            Fact { key: "leakage".into(), value: "detected".into() },
-            Fact { key: "current".into(), value: "no-architecture".into() },
+            Fact {
+                key: "scale".into(),
+                value: "billion".into(),
+            },
+            Fact {
+                key: "leakage".into(),
+                value: "detected".into(),
+            },
+            Fact {
+                key: "current".into(),
+                value: "no-architecture".into(),
+            },
         ],
         cases: vec![Case {
             id: "case-rev-001".into(),
             intent: "Booking reconciliation gap".into(),
             architecture: "centralized-revenue-engine".into(),
             outcome_score: 0.92,
-            facts: vec![Fact { key: "scale".into(), value: "billion".into() }],
+            facts: vec![Fact {
+                key: "scale".into(),
+                value: "billion".into(),
+            }],
         }],
         rules: vec![
             Rule {

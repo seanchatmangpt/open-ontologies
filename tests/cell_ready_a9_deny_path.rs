@@ -34,7 +34,7 @@
 //! drives the FULL admission gate end-to-end with the
 //! `A9_PROVENANCE_REREAD_HOOK` to delete the witness row mid-flight.
 
-use open_ontologies::cell_ready::{cell_ready, CellReadyInputs, PowlOpRef};
+use open_ontologies::cell_ready::{CellReadyInputs, PowlOpRef, cell_ready};
 use open_ontologies::defects::DefectClass;
 use open_ontologies::ocel_store::OcelStore;
 use open_ontologies::state::StateDb;

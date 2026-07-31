@@ -1,0 +1,14 @@
+PREFIX ghf:  <https://open-ontologies.org/profile/github-factory#>
+PREFIX rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+
+SELECT
+  (GROUP_CONCAT(?name;        SEPARATOR="|") AS ?names)
+  (GROUP_CONCAT(?description; SEPARATOR="|") AS ?descriptions)
+  (GROUP_CONCAT(?visibility;  SEPARATOR="|") AS ?visibilities)
+WHERE {
+  ?repo a ghf:GitHubRepository ;
+        ghf:name        ?name ;
+        ghf:description ?description ;
+        ghf:visibility  ?visibility .
+}

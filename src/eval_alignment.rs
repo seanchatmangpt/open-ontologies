@@ -115,7 +115,7 @@ mod tests {
         let report = evaluate(&r, &c);
         // P = 1/2 = 0.5, R = 1/3 ≈ 0.333, F1 = 2*0.5*0.333/(0.5+0.333) = 0.4
         assert!((report.precision - 0.5).abs() < 1e-9);
-        assert!((report.recall - 1.0/3.0).abs() < 1e-9);
+        assert!((report.recall - 1.0 / 3.0).abs() < 1e-9);
         assert!((report.f1 - 0.4).abs() < 1e-3);
     }
 

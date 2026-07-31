@@ -1,0 +1,19 @@
+{%- set jtbd_list = jtbdIds | split(pat="|") -%}
+{%- set persona_list = personas | split(pat="|") -%}
+{%- set repo_list = repoNames | split(pat="|") -%}
+{"ocel:global-event": {"ocel:vmap": {}}, "ocel:global-object": {"ocel:ovmap": {}}, "ocel:global-log": {"ocel:version": "2.0", "ocel:ordering": "timestamp", "ocel:attribute-names": [], "ocel:object-types": ["ghf:ContributionUnit", "ghf:GitHubRepository", "persona"], "ocel:event-types": ["ghf.contribution.started", "ghf.commit.pushed", "ghf.pull_request.created", "ghf.pull_request.merged", "ghf.contribution.completed"]}}
+{%- for jtbd in jtbd_list %}
+{%- set idx = loop.index0 %}
+{%- set persona = persona_list[idx] %}
+{%- set repo = repo_list[idx] %}
+{%- if jtbd | trim != "" %}
+{"ocel:id": "{{ jtbd | trim }}", "ocel:type": "ghf:ContributionUnit", "ocel:ovmap": {"jtbd_id": "{{ jtbd | trim }}"}}
+{"ocel:id": "{{ repo | trim }}", "ocel:type": "ghf:GitHubRepository", "ocel:ovmap": {"name": "{{ repo | trim }}"}}
+{"ocel:id": "{{ persona | trim }}", "ocel:type": "persona", "ocel:ovmap": {"name": "{{ persona | trim }}"}}
+{"ocel:id": "ev-{{ jtbd | trim }}-1", "ocel:type": "ghf.contribution.started", "ocel:timestamp": "2024-01-01T09:00:00Z", "ocel:omap": ["{{ jtbd | trim }}", "{{ repo | trim }}", "{{ persona | trim }}"], "ocel:vmap": {}}
+{"ocel:id": "ev-{{ jtbd | trim }}-2", "ocel:type": "ghf.commit.pushed", "ocel:timestamp": "2024-01-01T10:00:00Z", "ocel:omap": ["{{ jtbd | trim }}", "{{ repo | trim }}", "{{ persona | trim }}"], "ocel:vmap": {}}
+{"ocel:id": "ev-{{ jtbd | trim }}-3", "ocel:type": "ghf.pull_request.created", "ocel:timestamp": "2024-01-01T11:00:00Z", "ocel:omap": ["{{ jtbd | trim }}", "{{ repo | trim }}", "{{ persona | trim }}"], "ocel:vmap": {}}
+{"ocel:id": "ev-{{ jtbd | trim }}-4", "ocel:type": "ghf.pull_request.merged", "ocel:timestamp": "2024-01-01T12:00:00Z", "ocel:omap": ["{{ jtbd | trim }}", "{{ repo | trim }}", "{{ persona | trim }}"], "ocel:vmap": {}}
+{"ocel:id": "ev-{{ jtbd | trim }}-5", "ocel:type": "ghf.contribution.completed", "ocel:timestamp": "2024-01-01T13:00:00Z", "ocel:omap": ["{{ jtbd | trim }}", "{{ repo | trim }}", "{{ persona | trim }}"], "ocel:vmap": {}}
+{%- endif %}
+{%- endfor %}

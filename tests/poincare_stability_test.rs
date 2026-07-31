@@ -18,8 +18,16 @@ mod stability {
     fn distance_zero_vectors() {
         let zero = vec![0.0, 0.0, 0.0];
         let d = poincare_distance(&zero, &zero);
-        assert!(d.is_finite(), "Distance between zero vectors should be finite, got {}", d);
-        assert!(d.abs() < 1e-4, "Distance between zero vectors should be ~0, got {}", d);
+        assert!(
+            d.is_finite(),
+            "Distance between zero vectors should be finite, got {}",
+            d
+        );
+        assert!(
+            d.abs() < 1e-4,
+            "Distance between zero vectors should be ~0, got {}",
+            d
+        );
     }
 
     #[test]
@@ -29,8 +37,15 @@ mod stability {
         let a = vec![scale, scale, scale];
         let b = vec![-scale, -scale, -scale];
         let d = poincare_distance(&a, &b);
-        assert!(d.is_finite(), "Distance near boundary should be finite, got {}", d);
-        assert!(d > 0.0, "Distance between distinct near-boundary points should be positive");
+        assert!(
+            d.is_finite(),
+            "Distance near boundary should be finite, got {}",
+            d
+        );
+        assert!(
+            d > 0.0,
+            "Distance between distinct near-boundary points should be positive"
+        );
     }
 
     #[test]
@@ -39,7 +54,10 @@ mod stability {
         let p = vec![0.5, 0.0, 0.0];
         let d = poincare_distance(&origin, &p);
         assert!(d.is_finite(), "Distance from origin should be finite");
-        assert!(d > 0.0, "Distance from origin to non-origin point should be positive");
+        assert!(
+            d > 0.0,
+            "Distance from origin to non-origin point should be positive"
+        );
     }
 
     #[test]
@@ -48,7 +66,12 @@ mod stability {
         let b = vec![0.4, -0.1, 0.2];
         let d_ab = poincare_distance(&a, &b);
         let d_ba = poincare_distance(&b, &a);
-        assert!((d_ab - d_ba).abs() < 1e-6, "Distance should be symmetric: {} vs {}", d_ab, d_ba);
+        assert!(
+            (d_ab - d_ba).abs() < 1e-6,
+            "Distance should be symmetric: {} vs {}",
+            d_ab,
+            d_ba
+        );
     }
 
     #[test]
@@ -57,7 +80,10 @@ mod stability {
         let zero_v = vec![0.0, 0.0, 0.0];
         let result = exp_map(&base, &zero_v);
         for (a, b) in result.iter().zip(base.iter()) {
-            assert!((a - b).abs() < 1e-5, "exp_map with zero tangent should return base point");
+            assert!(
+                (a - b).abs() < 1e-5,
+                "exp_map with zero tangent should return base point"
+            );
         }
     }
 
@@ -68,8 +94,15 @@ mod stability {
         let large_v = vec![100.0, 100.0, 100.0];
         let result = exp_map(&base, &large_v);
         let norm: f32 = result.iter().map(|x| x * x).sum::<f32>().sqrt();
-        assert!(norm < 1.0, "exp_map result must stay inside unit ball, got norm {}", norm);
-        assert!(result.iter().all(|x| x.is_finite()), "exp_map result must be finite");
+        assert!(
+            norm < 1.0,
+            "exp_map result must stay inside unit ball, got norm {}",
+            norm
+        );
+        assert!(
+            result.iter().all(|x| x.is_finite()),
+            "exp_map result must be finite"
+        );
     }
 
     #[test]
@@ -77,7 +110,11 @@ mod stability {
         let outside = vec![2.0, 0.0, 0.0];
         let projected = project_to_ball(&outside, 1e-5);
         let norm: f32 = projected.iter().map(|x| x * x).sum::<f32>().sqrt();
-        assert!(norm < 1.0, "Projected point must be inside ball, got norm {}", norm);
+        assert!(
+            norm < 1.0,
+            "Projected point must be inside ball, got norm {}",
+            norm
+        );
     }
 
     #[test]
@@ -96,7 +133,10 @@ mod stability {
         let result = rsgd_step(&point, &grad, 0.1);
         let norm: f32 = result.iter().map(|x| x * x).sum::<f32>().sqrt();
         assert!(norm < 1.0, "RSGD step must stay in ball, got norm {}", norm);
-        assert!(result.iter().all(|x| x.is_finite()), "RSGD result must be finite");
+        assert!(
+            result.iter().all(|x| x.is_finite()),
+            "RSGD result must be finite"
+        );
     }
 
     #[test]
@@ -105,14 +145,22 @@ mod stability {
         let p = vec![1.0, 0.0, 0.0];
         let sim = cosine_similarity(&zero, &p);
         assert!(sim.is_finite(), "Cosine with zero vector should be finite");
-        assert!(sim.abs() < 1e-5, "Cosine with zero vector should be 0, got {}", sim);
+        assert!(
+            sim.abs() < 1e-5,
+            "Cosine with zero vector should be 0, got {}",
+            sim
+        );
     }
 
     #[test]
     fn cosine_similarity_identical_is_one() {
         let p = vec![0.3, 0.4, 0.5];
         let sim = cosine_similarity(&p, &p);
-        assert!((sim - 1.0).abs() < 1e-5, "Cosine of identical vectors should be 1, got {}", sim);
+        assert!(
+            (sim - 1.0).abs() < 1e-5,
+            "Cosine of identical vectors should be 1, got {}",
+            sim
+        );
     }
 
     #[test]
@@ -120,14 +168,21 @@ mod stability {
         let a = vec![1.0, 0.0, 0.0];
         let b = vec![-1.0, 0.0, 0.0];
         let sim = cosine_similarity(&a, &b);
-        assert!((sim + 1.0).abs() < 1e-5, "Cosine of opposite vectors should be -1, got {}", sim);
+        assert!(
+            (sim + 1.0).abs() < 1e-5,
+            "Cosine of opposite vectors should be -1, got {}",
+            sim
+        );
     }
 
     #[test]
     fn l2_normalize_zero_vector() {
         let zero = vec![0.0, 0.0, 0.0];
         let result = l2_normalize(&zero);
-        assert!(result.iter().all(|x| x.is_finite()), "Normalizing zero should not produce NaN/Inf");
+        assert!(
+            result.iter().all(|x| x.is_finite()),
+            "Normalizing zero should not produce NaN/Inf"
+        );
     }
 
     #[test]
@@ -135,7 +190,11 @@ mod stability {
         let v = vec![3.0, 4.0, 0.0];
         let result = l2_normalize(&v);
         let norm: f32 = result.iter().map(|x| x * x).sum::<f32>().sqrt();
-        assert!((norm - 1.0).abs() < 1e-5, "Normalized vector should have unit length, got {}", norm);
+        assert!(
+            (norm - 1.0).abs() < 1e-5,
+            "Normalized vector should have unit length, got {}",
+            norm
+        );
     }
 
     #[test]
@@ -144,6 +203,10 @@ mod stability {
         let a: Vec<f32> = (0..dim).map(|i| (i as f32 * 0.001) % 0.5).collect();
         let b: Vec<f32> = (0..dim).map(|i| ((i + 1) as f32 * 0.001) % 0.5).collect();
         let d = poincare_distance(&a, &b);
-        assert!(d.is_finite(), "High-dimensional distance should be finite, got {}", d);
+        assert!(
+            d.is_finite(),
+            "High-dimensional distance should be finite, got {}",
+            d
+        );
     }
 }

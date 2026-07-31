@@ -28,8 +28,8 @@
 zoe:Referral
     a owl:Class ;
     rdfs:subClassOf schema:RequestAction, prov:Activity ;
-    rdfs:label "Referral" ;
-    rdfs:comment "A formal referral from ZOE LA to a partner organization for a person or household in need. Referrals require consent and are tracked through confirmation and outcome." .
+    rdfs:label "Referral"@en ;
+    rdfs:comment "A formal referral from ZOE LA to a partner organization for a person or household in need. Referrals require consent and are tracked through confirmation and outcome."@en .
 
 # ===========================================================================
 # Properties — zoe:Referral

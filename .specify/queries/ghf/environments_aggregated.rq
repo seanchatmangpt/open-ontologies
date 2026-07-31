@@ -1,0 +1,13 @@
+PREFIX ghf:  <https://open-ontologies.org/profile/github-factory#>
+PREFIX rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+
+SELECT
+  (GROUP_CONCAT(?repoName;    SEPARATOR="|") AS ?repoNames)
+  (GROUP_CONCAT(?envName;     SEPARATOR="|") AS ?envNames)
+WHERE {
+  ?repo a ghf:GitHubRepository ;
+        ghf:name ?repoName ;
+        ghf:hasEnvironment ?env .
+  ?env ghf:name ?envName .
+}

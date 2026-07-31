@@ -1,0 +1,13 @@
+{
+  "receipt_type": "ManufacturingPassReceipt",
+  "ecosystem": "Truex",
+  "version": "1.0.0",
+  "timestamp": "{{ now() | date(format='%Y-%m-%dT%H:%M:%SZ') }}",
+  "obligations_discharged": [
+    {%- set ob_list = obligations | split(pat="|") -%}
+    {% for ob in ob_list %}
+    "{{ ob }}"{% if not loop.last %},{% endif %}
+    {% endfor %}
+  ],
+  "receipt_hash": "..."
+}

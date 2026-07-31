@@ -163,10 +163,7 @@ impl MappingConfig {
     /// assert!(cfg.mappings.is_empty());
     /// ```
     pub fn from_headers(headers: &[String], base_iri: &str, class: &str) -> Self {
-        let id_field = headers
-            .first()
-            .cloned()
-            .unwrap_or_else(|| "id".to_string());
+        let id_field = headers.first().cloned().unwrap_or_else(|| "id".to_string());
 
         let mappings = headers
             .iter()

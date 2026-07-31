@@ -157,8 +157,7 @@ pub fn generate(spec: &SolutionSpec) -> Vec<ManufacturedFile> {
 /// `terraform validate` with "Extraneous JSON object property". The
 /// receipt lives in a sidecar.
 fn tf_file(path: &str, body_json: serde_json::Value) -> ManufacturedFile {
-    let contents = serde_json::to_string_pretty(&body_json)
-        .expect("Terraform JSON serializes");
+    let contents = serde_json::to_string_pretty(&body_json).expect("Terraform JSON serializes");
     ManufacturedFile {
         path: path.to_string(),
         contents,

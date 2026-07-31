@@ -1,0 +1,31 @@
+
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "strict": true,
+    "jsx": "react-native",
+    "moduleResolution": "node",
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "baseUrl": ".",
+    "paths": {"@zoela/evidence/*": ["../../packages/evidence/*"],
+"@zoela/forms/*": ["../../packages/forms/*"],
+"@zoela/routes/*": ["../../packages/routes/*"],
+"@zoela/schemas": ["../../packages/schemas/zoela.ts"],
+"@zoela/navigation/*": ["../../packages/navigation/*"],
+"@zoela/navigation": ["../../packages/navigation/zoela.tsx"],
+"@zoela/screens/*": ["../../packages/screens/*"],
+"@zoela/screens": ["../../packages/screens/zoela.tsx"],
+"@zoela/types/*": ["../../packages/types/*"],
+"@zoela/types": ["../../packages/types/zoela.ts"]
+
+    }
+  },
+  "include": [
+    "App.tsx",
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "../../packages/**/*.ts",
+    "../../packages/**/*.tsx"
+  ]
+}

@@ -1,0 +1,16 @@
+# =============================================================================
+# extract-expo-app-json.rq — Expo app.json fields
+# =============================================================================
+
+PREFIX ggen: <https://open-ontologies.org/ggen#>
+
+SELECT ?appName ?appSlug ?appVersion ?appBundleId ?supabaseUrl ?supabaseAnonKey
+WHERE {
+  ?manifest a ggen:ExpoAppManifest ;
+            ggen:appName         ?appName ;
+            ggen:appSlug         ?appSlug ;
+            ggen:appVersion      ?appVersion ;
+            ggen:appBundleId     ?appBundleId ;
+            ggen:supabaseUrl     ?supabaseUrl ;
+            ggen:supabaseAnonKey ?supabaseAnonKey .
+}

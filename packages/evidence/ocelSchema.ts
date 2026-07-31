@@ -32,7 +32,41 @@ export const ZOELA_OCEL_SCHEMA: OcelSchema = {
   ],
   eventTypes: [
 
-    "",
+    "Baptism Registered",
+
+    "Event Attendance Recorded",
+
+    "Guardian Consent Required",
+
+    "Route Refused",
+
+    "Receipt Emitted",
+
+    "Care Route Closed",
+
+    "Partner Referral Sent",
+
+    "Follow-Up Completed",
+
+    "Follow-Up Scheduled",
+
+    "Clothing Delivered",
+
+    "Food Delivered",
+
+    "Volunteer Assigned",
+
+    "Consent Granted",
+
+    "Need Refused",
+
+    "Need Closed",
+
+    "Need Delivered",
+
+    "Need Assigned",
+
+    "Need Received",
 
   ],
   objectAttributes: [

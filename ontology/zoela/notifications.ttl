@@ -43,7 +43,7 @@ zoe:PushNotification
 
 zoe:PushCardTemplate
     a owl:Class ;
-    rdfs:subClassOf owl:Thing ;
+    rdfs:subClassOf schema:CreativeWork ;
     rdfs:label "Push Card Template"@en ;
     rdfs:comment "A reusable template describing the visual layout and content of a notification card rendered in the ZOE LA Mobile notification tray. Cards are associated with a ServiceRoute and declare a priority for ordering."@en ;
     skos:notation "push_card_template" .

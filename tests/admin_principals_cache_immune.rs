@@ -21,7 +21,7 @@
 use std::sync::{Arc, Mutex, MutexGuard, OnceLock};
 
 use open_ontologies::config::{
-    resolve_admin_principals, AuthorityConfig, CacheConfig, EmbeddingsConfig,
+    AuthorityConfig, CacheConfig, EmbeddingsConfig, resolve_admin_principals,
 };
 use open_ontologies::graph::GraphStore;
 use open_ontologies::server::OpenOntologiesServer;

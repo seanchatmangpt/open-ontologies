@@ -220,12 +220,9 @@ sr:receipt-no-run-id a sr:SharedReceiptV1 ;
 
     // Confirm the violation references the run_id path
     let violations = report["violations"].as_array().unwrap();
-    let has_run_id_violation = violations.iter().any(|v| {
-        v["path"]
-            .as_str()
-            .unwrap_or("")
-            .contains("run_id")
-    });
+    let has_run_id_violation = violations
+        .iter()
+        .any(|v| v["path"].as_str().unwrap_or("").contains("run_id"));
     assert!(
         has_run_id_violation,
         "violation list must include a run_id path entry; got: {}",

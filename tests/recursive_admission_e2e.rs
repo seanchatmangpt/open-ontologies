@@ -20,7 +20,7 @@ use open_ontologies::admission::{
 use open_ontologies::manufacturing::{self, ManufacturedFile, SolutionSpec};
 use open_ontologies::ocel_store::OcelStore;
 use open_ontologies::state::StateDb;
-use open_ontologies::workflows::{by_name, WorkflowScope};
+use open_ontologies::workflows::{WorkflowScope, by_name};
 use tempfile::tempdir;
 
 const REQ_WORKFLOW: &str = "RequirementsManufacturing";
@@ -80,20 +80,56 @@ fn full_recursive_admission_chain_from_requirement_to_manufactured_stack() {
     let replay = PowlBridgeReplay::new(&store);
 
     // 3 admissions in the Requirements layer (chain via prior_receipt).
-    let req_artifact = ArtifactRef { kind: "req", bytes: b"voice" };
+    let req_artifact = ArtifactRef {
+        kind: "req",
+        bytes: b"voice",
+    };
     let req_receipt = req_gate
-        .evaluate(&req_scope, AdmissionOp::RequirementProposed, &req_artifact,
-            &store, &replay, session, req_powl, &observed, "default")
+        .evaluate(
+            &req_scope,
+            AdmissionOp::RequirementProposed,
+            &req_artifact,
+            &store,
+            &replay,
+            session,
+            req_powl,
+            &observed,
+            "default",
+        )
         .expect("RequirementProposed admits");
-    let ctq_artifact = ArtifactRef { kind: "ctq", bytes: b"ctq-canonical" };
+    let ctq_artifact = ArtifactRef {
+        kind: "ctq",
+        bytes: b"ctq-canonical",
+    };
     let ctq_receipt = req_gate
-        .evaluate(&req_scope, AdmissionOp::CtqAdmitted, &ctq_artifact,
-            &store, &replay, session, req_powl, &observed, "default")
+        .evaluate(
+            &req_scope,
+            AdmissionOp::CtqAdmitted,
+            &ctq_artifact,
+            &store,
+            &replay,
+            session,
+            req_powl,
+            &observed,
+            "default",
+        )
         .expect("CtqAdmitted admits");
-    let wo_artifact = ArtifactRef { kind: "wo", bytes: b"work-order-canonical" };
+    let wo_artifact = ArtifactRef {
+        kind: "wo",
+        bytes: b"work-order-canonical",
+    };
     let wo_receipt = req_gate
-        .evaluate(&req_scope, AdmissionOp::WorkOrderAdmitted, &wo_artifact,
-            &store, &replay, session, req_powl, &observed, "default")
+        .evaluate(
+            &req_scope,
+            AdmissionOp::WorkOrderAdmitted,
+            &wo_artifact,
+            &store,
+            &replay,
+            session,
+            req_powl,
+            &observed,
+            "default",
+        )
         .expect("WorkOrderAdmitted admits");
 
     // Receipt chain inside Requirements layer.
@@ -161,8 +197,17 @@ fn full_recursive_admission_chain_from_requirement_to_manufactured_stack() {
     };
     let smfg_replay = PowlBridgeReplay::new(&store);
     let smfg_receipt = smfg_gate
-        .evaluate(&smfg_scope, AdmissionOp::SolutionManufactured, &smfg_artifact,
-            &store, &smfg_replay, session, smfg_powl, &observed_smfg, "default")
+        .evaluate(
+            &smfg_scope,
+            AdmissionOp::SolutionManufactured,
+            &smfg_artifact,
+            &store,
+            &smfg_replay,
+            session,
+            smfg_powl,
+            &observed_smfg,
+            "default",
+        )
         .expect("SolutionManufactured admits");
 
     // ── Recursive admission claim: receipt chain crosses layers ─────────
@@ -226,9 +271,8 @@ fn full_recursive_admission_chain_from_requirement_to_manufactured_stack() {
 
     // The DoD claim, materialized as a structured assertion.
     let admitted_chain_length = 4; // req + ctq + wo + smfg
-    let _layer_count = 2;          // Requirements + Solution Manufacturing
-    let receipt_chain_intact =
-        ctq_receipt.record.prior_receipt == Some(req_receipt.bytes)
+    let _layer_count = 2; // Requirements + Solution Manufacturing
+    let receipt_chain_intact = ctq_receipt.record.prior_receipt == Some(req_receipt.bytes)
         && wo_receipt.record.prior_receipt == Some(ctq_receipt.bytes)
         && smfg_receipt.record.prior_receipt == Some(wo_receipt.bytes);
     assert!(receipt_chain_intact);

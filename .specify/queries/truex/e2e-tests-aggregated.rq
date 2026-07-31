@@ -1,0 +1,14 @@
+PREFIX truex: <https://open-ontologies.org/profile/truex#>
+PREFIX rdfs:  <http://www.w3.org/2000/01/rdf-schema#>
+
+SELECT (GROUP_CONCAT(?e2e_d; SEPARATOR="|||") AS ?e2e_tests)
+WHERE {
+  ?test a truex:E2ETest ; 
+        rdfs:label ?label ; 
+        truex:testInput ?input ; 
+        truex:expectedResult ?res .
+  OPTIONAL { ?test truex:refusalReason ?reason }
+  BIND(COALESCE(?reason, "none") AS ?reason_v)
+  # STR(?input) to ensure it is treated as a string and handled by CONCAT properly
+  BIND(CONCAT(?label, "@@@", STR(?input), "@@@", ?res, "@@@", ?reason_v) AS ?e2e_d)
+}

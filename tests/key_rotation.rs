@@ -10,11 +10,11 @@
 //!   4. `non_admin_rejected` — non-admin caller of
 //!      `onto_attestation_rotate_keys` → `FalsePass { reason: "not_admin" }`.
 
-use ed25519_dalek::pkcs8::spki::der::pem::LineEnding;
-use ed25519_dalek::pkcs8::EncodePublicKey;
 use ed25519_dalek::SigningKey;
-use open_ontologies::attestation::{self, fingerprint_hex, Signer, TrustedKeys};
-use open_ontologies::cell_ready::{cell_ready, CellReadyInputs, PowlOpRef};
+use ed25519_dalek::pkcs8::EncodePublicKey;
+use ed25519_dalek::pkcs8::spki::der::pem::LineEnding;
+use open_ontologies::attestation::{self, Signer, TrustedKeys, fingerprint_hex};
+use open_ontologies::cell_ready::{CellReadyInputs, PowlOpRef, cell_ready};
 use open_ontologies::defects::DefectClass;
 use open_ontologies::ocel_store::OcelStore;
 use open_ontologies::production_record::ProductionRecord;
@@ -85,27 +85,23 @@ fn rotate_replaces_in_memory_set() {
     let fpr_a = write_pub_pem(dir.path(), "a", &sk_a);
     let fpr_b = write_pub_pem(dir.path(), "b", &sk_b);
 
-    let trust =
-        TrustedKeys::from_dir_with_history(dir.path(), &db).expect("rotate 1");
+    let trust = TrustedKeys::from_dir_with_history(dir.path(), &db).expect("rotate 1");
     assert_eq!(trust.len(), 2);
     assert!(trust.get(&fpr_a).is_some());
     assert!(trust.get(&fpr_b).is_some());
 
     // 2. Remove key A from the dir; rotate again.
     std::fs::remove_file(dir.path().join("a.pub.pem")).unwrap();
-    let trust2 =
-        TrustedKeys::from_dir_with_history(dir.path(), &db).expect("rotate 2");
+    let trust2 = TrustedKeys::from_dir_with_history(dir.path(), &db).expect("rotate 2");
     assert_eq!(trust2.len(), 1);
     assert!(trust2.get(&fpr_b).is_some());
     assert!(trust2.get(&fpr_a).is_none());
 
     // 3. trusted_keys_history must reflect the retirement.
-    let row_a = TrustedKeys::lookup_history(&db, &fpr_a)
-        .expect("history row for A");
+    let row_a = TrustedKeys::lookup_history(&db, &fpr_a).expect("history row for A");
     assert_eq!(row_a.status, "retired");
     assert!(row_a.removed_at.is_some());
-    let row_b = TrustedKeys::lookup_history(&db, &fpr_b)
-        .expect("history row for B");
+    let row_b = TrustedKeys::lookup_history(&db, &fpr_b).expect("history row for B");
     assert_eq!(row_b.status, "active");
     assert!(row_b.removed_at.is_none());
 }
@@ -118,16 +114,14 @@ fn signed_then_rotated_out_rejected() {
     // 1. Key A is in trust dir at start.
     let sk_a = SigningKey::generate(&mut OsRng);
     let _fpr_a = write_pub_pem(dir.path(), "a", &sk_a);
-    let trust =
-        TrustedKeys::from_dir_with_history(dir.path(), &db).expect("rotate 1");
+    let trust = TrustedKeys::from_dir_with_history(dir.path(), &db).expect("rotate 1");
 
     // 2. Wait one second so rotation timestamps differ from history.added_at.
     std::thread::sleep(std::time::Duration::from_millis(1100));
 
     // 3. Rotate A out (delete its pem).
     std::fs::remove_file(dir.path().join("a.pub.pem")).unwrap();
-    let _trust_after =
-        TrustedKeys::from_dir_with_history(dir.path(), &db).expect("rotate 2");
+    let _trust_after = TrustedKeys::from_dir_with_history(dir.path(), &db).expect("rotate 2");
 
     // 4. Sleep again, then sign a receipt with A.
     std::thread::sleep(std::time::Duration::from_millis(1100));
@@ -155,8 +149,7 @@ fn signed_then_rotated_out_rejected() {
         conformance_run_id: format!("run-{}", token),
         gate_config_hash: parse_hex32(HEX32),
         production_law_version: "ontostar-1.0.0".into(),
-        defects_taxonomy_version:
-            open_ontologies::defects::DEFECTS_TAXONOMY_VERSION.to_string(),
+        defects_taxonomy_version: open_ontologies::defects::DEFECTS_TAXONOMY_VERSION.to_string(),
         gates_passed: vec![
             "A1_WorkflowDeclared".into(),
             "A2_ScopeClosed".into(),
@@ -177,7 +170,9 @@ fn signed_then_rotated_out_rejected() {
         signature: None,
         signing_key_fpr: None,
     };
-    let sig = signer.sign(&preview.canonical_bytes_for_signing()).to_bytes();
+    let sig = signer
+        .sign(&preview.canonical_bytes_for_signing())
+        .to_bytes();
 
     let inputs = CellReadyInputs {
         scope_token: &token,
@@ -228,8 +223,7 @@ fn additive_rotation_preserves_old_signatures() {
     // 1. Key A.
     let sk_a = SigningKey::generate(&mut OsRng);
     let _fpr_a = write_pub_pem(dir.path(), "a", &sk_a);
-    let _trust =
-        TrustedKeys::from_dir_with_history(dir.path(), &db).expect("rotate 1");
+    let _trust = TrustedKeys::from_dir_with_history(dir.path(), &db).expect("rotate 1");
 
     // 2. Sleep, sign, then rotate to {A, B} (additive — A still present).
     std::thread::sleep(std::time::Duration::from_millis(1100));
@@ -250,8 +244,7 @@ fn additive_rotation_preserves_old_signatures() {
         conformance_run_id: format!("run-{}", token),
         gate_config_hash: parse_hex32(HEX32),
         production_law_version: "ontostar-1.0.0".into(),
-        defects_taxonomy_version:
-            open_ontologies::defects::DEFECTS_TAXONOMY_VERSION.to_string(),
+        defects_taxonomy_version: open_ontologies::defects::DEFECTS_TAXONOMY_VERSION.to_string(),
         gates_passed: vec![
             "A1_WorkflowDeclared".into(),
             "A2_ScopeClosed".into(),
@@ -282,8 +275,7 @@ fn additive_rotation_preserves_old_signatures() {
     // Now perform the additive rotation.
     let sk_b = SigningKey::generate(&mut OsRng);
     let _fpr_b = write_pub_pem(dir.path(), "b", &sk_b);
-    let trust_after =
-        TrustedKeys::from_dir_with_history(dir.path(), &db).expect("rotate 2");
+    let trust_after = TrustedKeys::from_dir_with_history(dir.path(), &db).expect("rotate 2");
     assert_eq!(trust_after.len(), 2);
 
     // The receipt signed BEFORE the additive rotation must still verify.

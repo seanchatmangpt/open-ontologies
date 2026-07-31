@@ -1,3 +1,5 @@
+#![allow(clippy::all, unused)]
+
 //! Phase 5 — DSPy-style shaped translator end-to-end.
 //!
 //! Drives `GroqTranslator::translate_with_signature` against a tokio
@@ -16,7 +18,7 @@
 
 use open_ontologies::llm_input::{LlmInput, LlmInputKind};
 use open_ontologies::llm_translator::GroqTranslator;
-use open_ontologies::signature_shape::{ctq_signature, FieldSpec, SignatureShape};
+use open_ontologies::signature_shape::{FieldSpec, SignatureShape, ctq_signature};
 use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::time::Duration;
@@ -68,7 +70,9 @@ async fn spawn_seq_mock(responses: Vec<String>) -> (String, Arc<Mutex<Vec<String
                 }
                 let mut req_body = vec![0u8; content_length];
                 if content_length > 0 {
-                    AsyncReadExt::read_exact(&mut reader, &mut req_body).await.ok();
+                    AsyncReadExt::read_exact(&mut reader, &mut req_body)
+                        .await
+                        .ok();
                 }
                 let req_text = String::from_utf8_lossy(&req_body).to_string();
                 // Capture the system prompt (for hint-leak assertions).
@@ -83,7 +87,10 @@ async fn spawn_seq_mock(responses: Vec<String>) -> (String, Arc<Mutex<Vec<String
                         }
                     }
                 }
-                let pick = responses.get(i).or_else(|| responses.last()).cloned()
+                let pick = responses
+                    .get(i)
+                    .or_else(|| responses.last())
+                    .cloned()
                     .unwrap_or_else(|| "{}".to_string());
                 let resp_body = serde_json::json!({
                     "choices": [{"message": {"content": pick}}]
@@ -123,8 +130,18 @@ async fn shaped_translation_admits_canonical_response_on_first_try() {
     )
     .unwrap();
     let mut inputs = BTreeMap::new();
-    inputs.insert("source_voice".into(), LlmInput::sanitize("Sales says committed; Finance can't reconcile", LlmInputKind::SourceVoice).unwrap());
-    inputs.insert("voice_kind".into(), LlmInput::sanitize("operator", LlmInputKind::Description).unwrap());
+    inputs.insert(
+        "source_voice".into(),
+        LlmInput::sanitize(
+            "Sales says committed; Finance can't reconcile",
+            LlmInputKind::SourceVoice,
+        )
+        .unwrap(),
+    );
+    inputs.insert(
+        "voice_kind".into(),
+        LlmInput::sanitize("operator", LlmInputKind::Description).unwrap(),
+    );
 
     let parsed = translator
         .translate_with_signature(&ctq_signature(), &inputs, 2)
@@ -164,8 +181,14 @@ async fn shaped_translation_refines_after_validation_failure() {
     )
     .unwrap();
     let mut inputs = BTreeMap::new();
-    inputs.insert("source_voice".into(), LlmInput::sanitize("voice", LlmInputKind::SourceVoice).unwrap());
-    inputs.insert("voice_kind".into(), LlmInput::sanitize("operator", LlmInputKind::Description).unwrap());
+    inputs.insert(
+        "source_voice".into(),
+        LlmInput::sanitize("voice", LlmInputKind::SourceVoice).unwrap(),
+    );
+    inputs.insert(
+        "voice_kind".into(),
+        LlmInput::sanitize("operator", LlmInputKind::Description).unwrap(),
+    );
 
     let parsed = translator
         .translate_with_signature(&ctq_signature(), &inputs, 3)
@@ -196,18 +219,18 @@ async fn shaped_translation_exhausts_refinements_and_errors() {
     // Always returns a bad response — refinement loop must give up
     // and surface the final failure list.
     let bad = serde_json::json!({"oops": "no fields"}).to_string();
-    let (base, _captured) =
-        spawn_seq_mock(vec![bad.clone(), bad.clone(), bad.clone(), bad]).await;
-    let translator = GroqTranslator::new(
-        &base,
-        Some(KEY.to_string()),
-        "x",
-        Duration::from_secs(5),
-    )
-    .unwrap();
+    let (base, _captured) = spawn_seq_mock(vec![bad.clone(), bad.clone(), bad.clone(), bad]).await;
+    let translator =
+        GroqTranslator::new(&base, Some(KEY.to_string()), "x", Duration::from_secs(5)).unwrap();
     let mut inputs = BTreeMap::new();
-    inputs.insert("source_voice".into(), LlmInput::sanitize("voice", LlmInputKind::SourceVoice).unwrap());
-    inputs.insert("voice_kind".into(), LlmInput::sanitize("operator", LlmInputKind::Description).unwrap());
+    inputs.insert(
+        "source_voice".into(),
+        LlmInput::sanitize("voice", LlmInputKind::SourceVoice).unwrap(),
+    );
+    inputs.insert(
+        "voice_kind".into(),
+        LlmInput::sanitize("operator", LlmInputKind::Description).unwrap(),
+    );
 
     let err = translator
         .translate_with_signature(&ctq_signature(), &inputs, 2)
@@ -232,16 +255,17 @@ async fn shaped_translation_handles_llm_with_code_fences_and_prose() {
         \"defect_class_hint\": \"ctq_incomplete\"\
         }\n```\nHope that helps!";
     let (base, _captured) = spawn_seq_mock(vec![content.to_string()]).await;
-    let translator = GroqTranslator::new(
-        &base,
-        Some(KEY.to_string()),
-        "x",
-        Duration::from_secs(5),
-    )
-    .unwrap();
+    let translator =
+        GroqTranslator::new(&base, Some(KEY.to_string()), "x", Duration::from_secs(5)).unwrap();
     let mut inputs = BTreeMap::new();
-    inputs.insert("source_voice".into(), LlmInput::sanitize("voice", LlmInputKind::SourceVoice).unwrap());
-    inputs.insert("voice_kind".into(), LlmInput::sanitize("operator", LlmInputKind::Description).unwrap());
+    inputs.insert(
+        "source_voice".into(),
+        LlmInput::sanitize("voice", LlmInputKind::SourceVoice).unwrap(),
+    );
+    inputs.insert(
+        "voice_kind".into(),
+        LlmInput::sanitize("operator", LlmInputKind::Description).unwrap(),
+    );
 
     let parsed = translator
         .translate_with_signature(&ctq_signature(), &inputs, 1)
@@ -257,22 +281,22 @@ async fn shaped_translation_disallowed_value_triggers_refine() {
         name: "VoiceKindCheck".into(),
         instructions: "Pick a voice_kind".into(),
         input_fields: vec![FieldSpec::required("voice", "the voice")],
-        output_fields: vec![FieldSpec::required("voice_kind", "the kind")
-            .with_allowed_values(vec!["operator", "customer"])],
+        output_fields: vec![
+            FieldSpec::required("voice_kind", "the kind")
+                .with_allowed_values(vec!["operator", "customer"]),
+        ],
         demos: vec![],
     };
     let bad = serde_json::json!({"voice_kind": "executive"}).to_string();
     let good = serde_json::json!({"voice_kind": "operator"}).to_string();
     let (base, captured) = spawn_seq_mock(vec![bad, good]).await;
-    let translator = GroqTranslator::new(
-        &base,
-        Some(KEY.to_string()),
-        "x",
-        Duration::from_secs(5),
-    )
-    .unwrap();
+    let translator =
+        GroqTranslator::new(&base, Some(KEY.to_string()), "x", Duration::from_secs(5)).unwrap();
     let mut inputs = BTreeMap::new();
-    inputs.insert("voice".into(), LlmInput::sanitize("x", LlmInputKind::Description).unwrap());
+    inputs.insert(
+        "voice".into(),
+        LlmInput::sanitize("x", LlmInputKind::Description).unwrap(),
+    );
     let parsed = translator
         .translate_with_signature(&shape, &inputs, 2)
         .await

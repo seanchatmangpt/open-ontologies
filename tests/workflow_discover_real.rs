@@ -43,11 +43,13 @@ fn workflow_discover_returns_valid_json_on_empty_db() {
     let (_tmp, _db, server) = build_server();
     // With < 20 admitted scopes, discover returns ok=true, discovered=null.
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let result = rt.block_on(server.onto_workflow_discover(Parameters(OntoWorkflowDiscoverInput {
-        domain: "DataExtensionFastPath".to_string(),
-    })));
-    let v: serde_json::Value = serde_json::from_str(&result)
-        .expect("onto_workflow_discover must return valid JSON");
+    let result = rt.block_on(server.onto_workflow_discover(Parameters(
+        OntoWorkflowDiscoverInput {
+            domain: "DataExtensionFastPath".to_string(),
+        },
+    )));
+    let v: serde_json::Value =
+        serde_json::from_str(&result).expect("onto_workflow_discover must return valid JSON");
     assert_eq!(v["ok"], true, "ok must be true on empty DB: {result}");
     assert!(
         v.get("discovered").is_some(),
@@ -60,16 +62,15 @@ fn workflow_feedback_returns_error_for_nonexistent_id() {
     let (_tmp, _db, server) = build_server();
     // Feedback on a non-existent row should return ok=false with an error.
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let result = rt.block_on(server.onto_workflow_feedback(Parameters(OntoWorkflowFeedbackInput {
-        id: "nonexistent-id-xyz-12345".to_string(),
-        accepted: true,
-    })));
-    let v: serde_json::Value = serde_json::from_str(&result)
-        .expect("onto_workflow_feedback must return valid JSON");
+    let result = rt.block_on(server.onto_workflow_feedback(Parameters(
+        OntoWorkflowFeedbackInput {
+            id: "nonexistent-id-xyz-12345".to_string(),
+            accepted: true,
+        },
+    )));
+    let v: serde_json::Value =
+        serde_json::from_str(&result).expect("onto_workflow_feedback must return valid JSON");
     // Either ok=false (row not found) or ok=true (row updated but 0 rows changed).
     // The point is: no panic and valid JSON.
-    assert!(
-        v.is_object(),
-        "must return a JSON object: {result}"
-    );
+    assert!(v.is_object(), "must return a JSON object: {result}");
 }

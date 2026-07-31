@@ -298,7 +298,7 @@ zoe:ocelOutcomeState
 
 zoe:OcelObjectRef
     a owl:Class ;
-    rdfs:subClassOf owl:Thing ;
+    rdfs:subClassOf prov:Entity ;
     rdfs:label "OCEL Object Reference"@en ;
     rdfs:comment "An object reference in an OCEL 2.0 event. OCEL is object-centric, meaning each event can involve multiple typed objects (people, households, needs, resources, receipts)."@en .
 

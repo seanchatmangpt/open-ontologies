@@ -367,8 +367,12 @@ pub struct LlmConfig {
     pub persist_full_io: Option<bool>,
 }
 
-fn default_grace_period_pct() -> f64 { 0.10 }
-fn default_true_bool() -> bool { true }
+fn default_grace_period_pct() -> f64 {
+    0.10
+}
+fn default_true_bool() -> bool {
+    true
+}
 
 /// R7 WD-4 — resolve `[llm] persist_full_io`. Precedence:
 /// `OPEN_ONTOLOGIES_LLM_PERSIST_FULL_IO` env > config > `false`.
@@ -480,7 +484,7 @@ pub fn resolve_llm_model(cfg: &LlmConfig) -> String {
 ///
 /// `"inproc"`        → in-process `GroqTranslator` (HTTP via reqwest).
 /// `"groq_pm4py"`    → shell out to `scripts/*.py` (dspy / pm4py path).
-/// `"gemini"`        → headless Gemini CLI via OAuth (`gemini -p … --approval-mode yolo`);
+/// `"gemini"`        → headless Gemini CLI via OAuth (`npx -y @google/gemini-cli -p … --approval-mode yolo`);
 ///                     no API key required. Binary resolved via `GEMINI_BIN` env var or
 ///                     `"gemini"` default. Mirrors the speckit-ralph `gemini-invoke.sh` pattern.
 ///
@@ -508,25 +512,7 @@ pub const ENGINE_GEMINI: &str = "gemini";
 
 /// Default Gemini model used by the headless CLI engine (`gemini` engine).
 /// Override via the `--model` flag or a future config key.
-pub const GEMINI_DEFAULT_MODEL: &str = "gemini-3.1-flash-lite-preview";
-
-/// Return `true` when the Gemini CLI binary is available.
-///
-/// Checks in order:
-/// 1. `GEMINI_BIN` env var — if set and non-empty the binary is assumed to
-///    exist (the caller configured it explicitly).
-/// 2. `which gemini` — PATH lookup; succeeds when a `gemini` binary is
-///    installed.
-fn gemini_available() -> bool {
-    if std::env::var("GEMINI_BIN").ok().filter(|v| !v.trim().is_empty()).is_some() {
-        return true;
-    }
-    std::process::Command::new("which")
-        .arg("gemini")
-        .output()
-        .map(|o| o.status.success())
-        .unwrap_or(false)
-}
+pub const GEMINI_DEFAULT_MODEL: &str = "gemini-3.1-flash-lite";
 
 /// Resolve the default LLM engine for unparametrised tool calls.
 ///
@@ -537,8 +523,6 @@ fn gemini_available() -> bool {
 /// 3. Auto-detect cascade — first available wins:
 ///    - `"groq_pm4py"` when [`resolve_llm_api_key`] returns `Some` (i.e.
 ///      `OPEN_ONTOLOGIES_LLM_API_KEY`, `GROQ_API_KEY`, or config key is set).
-///    - `"gemini"` when `GEMINI_BIN` is set and non-empty, or `which gemini`
-///      finds the binary on PATH.
 ///    - `"inproc"` — always available; no external dependency required.
 ///
 /// # Examples
@@ -547,7 +531,6 @@ fn gemini_available() -> bool {
 /// // When neither GROQ_API_KEY nor GEMINI_BIN is set, defaults to inproc.
 /// # unsafe { std::env::remove_var("GROQ_API_KEY"); }
 /// # unsafe { std::env::remove_var("OPEN_ONTOLOGIES_LLM_API_KEY"); }
-/// # unsafe { std::env::remove_var("GEMINI_BIN"); }
 /// # unsafe { std::env::remove_var("OPEN_ONTOLOGIES_LLM_ENGINE"); }
 /// let cfg = open_ontologies::config::LlmConfig::default();
 /// // Result is one of the valid engines; inproc is the guaranteed fallback.
@@ -555,6 +538,10 @@ fn gemini_available() -> bool {
 /// assert!(open_ontologies::config::VALID_LLM_ENGINES.contains(&engine.as_str()));
 /// ```
 pub fn resolve_llm_engine(cfg: &LlmConfig) -> String {
+    if std::env::var("PR_RALPH_BACKEND").ok().as_deref() == Some("gemini") {
+        return ENGINE_GEMINI.to_string();
+    }
+
     fn validated(v: String) -> Option<String> {
         let trimmed = v.trim().to_string();
         if VALID_LLM_ENGINES.contains(&trimmed.as_str()) {
@@ -579,42 +566,11 @@ pub fn resolve_llm_engine(cfg: &LlmConfig) -> String {
     {
         return v;
     }
-    // Auto-detect cascade: groq_pm4py → gemini → inproc
+    // Auto-detect cascade: groq_pm4py → inproc
     if resolve_llm_api_key(cfg).is_some() {
         return ENGINE_GROQ_PM4PY.to_string();
     }
-    if gemini_available() {
-        return ENGINE_GEMINI.to_string();
-    }
     ENGINE_INPROC.to_string()
-}
-
-/// Resolve the Gemini CLI binary path for the `gemini` engine.
-/// Precedence: `GEMINI_BIN` env var > `"gemini"` default.
-///
-/// # Examples
-///
-/// ```
-/// // When GEMINI_BIN is unset, the default binary name is returned.
-/// // (Safe to run even if Gemini CLI is not installed.)
-/// # unsafe { std::env::remove_var("GEMINI_BIN"); }
-/// let bin = open_ontologies::config::resolve_gemini_bin();
-/// assert_eq!(bin, "gemini");
-/// ```
-///
-/// ```
-/// // When GEMINI_BIN is set to a custom path it is used verbatim.
-/// // SAFETY: single-threaded doctest; no concurrent env access.
-/// unsafe { std::env::set_var("GEMINI_BIN", "/usr/local/bin/gemini-cli"); }
-/// let bin = open_ontologies::config::resolve_gemini_bin();
-/// unsafe { std::env::remove_var("GEMINI_BIN"); } // restore
-/// assert_eq!(bin, "/usr/local/bin/gemini-cli");
-/// ```
-pub fn resolve_gemini_bin() -> String {
-    std::env::var("GEMINI_BIN")
-        .ok()
-        .filter(|v| !v.trim().is_empty())
-        .unwrap_or_else(|| "gemini".to_string())
 }
 
 /// Resolve the python interpreter for the `groq_pm4py` engine.
@@ -633,7 +589,11 @@ pub fn resolve_llm_python(cfg: &LlmConfig) -> String {
     std::env::var("OPEN_ONTOLOGIES_LLM_PYTHON")
         .ok()
         .filter(|v| !v.trim().is_empty())
-        .or_else(|| cfg.python_interpreter.clone().filter(|v| !v.trim().is_empty()))
+        .or_else(|| {
+            cfg.python_interpreter
+                .clone()
+                .filter(|v| !v.trim().is_empty())
+        })
         .unwrap_or_else(|| "python3".to_string())
 }
 
@@ -1085,7 +1045,9 @@ pub struct CodegenConfig {
 
 impl Default for CodegenConfig {
     fn default() -> Self {
-        Self { ggen_path: "ggen".to_string() }
+        Self {
+            ggen_path: "ggen".to_string(),
+        }
     }
 }
 
@@ -1274,7 +1236,12 @@ pub fn resolve_cors_origins(cfg: &HttpConfig) -> Vec<String> {
     std::env::var("OPEN_ONTOLOGIES_HTTP_CORS_ORIGINS")
         .ok()
         .filter(|v| !v.trim().is_empty())
-        .map(|v| v.split(':').map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect())
+        .map(|v| {
+            v.split(':')
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty())
+                .collect()
+        })
         .unwrap_or_else(|| cfg.cors_origins.clone())
 }
 
@@ -1392,10 +1359,8 @@ mod tests {
         }
 
         // Alias `preferred_languages` also populates the field.
-        let aliased: Config = toml::from_str(
-            "[language]\npreferred_languages = [\"fr\"]\n",
-        )
-        .expect("parse alias");
+        let aliased: Config =
+            toml::from_str("[language]\npreferred_languages = [\"fr\"]\n").expect("parse alias");
         assert_eq!(aliased.language.preferred, vec!["fr"]);
     }
 

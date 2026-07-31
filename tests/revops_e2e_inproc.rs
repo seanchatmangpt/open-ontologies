@@ -1,3 +1,5 @@
+#![allow(clippy::all, unused)]
+
 //! Deterministic in-process Fortune-5 RevOps Governed Release acceptance.
 //!
 //! R4 WA, §24 Chicago TDD: the previous `revops_e2e.rs` drove the entire
@@ -31,16 +33,14 @@
 mod revops_common;
 
 use open_ontologies::admission::{
-    AdmissionOp, ArtifactRef, OntoStarAdmissionGate, PowlBridgeReplay,
-    PowlReplay,
+    AdmissionOp, ArtifactRef, OntoStarAdmissionGate, PowlBridgeReplay, PowlReplay,
 };
 use open_ontologies::ocel_store::OcelStore;
 use open_ontologies::state::StateDb;
-use open_ontologies::workflows::{by_name, WorkflowScope};
+use open_ontologies::workflows::{WorkflowScope, by_name};
 use revops_common::{
-    booking_chain_is_reconciled, build_scenario, fixture_candidate_ctq,
-    observed_events, partner_attribution_is_in_order, REQUIREMENTS_WORKFLOW,
-    Scenario,
+    REQUIREMENTS_WORKFLOW, Scenario, booking_chain_is_reconciled, build_scenario,
+    fixture_candidate_ctq, observed_events, partner_attribution_is_in_order,
 };
 use tempfile::tempdir;
 
@@ -65,7 +65,9 @@ async fn fortune5_revops_revenue_trust_trial_inproc() {
     let store = OcelStore::new(db.clone());
     let session = "f5-revenue-trust-trial-inproc";
     let scope_mgr = WorkflowScope::new(&db, session);
-    let token = scope_mgr.open(Some(REQUIREMENTS_WORKFLOW), None, None).unwrap();
+    let token = scope_mgr
+        .open(Some(REQUIREMENTS_WORKFLOW), None, None)
+        .unwrap();
     scope_mgr.close(&token).unwrap();
     build_scenario(&store, session, &token, Scenario::HappyPath);
 
@@ -80,15 +82,32 @@ async fn fortune5_revops_revenue_trust_trial_inproc() {
     );
 
     // ── 3. Drive the RequirementsManufacturing chain ────────────────────
-    let source_voice =
-        "Sales says deals are real, Finance can't reconcile bookings, executives don't trust the forecast.";
+    let source_voice = "Sales says deals are real, Finance can't reconcile bookings, executives don't trust the forecast.";
 
-    revops_common::emit(&store, session, &token, "requirement_proposed",
-        &[("source_voice", source_voice)], &[]);
-    revops_common::emit(&store, session, &token, "llm_candidate_translated",
-        &[("provisional", "true")], &[]);
-    revops_common::emit(&store, session, &token, "ctq_admitted",
-        &[("ctq", &candidate.ctq_text)], &[]);
+    revops_common::emit(
+        &store,
+        session,
+        &token,
+        "requirement_proposed",
+        &[("source_voice", source_voice)],
+        &[],
+    );
+    revops_common::emit(
+        &store,
+        session,
+        &token,
+        "llm_candidate_translated",
+        &[("provisional", "true")],
+        &[],
+    );
+    revops_common::emit(
+        &store,
+        session,
+        &token,
+        "ctq_admitted",
+        &[("ctq", &candidate.ctq_text)],
+        &[],
+    );
     revops_common::emit(&store, session, &token, "verification_bound", &[], &[]);
     revops_common::emit(&store, session, &token, "negative_case_bound", &[], &[]);
     revops_common::emit(&store, session, &token, "control_plan_bound", &[], &[]);
@@ -107,10 +126,22 @@ async fn fortune5_revops_revenue_trust_trial_inproc() {
     let replay = PowlBridgeReplay::new(&store);
 
     // RequirementProposed
-    let req_artifact = ArtifactRef { kind: "req", bytes: source_voice.as_bytes() };
+    let req_artifact = ArtifactRef {
+        kind: "req",
+        bytes: source_voice.as_bytes(),
+    };
     let req_receipt = gate
-        .evaluate(&token, AdmissionOp::RequirementProposed, &req_artifact,
-            &store, &replay, session, powl, &observed, "default")
+        .evaluate(
+            &token,
+            AdmissionOp::RequirementProposed,
+            &req_artifact,
+            &store,
+            &replay,
+            session,
+            powl,
+            &observed,
+            "default",
+        )
         .expect("RequirementProposed admits");
 
     // CtqAdmitted
@@ -123,10 +154,22 @@ async fn fortune5_revops_revenue_trust_trial_inproc() {
         candidate.negative_case_text,
         candidate.control_plan_text,
     );
-    let ctq_artifact = ArtifactRef { kind: "ctq", bytes: ctq_canonical.as_bytes() };
+    let ctq_artifact = ArtifactRef {
+        kind: "ctq",
+        bytes: ctq_canonical.as_bytes(),
+    };
     let ctq_receipt = gate
-        .evaluate(&token, AdmissionOp::CtqAdmitted, &ctq_artifact,
-            &store, &replay, session, powl, &observed, "default")
+        .evaluate(
+            &token,
+            AdmissionOp::CtqAdmitted,
+            &ctq_artifact,
+            &store,
+            &replay,
+            session,
+            powl,
+            &observed,
+            "default",
+        )
         .expect("CtqAdmitted admits");
 
     // WorkOrderAdmitted with counterfactual
@@ -138,10 +181,22 @@ async fn fortune5_revops_revenue_trust_trial_inproc() {
         ctq_receipt.hex(),
         counterfactual_delta,
     );
-    let wo_artifact = ArtifactRef { kind: "wo", bytes: wo_canonical.as_bytes() };
+    let wo_artifact = ArtifactRef {
+        kind: "wo",
+        bytes: wo_canonical.as_bytes(),
+    };
     let wo_receipt = gate
-        .evaluate(&token, AdmissionOp::WorkOrderAdmitted, &wo_artifact,
-            &store, &replay, session, powl, &observed, "default")
+        .evaluate(
+            &token,
+            AdmissionOp::WorkOrderAdmitted,
+            &wo_artifact,
+            &store,
+            &replay,
+            session,
+            powl,
+            &observed,
+            "default",
+        )
         .expect("WorkOrderAdmitted admits");
 
     // ── 4. Receipt chain ────────────────────────────────────────────────
@@ -166,9 +221,13 @@ async fn fortune5_revops_revenue_trust_trial_inproc() {
 
     // ── 7. Final assembly: every Definition-of-Done item from §14 that
     //       does not require crossing the Groq boundary ───────────────────
-    let required_stages_observed = ["requirement_proposed", "ctq_admitted", "work_order_admitted"]
-        .iter()
-        .all(|r| observed.iter().any(|o| o == r));
+    let required_stages_observed = [
+        "requirement_proposed",
+        "ctq_admitted",
+        "work_order_admitted",
+    ]
+    .iter()
+    .all(|r| observed.iter().any(|o| o == r));
     let receipt_emitted = !req_receipt.hex().is_empty()
         && !ctq_receipt.hex().is_empty()
         && !wo_receipt.hex().is_empty();

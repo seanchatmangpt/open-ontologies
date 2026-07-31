@@ -1,0 +1,17 @@
+# =============================================================================
+# extract-expo-manifest-id.rq — one-row trigger for static config files
+# =============================================================================
+#
+# Returns one row whenever a ggen:ExpoAppManifest instance exists. Used by
+# rules that emit static config (babel.config.js, metro.config.js) so the
+# rule fires exactly when the manifest is present.
+# =============================================================================
+
+PREFIX ggen: <https://open-ontologies.org/ggen#>
+
+SELECT ?manifestIri ?appSlug
+WHERE {
+  ?manifest a ggen:ExpoAppManifest ;
+            ggen:appSlug ?appSlug .
+  BIND(STR(?manifest) AS ?manifestIri)
+}

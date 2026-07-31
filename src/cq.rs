@@ -49,8 +49,10 @@ pub struct CqResult {
 }
 
 const VSPO_HINT_EMPTY: &str = "P10: ontology returns no answer (possible missing rdfs:domain/range or sub-ontology declaration)";
-const VSPO_HINT_NO_LABELS: &str = "P11: no rdfs:label on returned IRIs (LLM cannot phrase the answer)";
-const VSPO_HINT_INFINITE: &str = "P12: result row count > 10000 (possible cycle in rdfs:subClassOf or no LIMIT clause)";
+const VSPO_HINT_NO_LABELS: &str =
+    "P11: no rdfs:label on returned IRIs (LLM cannot phrase the answer)";
+const VSPO_HINT_INFINITE: &str =
+    "P12: result row count > 10000 (possible cycle in rdfs:subClassOf or no LIMIT clause)";
 
 /// Run a batch of competency questions against the loaded graph.
 pub fn run_cq_suite(graph: &Arc<GraphStore>, cqs: &[CompetencyQuestion]) -> CqRunReport {
@@ -141,7 +143,10 @@ pub struct CqVerdict {
 
 /// Persist an LLM-supplied (or human-supplied) verdict on a CQ result.
 pub fn verify_cq(db: &StateDb, verdict: &CqVerdict) -> anyhow::Result<()> {
-    if !matches!(verdict.verdict.as_str(), "correct" | "incorrect" | "partial") {
+    if !matches!(
+        verdict.verdict.as_str(),
+        "correct" | "incorrect" | "partial"
+    ) {
         anyhow::bail!(
             "invalid verdict `{}`: must be correct/incorrect/partial",
             verdict.verdict
@@ -154,7 +159,10 @@ pub fn verify_cq(db: &StateDb, verdict: &CqVerdict) -> anyhow::Result<()> {
             verdict.cq_id,
             verdict.verdict,
             verdict.rationale,
-            verdict.judge.clone().unwrap_or_else(|| "anonymous".to_string()),
+            verdict
+                .judge
+                .clone()
+                .unwrap_or_else(|| "anonymous".to_string()),
         ],
     )?;
     Ok(())
@@ -232,7 +240,12 @@ mod tests {
         }];
         let report = run_cq_suite(&g, &cqs);
         assert_eq!(report.passed, 0);
-        assert!(report.results[0].pitfalls.iter().any(|p| p.starts_with("P10")));
+        assert!(
+            report.results[0]
+                .pitfalls
+                .iter()
+                .any(|p| p.starts_with("P10"))
+        );
     }
 
     #[test]

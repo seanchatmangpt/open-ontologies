@@ -11,9 +11,8 @@ fn test_full_workflow_load_query_validate() {
     assert!(count > 0);
 
     // 2. Query
-    let result = store.sparql_select(
-        "SELECT ?person WHERE { ?person a <http://example.org/test#Person> }"
-    );
+    let result =
+        store.sparql_select("SELECT ?person WHERE { ?person a <http://example.org/test#Person> }");
     assert!(result.is_ok());
     let json = result.unwrap();
     assert!(json.contains("Alice"));

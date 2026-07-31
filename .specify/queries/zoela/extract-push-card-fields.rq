@@ -1,43 +1,52 @@
 # =============================================================================
-# extract-push-card-fields.rq — Extract PushCardTemplate instances for Expo
+# extract-push-card-fields.rq — single-row aggregated push card bundle
 # =============================================================================
 #
-# Returns one row per PushCardTemplate named individual with flat scalar fields
-# and a pipe-delimited aggregate for associated ServiceRoute labels.
-#
-# ggen v5 rendering model: renders once per SELECT row, so push-card.tera
-# iterates over the rows to emit one TypeScript object per card.
-#
-# Template variables:
-#   ?card_iri        — full IRI of the PushCardTemplate individual
-#   ?card_title      — zoe:cardTitle (xsd:string)
-#   ?card_subtitle   — zoe:cardSubtitle (OPTIONAL, defaults to "")
-#   ?card_body       — zoe:cardBody (OPTIONAL, defaults to "")
-#   ?card_action     — zoe:cardAction (OPTIONAL, defaults to "")
-#   ?card_deep_link  — zoe:cardDeepLink (OPTIONAL, defaults to "")
-#   ?card_priority   — zoe:cardPriority (OPTIONAL integer, defaults to 0)
-#   ?route_labels    — pipe-delimited rdfs:label values of associated ServiceRoutes
+# Aggregates every PushCardTemplate into ONE row with pipe-delimited fields,
+# so push-card.tera (which already loops over split arrays) emits the entire
+# PUSH_CARDS array in one file render.
 # =============================================================================
 
 PREFIX zoe:  <https://zoela.org/ontology/>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX xsd:  <http://www.w3.org/2001/XMLSchema#>
 
-SELECT ?card_iri ?card_title ?card_subtitle ?card_body ?card_action ?card_deep_link ?card_priority ?route_labels
+SELECT
+  (GROUP_CONCAT(?_cardTitle;     SEPARATOR="|") AS ?card_title)
+  (GROUP_CONCAT(?_cardSubtitle;  SEPARATOR="|") AS ?card_subtitle)
+  (GROUP_CONCAT(?_cardBody;      SEPARATOR="|") AS ?card_body)
+  (GROUP_CONCAT(?_cardAction;    SEPARATOR="|") AS ?card_action)
+  (GROUP_CONCAT(?_cardDeepLink;  SEPARATOR="|") AS ?card_deep_link)
+  (GROUP_CONCAT(?_cardPriority;  SEPARATOR="|") AS ?card_priority)
 WHERE {
-  ?card a zoe:PushCardTemplate ;
-        rdfs:label ?card_title .
-  OPTIONAL { ?card zoe:cardSubtitle ?card_subtitle }
-  OPTIONAL { ?card zoe:cardBody ?card_body }
-  OPTIONAL { ?card zoe:cardAction ?card_action }
-  OPTIONAL { ?card zoe:cardDeepLink ?card_deep_link }
-  OPTIONAL { ?card zoe:cardPriority ?card_priority }
-  OPTIONAL {
-    SELECT ?card (GROUP_CONCAT(?rl; separator="|") AS ?route_labels) WHERE {
-      ?card zoe:cardForRoute ?route .
-      ?route rdfs:label ?rl .
-    } GROUP BY ?card
+  {
+    SELECT ?card ?_orderKey
+        (SAMPLE(?_cardTitle_c)     AS ?_cardTitle)
+        (SAMPLE(?_cardSubtitle_c)  AS ?_cardSubtitle)
+        (SAMPLE(?_cardBody_c)      AS ?_cardBody)
+        (SAMPLE(?_cardAction_c)    AS ?_cardAction)
+        (SAMPLE(?_cardDeepLink_c)  AS ?_cardDeepLink)
+        (SAMPLE(?_cardPriority_c)  AS ?_cardPriority)
+    WHERE {
+      ?card a zoe:PushCardTemplate ;
+            rdfs:label ?_cardTitleLit .
+      BIND(STR(?_cardTitleLit) AS ?_cardTitleRaw)
+
+      OPTIONAL { ?card zoe:cardSubtitle ?_cardSubtitleRawX BIND(STR(?_cardSubtitleRawX) AS ?_cardSubtitleRaw) }
+      OPTIONAL { ?card zoe:cardBody     ?_cardBodyRawX     BIND(STR(?_cardBodyRawX)     AS ?_cardBodyRaw) }
+      OPTIONAL { ?card zoe:cardAction   ?_cardActionRawX   BIND(STR(?_cardActionRawX)   AS ?_cardActionRaw) }
+      OPTIONAL { ?card zoe:cardDeepLink ?_cardDeepLinkRawX BIND(STR(?_cardDeepLinkRawX) AS ?_cardDeepLinkRaw) }
+      OPTIONAL { ?card zoe:cardPriority ?_cardPriorityRawX BIND(STR(?_cardPriorityRawX) AS ?_cardPriorityRaw) }
+
+      BIND(COALESCE(?_cardTitleRaw,    "")  AS ?_cardTitle_c)
+      BIND(COALESCE(?_cardSubtitleRaw, "")  AS ?_cardSubtitle_c)
+      BIND(COALESCE(?_cardBodyRaw,     "")  AS ?_cardBody_c)
+      BIND(COALESCE(?_cardActionRaw,   "")  AS ?_cardAction_c)
+      BIND(COALESCE(?_cardDeepLinkRaw, "")  AS ?_cardDeepLink_c)
+      BIND(COALESCE(?_cardPriorityRaw, "0") AS ?_cardPriority_c)
+      BIND(STR(?card) AS ?_orderKey)
+    }
+    GROUP BY ?card ?_orderKey
+    ORDER BY ?_orderKey
   }
-  BIND(STR(?card) AS ?card_iri)
 }
-ORDER BY ?card_title

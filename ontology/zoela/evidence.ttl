@@ -6,6 +6,7 @@
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 @prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix sh: <http://www.w3.org/ns/shacl#> .
 
 # =============================================================================
 # ZOE LA Evidence Ontology
@@ -440,3 +441,167 @@ zoe:nextFollowUpDue
     rdfs:label "next follow-up due"@en ;
     rdfs:comment "The ISO-8601 date-time when the next follow-up contact should occur, if one is required."@en ;
     skos:notation "nextFollowUpDue" .
+
+# =============================================================================
+# Dublin Core Metadata & W3C PROV-O Integration Mappings for Evidence
+# =============================================================================
+
+zoe:evidenceId rdfs:subPropertyOf dcterms:identifier .
+zoe:capturedBy rdfs:subPropertyOf dcterms:creator .
+zoe:capturedAt rdfs:subPropertyOf dcterms:issued .
+
+# Dublin Core properties declaration (for vocabulary completeness)
+dcterms:identifier a owl:DatatypeProperty ;
+    rdfs:label "identifier"@en ;
+    rdfs:comment "A unique identifier for the evidence resource."@en .
+
+dcterms:creator a owl:DatatypeProperty ;
+    rdfs:label "creator"@en ;
+    rdfs:comment "The entity responsible for capturing the evidence resource."@en .
+
+dcterms:issued a owl:DatatypeProperty ;
+    rdfs:label "issued date"@en ;
+    rdfs:comment "Date/time when the evidence was formally captured."@en .
+
+# =============================================================================
+# SHACL Validation Shapes for Evidence
+# =============================================================================
+
+zoe:EvidenceShape
+    a sh:NodeShape ;
+    sh:targetClass zoe:Evidence ;
+    rdfs:label "Evidence Validation Shape"@en ;
+    sh:property [
+        sh:path zoe:evidenceId ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:pattern "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" ;
+        sh:message "evidenceId must be a valid UUID v4."@en ;
+    ] ;
+    sh:property [
+        sh:path dcterms:identifier ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:message "dcterms:identifier must match evidenceId."@en ;
+    ] ;
+    sh:property [
+        sh:path zoe:evidenceType ;
+        sh:nodeKind sh:IRI ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:message "evidenceType must link to a valid SKOS Concept from EvidenceTypeScheme."@en ;
+    ] ;
+    sh:property [
+        sh:path zoe:capturedAt ;
+        sh:datatype xsd:dateTime ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:message "capturedAt must be a valid xsd:dateTime."@en ;
+    ] ;
+    sh:property [
+        sh:path dcterms:issued ;
+        sh:datatype xsd:dateTime ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:message "dcterms:issued must be a valid xsd:dateTime matching capturedAt."@en ;
+    ] ;
+    sh:property [
+        sh:path zoe:capturedBy ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:message "capturedBy must be present."@en ;
+    ] ;
+    sh:property [
+        sh:path dcterms:creator ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:message "dcterms:creator must be present matching capturedBy."@en ;
+    ] ;
+    sh:property [
+        sh:path zoe:blake3Hash ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:pattern "^[0-9a-f]{64}$" ;
+        sh:message "blake3Hash must be a 64-character hexadecimal string representing a BLAKE3 hash."@en ;
+    ] .
+
+zoe:FormSubmissionEvidenceShape
+    a sh:NodeShape ;
+    sh:targetClass zoe:FormSubmissionEvidence ;
+    rdfs:label "Form Submission Evidence Shape"@en ;
+    sh:property [
+        sh:path zoe:formId ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+    ] ;
+    sh:property [
+        sh:path zoe:formVersion ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+    ] ;
+    sh:property [
+        sh:path zoe:submissionPayloadHash ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:pattern "^[0-9a-f]{64}$" ;
+    ] .
+
+zoe:AttendanceEvidenceShape
+    a sh:NodeShape ;
+    sh:targetClass zoe:AttendanceEvidence ;
+    rdfs:label "Attendance Evidence Shape"@en ;
+    sh:property [
+        sh:path zoe:eventId ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+    ] ;
+    sh:property [
+        sh:path zoe:checkedInAt ;
+        sh:datatype xsd:dateTime ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+    ] ;
+    sh:property [
+        sh:path zoe:checkInMethod ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:in ( "qr" "manual" "kiosk" ) ;
+    ] .
+
+zoe:AssignmentEvidenceShape
+    a sh:NodeShape ;
+    sh:targetClass zoe:AssignmentEvidence ;
+    rdfs:label "Assignment Evidence Shape"@en ;
+    sh:property [
+        sh:path zoe:assignedAt ;
+        sh:datatype xsd:dateTime ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+    ] .
+
+zoe:DeliveryEvidenceShape
+    a sh:NodeShape ;
+    sh:targetClass zoe:DeliveryEvidence ;
+    rdfs:label "Delivery Evidence Shape"@en ;
+    sh:property [
+        sh:path zoe:deliveredQuantity ;
+        sh:datatype xsd:integer ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+    ] ;
+    sh:property [
+        sh:path zoe:deliveredAt ;
+        sh:datatype xsd:dateTime ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+    ] .

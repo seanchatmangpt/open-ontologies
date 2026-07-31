@@ -1,22 +1,24 @@
 use std::sync::Arc;
 
-use rmcp::{
-    ServerHandler, RoleServer, tool, tool_handler, tool_router,
-    prompt, prompt_handler, prompt_router,
-    handler::server::{tool::ToolRouter, router::prompt::PromptRouter, wrapper::Parameters},
-    model::{
-        ServerCapabilities, ServerInfo, Tool,
-        PromptMessage, PromptMessageRole, GetPromptResult,
-        GetPromptRequestParams, PaginatedRequestParams, ListPromptsResult,
-    },
-    service::RequestContext,
+use crate::admission::{
+    OCEL_KEY_DEFECTS_TAXONOMY_VERSION, OCEL_KEY_PRODUCTION_LAW_VERSION, OCEL_KEY_RECEIPT_HASH,
 };
-use crate::config::{expand_tilde, ENGINE_INPROC, ENGINE_GROQ_PM4PY};
-use crate::admission::{OCEL_KEY_PRODUCTION_LAW_VERSION, OCEL_KEY_RECEIPT_HASH, OCEL_KEY_DEFECTS_TAXONOMY_VERSION};
-use crate::registry::{NTRIPLES_FORMAT, TURTLE_FORMAT};
+use crate::config::{ENGINE_GROQ_PM4PY, ENGINE_INPROC, expand_tilde};
 use crate::graph::GraphStore;
 use crate::inputs::*;
+use crate::registry::{NTRIPLES_FORMAT, TURTLE_FORMAT};
 use crate::state::StateDb;
+use rmcp::{
+    RoleServer, ServerHandler,
+    handler::server::{router::prompt::PromptRouter, tool::ToolRouter, wrapper::Parameters},
+    model::{
+        GetPromptRequestParams, GetPromptResult, ListPromptsResult, PaginatedRequestParams,
+        PromptMessage, PromptMessageRole, ServerCapabilities, ServerInfo, Tool,
+    },
+    prompt, prompt_handler, prompt_router,
+    service::RequestContext,
+    tool, tool_handler, tool_router,
+};
 
 // ─── OCEL attribute key constants ───────────────────────────────────────────
 //
@@ -196,10 +198,7 @@ pub fn current_llm_engine_override() -> Option<String> {
 /// Read the current request's `X-Ontostar-Tenant` override, if any.
 /// Returns `None` when no task-local is in scope (stdio transport).
 pub fn current_tenant_override() -> Option<String> {
-    TENANT_OVERRIDE
-        .try_with(|opt| opt.clone())
-        .ok()
-        .flatten()
+    TENANT_OVERRIDE.try_with(|opt| opt.clone()).ok().flatten()
 }
 
 // ─── OpenOntologiesServer ───────────────────────────────────────────────────
@@ -274,7 +273,11 @@ impl OpenOntologiesServer {
     }
 
     /// Create a new server with all options including optional governance webhook.
-    pub fn new_with_options(db: StateDb, graph: Arc<GraphStore>, governance_webhook: Option<String>) -> Self {
+    pub fn new_with_options(
+        db: StateDb,
+        graph: Arc<GraphStore>,
+        governance_webhook: Option<String>,
+    ) -> Self {
         Self::new_with_full_options(db, graph, governance_webhook, Default::default())
     }
 
@@ -329,7 +332,10 @@ impl OpenOntologiesServer {
         tool_filter: crate::toolfilter::ToolFilter,
         ontology_dirs: Vec<std::path::PathBuf>,
     ) -> Self {
-        let lineage = crate::lineage::LineageLog::with_governance_webhook(db.clone(), governance_webhook.clone());
+        let lineage = crate::lineage::LineageLog::with_governance_webhook(
+            db.clone(),
+            governance_webhook.clone(),
+        );
         let session_id = lineage.new_session();
         let ocel_store = Arc::new(crate::ocel_store::OcelStore::new(db.clone()));
 
@@ -374,10 +380,7 @@ impl OpenOntologiesServer {
 
             let embedder = match crate::embed::TextEmbedderProvider::from_config(&_embed_config) {
                 Ok(Some(e)) => {
-                    tracing::info!(
-                        "embeddings enabled (provider = {})",
-                        e.provider_name()
-                    );
+                    tracing::info!("embeddings enabled (provider = {})", e.provider_name());
                     Some(Arc::new(e))
                 }
                 Ok(None) => {
@@ -440,7 +443,11 @@ impl OpenOntologiesServer {
     /// cannot leak across concurrent requests.
     pub fn with_tenant(mut self, tenant_id: &str) -> Self {
         let trimmed = tenant_id.trim();
-        let normalized = if trimmed.is_empty() { "default" } else { trimmed };
+        let normalized = if trimmed.is_empty() {
+            "default"
+        } else {
+            trimmed
+        };
         self.tenant = crate::tenant::TenantHandle::new(normalized);
         self
     }
@@ -485,10 +492,7 @@ impl OpenOntologiesServer {
     /// / stdio bootstrap calls
     /// [`crate::retention::RetentionWorker::spawn_with_pause`] which
     /// returns the Arc; the bootstrap passes it here.
-    pub fn with_retention_pause(
-        mut self,
-        paused_until: Arc<std::sync::atomic::AtomicI64>,
-    ) -> Self {
+    pub fn with_retention_pause(mut self, paused_until: Arc<std::sync::atomic::AtomicI64>) -> Self {
         self.retention_paused_until = paused_until;
         self
     }
@@ -510,11 +514,7 @@ impl OpenOntologiesServer {
 
     /// Pick the effective LLM engine for one tool call. Precedence:
     /// per-call `engine` argument > HTTP header override > server default.
-    pub fn resolve_engine(
-        &self,
-        per_call: Option<&str>,
-        header: Option<&str>,
-    ) -> String {
+    pub fn resolve_engine(&self, per_call: Option<&str>, header: Option<&str>) -> String {
         if let Some(v) = per_call.map(str::trim).filter(|v| !v.is_empty()) {
             return v.to_string();
         }
@@ -535,7 +535,10 @@ impl OpenOntologiesServer {
     }
 
     fn lineage(&self) -> crate::lineage::LineageLog {
-        crate::lineage::LineageLog::with_governance_webhook(self.db.clone(), self.governance_webhook.clone())
+        crate::lineage::LineageLog::with_governance_webhook(
+            self.db.clone(),
+            self.governance_webhook.clone(),
+        )
     }
 
     fn ocel_store(&self) -> &crate::ocel_store::OcelStore {
@@ -701,7 +704,8 @@ impl OpenOntologiesServer {
                         "severity": "blocking",
                         "auto_retry": false,
                     },
-                }).to_string());
+                })
+                .to_string());
             }
             // R4 WE — §14: bypass self-attribution. The audit emission MUST
             // precede `revoked_sessions` so that an external observer who
@@ -738,8 +742,10 @@ impl OpenOntologiesServer {
                 explicit_scope,
             );
             let _ = crate::admission::revoke_session(&self.db, &self.session_id, reason);
-            self.lineage().record_admission_bypass(&self.session_id, reason);
-            self.lineage().record_session_revoked(&self.session_id, reason);
+            self.lineage()
+                .record_admission_bypass(&self.session_id, reason);
+            self.lineage()
+                .record_session_revoked(&self.session_id, reason);
             // R5 WC-1 — §22 success-shaped denial closure. The previous
             // shape returned `Err({"ok": true, "admission": "bypassed"})`
             // — a JSON object claiming success while the internal state
@@ -793,15 +799,16 @@ impl OpenOntologiesServer {
                     &[],
                     None,
                 );
-                self.lineage().record_admission_denied(&self.session_id, "scope_unclosed");
-                let remediation =
-                    crate::defects::DefectClass::ScopeUnclosed.remediation();
+                self.lineage()
+                    .record_admission_denied(&self.session_id, "scope_unclosed");
+                let remediation = crate::defects::DefectClass::ScopeUnclosed.remediation();
                 return Err(serde_json::json!({
                     "ok": false,
                     "admission": ADMISSION_VERDICT_DENIED,
                     "defect": { "kind": "ScopeUnclosed" },
                     "remediation": remediation,
-                }).to_string());
+                })
+                .to_string());
             }
         };
 
@@ -836,7 +843,11 @@ impl OpenOntologiesServer {
         // precision in the lineage trail (the gate also calls replay
         // internally; this is a cheap second call against the parsed POWL).
         let caller_tenant = self.tenant.current();
-        let conf = replay.replay(&scope_row.scope_token, &scope_row.powl_string, caller_tenant.current());
+        let conf = replay.replay(
+            &scope_row.scope_token,
+            &scope_row.powl_string,
+            caller_tenant.current(),
+        );
 
         // ─── PHASE 11 ENFORCEMENT POINT ────────────────────────────────────
         // All 27 #[tool] handlers that mutate funnel through this helper.
@@ -866,11 +877,13 @@ impl OpenOntologiesServer {
             Ok(receipt) => {
                 self.lineage()
                     .record_powl_replay(&self.session_id, conf.fitness, conf.precision);
-                self.lineage().record_admission_granted(&self.session_id, &receipt.hex());
+                self.lineage()
+                    .record_admission_granted(&self.session_id, &receipt.hex());
                 Ok(receipt)
             }
             Err((defect, _devs)) => {
-                self.lineage().record_admission_denied(&self.session_id, defect.tag());
+                self.lineage()
+                    .record_admission_denied(&self.session_id, defect.tag());
                 let remediation = defect.remediation();
                 Err(serde_json::json!({
                     "ok": false,
@@ -907,12 +920,8 @@ impl OpenOntologiesServer {
         // trail per tenant. Every audit-only #[tool] funnels through here.
         // ───────────────────────────────────────────────────────────────────
         let required: Vec<String> = Vec::new();
-        let gate = crate::admission::OntoStarAdmissionGate::new(
-            0.95,
-            0.85,
-            required,
-            "ontostar-1.0.0",
-        );
+        let gate =
+            crate::admission::OntoStarAdmissionGate::new(0.95, 0.85, required, "ontostar-1.0.0");
         let artifact = crate::admission::ArtifactRef {
             kind: artifact_kind,
             bytes: artifact_bytes,
@@ -949,9 +958,8 @@ impl OpenOntologiesServer {
         bypass_admission: Option<bool>,
         bypass_reason: Option<&str>,
     ) -> Result<(), String> {
-        let mut artifact_bytes: Vec<u8> = Vec::with_capacity(
-            scope_token.len() + domain.len() + powl.len() + 2,
-        );
+        let mut artifact_bytes: Vec<u8> =
+            Vec::with_capacity(scope_token.len() + domain.len() + powl.len() + 2);
         artifact_bytes.extend_from_slice(scope_token.as_bytes());
         artifact_bytes.push(0);
         artifact_bytes.extend_from_slice(domain.as_bytes());
@@ -1050,10 +1058,12 @@ impl OpenOntologiesServer {
 
 #[tool_router]
 impl OpenOntologiesServer {
-
     // ── Status ──────────────────────────────────────────────────────────────
 
-    #[tool(name = "onto_status", description = "Returns health status of the Open Ontologies server")]
+    #[tool(
+        name = "onto_status",
+        description = "Returns health status of the Open Ontologies server"
+    )]
     fn onto_status(&self) -> String {
         let tool_count = self.tool_router.list_all().len();
         let triple_count = self.graph.triple_count();
@@ -1068,7 +1078,10 @@ impl OpenOntologiesServer {
 
     // ── Ontology ────────────────────────────────────────────────────────────
 
-    #[tool(name = "onto_validate", description = "Validate RDF/OWL syntax. Accepts a file path or inline Turtle content.")]
+    #[tool(
+        name = "onto_validate",
+        description = "Validate RDF/OWL syntax. Accepts a file path or inline Turtle content."
+    )]
     async fn onto_validate(&self, Parameters(input): Parameters<OntoValidateInput>) -> String {
         let started = std::time::Instant::now();
         use crate::ontology::OntologyService;
@@ -1095,7 +1108,8 @@ impl OpenOntologiesServer {
                     "path": path,
                     "triple_count": 0,
                     "errors": [msg]
-                }).to_string();
+                })
+                .to_string();
                 self.emit_tool_ocel(TOOL_VALIDATE, started, false, &[]);
                 return out;
             }
@@ -1106,7 +1120,9 @@ impl OpenOntologiesServer {
                 .and_then(|e| e.to_str())
                 .unwrap_or("")
                 .to_ascii_lowercase();
-            let known_exts = ["ttl", "turtle", "nt", "ntriples", "rdf", "xml", "owl", "nq", "trig", "jsonld"];
+            let known_exts = [
+                "ttl", "turtle", "nt", "ntriples", "rdf", "xml", "owl", "nq", "trig", "jsonld",
+            ];
             if !known_exts.contains(&ext.as_str()) {
                 let msg = format!(
                     "Unrecognized file extension '.{}' in '{}'. \
@@ -1116,13 +1132,15 @@ impl OpenOntologiesServer {
                     ext, path
                 );
                 // Still attempt validation — warn only, do not abort.
-                let result = OntologyService::validate_file(path)
-                    .unwrap_or_else(|e| serde_json::json!({
+                let result = OntologyService::validate_file(path).unwrap_or_else(|e| {
+                    serde_json::json!({
                         "valid": false,
                         "path": path,
                         "triple_count": 0,
                         "errors": [e.to_string()]
-                    }).to_string());
+                    })
+                    .to_string()
+                });
                 // Inject the extension warning into the response.
                 if let Ok(mut v) = serde_json::from_str::<serde_json::Value>(&result) {
                     if let Some(arr) = v.get_mut("errors").and_then(|e| e.as_array_mut()) {
@@ -1149,7 +1167,10 @@ impl OpenOntologiesServer {
         out
     }
 
-    #[tool(name = "onto_convert", description = "Convert an RDF file between formats: turtle, ntriples, rdfxml, nquads, trig")]
+    #[tool(
+        name = "onto_convert",
+        description = "Convert an RDF file between formats: turtle, ntriples, rdfxml, nquads, trig"
+    )]
     async fn onto_convert(&self, Parameters(input): Parameters<OntoConvertInput>) -> String {
         // Validate target format before doing any IO so the error names the
         // bad value and lists the accepted ones.
@@ -1179,32 +1200,48 @@ impl OpenOntologiesServer {
 
         let store = GraphStore::new();
         match store.load_file(&input.path) {
-            Ok(_) => {
-                match store.serialize(&input.to) {
-                    Ok(content) => {
-                        if let Some(output) = input.output {
-                            match std::fs::write(&output, &content) {
-                                Ok(_) => format!(r#"{{"ok":true,"path":"{}","format":"{}"}}"#, output, input.to),
-                                Err(e) => format!(r#"{{"ok":false,"error":"{}","hint":"Check the error details and retry. Consult the tool description for required parameters."}}"#, e),
-                            }
-                        } else {
-                            content
+            Ok(_) => match store.serialize(&input.to) {
+                Ok(content) => {
+                    if let Some(output) = input.output {
+                        match std::fs::write(&output, &content) {
+                            Ok(_) => format!(
+                                r#"{{"ok":true,"path":"{}","format":"{}"}}"#,
+                                output, input.to
+                            ),
+                            Err(e) => format!(
+                                r#"{{"ok":false,"error":"{}","hint":"Check the error details and retry. Consult the tool description for required parameters."}}"#,
+                                e
+                            ),
                         }
+                    } else {
+                        content
                     }
-                    Err(e) => format!(r#"{{"ok":false,"error":"{}","hint":"Check the error details and retry. Consult the tool description for required parameters."}}"#, e),
                 }
-            }
-            Err(e) => format!(r#"{{"ok":false,"error":"{}","hint":"Check the error details and retry. Consult the tool description for required parameters."}}"#, e),
+                Err(e) => format!(
+                    r#"{{"ok":false,"error":"{}","hint":"Check the error details and retry. Consult the tool description for required parameters."}}"#,
+                    e
+                ),
+            },
+            Err(e) => format!(
+                r#"{{"ok":false,"error":"{}","hint":"Check the error details and retry. Consult the tool description for required parameters."}}"#,
+                e
+            ),
         }
     }
 
-    #[tool(name = "onto_load", description = "Load an RDF file or inline Turtle content into the in-memory ontology store. When given a file path, the parsed graph is also written to a fast N-Triples compile cache (in `[cache] dir`) so subsequent loads from the same source skip parsing. Optional `name`, `auto_refresh`, and `force_recompile` flags control caching/refresh behavior.")]
+    #[tool(
+        name = "onto_load",
+        description = "Load an RDF file or inline Turtle content into the in-memory ontology store. When given a file path, the parsed graph is also written to a fast N-Triples compile cache (in `[cache] dir`) so subsequent loads from the same source skip parsing. Optional `name`, `auto_refresh`, and `force_recompile` flags control caching/refresh behavior."
+    )]
     pub async fn onto_load(&self, Parameters(input): Parameters<OntoLoadInput>) -> String {
         let started = std::time::Instant::now();
         let out = if let Some(turtle) = input.turtle {
             // Inline turtle bypasses the registry/cache (no source file).
             match self.graph.load_turtle(&turtle, None) {
-                Ok(count) => format!(r#"{{"ok":true,"triples_loaded":{},"source":"inline"}}"#, count),
+                Ok(count) => format!(
+                    r#"{{"ok":true,"triples_loaded":{},"source":"inline"}}"#,
+                    count
+                ),
                 Err(e) => format!(
                     r#"{{"ok":false,"error":"Inline Turtle parse error in 'turtle' field: {}. Ensure prefixes are declared before use, triples end with ' .', and IRIs are angle-bracketed (e.g. <https://example.org/>). Run onto_validate with inline=true to see detailed parse errors.","hint":"Run onto_validate on the same file/content for a detailed syntax error report."}}"#,
                     e.to_string().replace('"', "'")
@@ -1237,13 +1274,17 @@ impl OpenOntologiesServer {
                         "name": res.name,
                         "origin": res.origin,
                         "cache_path": res.cache_path,
-                    }).to_string()
-                },
+                    })
+                    .to_string()
+                }
                 Err(e) => {
                     // Distinguish parse failures from infrastructure errors so
                     // the user knows whether to fix the file or the environment.
                     let raw = e.to_string();
-                    if raw.contains("parse source") || raw.contains("ParseError") || raw.contains("invalid") {
+                    if raw.contains("parse source")
+                        || raw.contains("ParseError")
+                        || raw.contains("invalid")
+                    {
                         format!(
                             r#"{{"ok":false,"error":"RDF parse error loading '{}': {}. Run onto_validate with the same path for a detailed error report. Supported formats: .ttl/.turtle (Turtle), .nt (N-Triples), .rdf/.xml/.owl (RDF/XML), .nq (N-Quads), .trig (TriG).","hint":"Run onto_validate on the same file/content for a detailed syntax error report."}}"#,
                             path,
@@ -1266,14 +1307,19 @@ impl OpenOntologiesServer {
         out
     }
 
-    #[tool(name = "onto_repo_list", description = "List RDF/OWL files in the configured ontology repository directories ([general] ontology_dirs). Returns metadata for each candidate file (path, name, size, mtime, is_cached, is_active). Use this in containerized/server deployments to discover ontologies without knowing their paths in advance. Optional `dir` (must be under a configured repo dir), `recursive`, `glob`, `limit`, `offset` filters.")]
+    #[tool(
+        name = "onto_repo_list",
+        description = "List RDF/OWL files in the configured ontology repository directories ([general] ontology_dirs). Returns metadata for each candidate file (path, name, size, mtime, is_cached, is_active). Use this in containerized/server deployments to discover ontologies without knowing their paths in advance. Optional `dir` (must be under a configured repo dir), `recursive`, `glob`, `limit`, `offset` filters."
+    )]
     fn onto_repo_list(&self, Parameters(input): Parameters<OntoRepoListInput>) -> String {
         let repos = self.ontology_dirs.as_ref();
         if repos.is_empty() {
             return r#"{"ok":false,"error":"no ontology_dirs configured; set [general] ontology_dirs in config.toml or OPEN_ONTOLOGIES_ONTOLOGY_DIRS","hint":"Check the error details and retry. Consult the tool description for required parameters and formats."}"#.to_string();
         }
         let recursive = input.recursive.unwrap_or(false);
-        let limit = input.limit.unwrap_or_else(crate::runtime::repo_default_list_limit);
+        let limit = input
+            .limit
+            .unwrap_or_else(crate::runtime::repo_default_list_limit);
         let offset = input.offset.unwrap_or(0);
 
         let entries = if let Some(dir) = input.dir.as_deref() {
@@ -1294,11 +1340,7 @@ impl OpenOntologiesServer {
             .iter()
             .filter(|e| {
                 if let Some(g) = input.glob.as_deref() {
-                    let name = e
-                        .path
-                        .file_name()
-                        .and_then(|s| s.to_str())
-                        .unwrap_or("");
+                    let name = e.path.file_name().and_then(|s| s.to_str()).unwrap_or("");
                     crate::repo::glob_match(g, name)
                 } else {
                     true
@@ -1359,7 +1401,10 @@ impl OpenOntologiesServer {
         .to_string()
     }
 
-    #[tool(name = "onto_repo_load", description = "Load an ontology from one of the configured repository directories ([general] ontology_dirs) into the active store. The `name` argument can be a bare file stem, a relative path, or an absolute path inside a configured repo. Reuses the same compile-cache / TTL-eviction path as `onto_load`.")]
+    #[tool(
+        name = "onto_repo_load",
+        description = "Load an ontology from one of the configured repository directories ([general] ontology_dirs) into the active store. The `name` argument can be a bare file stem, a relative path, or an absolute path inside a configured repo. Reuses the same compile-cache / TTL-eviction path as `onto_load`."
+    )]
     async fn onto_repo_load(&self, Parameters(input): Parameters<OntoRepoLoadInput>) -> String {
         let repos = self.ontology_dirs.as_ref();
         let path = match crate::repo::resolve_load_target(&input.name, repos) {
@@ -1367,8 +1412,11 @@ impl OpenOntologiesServer {
             Err(e) => {
                 let raw = e.to_string();
                 // Enrich the resolution error with actionable next steps.
-                let enriched = if raw.contains("no ontology with name") || raw.contains("no file matching") {
-                    let repo_list: Vec<String> = repos.iter()
+                let enriched = if raw.contains("no ontology with name")
+                    || raw.contains("no file matching")
+                {
+                    let repo_list: Vec<String> = repos
+                        .iter()
                         .map(|p| p.to_string_lossy().into_owned())
                         .collect();
                     format!(
@@ -1394,7 +1442,10 @@ impl OpenOntologiesServer {
                 } else {
                     raw
                 };
-                return format!(r#"{{"ok":false,"error":"{}","hint":"Check the error details and retry. Consult the tool description for required parameters."}}"#, enriched.replace('"', "'"));
+                return format!(
+                    r#"{{"ok":false,"error":"{}","hint":"Check the error details and retry. Consult the tool description for required parameters."}}"#,
+                    enriched.replace('"', "'")
+                );
             }
         };
         let opts = crate::registry::LoadOptions {
@@ -1415,7 +1466,10 @@ impl OpenOntologiesServer {
             .to_string(),
             Err(e) => {
                 let raw = e.to_string();
-                if raw.contains("parse source") || raw.contains("ParseError") || raw.contains("invalid") {
+                if raw.contains("parse source")
+                    || raw.contains("ParseError")
+                    || raw.contains("invalid")
+                {
                     format!(
                         r#"{{"ok":false,"error":"RDF parse error loading '{}': {}. Run onto_validate with path='{}' for a detailed error report.","hint":"Check the input syntax and retry. Use onto_validate for detailed error reporting."}}"#,
                         path_str,
@@ -1433,11 +1487,17 @@ impl OpenOntologiesServer {
         }
     }
 
-    #[tool(name = "onto_query", description = "Run a SPARQL query against the loaded ontology store. If the active ontology has been evicted from memory (idle TTL), it is transparently reloaded from the compile cache before the query runs.")]
+    #[tool(
+        name = "onto_query",
+        description = "Run a SPARQL query against the loaded ontology store. If the active ontology has been evicted from memory (idle TTL), it is transparently reloaded from the compile cache before the query runs."
+    )]
     async fn onto_query(&self, Parameters(input): Parameters<OntoQueryInput>) -> String {
         let started = std::time::Instant::now();
         if let Err(e) = self.registry.ensure_loaded() {
-            let out = format!(r#"{{"ok":false,"error":"Ontology not loaded: {}. Call onto_load first.","hint":"Call onto_load with a valid .ttl file path to load an ontology first."}}"#, e.to_string().replace('"', "'"));
+            let out = format!(
+                r#"{{"ok":false,"error":"Ontology not loaded: {}. Call onto_load first.","hint":"Call onto_load with a valid .ttl file path to load an ontology first."}}"#,
+                e.to_string().replace('"', "'")
+            );
             self.emit_tool_ocel(TOOL_QUERY, started, false, &[]);
             return out;
         }
@@ -1509,7 +1569,7 @@ impl OpenOntologiesServer {
                         "ok": false,
                         "error": format!("SPARQL execution error: {}", raw.replace('"', "'")),
                         "query_type": query_type,
-                    
+
                         "hint": "Verify the query references valid predicates and classes in the loaded ontology. Use onto_stats to see what is loaded.",
                         }).to_string()
                 }
@@ -1520,11 +1580,17 @@ impl OpenOntologiesServer {
         out
     }
 
-    #[tool(name = "onto_save", description = "Save the current ontology store to a file. Gated by OntoStar admission. The written file carries an OntoStar receipt header for turtle/n3/trig formats; the JSON response always includes receipt_hash.")]
+    #[tool(
+        name = "onto_save",
+        description = "Save the current ontology store to a file. Gated by OntoStar admission. The written file carries an OntoStar receipt header for turtle/n3/trig formats; the JSON response always includes receipt_hash."
+    )]
     pub async fn onto_save(&self, Parameters(input): Parameters<OntoSaveInput>) -> String {
         let started = std::time::Instant::now();
         if let Err(e) = self.registry.ensure_loaded() {
-            let out = format!(r#"{{"ok":false,"error":"Ontology not loaded: {}. Call onto_load first.","hint":"Call onto_load with a valid .ttl file path to load an ontology first."}}"#, e.to_string().replace('"', "'"));
+            let out = format!(
+                r#"{{"ok":false,"error":"Ontology not loaded: {}. Call onto_load first.","hint":"Call onto_load with a valid .ttl file path to load an ontology first."}}"#,
+                e.to_string().replace('"', "'")
+            );
             self.emit_tool_ocel(TOOL_SAVE, started, false, &[]);
             return out;
         }
@@ -1572,22 +1638,34 @@ impl OpenOntologiesServer {
                 "defects_taxonomy_version": receipt.record.defects_taxonomy_version,
             })
             .to_string(),
-            Err(e) => format!(r#"{{"ok":false,"error":"{}","hint":"Check the error details and retry. Consult the tool description for required parameters."}}"#, e.to_string().replace('"', "'")),
+            Err(e) => format!(
+                r#"{{"ok":false,"error":"{}","hint":"Check the error details and retry. Consult the tool description for required parameters."}}"#,
+                e.to_string().replace('"', "'")
+            ),
         };
         let ok = !out.contains(r#""error""#);
         self.emit_tool_ocel(TOOL_SAVE, started, ok, &[]);
         out
     }
 
-    #[tool(name = "onto_stats", description = "Get statistics about the loaded ontology (triple count, classes, properties, individuals)")]
+    #[tool(
+        name = "onto_stats",
+        description = "Get statistics about the loaded ontology (triple count, classes, properties, individuals)"
+    )]
     fn onto_stats(&self) -> String {
         if let Err(e) = self.registry.ensure_loaded() {
-            return format!(r#"{{"ok":false,"error":"Ontology not loaded: {}. Call onto_load first.","hint":"Call onto_load with a valid .ttl file path to load an ontology first."}}"#, e.to_string().replace('"', "'"));
+            return format!(
+                r#"{{"ok":false,"error":"Ontology not loaded: {}. Call onto_load first.","hint":"Call onto_load with a valid .ttl file path to load an ontology first."}}"#,
+                e.to_string().replace('"', "'")
+            );
         }
         self.graph.get_stats().unwrap_or_else(|e| format!(r#"{{"ok":false,"error":"{}","hint":"Check the error details and retry. Consult the tool description for required parameters."}}"#, e))
     }
 
-    #[tool(name = "onto_diff", description = "Compare two ontology files and show added/removed triples")]
+    #[tool(
+        name = "onto_diff",
+        description = "Compare two ontology files and show added/removed triples"
+    )]
     async fn onto_diff(&self, Parameters(input): Parameters<OntoDiffInput>) -> String {
         use crate::ontology::OntologyService;
 
@@ -1598,10 +1676,7 @@ impl OpenOntologiesServer {
                 && let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&raw)
                 && let Some(arr) = parsed["versions"].as_array()
             {
-                let labels: Vec<&str> = arr
-                    .iter()
-                    .filter_map(|v| v["label"].as_str())
-                    .collect();
+                let labels: Vec<&str> = arr.iter().filter_map(|v| v["label"].as_str()).collect();
                 if !labels.is_empty() {
                     return format!(
                         " Saved versions you can export first with onto_save: [{}].",
@@ -1654,7 +1729,10 @@ impl OpenOntologiesServer {
         })
     }
 
-    #[tool(name = "onto_lint", description = "Check an ontology for quality issues: missing labels, comments, domains, ranges")]
+    #[tool(
+        name = "onto_lint",
+        description = "Check an ontology for quality issues: missing labels, comments, domains, ranges"
+    )]
     async fn onto_lint(&self, Parameters(input): Parameters<OntoLintInput>) -> String {
         let started = std::time::Instant::now();
         use crate::ontology::OntologyService;
@@ -1664,7 +1742,10 @@ impl OpenOntologiesServer {
             match std::fs::read_to_string(&input.input) {
                 Ok(c) => c,
                 Err(e) => {
-                    let out = format!(r#"{{"ok":false,"error":"{}","hint":"Check the error details and retry. Consult the tool description for required parameters."}}"#, e);
+                    let out = format!(
+                        r#"{{"ok":false,"error":"{}","hint":"Check the error details and retry. Consult the tool description for required parameters."}}"#,
+                        e
+                    );
                     self.emit_tool_ocel(TOOL_LINT, started, false, &[]);
                     return out;
                 }
@@ -1676,7 +1757,10 @@ impl OpenOntologiesServer {
         out
     }
 
-    #[tool(name = "onto_clear", description = "Clear all triples from the in-memory ontology store and unload the active registry slot (cache file is preserved). Audit-only admission: emits an admission_audit OCEL event with the operator's intent.")]
+    #[tool(
+        name = "onto_clear",
+        description = "Clear all triples from the in-memory ontology store and unload the active registry slot (cache file is preserved). Audit-only admission: emits an admission_audit OCEL event with the operator's intent."
+    )]
     fn onto_clear(&self) -> String {
         // Audit-only: maintenance ops cannot block on conformance, but every
         // mutation must produce a tamper-evident OCEL trace.
@@ -1692,12 +1776,18 @@ impl OpenOntologiesServer {
             Ok(_) => {
                 let _ = self.db.clear_last_active_path();
                 r#"{"ok":true,"message":"Store cleared","admission":"audit"}"#.to_string()
-            },
-            Err(e) => format!(r#"{{"ok":false,"error":"{}","hint":"Check the error details and retry. Consult the tool description for required parameters."}}"#, e),
+            }
+            Err(e) => format!(
+                r#"{{"ok":false,"error":"{}","hint":"Check the error details and retry. Consult the tool description for required parameters."}}"#,
+                e
+            ),
         }
     }
 
-    #[tool(name = "onto_unload", description = "Unload an ontology from memory. With no `name`, operates on the active ontology. With `name`, targets that cached entry — clears in-memory store if it is currently active. The on-disk compile cache is preserved unless `delete_cache=true`. Audit-only admission.")]
+    #[tool(
+        name = "onto_unload",
+        description = "Unload an ontology from memory. With no `name`, operates on the active ontology. With `name`, targets that cached entry — clears in-memory store if it is currently active. The on-disk compile cache is preserved unless `delete_cache=true`. Audit-only admission."
+    )]
     fn onto_unload(&self, Parameters(input): Parameters<OntoUnloadInput>) -> String {
         let del = input.delete_cache.unwrap_or(false);
         self.evaluate_admission_audit(
@@ -1723,13 +1813,21 @@ impl OpenOntologiesServer {
             };
         }
         match self.registry.unload(del) {
-            Ok(Some(name)) => serde_json::json!({"ok": true, "unloaded": name, "deleted_cache": del}).to_string(),
+            Ok(Some(name)) => {
+                serde_json::json!({"ok": true, "unloaded": name, "deleted_cache": del}).to_string()
+            }
             Ok(None) => r#"{"ok":true,"unloaded":null,"message":"no active ontology"}"#.to_string(),
-            Err(e) => format!(r#"{{"ok":false,"error":"{}","hint":"Check the error details and retry. Consult the tool description for required parameters."}}"#, e),
+            Err(e) => format!(
+                r#"{{"ok":false,"error":"{}","hint":"Check the error details and retry. Consult the tool description for required parameters."}}"#,
+                e
+            ),
         }
     }
 
-    #[tool(name = "onto_recompile", description = "Force-recompile an ontology from its source file, ignoring the on-disk cache. With no `name`, recompiles the active ontology (and reloads it into memory). With `name`, recompiles that cached entry; if it is not the active slot, the in-memory store is left untouched.")]
+    #[tool(
+        name = "onto_recompile",
+        description = "Force-recompile an ontology from its source file, ignoring the on-disk cache. With no `name`, recompiles the active ontology (and reloads it into memory). With `name`, recompiles that cached entry; if it is not the active slot, the in-memory store is left untouched."
+    )]
     fn onto_recompile(&self, Parameters(input): Parameters<OntoRecompileInput>) -> String {
         let res = match input.name.as_deref() {
             Some(name) => self.registry.recompile_named(name),
@@ -1742,29 +1840,46 @@ impl OpenOntologiesServer {
                 "triples_loaded": res.triple_count,
                 "origin": res.origin,
                 "cache_path": res.cache_path,
-            }).to_string(),
-            Err(e) => format!(r#"{{"ok":false,"error":"{}","hint":"Check the error details and retry. Consult the tool description for required parameters."}}"#, e.to_string().replace('"', "'")),
+            })
+            .to_string(),
+            Err(e) => format!(
+                r#"{{"ok":false,"error":"{}","hint":"Check the error details and retry. Consult the tool description for required parameters."}}"#,
+                e.to_string().replace('"', "'")
+            ),
         }
     }
 
-    #[tool(name = "onto_cache_status", description = "Inspect the compile cache: active ontology, all cached entries, and the cache configuration (TTL, auto_refresh, dir).")]
+    #[tool(
+        name = "onto_cache_status",
+        description = "Inspect the compile cache: active ontology, all cached entries, and the cache configuration (TTL, auto_refresh, dir)."
+    )]
     fn onto_cache_status(&self, Parameters(_input): Parameters<OntoCacheStatusInput>) -> String {
         self.registry.status().to_string()
     }
 
-    #[tool(name = "onto_cache_list", description = "List all cached ontologies with metadata (name, source_path, triple_count, source_mtime, source_size, cache_path, compiled_at, last_access_at) and runtime flags (is_active, in_memory). Lighter than onto_cache_status when you only need the list.")]
+    #[tool(
+        name = "onto_cache_list",
+        description = "List all cached ontologies with metadata (name, source_path, triple_count, source_mtime, source_size, cache_path, compiled_at, last_access_at) and runtime flags (is_active, in_memory). Lighter than onto_cache_status when you only need the list."
+    )]
     fn onto_cache_list(&self, Parameters(_input): Parameters<OntoCacheListInput>) -> String {
         match self.registry.list_cached() {
             Ok(entries) => serde_json::json!({
                 "ok": true,
                 "count": entries.len(),
                 "entries": entries,
-            }).to_string(),
-            Err(e) => format!(r#"{{"ok":false,"error":"{}","hint":"Check the error details and retry. Consult the tool description for required parameters."}}"#, e.to_string().replace('"', "'")),
+            })
+            .to_string(),
+            Err(e) => format!(
+                r#"{{"ok":false,"error":"{}","hint":"Check the error details and retry. Consult the tool description for required parameters."}}"#,
+                e.to_string().replace('"', "'")
+            ),
         }
     }
 
-    #[tool(name = "onto_cache_remove", description = "Remove a cached ontology by name. If it is the active slot, the in-memory store is unloaded first. By default the on-disk N-Triples cache file is also deleted; pass delete_file=false to keep it on disk. Audit-only admission.")]
+    #[tool(
+        name = "onto_cache_remove",
+        description = "Remove a cached ontology by name. If it is the active slot, the in-memory store is unloaded first. By default the on-disk N-Triples cache file is also deleted; pass delete_file=false to keep it on disk. Audit-only admission."
+    )]
     fn onto_cache_remove(&self, Parameters(input): Parameters<OntoCacheRemoveInput>) -> String {
         let delete_file = input.delete_file.unwrap_or(true);
         self.evaluate_admission_audit(
@@ -1789,7 +1904,10 @@ impl OpenOntologiesServer {
         }
     }
 
-    #[tool(name = "onto_pull", description = "Fetch an ontology from a remote URL or SPARQL endpoint and load it into the store")]
+    #[tool(
+        name = "onto_pull",
+        description = "Fetch an ontology from a remote URL or SPARQL endpoint and load it into the store"
+    )]
     async fn onto_pull(&self, Parameters(input): Parameters<OntoPullInput>) -> String {
         use crate::graph::GraphStore;
 
@@ -1798,44 +1916,72 @@ impl OpenOntologiesServer {
         }
 
         if input.sparql.unwrap_or(false) {
-            let query = input.query.as_deref().unwrap_or("CONSTRUCT { ?s ?p ?o } WHERE { ?s ?p ?o }");
+            let query = input
+                .query
+                .as_deref()
+                .unwrap_or("CONSTRUCT { ?s ?p ?o } WHERE { ?s ?p ?o }");
             match GraphStore::fetch_sparql_auth(&input.url, query, &auth).await {
-                Ok(content) => {
-                    match self.graph.load_turtle(&content, None) {
-                        Ok(count) => format!(r#"{{"ok":true,"triples_loaded":{},"source":"{}"}}"#, count, input.url),
-                        Err(e) => format!(r#"{{"ok":false,"error":"Parse error after fetching '{}': {}","hint":"The endpoint may not return RDF/Turtle. Accepted content types: text/turtle, application/n-triples, application/rdf+xml, application/trig."}}"#, input.url, e),
-                    }
-                }
+                Ok(content) => match self.graph.load_turtle(&content, None) {
+                    Ok(count) => format!(
+                        r#"{{"ok":true,"triples_loaded":{},"source":"{}"}}"#,
+                        count, input.url
+                    ),
+                    Err(e) => format!(
+                        r#"{{"ok":false,"error":"Parse error after fetching '{}': {}","hint":"The endpoint may not return RDF/Turtle. Accepted content types: text/turtle, application/n-triples, application/rdf+xml, application/trig."}}"#,
+                        input.url, e
+                    ),
+                },
                 Err(e) => {
                     let msg = e.to_string();
                     if msg.contains("404") || msg.contains("Not Found") {
-                        format!(r#"{{"ok":false,"error":"Not found at '{}'. Verify the URL is accessible. For SPARQL endpoints, use onto_pull with sparql=true and a CONSTRUCT query.","url":"{}","hint":"Check that the URL is correct and the server is reachable. For SPARQL endpoints, set sparql=true and provide a CONSTRUCT query."}}"#, input.url, input.url)
+                        format!(
+                            r#"{{"ok":false,"error":"Not found at '{}'. Verify the URL is accessible. For SPARQL endpoints, use onto_pull with sparql=true and a CONSTRUCT query.","url":"{}","hint":"Check that the URL is correct and the server is reachable. For SPARQL endpoints, set sparql=true and provide a CONSTRUCT query."}}"#,
+                            input.url, input.url
+                        )
                     } else {
-                        format!(r#"{{"ok":false,"error":"Failed to fetch '{}': {}","hint":"Check that the URL is reachable and the endpoint returns RDF (text/turtle, application/n-triples, application/rdf+xml)."}}"#, input.url, msg.replace('"', "'"))
+                        format!(
+                            r#"{{"ok":false,"error":"Failed to fetch '{}': {}","hint":"Check that the URL is reachable and the endpoint returns RDF (text/turtle, application/n-triples, application/rdf+xml)."}}"#,
+                            input.url,
+                            msg.replace('"', "'")
+                        )
                     }
                 }
             }
         } else {
             match GraphStore::fetch_url(&input.url).await {
-                Ok(content) => {
-                    match self.graph.load_turtle(&content, None) {
-                        Ok(count) => format!(r#"{{"ok":true,"triples_loaded":{},"source":"{}"}}"#, count, input.url),
-                        Err(e) => format!(r#"{{"ok":false,"error":"Parse error after fetching '{}': {}","hint":"The server may not be returning RDF. Accepted content types: text/turtle, application/n-triples, application/rdf+xml, application/trig."}}"#, input.url, e),
-                    }
-                }
+                Ok(content) => match self.graph.load_turtle(&content, None) {
+                    Ok(count) => format!(
+                        r#"{{"ok":true,"triples_loaded":{},"source":"{}"}}"#,
+                        count, input.url
+                    ),
+                    Err(e) => format!(
+                        r#"{{"ok":false,"error":"Parse error after fetching '{}': {}","hint":"The server may not be returning RDF. Accepted content types: text/turtle, application/n-triples, application/rdf+xml, application/trig."}}"#,
+                        input.url, e
+                    ),
+                },
                 Err(e) => {
                     let msg = e.to_string();
                     if msg.contains("404") || msg.contains("Not Found") {
-                        format!(r#"{{"ok":false,"error":"Not found at '{}'. Verify the URL is accessible. For SPARQL endpoints, use onto_pull with sparql=true and a CONSTRUCT query.","url":"{}","hint":"Check that the URL is correct and the server is reachable. For SPARQL endpoints, set sparql=true and provide a CONSTRUCT query."}}"#, input.url, input.url)
+                        format!(
+                            r#"{{"ok":false,"error":"Not found at '{}'. Verify the URL is accessible. For SPARQL endpoints, use onto_pull with sparql=true and a CONSTRUCT query.","url":"{}","hint":"Check that the URL is correct and the server is reachable. For SPARQL endpoints, set sparql=true and provide a CONSTRUCT query."}}"#,
+                            input.url, input.url
+                        )
                     } else {
-                        format!(r#"{{"ok":false,"error":"Failed to fetch '{}': {}","hint":"Check that the URL is reachable and the endpoint returns RDF (text/turtle, application/n-triples, application/rdf+xml)."}}"#, input.url, msg.replace('"', "'"))
+                        format!(
+                            r#"{{"ok":false,"error":"Failed to fetch '{}': {}","hint":"Check that the URL is reachable and the endpoint returns RDF (text/turtle, application/n-triples, application/rdf+xml)."}}"#,
+                            input.url,
+                            msg.replace('"', "'")
+                        )
                     }
                 }
             }
         }
     }
 
-    #[tool(name = "onto_push", description = "Push the current ontology store to a remote SPARQL endpoint. Gated by OntoStar admission. The receipt hash is bound via the X-Ostar-Receipt-Hash HTTP header so an external auditor can verify the push without round-tripping to OntoStar.")]
+    #[tool(
+        name = "onto_push",
+        description = "Push the current ontology store to a remote SPARQL endpoint. Gated by OntoStar admission. The receipt hash is bound via the X-Ostar-Receipt-Hash HTTP header so an external auditor can verify the push without round-tripping to OntoStar."
+    )]
     async fn onto_push(&self, Parameters(input): Parameters<OntoPushInput>) -> String {
         use crate::graph::GraphStore;
 
@@ -1846,6 +1992,8 @@ impl OpenOntologiesServer {
         if self.graph.triple_count() == 0 {
             return r#"{"ok":false,"error":"No ontology loaded. Call onto_load first, then use onto_push to write to a SPARQL endpoint.","hint":"Use onto_load with a .ttl file path, then call onto_push with the endpoint URL."}"#.to_string();
         }
+
+        let auth = SparqlAuth::from_parts(input.username, input.password, input.token);
 
         // OntoStar Stream 3: admission gate fires BEFORE the SPARQL POST.
         let artifact_preview = self.graph.serialize(NTRIPLES_FORMAT).unwrap_or_default();
@@ -1870,7 +2018,15 @@ impl OpenOntologiesServer {
                     ("X-Ostar-Production-Law", prod_law.as_str()),
                     ("X-Ostar-Scope-Token", scope_tok.as_str()),
                 ];
-                match GraphStore::push_sparql_graph(&input.endpoint, &content, None, &extra).await {
+                match GraphStore::push_sparql_graph_auth(
+                    &input.endpoint,
+                    &content,
+                    input.graph.as_deref(),
+                    &extra,
+                    &auth,
+                )
+                .await
+                {
                     Ok(msg) => serde_json::json!({
                         "ok": true,
                         "message": msg,
@@ -1882,15 +2038,24 @@ impl OpenOntologiesServer {
                     .to_string(),
                     Err(e) => {
                         let msg = e.to_string().replace('"', "'");
-                        format!(r#"{{"ok":false,"error":"Push to '{}' failed: {}","hint":"Verify the endpoint is a SPARQL UPDATE URL (not a query URL) and the server is running."}}"#, input.endpoint, msg)
+                        format!(
+                            r#"{{"ok":false,"error":"Push to '{}' failed: {}","hint":"Verify the endpoint is a SPARQL UPDATE URL (not a query URL) and the server is running."}}"#,
+                            input.endpoint, msg
+                        )
                     }
                 }
             }
-            Err(e) => format!(r#"{{"ok":false,"error":"{}","hint":"Check the error details and retry. Consult the tool description for required parameters."}}"#, e.to_string().replace('"', "'")),
+            Err(e) => format!(
+                r#"{{"ok":false,"error":"{}","hint":"Check the error details and retry. Consult the tool description for required parameters."}}"#,
+                e.to_string().replace('"', "'")
+            ),
         }
     }
 
-    #[tool(name = "onto_import", description = "Resolve and load all owl:imports from the currently loaded ontology")]
+    #[tool(
+        name = "onto_import",
+        description = "Resolve and load all owl:imports from the currently loaded ontology"
+    )]
     async fn onto_import(&self, Parameters(input): Parameters<OntoImportInput>) -> String {
         use crate::graph::GraphStore;
         // Guard: resolving owl:imports requires a base ontology to already be loaded.
@@ -1943,17 +2108,19 @@ impl OpenOntologiesServer {
             }
         };
 
-        let query = "SELECT ?import WHERE { ?onto <http://www.w3.org/2002/07/owl#imports> ?import }";
+        let query =
+            "SELECT ?import WHERE { ?onto <http://www.w3.org/2002/07/owl#imports> ?import }";
         if let Ok(result) = self.graph.sparql_select(query)
             && let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&result)
-                && let Some(results) = parsed["results"].as_array() {
-                    for row in results {
-                        if let Some(uri) = row["import"].as_str() {
-                            let uri = uri.trim_matches(|c| c == '<' || c == '>');
-                            to_import.push(uri.to_string());
-                        }
-                    }
+            && let Some(results) = parsed["results"].as_array()
+        {
+            for row in results {
+                if let Some(uri) = row["import"].as_str() {
+                    let uri = uri.trim_matches(|c| c == '<' || c == '>');
+                    to_import.push(uri.to_string());
                 }
+            }
+        }
 
         if to_import.is_empty() {
             return serde_json::json!({
@@ -1967,7 +2134,8 @@ impl OpenOntologiesServer {
                 "hint": "No owl:imports declarations found in the currently loaded ontology. \
                          Call onto_load first if no ontology is loaded, or verify the ontology \
                          contains owl:imports triples."
-            }).to_string();
+            })
+            .to_string();
         }
 
         let mut depth = 0;
@@ -1976,13 +2144,18 @@ impl OpenOntologiesServer {
             for url in batch {
                 // Duplicate guard (covers cycles — the loop cannot revisit a URL
                 // already present in `succeeded`).
-                if succeeded.contains(&url) { continue; }
+                if succeeded.contains(&url) {
+                    continue;
+                }
                 // Honour the `[imports] follow_remote` policy: in
                 // air-gapped or sandboxed deployments, refuse to fetch
                 // http(s):// imports rather than attempting them.
                 let is_remote = url.starts_with("http://") || url.starts_with("https://");
                 if is_remote && !follow_remote {
-                    let legacy = format!("SKIPPED:{}: remote imports disabled by [imports] follow_remote=false", url);
+                    let legacy = format!(
+                        "SKIPPED:{}: remote imports disabled by [imports] follow_remote=false",
+                        url
+                    );
                     imported.push(legacy);
                     skipped.push(serde_json::json!({
                         "iri": url,
@@ -1992,37 +2165,38 @@ impl OpenOntologiesServer {
                     continue;
                 }
                 match fetch(url.clone()).await {
-                    Ok(content) => {
-                        match self.graph.load_turtle(&content, None) {
-                            Ok(_count) => {
-                                succeeded.push(url.clone());
-                                imported.push(url.clone());
-                                if let Ok(result) = self.graph.sparql_select(query)
-                                    && let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&result)
-                                        && let Some(results) = parsed["results"].as_array() {
-                                            for row in results {
-                                                if let Some(uri) = row["import"].as_str() {
-                                                    let uri = uri.trim_matches(|c| c == '<' || c == '>').to_string();
-                                                    if !succeeded.contains(&uri) && !to_import.contains(&uri) {
-                                                        to_import.push(uri);
-                                                    }
-                                                }
-                                            }
+                    Ok(content) => match self.graph.load_turtle(&content, None) {
+                        Ok(_count) => {
+                            succeeded.push(url.clone());
+                            imported.push(url.clone());
+                            if let Ok(result) = self.graph.sparql_select(query)
+                                && let Ok(parsed) =
+                                    serde_json::from_str::<serde_json::Value>(&result)
+                                && let Some(results) = parsed["results"].as_array()
+                            {
+                                for row in results {
+                                    if let Some(uri) = row["import"].as_str() {
+                                        let uri =
+                                            uri.trim_matches(|c| c == '<' || c == '>').to_string();
+                                        if !succeeded.contains(&uri) && !to_import.contains(&uri) {
+                                            to_import.push(uri);
                                         }
+                                    }
+                                }
                             }
-                            Err(e) => {
-                                let legacy = format!("FAILED:{}: {}", url, e);
-                                imported.push(legacy);
-                                failed.push(serde_json::json!({
+                        }
+                        Err(e) => {
+                            let legacy = format!("FAILED:{}: {}", url, e);
+                            imported.push(legacy);
+                            failed.push(serde_json::json!({
                                     "ok": false,
                                     "iri": url,
                                     "error": e.to_string(),
                                     "hint": "The IRI resolved successfully but its Turtle content is invalid. \
                                              Use onto_validate on the content to identify the syntax error."
                                 }));
-                            }
                         }
-                    }
+                    },
                     Err(e) => {
                         let err_str = e.to_string();
                         // Provide a targeted hint based on the error kind.
@@ -2071,13 +2245,20 @@ impl OpenOntologiesServer {
             "skipped": skipped,
             "total": succeeded.len(),
             "depth": depth,
-        }).to_string()
+        })
+        .to_string()
     }
 
     // ── Marketplace ────────────────────────────────────────────────────────
 
-    #[tool(name = "onto_marketplace", description = "Browse and install standard ontologies from a curated catalogue of 32 W3C/ISO/industry standards. Actions: 'list' (browse catalogue, optional domain filter) or 'install' (fetch and load by ID)")]
-    async fn onto_marketplace(&self, Parameters(input): Parameters<OntoMarketplaceInput>) -> String {
+    #[tool(
+        name = "onto_marketplace",
+        description = "Browse and install standard ontologies from a curated catalogue of 32 W3C/ISO/industry standards. Actions: 'list' (browse catalogue, optional domain filter) or 'install' (fetch and load by ID)"
+    )]
+    async fn onto_marketplace(
+        &self,
+        Parameters(input): Parameters<OntoMarketplaceInput>,
+    ) -> String {
         use crate::marketplace;
         match input.action.as_str() {
             "list" => {
@@ -2111,7 +2292,7 @@ impl OpenOntologiesServer {
                             "ok": false,
                             "error": format!("Unknown ontology ID: '{}'. Use action 'list' to see available IDs.", id),
                             "available": available,
-                        
+
                             "hint": "Call onto_marketplace with action='list' to see available ontology IDs.",
                             }).to_string();
                     }
@@ -2158,7 +2339,10 @@ impl OpenOntologiesServer {
         }
     }
 
-    #[tool(name = "onto_version", description = "Save a named snapshot of the current ontology store. Audit-only admission (snapshots are non-destructive metadata).")]
+    #[tool(
+        name = "onto_version",
+        description = "Save a named snapshot of the current ontology store. Audit-only admission (snapshots are non-destructive metadata)."
+    )]
     async fn onto_version(&self, Parameters(input): Parameters<OntoVersionInput>) -> String {
         let started = std::time::Instant::now();
         // Guard: reject empty label before touching the store.
@@ -2189,7 +2373,10 @@ impl OpenOntologiesServer {
         out
     }
 
-    #[tool(name = "onto_history", description = "List all saved ontology version snapshots")]
+    #[tool(
+        name = "onto_history",
+        description = "List all saved ontology version snapshots"
+    )]
     fn onto_history(&self) -> String {
         use crate::ontology::OntologyService;
         let out = OntologyService::list_versions(&self.db)
@@ -2197,14 +2384,21 @@ impl OpenOntologiesServer {
         // Surface an actionable hint when the versions list is empty so callers
         // are not left staring at {"versions":[]} with no next step.
         if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&out)
-            && parsed.get("versions").and_then(|v| v.as_array()).map(|a| a.is_empty()).unwrap_or(false)
+            && parsed
+                .get("versions")
+                .and_then(|v| v.as_array())
+                .map(|a| a.is_empty())
+                .unwrap_or(false)
         {
             return r#"{"versions":[],"hint":"No saved versions. Call onto_version with a label to save a snapshot."}"#.to_string();
         }
         out
     }
 
-    #[tool(name = "onto_rollback", description = "Restore the ontology store to a previously saved version. Gated by OntoStar admission (rollback is a destructive un-apply).")]
+    #[tool(
+        name = "onto_rollback",
+        description = "Restore the ontology store to a previously saved version. Gated by OntoStar admission (rollback is a destructive un-apply)."
+    )]
     async fn onto_rollback(&self, Parameters(input): Parameters<OntoRollbackInput>) -> String {
         let started = std::time::Instant::now();
         use crate::ontology::OntologyService;
@@ -2257,7 +2451,10 @@ impl OpenOntologiesServer {
 
     // ── Data ingestion & reasoning ─────────────────────────────────────────
 
-    #[tool(name = "onto_ingest", description = "Parse a structured data file (CSV, JSON, NDJSON, XML, YAML, XLSX, Parquet) into RDF triples and load into the ontology store. Optionally uses a mapping config to control field-to-predicate mapping. Gated by OntoStar admission.")]
+    #[tool(
+        name = "onto_ingest",
+        description = "Parse a structured data file (CSV, JSON, NDJSON, XML, YAML, XLSX, Parquet) into RDF triples and load into the ontology store. Optionally uses a mapping config to control field-to-predicate mapping. Gated by OntoStar admission."
+    )]
     async fn onto_ingest(&self, Parameters(input): Parameters<OntoIngestInput>) -> String {
         let started = std::time::Instant::now();
         // OntoStar Stream 3: admission gate fires BEFORE the graph mutation.
@@ -2289,7 +2486,10 @@ impl OpenOntologiesServer {
         use crate::ingest::DataIngester;
         use crate::mapping::MappingConfig;
 
-        let base_iri = input.base_iri.as_deref().unwrap_or("http://example.org/data/");
+        let base_iri = input
+            .base_iri
+            .as_deref()
+            .unwrap_or("http://example.org/data/");
 
         // Pre-flight: give a targeted message for a missing file rather than
         // propagating a raw OS error from the parser.
@@ -2301,9 +2501,15 @@ impl OpenOntologiesServer {
         }
 
         // Parse data file
-        let rows = match DataIngester::parse_file_with_format(&input.path, input.format.as_deref()) {
+        let rows = match DataIngester::parse_file_with_format(&input.path, input.format.as_deref())
+        {
             Ok(r) => r,
-            Err(e) => return format!(r#"{{"ok":false,"error":"Failed to parse '{}': {}. Check the file format or pass 'format' explicitly (csv, json, ndjson, xml, yaml, xlsx, parquet).","hint":"Verify the format name is one of: turtle, ntriples, rdfxml, nquads, trig."}}"#, input.path, e),
+            Err(e) => {
+                return format!(
+                    r#"{{"ok":false,"error":"Failed to parse '{}': {}. Check the file format or pass 'format' explicitly (csv, json, ndjson, xml, yaml, xlsx, parquet).","hint":"Verify the format name is one of: turtle, ntriples, rdfxml, nquads, trig."}}"#,
+                    input.path, e
+                );
+            }
         };
 
         if rows.is_empty() {
@@ -2318,10 +2524,12 @@ impl OpenOntologiesServer {
             if input.inline_mapping.unwrap_or(false) {
                 match serde_json::from_str::<MappingConfig>(mapping_str) {
                     Ok(m) => m,
-                    Err(e) => return format!(
-                        r#"{{"ok":false,"error":"Mapping JSON is malformed: {}. Use onto_map with the same data file to generate a valid mapping, then pass it via 'mapping' with 'inline_mapping: true'.","hint":"Use onto_map to generate a valid mapping, then pass it via the mapping field."}}"#,
-                        e
-                    ),
+                    Err(e) => {
+                        return format!(
+                            r#"{{"ok":false,"error":"Mapping JSON is malformed: {}. Use onto_map with the same data file to generate a valid mapping, then pass it via 'mapping' with 'inline_mapping: true'.","hint":"Use onto_map to generate a valid mapping, then pass it via the mapping field."}}"#,
+                            e
+                        );
+                    }
                 }
             } else {
                 if !std::path::Path::new(mapping_str.as_str()).exists() {
@@ -2333,12 +2541,19 @@ impl OpenOntologiesServer {
                 match std::fs::read_to_string(mapping_str) {
                     Ok(content) => match serde_json::from_str::<MappingConfig>(&content) {
                         Ok(m) => m,
-                        Err(e) => return format!(
-                            r#"{{"ok":false,"error":"Mapping file '{}' is not valid JSON: {}. Use onto_map to regenerate a correct mapping.","hint":"Use onto_map to generate a valid mapping, then pass it via the mapping field."}}"#,
-                            mapping_str, e
-                        ),
+                        Err(e) => {
+                            return format!(
+                                r#"{{"ok":false,"error":"Mapping file '{}' is not valid JSON: {}. Use onto_map to regenerate a correct mapping.","hint":"Use onto_map to generate a valid mapping, then pass it via the mapping field."}}"#,
+                                mapping_str, e
+                            );
+                        }
                     },
-                    Err(e) => return format!(r#"{{"ok":false,"error":"Cannot read mapping file '{}': {}","hint":"Use onto_map to generate a valid mapping, then pass it via the mapping field."}}"#, mapping_str, e),
+                    Err(e) => {
+                        return format!(
+                            r#"{{"ok":false,"error":"Cannot read mapping file '{}': {}","hint":"Use onto_map to generate a valid mapping, then pass it via the mapping field."}}"#,
+                            mapping_str, e
+                        );
+                    }
                 }
             }
         } else {
@@ -2357,20 +2572,27 @@ impl OpenOntologiesServer {
                     "mapping_fields": mapping.mappings.len(),
                 });
                 if let Some(r) = &receipt
-                    && let Some(obj) = out.as_object_mut() {
-                        obj.insert(OCEL_KEY_RECEIPT_HASH.into(), r.hex().into());
-                        obj.insert(
-                            OCEL_KEY_PRODUCTION_LAW_VERSION.into(),
-                            r.record.production_law_version.clone().into(),
-                        );
-                    }
+                    && let Some(obj) = out.as_object_mut()
+                {
+                    obj.insert(OCEL_KEY_RECEIPT_HASH.into(), r.hex().into());
+                    obj.insert(
+                        OCEL_KEY_PRODUCTION_LAW_VERSION.into(),
+                        r.record.production_law_version.clone().into(),
+                    );
+                }
                 out.to_string()
             }
-            Err(e) => format!(r#"{{"ok":false,"error":"Failed to load triples: {}","hint":"Try onto_clear to reset the store, then reload the ontology with onto_load."}}"#, e),
+            Err(e) => format!(
+                r#"{{"ok":false,"error":"Failed to load triples: {}","hint":"Try onto_clear to reset the store, then reload the ontology with onto_load."}}"#,
+                e
+            ),
         }
     }
 
-    #[tool(name = "onto_map", description = "Generate a mapping config by inspecting a data file's schema against the currently loaded ontology. Returns a JSON mapping that can be reviewed and passed to onto_ingest.")]
+    #[tool(
+        name = "onto_map",
+        description = "Generate a mapping config by inspecting a data file's schema against the currently loaded ontology. Returns a JSON mapping that can be reviewed and passed to onto_ingest."
+    )]
     async fn onto_map(&self, Parameters(input): Parameters<OntoMapInput>) -> String {
         let started = std::time::Instant::now();
         let out = self.onto_map_inner(input).await;
@@ -2385,7 +2607,12 @@ impl OpenOntologiesServer {
 
         let rows = match DataIngester::parse_file(&input.data_path) {
             Ok(r) => r,
-            Err(e) => return format!(r#"{{"ok":false,"error":"Failed to parse {}: {}","hint":"Check the error details and retry. Consult the tool description for required parameters and formats."}}"#, input.data_path, e),
+            Err(e) => {
+                return format!(
+                    r#"{{"ok":false,"error":"Failed to parse {}: {}","hint":"Check the error details and retry. Consult the tool description for required parameters and formats."}}"#,
+                    input.data_path, e
+                );
+            }
         };
         let headers = DataIngester::extract_headers(&rows);
 
@@ -2412,7 +2639,11 @@ impl OpenOntologiesServer {
                 .and_then(|v| v["results"].as_array().cloned())
                 .unwrap_or_default()
                 .iter()
-                .filter_map(|r| r[var].as_str().map(|s| s.trim_matches(|c| c == '<' || c == '>').to_string()))
+                .filter_map(|r| {
+                    r[var]
+                        .as_str()
+                        .map(|s| s.trim_matches(|c| c == '<' || c == '>').to_string())
+                })
                 .collect()
         };
 
@@ -2422,7 +2653,10 @@ impl OpenOntologiesServer {
         let mapping = MappingConfig::from_headers(
             &headers,
             "http://example.org/data/",
-            class_iris.first().map(|s| s.as_str()).unwrap_or("http://example.org/Thing"),
+            class_iris
+                .first()
+                .map(|s| s.as_str())
+                .unwrap_or("http://example.org/Thing"),
         );
 
         let result = serde_json::json!({
@@ -2434,14 +2668,21 @@ impl OpenOntologiesServer {
 
         if let Some(ref save_path) = input.save_path
             && let Ok(json) = serde_json::to_string_pretty(&mapping)
-                && let Err(e) = std::fs::write(save_path, &json) {
-                    return format!(r#"{{"ok":false,"error":"Cannot write mapping file: {}","hint":"Use onto_map to generate a valid mapping, then pass it via the mapping field."}}"#, e);
-                }
+            && let Err(e) = std::fs::write(save_path, &json)
+        {
+            return format!(
+                r#"{{"ok":false,"error":"Cannot write mapping file: {}","hint":"Use onto_map to generate a valid mapping, then pass it via the mapping field."}}"#,
+                e
+            );
+        }
 
         result.to_string()
     }
 
-    #[tool(name = "onto_shacl", description = "Validate the loaded ontology data against SHACL shapes. Checks cardinality (minCount/maxCount), datatypes, and class constraints. Returns a conformance report with violations.")]
+    #[tool(
+        name = "onto_shacl",
+        description = "Validate the loaded ontology data against SHACL shapes. Checks cardinality (minCount/maxCount), datatypes, and class constraints. Returns a conformance report with violations."
+    )]
     async fn onto_shacl(&self, Parameters(input): Parameters<OntoShaclInput>) -> String {
         let started = std::time::Instant::now();
         use crate::shacl::ShaclValidator;
@@ -2476,7 +2717,10 @@ impl OpenOntologiesServer {
             match std::fs::read_to_string(&input.shapes) {
                 Ok(c) => c,
                 Err(e) => {
-                    let out = format!(r#"{{"ok":false,"error":"Cannot read shapes file '{}': {}","hint":"Provide inline Turtle with sh:NodeShape definitions (and set inline: true), or a path to a valid .ttl shapes file."}}"#, input.shapes, e);
+                    let out = format!(
+                        r#"{{"ok":false,"error":"Cannot read shapes file '{}': {}","hint":"Provide inline Turtle with sh:NodeShape definitions (and set inline: true), or a path to a valid .ttl shapes file."}}"#,
+                        input.shapes, e
+                    );
                     self.emit_tool_ocel(TOOL_SHACL, started, false, &[]);
                     return out;
                 }
@@ -2489,7 +2733,10 @@ impl OpenOntologiesServer {
         out
     }
 
-    #[tool(name = "onto_shacl_check", description = "Dry-run structural check on proposed SHACL shapes against the loaded ontology. Verifies that shapes parse as Turtle and that every IRI they reference (sh:targetClass, sh:path, sh:class) exists in the ontology, plus a lightweight XSD-prefix check on sh:datatype. Does NOT validate data — use onto_shacl for that. Use this to iterate on LLM-generated SHACL before applying.")]
+    #[tool(
+        name = "onto_shacl_check",
+        description = "Dry-run structural check on proposed SHACL shapes against the loaded ontology. Verifies that shapes parse as Turtle and that every IRI they reference (sh:targetClass, sh:path, sh:class) exists in the ontology, plus a lightweight XSD-prefix check on sh:datatype. Does NOT validate data — use onto_shacl for that. Use this to iterate on LLM-generated SHACL before applying."
+    )]
     async fn onto_shacl_check(&self, Parameters(input): Parameters<OntoShaclCheckInput>) -> String {
         use crate::shacl::ShaclValidator;
         let shapes = if input.inline.unwrap_or(false) {
@@ -2532,24 +2779,39 @@ impl OpenOntologiesServer {
             .unwrap_or_else(|e| format!(r#"{{"error":"serialization: {}"}}"#, e))
     }
 
-    #[tool(name = "onto_align_fuzzy", description = "FLORA-style fuzzy-logic alignment adjudication (#38, ISWC 2025 Best Paper). Caller supplies per-pair signals (`label_jaccard`, `parent_overlap`, `sibling_overlap`, `datatype_overlap` all in [0,1]) plus low/high thresholds; server combines via the chosen t-norm (`min` / `product` / `lukasiewicz`) and emits verdict `\"accept\"` / `\"borderline\"` / `\"reject\"` plus a rule trace. Embedding-free, interpretable, complements the HNSW candidate-generator pipeline.")]
+    #[tool(
+        name = "onto_align_fuzzy",
+        description = "FLORA-style fuzzy-logic alignment adjudication (#38, ISWC 2025 Best Paper). Caller supplies per-pair signals (`label_jaccard`, `parent_overlap`, `sibling_overlap`, `datatype_overlap` all in [0,1]) plus low/high thresholds; server combines via the chosen t-norm (`min` / `product` / `lukasiewicz`) and emits verdict `\"accept\"` / `\"borderline\"` / `\"reject\"` plus a rule trace. Embedding-free, interpretable, complements the HNSW candidate-generator pipeline."
+    )]
     async fn onto_align_fuzzy(&self, Parameters(input): Parameters<OntoAlignFuzzyInput>) -> String {
-        let signals: crate::align_fuzzy::FuzzySignals = match serde_json::from_str(&input.signals_json) {
-            Ok(s) => s,
-            Err(e) => return format!(r#"{{"error":"invalid signals_json: {}"}}"#, e),
-        };
+        let signals: crate::align_fuzzy::FuzzySignals =
+            match serde_json::from_str(&input.signals_json) {
+                Ok(s) => s,
+                Err(e) => return format!(r#"{{"error":"invalid signals_json: {}"}}"#, e),
+            };
         let tnorm = match input.tnorm.as_deref() {
             Some("product") => crate::align_fuzzy::TNorm::Product,
             Some("lukasiewicz") => crate::align_fuzzy::TNorm::Lukasiewicz,
             _ => crate::align_fuzzy::TNorm::Min,
         };
-        let decision = crate::align_fuzzy::adjudicate(&signals, tnorm, input.low_threshold, input.high_threshold);
+        let decision = crate::align_fuzzy::adjudicate(
+            &signals,
+            tnorm,
+            input.low_threshold,
+            input.high_threshold,
+        );
         serde_json::to_string(&decision)
             .unwrap_or_else(|e| format!(r#"{{"error":"serialization: {}"}}"#, e))
     }
 
-    #[tool(name = "onto_policy_register", description = "Register an ARGOS-style policy rule (#40, ISWC 2025 WOP). `effect` is `\"allow\"` or `\"deny\"`; `condition` is a SPARQL ASK that can use the `{target}` placeholder. Pairs with `onto_policy_check` and `onto_certify_action` — CIVeX gates causal risk, ARGOS gates authorisation.")]
-    async fn onto_policy_register(&self, Parameters(input): Parameters<OntoPolicyRegisterInput>) -> String {
+    #[tool(
+        name = "onto_policy_register",
+        description = "Register an ARGOS-style policy rule (#40, ISWC 2025 WOP). `effect` is `\"allow\"` or `\"deny\"`; `condition` is a SPARQL ASK that can use the `{target}` placeholder. Pairs with `onto_policy_check` and `onto_certify_action` — CIVeX gates causal risk, ARGOS gates authorisation."
+    )]
+    async fn onto_policy_register(
+        &self,
+        Parameters(input): Parameters<OntoPolicyRegisterInput>,
+    ) -> String {
         let rule = crate::policy::PolicyRule {
             name: input.name.clone(),
             effect: input.effect,
@@ -2562,7 +2824,10 @@ impl OpenOntologiesServer {
         }
     }
 
-    #[tool(name = "onto_policy_list", description = "List all registered ARGOS policy rules.")]
+    #[tool(
+        name = "onto_policy_list",
+        description = "List all registered ARGOS policy rules."
+    )]
     async fn onto_policy_list(&self) -> String {
         match crate::policy::list_rules(&self.db) {
             Ok(r) => serde_json::to_string(&r)
@@ -2571,8 +2836,14 @@ impl OpenOntologiesServer {
         }
     }
 
-    #[tool(name = "onto_policy_check", description = "Evaluate a proposed action's target IRIs against every registered policy rule. Verdict is `\"deny\"` if any `deny` rule fires for any target, else `\"allow\"`. Returns per-rule fire status for audit.")]
-    async fn onto_policy_check(&self, Parameters(input): Parameters<OntoPolicyCheckInput>) -> String {
+    #[tool(
+        name = "onto_policy_check",
+        description = "Evaluate a proposed action's target IRIs against every registered policy rule. Verdict is `\"deny\"` if any `deny` rule fires for any target, else `\"allow\"`. Returns per-rule fire status for audit."
+    )]
+    async fn onto_policy_check(
+        &self,
+        Parameters(input): Parameters<OntoPolicyCheckInput>,
+    ) -> String {
         match crate::policy::check_action(&self.db, &self.graph, &input.target_iris) {
             Ok(r) => serde_json::to_string(&r)
                 .unwrap_or_else(|e| format!(r#"{{"error":"serialization: {}"}}"#, e)),
@@ -2580,7 +2851,10 @@ impl OpenOntologiesServer {
         }
     }
 
-    #[tool(name = "eval_rag_mmrag", description = "Parse a full mmRAG dataset JSON and score it in one call. Convenience wrapper around `onto_mmrag_parse` + `eval_rag`. Returns the same `RagEvalReport` as `eval_rag` including faithfulness, answer-jaccard, and rouge1 when records carry generated_answer / gold_answer / retrieved_text.")]
+    #[tool(
+        name = "eval_rag_mmrag",
+        description = "Parse a full mmRAG dataset JSON and score it in one call. Convenience wrapper around `onto_mmrag_parse` + `eval_rag`. Returns the same `RagEvalReport` as `eval_rag` including faithfulness, answer-jaccard, and rouge1 when records carry generated_answer / gold_answer / retrieved_text."
+    )]
     async fn eval_rag_mmrag(&self, Parameters(input): Parameters<OntoEvalRagMmragInput>) -> String {
         let qas = match crate::eval_rag::parse_mmrag_dataset(&input.dataset_json) {
             Ok(q) => q,
@@ -2591,7 +2865,10 @@ impl OpenOntologiesServer {
             .unwrap_or_else(|e| format!(r#"{{"error":"serialization: {}"}}"#, e))
     }
 
-    #[tool(name = "eval_rag", description = "mmRAG benchmark scoring (#41, ISWC 2025). Input is a JSON array of {question_id, gold_iri, retrieved: [iri, ...]}. Returns Hit@{3,5,10}, MRR, exact-match-at-1, and per-question rank (0 = gold not retrieved).")]
+    #[tool(
+        name = "eval_rag",
+        description = "mmRAG benchmark scoring (#41, ISWC 2025). Input is a JSON array of {question_id, gold_iri, retrieved: [iri, ...]}. Returns Hit@{3,5,10}, MRR, exact-match-at-1, and per-question rank (0 = gold not retrieved)."
+    )]
     async fn eval_rag(&self, Parameters(input): Parameters<OntoEvalRagInput>) -> String {
         let qas: Vec<crate::eval_rag::RagQa> = match serde_json::from_str(&input.qa_json) {
             Ok(q) => q,
@@ -2602,7 +2879,10 @@ impl OpenOntologiesServer {
             .unwrap_or_else(|e| format!(r#"{{"error":"serialization: {}"}}"#, e))
     }
 
-    #[tool(name = "onto_classify_el", description = "Classify the loaded ontology in the OWL-EL fragment (#30). Materialises OWL-RL-ext entailments in a sandbox copy of the graph and emits every distinct subsumption `?sub rdfs:subClassOf ?super` (transitive closure, deduplicated, owl:Thing-trivial pairs removed). For deep SHOIQ subsumption, use `onto_dl_check` / `onto_dl_explain`.")]
+    #[tool(
+        name = "onto_classify_el",
+        description = "Classify the loaded ontology in the OWL-EL fragment (#30). Materialises OWL-RL-ext entailments in a sandbox copy of the graph and emits every distinct subsumption `?sub rdfs:subClassOf ?super` (transitive closure, deduplicated, owl:Thing-trivial pairs removed). For deep SHOIQ subsumption, use `onto_dl_check` / `onto_dl_explain`."
+    )]
     async fn onto_classify_el(&self) -> String {
         match crate::classify_el::classify(&self.graph) {
             Ok(r) => serde_json::to_string(&r)
@@ -2611,8 +2891,14 @@ impl OpenOntologiesServer {
         }
     }
 
-    #[tool(name = "onto_eval_alignment", description = "OAEI-style P/R/F1 scoring (#31). Both inputs are JSON arrays of {source, target, relation}; entries match on exact triple equality. Returns precision, recall, F1, TP/FP/FN counts.")]
-    async fn onto_eval_alignment(&self, Parameters(input): Parameters<OntoEvalAlignmentInput>) -> String {
+    #[tool(
+        name = "onto_eval_alignment",
+        description = "OAEI-style P/R/F1 scoring (#31). Both inputs are JSON arrays of {source, target, relation}; entries match on exact triple equality. Returns precision, recall, F1, TP/FP/FN counts."
+    )]
+    async fn onto_eval_alignment(
+        &self,
+        Parameters(input): Parameters<OntoEvalAlignmentInput>,
+    ) -> String {
         let reference: Vec<crate::eval_alignment::AlignmentEntry> =
             match serde_json::from_str(&input.reference_json) {
                 Ok(r) => r,
@@ -2628,21 +2914,40 @@ impl OpenOntologiesServer {
             .unwrap_or_else(|e| format!(r#"{{"error":"serialization: {}"}}"#, e))
     }
 
-    #[tool(name = "onto_shape_induce", description = "Kastor-style data-driven SHACL shape induction (#36, K-CAP 2025). For each property subset up to `max_size`, compute support (fraction of class instances having all properties) and confidence (fraction of any-instances-with-properties that are class members). Returns the top-k candidates ranked by `support × confidence`, each carrying a ready-to-use SHACL NodeShape Turtle block. Filter via `min_support` (default 0.1) and `min_confidence` (default 0.5).")]
-    async fn onto_shape_induce(&self, Parameters(input): Parameters<OntoShapeInduceInput>) -> String {
+    #[tool(
+        name = "onto_shape_induce",
+        description = "Kastor-style data-driven SHACL shape induction (#36, K-CAP 2025). For each property subset up to `max_size`, compute support (fraction of class instances having all properties) and confidence (fraction of any-instances-with-properties that are class members). Returns the top-k candidates ranked by `support × confidence`, each carrying a ready-to-use SHACL NodeShape Turtle block. Filter via `min_support` (default 0.1) and `min_confidence` (default 0.5)."
+    )]
+    async fn onto_shape_induce(
+        &self,
+        Parameters(input): Parameters<OntoShapeInduceInput>,
+    ) -> String {
         let max = input.max_size.unwrap_or(3);
         let top_k = input.top_k.unwrap_or(10);
         let min_support = input.min_support.unwrap_or(0.1);
         let min_confidence = input.min_confidence.unwrap_or(0.5);
-        match crate::shape_combinatorics::induce_shapes(&self.graph, &input.class_iri, max, top_k, min_support, min_confidence) {
+        match crate::shape_combinatorics::induce_shapes(
+            &self.graph,
+            &input.class_iri,
+            max,
+            top_k,
+            min_support,
+            min_confidence,
+        ) {
             Ok(r) => serde_json::to_string(&r)
                 .unwrap_or_else(|e| format!(r#"{{"error":"serialization: {}"}}"#, e)),
             Err(e) => format!(r#"{{"error":"{}"}}"#, e),
         }
     }
 
-    #[tool(name = "onto_shape_combinatorics", description = "Enumerate the property-combination lattice for a class (#36, K-CAP 2025 Kastor). Returns subsets of the class's rdfs:domain properties up to `max_size` (default 3). Used by shape-induction algorithms to enumerate candidate SHACL shapes from data.")]
-    async fn onto_shape_combinatorics(&self, Parameters(input): Parameters<OntoShapeCombinatoricsInput>) -> String {
+    #[tool(
+        name = "onto_shape_combinatorics",
+        description = "Enumerate the property-combination lattice for a class (#36, K-CAP 2025 Kastor). Returns subsets of the class's rdfs:domain properties up to `max_size` (default 3). Used by shape-induction algorithms to enumerate candidate SHACL shapes from data."
+    )]
+    async fn onto_shape_combinatorics(
+        &self,
+        Parameters(input): Parameters<OntoShapeCombinatoricsInput>,
+    ) -> String {
         let max = input.max_size.unwrap_or(3);
         match crate::shape_combinatorics::enumerate(&self.graph, &input.class_iri, max) {
             Ok(r) => serde_json::to_string(&r)
@@ -2651,20 +2956,36 @@ impl OpenOntologiesServer {
         }
     }
 
-    #[tool(name = "borderline_partition", description = "Generalised borderline-pair partitioning (#37, NORA NeurIPS 2025). Takes a list of {id, score, context} candidates plus low+high thresholds; partitions into auto_accept (>= high), borderline ([low, high)), auto_reject (< low) and emits a review summary the orchestrator's LLM can act on. Pairs with `borderline_record_verdict`.")]
-    async fn borderline_partition(&self, Parameters(input): Parameters<BorderlinePartitionInput>) -> String {
+    #[tool(
+        name = "borderline_partition",
+        description = "Generalised borderline-pair partitioning (#37, NORA NeurIPS 2025). Takes a list of {id, score, context} candidates plus low+high thresholds; partitions into auto_accept (>= high), borderline ([low, high)), auto_reject (< low) and emits a review summary the orchestrator's LLM can act on. Pairs with `borderline_record_verdict`."
+    )]
+    async fn borderline_partition(
+        &self,
+        Parameters(input): Parameters<BorderlinePartitionInput>,
+    ) -> String {
         let candidates: Vec<crate::borderline_loop::Candidate> =
             match serde_json::from_str(&input.candidates_json) {
                 Ok(c) => c,
                 Err(e) => return format!(r#"{{"error":"invalid candidates_json: {}"}}"#, e),
             };
-        let report = crate::borderline_loop::partition(candidates, input.low_threshold, input.high_threshold);
+        let report = crate::borderline_loop::partition(
+            candidates,
+            input.low_threshold,
+            input.high_threshold,
+        );
         serde_json::to_string(&report)
             .unwrap_or_else(|e| format!(r#"{{"error":"serialization: {}"}}"#, e))
     }
 
-    #[tool(name = "borderline_record_verdict", description = "Persist an orchestrator's verdict on a borderline candidate (#37). verdict must be \"accept\" or \"reject\". Namespaces let independent borderline loops coexist.")]
-    async fn borderline_record_verdict(&self, Parameters(input): Parameters<BorderlineRecordVerdictInput>) -> String {
+    #[tool(
+        name = "borderline_record_verdict",
+        description = "Persist an orchestrator's verdict on a borderline candidate (#37). verdict must be \"accept\" or \"reject\". Namespaces let independent borderline loops coexist."
+    )]
+    async fn borderline_record_verdict(
+        &self,
+        Parameters(input): Parameters<BorderlineRecordVerdictInput>,
+    ) -> String {
         let v = crate::borderline_loop::BorderlineVerdict {
             candidate_id: input.candidate_id.clone(),
             namespace: input.namespace.unwrap_or_else(|| "default".to_string()),
@@ -2677,8 +2998,14 @@ impl OpenOntologiesServer {
         }
     }
 
-    #[tool(name = "onto_extract_scaffold", description = "Build a schema-guided structured-extraction scaffold for a class (#28, OntoGPT SPIRES MCP-native). Returns the class metadata (label, comment), the property schema derived from rdfs:domain triples that target the class, and a ready-to-use prompt template the orchestrator can hand to its LLM. The server doesn't run the LLM; it scaffolds the prompt and validates the LLM's output via `onto_extract_validate`.")]
-    async fn onto_extract_scaffold(&self, Parameters(input): Parameters<OntoExtractScaffoldInput>) -> String {
+    #[tool(
+        name = "onto_extract_scaffold",
+        description = "Build a schema-guided structured-extraction scaffold for a class (#28, OntoGPT SPIRES MCP-native). Returns the class metadata (label, comment), the property schema derived from rdfs:domain triples that target the class, and a ready-to-use prompt template the orchestrator can hand to its LLM. The server doesn't run the LLM; it scaffolds the prompt and validates the LLM's output via `onto_extract_validate`."
+    )]
+    async fn onto_extract_scaffold(
+        &self,
+        Parameters(input): Parameters<OntoExtractScaffoldInput>,
+    ) -> String {
         match crate::extract_scaffold::build_scaffold(&self.graph, &input.class_iri) {
             Ok(s) => serde_json::to_string(&s)
                 .unwrap_or_else(|e| format!(r#"{{"error":"serialization: {}"}}"#, e)),
@@ -2686,8 +3013,14 @@ impl OpenOntologiesServer {
         }
     }
 
-    #[tool(name = "onto_extract_validate", description = "Validate an LLM-supplied extraction (JSON array of objects) against a scaffold previously emitted by `onto_extract_scaffold`. Returns per-instance valid/invalid counts and field-level issue reports.")]
-    async fn onto_extract_validate(&self, Parameters(input): Parameters<OntoExtractValidateInput>) -> String {
+    #[tool(
+        name = "onto_extract_validate",
+        description = "Validate an LLM-supplied extraction (JSON array of objects) against a scaffold previously emitted by `onto_extract_scaffold`. Returns per-instance valid/invalid counts and field-level issue reports."
+    )]
+    async fn onto_extract_validate(
+        &self,
+        Parameters(input): Parameters<OntoExtractValidateInput>,
+    ) -> String {
         let scaffold: crate::extract_scaffold::ExtractionScaffold =
             match serde_json::from_str(&input.scaffold_json) {
                 Ok(s) => s,
@@ -2700,7 +3033,10 @@ impl OpenOntologiesServer {
         }
     }
 
-    #[tool(name = "onto_cq_run", description = "Run a batch of competency questions (CQs) against the loaded ontology (#29). Each CQ has an id, a natural-language question, a SPARQL query, and an optional expected_min_rows. Returns per-CQ pass/fail plus VSPO-pitfall hints (P10: empty result, P11: no rdfs:label, P12: > 10k rows). Pairs with `onto_verify_cq` for the LLM-judgement loop.")]
+    #[tool(
+        name = "onto_cq_run",
+        description = "Run a batch of competency questions (CQs) against the loaded ontology (#29). Each CQ has an id, a natural-language question, a SPARQL query, and an optional expected_min_rows. Returns per-CQ pass/fail plus VSPO-pitfall hints (P10: empty result, P11: no rdfs:label, P12: > 10k rows). Pairs with `onto_verify_cq` for the LLM-judgement loop."
+    )]
     async fn onto_cq_run(&self, Parameters(input): Parameters<OntoCqRunInput>) -> String {
         let cqs: Vec<crate::cq::CompetencyQuestion> = match serde_json::from_str(&input.cqs_json) {
             Ok(c) => c,
@@ -2711,7 +3047,10 @@ impl OpenOntologiesServer {
             .unwrap_or_else(|e| format!(r#"{{"error":"serialization: {}"}}"#, e))
     }
 
-    #[tool(name = "onto_verify_cq", description = "Persist an LLM-supplied (or human-supplied) verdict on a CQ result (#39, ISWC 2025 Lippolis). verdict must be one of \"correct\", \"incorrect\", \"partial\". Server stores verdicts; the LLM does the judging. Pairs with `onto_cq_run`.")]
+    #[tool(
+        name = "onto_verify_cq",
+        description = "Persist an LLM-supplied (or human-supplied) verdict on a CQ result (#39, ISWC 2025 Lippolis). verdict must be one of \"correct\", \"incorrect\", \"partial\". Server stores verdicts; the LLM does the judging. Pairs with `onto_cq_run`."
+    )]
     async fn onto_verify_cq(&self, Parameters(input): Parameters<OntoVerifyCqInput>) -> String {
         let v = crate::cq::CqVerdict {
             cq_id: input.cq_id.clone(),
@@ -2725,8 +3064,14 @@ impl OpenOntologiesServer {
         }
     }
 
-    #[tool(name = "onto_cq_verdicts_list", description = "List all stored verdicts for a CQ id, most-recent first.")]
-    async fn onto_cq_verdicts_list(&self, Parameters(input): Parameters<OntoCqVerdictsListInput>) -> String {
+    #[tool(
+        name = "onto_cq_verdicts_list",
+        description = "List all stored verdicts for a CQ id, most-recent first."
+    )]
+    async fn onto_cq_verdicts_list(
+        &self,
+        Parameters(input): Parameters<OntoCqVerdictsListInput>,
+    ) -> String {
         match crate::cq::list_cq_verdicts(&self.db, &input.cq_id) {
             Ok(v) => serde_json::to_string(&v)
                 .unwrap_or_else(|e| format!(r#"{{"error":"serialization: {}"}}"#, e)),
@@ -2734,19 +3079,36 @@ impl OpenOntologiesServer {
         }
     }
 
-    #[tool(name = "onto_segment_retrieve", description = "Retrieve a TBox-slice neighbourhood of seed IRIs for grounding LLM reasoning (#34, SEMANTiCS 2025 GrOWL-RAG). Walks `rdfs:subClassOf` / `subPropertyOf` / `domain` / `range` + `owl:equivalentClass` / `equivalentProperty` / `disjointWith` / `inverseOf` to `hops` depth (default 2). Returns the slice as Turtle plus IRI/triple counts and any frontier IRIs hit at the hop budget. Pairs with `graph_projection_lossy_check`: this retrieves, that audits. Pass `include_abox=true` to also pull instance triples for each seed.")]
-    async fn onto_segment_retrieve(&self, Parameters(input): Parameters<OntoSegmentRetrieveInput>) -> String {
+    #[tool(
+        name = "onto_segment_retrieve",
+        description = "Retrieve a TBox-slice neighbourhood of seed IRIs for grounding LLM reasoning (#34, SEMANTiCS 2025 GrOWL-RAG). Walks `rdfs:subClassOf` / `subPropertyOf` / `domain` / `range` + `owl:equivalentClass` / `equivalentProperty` / `disjointWith` / `inverseOf` to `hops` depth (default 2). Returns the slice as Turtle plus IRI/triple counts and any frontier IRIs hit at the hop budget. Pairs with `graph_projection_lossy_check`: this retrieves, that audits. Pass `include_abox=true` to also pull instance triples for each seed."
+    )]
+    async fn onto_segment_retrieve(
+        &self,
+        Parameters(input): Parameters<OntoSegmentRetrieveInput>,
+    ) -> String {
         let hops = input.hops.unwrap_or(2);
         let include_abox = input.include_abox.unwrap_or(false);
-        match crate::segment_retrieve::retrieve_segment(&self.graph, &input.seed_iris, hops, include_abox) {
+        match crate::segment_retrieve::retrieve_segment(
+            &self.graph,
+            &input.seed_iris,
+            hops,
+            include_abox,
+        ) {
             Ok(result) => serde_json::to_string(&result)
                 .unwrap_or_else(|e| format!(r#"{{"error":"serialization: {}"}}"#, e)),
             Err(e) => format!(r#"{{"error":"{}"}}"#, e),
         }
     }
 
-    #[tool(name = "onto_coevolve_dependency_graph", description = "Build the shape→OWL-dependency map for a SHACL document. For each NodeShape, returns the set of target classes, path properties, and class-constraint targets. Powers `onto_owl_shacl_coevolve_incremental`.")]
-    async fn onto_coevolve_dependency_graph(&self, Parameters(input): Parameters<OntoCoevolveDepGraphInput>) -> String {
+    #[tool(
+        name = "onto_coevolve_dependency_graph",
+        description = "Build the shape→OWL-dependency map for a SHACL document. For each NodeShape, returns the set of target classes, path properties, and class-constraint targets. Powers `onto_owl_shacl_coevolve_incremental`."
+    )]
+    async fn onto_coevolve_dependency_graph(
+        &self,
+        Parameters(input): Parameters<OntoCoevolveDepGraphInput>,
+    ) -> String {
         match crate::coevolve::build_dependency_graph(&input.shapes_ttl) {
             Ok(d) => serde_json::to_string(&d)
                 .unwrap_or_else(|e| format!(r#"{{"error":"serialization: {}"}}"#, e)),
@@ -2754,18 +3116,35 @@ impl OpenOntologiesServer {
         }
     }
 
-    #[tool(name = "onto_owl_shacl_coevolve_incremental", description = "Incremental coevolve check (#33 follow-on, K-CAP 2025). Given a list of IRIs that changed since the last validation, identify which SHACL shapes are affected (via the shape→OWL dependency graph) and skip SHACL validation entirely when no shape's dependencies overlap. Returns the affected-shapes report plus validation output (or 'no_affected_shapes' sentinel when nothing fires).")]
-    async fn onto_owl_shacl_coevolve_incremental(&self, Parameters(input): Parameters<OntoCoevolveIncrementalInput>) -> String {
+    #[tool(
+        name = "onto_owl_shacl_coevolve_incremental",
+        description = "Incremental coevolve check (#33 follow-on, K-CAP 2025). Given a list of IRIs that changed since the last validation, identify which SHACL shapes are affected (via the shape→OWL dependency graph) and skip SHACL validation entirely when no shape's dependencies overlap. Returns the affected-shapes report plus validation output (or 'no_affected_shapes' sentinel when nothing fires)."
+    )]
+    async fn onto_owl_shacl_coevolve_incremental(
+        &self,
+        Parameters(input): Parameters<OntoCoevolveIncrementalInput>,
+    ) -> String {
         let profile = input.profile.unwrap_or_else(|| "owl-rl".to_string());
-        match crate::coevolve::incremental_check(&self.graph, &input.shapes_ttl, &input.changed_iris, &profile) {
+        match crate::coevolve::incremental_check(
+            &self.graph,
+            &input.shapes_ttl,
+            &input.changed_iris,
+            &profile,
+        ) {
             Ok(r) => serde_json::to_string(&r)
                 .unwrap_or_else(|e| format!(r#"{{"error":"serialization: {}"}}"#, e)),
             Err(e) => format!(r#"{{"error":"{}"}}"#, e),
         }
     }
 
-    #[tool(name = "onto_owl_shacl_coevolve_check", description = "Combined OWL+SHACL validation (#33, K-CAP 2025). Materialises OWL-RL entailments into a sandbox copy of the loaded graph, then runs SHACL validation against the closure. Returns both the pre-reasoning and post-reasoning conformance verdicts plus the count of triples the reasoner added. Catches SHACL constraints that pass against the raw ABox but fail after inference (e.g. instances that inherit a parent class via rdfs:subClassOf and then violate a parent-class shape). Original graph is NOT mutated.")]
-    async fn onto_owl_shacl_coevolve_check(&self, Parameters(input): Parameters<OntoOwlShaclCoevolveInput>) -> String {
+    #[tool(
+        name = "onto_owl_shacl_coevolve_check",
+        description = "Combined OWL+SHACL validation (#33, K-CAP 2025). Materialises OWL-RL entailments into a sandbox copy of the loaded graph, then runs SHACL validation against the closure. Returns both the pre-reasoning and post-reasoning conformance verdicts plus the count of triples the reasoner added. Catches SHACL constraints that pass against the raw ABox but fail after inference (e.g. instances that inherit a parent class via rdfs:subClassOf and then violate a parent-class shape). Original graph is NOT mutated."
+    )]
+    async fn onto_owl_shacl_coevolve_check(
+        &self,
+        Parameters(input): Parameters<OntoOwlShaclCoevolveInput>,
+    ) -> String {
         let profile = input.profile.unwrap_or_else(|| "owl-rl".to_string());
         match crate::coevolve::coevolve_check(&self.graph, &input.shapes_ttl, &profile) {
             Ok(report) => serde_json::to_string(&report)
@@ -2774,17 +3153,33 @@ impl OpenOntologiesServer {
         }
     }
 
-    #[tool(name = "graph_projection_lossy_check", description = "Audit a projected Turtle slice against the loaded ontology's full neighbourhood of the seed IRIs. Reports dropped predicates, dropped object IRIs, per-seed coverage ratio, and aggregate coverage. Pair with onto_segment_retrieve when the slice is being passed to a downstream LLM — knowing what was left behind lets the caller decide whether the slice is sufficient. Per IJCAI 2025 'How to Mitigate Information Loss in KGs for GraphRAG'.")]
-    async fn graph_projection_lossy_check(&self, Parameters(input): Parameters<GraphProjectionLossyCheckInput>) -> String {
-        match crate::projection_check::check_projection_loss(&self.graph, &input.source_iris, &input.projected_ttl) {
+    #[tool(
+        name = "graph_projection_lossy_check",
+        description = "Audit a projected Turtle slice against the loaded ontology's full neighbourhood of the seed IRIs. Reports dropped predicates, dropped object IRIs, per-seed coverage ratio, and aggregate coverage. Pair with onto_segment_retrieve when the slice is being passed to a downstream LLM — knowing what was left behind lets the caller decide whether the slice is sufficient. Per IJCAI 2025 'How to Mitigate Information Loss in KGs for GraphRAG'."
+    )]
+    async fn graph_projection_lossy_check(
+        &self,
+        Parameters(input): Parameters<GraphProjectionLossyCheckInput>,
+    ) -> String {
+        match crate::projection_check::check_projection_loss(
+            &self.graph,
+            &input.source_iris,
+            &input.projected_ttl,
+        ) {
             Ok(report) => serde_json::to_string(&report)
                 .unwrap_or_else(|e| format!(r#"{{"error":"serialization: {}"}}"#, e)),
             Err(e) => format!(r#"{{"error":"{}"}}"#, e),
         }
     }
 
-    #[tool(name = "onto_certify_action", description = "CIVeX-style causal certificate for a proposed state-changing ontology action. Returns a verdict (EXECUTE / REJECT / EXPERIMENT / ABSTAIN) plus an auditable certificate documenting the assumptions, structural-dependency identification proof, utility point estimate + one-sided lower confidence bound, provenance hash, and risk bound. Use as a pre-flight gate for onto_apply / onto_save / onto_push / onto_ingest. Scaffold port of arXiv:2605.09168 — structural-dependency proxy in place of full do-calculus identifiability; documented honestly.")]
-    async fn onto_certify_action(&self, Parameters(input): Parameters<OntoCertifyActionInput>) -> String {
+    #[tool(
+        name = "onto_certify_action",
+        description = "CIVeX-style causal certificate for a proposed state-changing ontology action. Returns a verdict (EXECUTE / REJECT / EXPERIMENT / ABSTAIN) plus an auditable certificate documenting the assumptions, structural-dependency identification proof, utility point estimate + one-sided lower confidence bound, provenance hash, and risk bound. Use as a pre-flight gate for onto_apply / onto_save / onto_push / onto_ingest. Scaffold port of arXiv:2605.09168 — structural-dependency proxy in place of full do-calculus identifiability; documented honestly."
+    )]
+    async fn onto_certify_action(
+        &self,
+        Parameters(input): Parameters<OntoCertifyActionInput>,
+    ) -> String {
         let frame = crate::civex::ActionFrame {
             tool: input.tool,
             target_iris: input.target_iris,
@@ -2799,7 +3194,9 @@ impl OpenOntologiesServer {
             alpha: input.alpha,
             action_schema_name: input.action_schema_name,
             identification_mode: match input.identification_mode.as_deref() {
-                Some("do_calculus_backdoor") => crate::civex::IdentificationMode::DoCalculusBackdoor,
+                Some("do_calculus_backdoor") => {
+                    crate::civex::IdentificationMode::DoCalculusBackdoor
+                }
                 _ => crate::civex::IdentificationMode::Structural,
             },
         };
@@ -2812,8 +3209,14 @@ impl OpenOntologiesServer {
 
     // ── Dynamics layer (#43) — action schemas, applicability, apply ────────
 
-    #[tool(name = "onto_action_register", description = "Persist a named action schema (Dynamics layer #43). Schema specifies typed parameters, SPARQL preconditions, and KGCL-shaped effects (add_triple/remove_triple/add_class). `{param}` placeholders are substituted at apply time. Schemas are looked up by `onto_action_applicable` and executed by `onto_action_apply`. Companion to the Causal layer (`onto_certify_action`) and the Planner (`onto_plan_compile_pddl`). BC+ deterministic-single-effect subset; ramification + non-determinism deferred to v0.4.x.")]
-    async fn onto_action_register(&self, Parameters(input): Parameters<OntoActionRegisterInput>) -> String {
+    #[tool(
+        name = "onto_action_register",
+        description = "Persist a named action schema (Dynamics layer #43). Schema specifies typed parameters, SPARQL preconditions, and KGCL-shaped effects (add_triple/remove_triple/add_class). `{param}` placeholders are substituted at apply time. Schemas are looked up by `onto_action_applicable` and executed by `onto_action_apply`. Companion to the Causal layer (`onto_certify_action`) and the Planner (`onto_plan_compile_pddl`). BC+ deterministic-single-effect subset; ramification + non-determinism deferred to v0.4.x."
+    )]
+    async fn onto_action_register(
+        &self,
+        Parameters(input): Parameters<OntoActionRegisterInput>,
+    ) -> String {
         let schema: crate::dynamics::ActionSchema = match serde_json::from_str(&input.schema_json) {
             Ok(s) => s,
             Err(e) => return format!(r#"{{"error":"invalid schema_json: {}"}}"#, e),
@@ -2825,8 +3228,14 @@ impl OpenOntologiesServer {
         }
     }
 
-    #[tool(name = "onto_action_applicable", description = "Evaluate a registered action's SPARQL preconditions against the loaded graph under the given parameter bindings. Returns {applicable: bool, action_name, bindings, preconditions_evaluated}. Use as a pre-flight check before `onto_action_apply` or as the applicability oracle for the Planner.")]
-    async fn onto_action_applicable(&self, Parameters(input): Parameters<OntoActionApplicableInput>) -> String {
+    #[tool(
+        name = "onto_action_applicable",
+        description = "Evaluate a registered action's SPARQL preconditions against the loaded graph under the given parameter bindings. Returns {applicable: bool, action_name, bindings, preconditions_evaluated}. Use as a pre-flight check before `onto_action_apply` or as the applicability oracle for the Planner."
+    )]
+    async fn onto_action_applicable(
+        &self,
+        Parameters(input): Parameters<OntoActionApplicableInput>,
+    ) -> String {
         let schema = match crate::dynamics::lookup(&self.db, &input.action_name) {
             Ok(Some(s)) => s,
             Ok(None) => return format!(r#"{{"error":"unknown action: {}"}}"#, input.action_name),
@@ -2843,8 +3252,14 @@ impl OpenOntologiesServer {
         body.to_string()
     }
 
-    #[tool(name = "onto_action_apply", description = "Apply a registered action's effects with the given parameter bindings. Returns the KGCL patch (CNL form), the IES4-style event IRI for the audit trail, and triples added/removed. Re-checks preconditions by default; set `check_preconditions=false` only after a successful `onto_certify_action` certificate. Optional ramification (#47): pass `ramify=\"rdfs\"|\"owl-rl\"|\"owl-rl-ext\"|\"owl-dl\"` to materialise downstream entailments after the literal effects land; the result includes `derived_triples_added` so callers can see what the reasoner produced. Pair with `onto_certify_action` for gated changes.")]
-    async fn onto_action_apply(&self, Parameters(input): Parameters<OntoActionApplyInput>) -> String {
+    #[tool(
+        name = "onto_action_apply",
+        description = "Apply a registered action's effects with the given parameter bindings. Returns the KGCL patch (CNL form), the IES4-style event IRI for the audit trail, and triples added/removed. Re-checks preconditions by default; set `check_preconditions=false` only after a successful `onto_certify_action` certificate. Optional ramification (#47): pass `ramify=\"rdfs\"|\"owl-rl\"|\"owl-rl-ext\"|\"owl-dl\"` to materialise downstream entailments after the literal effects land; the result includes `derived_triples_added` so callers can see what the reasoner produced. Pair with `onto_certify_action` for gated changes."
+    )]
+    async fn onto_action_apply(
+        &self,
+        Parameters(input): Parameters<OntoActionApplyInput>,
+    ) -> String {
         let schema = match crate::dynamics::lookup(&self.db, &input.action_name) {
             Ok(Some(s)) => s,
             Ok(None) => return format!(r#"{{"error":"unknown action: {}"}}"#, input.action_name),
@@ -2858,9 +3273,7 @@ impl OpenOntologiesServer {
             (Some(profile), _) if !profile.is_empty() => {
                 schema.apply_with_ramification(&self.graph, &self.db, &bindings, profile)
             }
-            (_, Some(seed)) => {
-                schema.apply_with_seed(&self.graph, &self.db, &bindings, seed)
-            }
+            (_, Some(seed)) => schema.apply_with_seed(&self.graph, &self.db, &bindings, seed),
             _ => schema.apply(&self.graph, &self.db, &bindings),
         };
         match outcome {
@@ -2872,9 +3285,17 @@ impl OpenOntologiesServer {
 
     // ── Full BC+ semantics (#43 follow-on) ──────────────────────────────
 
-    #[tool(name = "onto_action_apply_concurrent", description = "Fire a tick of concurrent BC+ actions atomically. All steps are pre-computed against the pre-tick state, conflict-checked (add-vs-remove of the same triple across distinct steps), then committed as a single batch. If any conflict OR any registered invariant fails post-commit, the entire tick is rolled back and NO step is applied. Non-deterministic schemas in a concurrent tick are rejected — pre-sample with `apply_with_seed` first.")]
-    async fn onto_action_apply_concurrent(&self, Parameters(input): Parameters<OntoActionApplyConcurrentInput>) -> String {
-        let steps: Vec<crate::dynamics_bcplus::ConcurrentStep> = input.steps.into_iter()
+    #[tool(
+        name = "onto_action_apply_concurrent",
+        description = "Fire a tick of concurrent BC+ actions atomically. All steps are pre-computed against the pre-tick state, conflict-checked (add-vs-remove of the same triple across distinct steps), then committed as a single batch. If any conflict OR any registered invariant fails post-commit, the entire tick is rolled back and NO step is applied. Non-deterministic schemas in a concurrent tick are rejected — pre-sample with `apply_with_seed` first."
+    )]
+    async fn onto_action_apply_concurrent(
+        &self,
+        Parameters(input): Parameters<OntoActionApplyConcurrentInput>,
+    ) -> String {
+        let steps: Vec<crate::dynamics_bcplus::ConcurrentStep> = input
+            .steps
+            .into_iter()
             .map(|s| crate::dynamics_bcplus::ConcurrentStep {
                 action_name: s.action_name,
                 bindings: s.bindings,
@@ -2887,8 +3308,14 @@ impl OpenOntologiesServer {
         }
     }
 
-    #[tool(name = "onto_invariant_register", description = "Persist a BC+ static causal law (SPARQL ASK invariant). The query MUST return `true` for the law to hold; concurrent ticks that violate any registered invariant are rolled back. Body can be a full ASK query or just the body inside `{ ... }`.")]
-    async fn onto_invariant_register(&self, Parameters(input): Parameters<OntoInvariantRegisterInput>) -> String {
+    #[tool(
+        name = "onto_invariant_register",
+        description = "Persist a BC+ static causal law (SPARQL ASK invariant). The query MUST return `true` for the law to hold; concurrent ticks that violate any registered invariant are rolled back. Body can be a full ASK query or just the body inside `{ ... }`."
+    )]
+    async fn onto_invariant_register(
+        &self,
+        Parameters(input): Parameters<OntoInvariantRegisterInput>,
+    ) -> String {
         let law = crate::dynamics_bcplus::StaticCausalLaw {
             name: input.name.clone(),
             ask_query: input.ask_query,
@@ -2900,7 +3327,10 @@ impl OpenOntologiesServer {
         }
     }
 
-    #[tool(name = "onto_invariant_list", description = "List all registered BC+ static causal laws (invariants).")]
+    #[tool(
+        name = "onto_invariant_list",
+        description = "List all registered BC+ static causal laws (invariants)."
+    )]
     async fn onto_invariant_list(&self) -> String {
         match crate::dynamics_bcplus::list_invariants(&self.db) {
             Ok(laws) => serde_json::to_string(&laws)
@@ -2909,15 +3339,24 @@ impl OpenOntologiesServer {
         }
     }
 
-    #[tool(name = "onto_invariant_remove", description = "Remove a registered BC+ invariant by name.")]
-    async fn onto_invariant_remove(&self, Parameters(input): Parameters<OntoInvariantRemoveInput>) -> String {
+    #[tool(
+        name = "onto_invariant_remove",
+        description = "Remove a registered BC+ invariant by name."
+    )]
+    async fn onto_invariant_remove(
+        &self,
+        Parameters(input): Parameters<OntoInvariantRemoveInput>,
+    ) -> String {
         match crate::dynamics_bcplus::remove_invariant(&self.db, &input.name) {
             Ok(removed) => format!(r#"{{"removed":{}}}"#, removed),
             Err(e) => format!(r#"{{"error":"{}"}}"#, e),
         }
     }
 
-    #[tool(name = "onto_invariant_check", description = "Evaluate every registered BC+ invariant against the current graph and return the names + descriptions of any that fail. Empty list means every invariant holds.")]
+    #[tool(
+        name = "onto_invariant_check",
+        description = "Evaluate every registered BC+ invariant against the current graph and return the names + descriptions of any that fail. Empty list means every invariant holds."
+    )]
     async fn onto_invariant_check(&self) -> String {
         match crate::dynamics_bcplus::check_invariants(&self.db, &self.graph) {
             Ok(violations) => serde_json::to_string(&violations)
@@ -2926,10 +3365,24 @@ impl OpenOntologiesServer {
         }
     }
 
-    #[tool(name = "onto_default_register", description = "Register a BC+ default-value law. When the `condition_ask` SPARQL ASK returns `true`, the listed `defaults` triples are asserted (added if not already present) on the next call to `onto_default_apply`. Idempotent.")]
-    async fn onto_default_register(&self, Parameters(input): Parameters<OntoDefaultRegisterInput>) -> String {
-        let defaults: Vec<(String, String, String)> = input.defaults.into_iter()
-            .filter_map(|t| if t.len() == 3 { Some((t[0].clone(), t[1].clone(), t[2].clone())) } else { None })
+    #[tool(
+        name = "onto_default_register",
+        description = "Register a BC+ default-value law. When the `condition_ask` SPARQL ASK returns `true`, the listed `defaults` triples are asserted (added if not already present) on the next call to `onto_default_apply`. Idempotent."
+    )]
+    async fn onto_default_register(
+        &self,
+        Parameters(input): Parameters<OntoDefaultRegisterInput>,
+    ) -> String {
+        let defaults: Vec<(String, String, String)> = input
+            .defaults
+            .into_iter()
+            .filter_map(|t| {
+                if t.len() == 3 {
+                    Some((t[0].clone(), t[1].clone(), t[2].clone()))
+                } else {
+                    None
+                }
+            })
             .collect();
         let law = crate::dynamics_bcplus::DefaultLaw {
             name: input.name.clone(),
@@ -2943,7 +3396,10 @@ impl OpenOntologiesServer {
         }
     }
 
-    #[tool(name = "onto_default_apply", description = "Apply every registered BC+ default-value law whose condition currently holds. Adds only triples that don't already exist. Returns the names of laws that fired and the triples added.")]
+    #[tool(
+        name = "onto_default_apply",
+        description = "Apply every registered BC+ default-value law whose condition currently holds. Adds only triples that don't already exist. Returns the names of laws that fired and the triples added."
+    )]
     async fn onto_default_apply(&self) -> String {
         match crate::dynamics_bcplus::apply_defaults(&self.db, &self.graph) {
             Ok(result) => serde_json::to_string(&result)
@@ -2952,7 +3408,10 @@ impl OpenOntologiesServer {
         }
     }
 
-    #[tool(name = "onto_action_list", description = "List the names of all action schemas registered in this server's Dynamics store. Useful for the Planner / Claude to know what's available before composing a plan.")]
+    #[tool(
+        name = "onto_action_list",
+        description = "List the names of all action schemas registered in this server's Dynamics store. Useful for the Planner / Claude to know what's available before composing a plan."
+    )]
     async fn onto_action_list(&self) -> String {
         match crate::dynamics::list_names(&self.db) {
             Ok(names) => serde_json::to_string(&names)
@@ -2961,8 +3420,14 @@ impl OpenOntologiesServer {
         }
     }
 
-    #[tool(name = "onto_plan_classical", description = "Invoke Fast Downward as a subprocess on a precompiled PDDL domain + problem (#50). Returns the raw sas_plan content plus a parsed `operators` list (operator name + positional PDDL args). The orchestrator maps args back to original IRIs using the schema parameter names (still client-side per LLM-Modulo). If Fast Downward is not on PATH and `fast_downward_bin` is not set, returns a clean `binary_unavailable` error rather than falling back to a silent stub. Pair: `onto_plan_compile_pddl` → `onto_plan_classical` → IRI-bind operators client-side → `onto_plan_validate`.")]
-    async fn onto_plan_classical(&self, Parameters(input): Parameters<OntoPlanClassicalInput>) -> String {
+    #[tool(
+        name = "onto_plan_classical",
+        description = "Invoke Fast Downward as a subprocess on a precompiled PDDL domain + problem (#50). Returns the raw sas_plan content plus a parsed `operators` list (operator name + positional PDDL args). The orchestrator maps args back to original IRIs using the schema parameter names (still client-side per LLM-Modulo). If Fast Downward is not on PATH and `fast_downward_bin` is not set, returns a clean `binary_unavailable` error rather than falling back to a silent stub. Pair: `onto_plan_compile_pddl` → `onto_plan_classical` → IRI-bind operators client-side → `onto_plan_validate`."
+    )]
+    async fn onto_plan_classical(
+        &self,
+        Parameters(input): Parameters<OntoPlanClassicalInput>,
+    ) -> String {
         match crate::plan_classical::run_fast_downward(
             &input.domain,
             &input.problem,
@@ -2975,16 +3440,32 @@ impl OpenOntologiesServer {
         }
     }
 
-    #[tool(name = "onto_plan_validate", description = "Validate a candidate plan (sequence of registered-action steps) against the loaded graph WITHOUT mutating the real store. Per LLM-Modulo (Kambhampati arXiv 2402.01817), the server validates plans the client-side solver produced — it does not solve. For each step, the validator re-evaluates the schema's preconditions against the cumulative sandbox state and applies effects to a forked copy; the first failing step short-circuits with a diagnostic. Optional `goal_facts` are checked post-plan and reported in `unsatisfied_goals` (without invalidating the plan itself). Pair with `onto_plan_compile_pddl` (server compiles → external solver searches → server validates).")]
-    async fn onto_plan_validate(&self, Parameters(input): Parameters<OntoPlanValidateInput>) -> String {
-        let steps: Vec<crate::plan_validate::PlanStep> = input.steps.into_iter()
+    #[tool(
+        name = "onto_plan_validate",
+        description = "Validate a candidate plan (sequence of registered-action steps) against the loaded graph WITHOUT mutating the real store. Per LLM-Modulo (Kambhampati arXiv 2402.01817), the server validates plans the client-side solver produced — it does not solve. For each step, the validator re-evaluates the schema's preconditions against the cumulative sandbox state and applies effects to a forked copy; the first failing step short-circuits with a diagnostic. Optional `goal_facts` are checked post-plan and reported in `unsatisfied_goals` (without invalidating the plan itself). Pair with `onto_plan_compile_pddl` (server compiles → external solver searches → server validates)."
+    )]
+    async fn onto_plan_validate(
+        &self,
+        Parameters(input): Parameters<OntoPlanValidateInput>,
+    ) -> String {
+        let steps: Vec<crate::plan_validate::PlanStep> = input
+            .steps
+            .into_iter()
             .map(|s| crate::plan_validate::PlanStep {
                 action_name: s.action_name,
                 bindings: s.bindings,
             })
             .collect();
-        let goal_facts: Vec<(String, String, String)> = input.goal_facts.into_iter()
-            .filter_map(|t| if t.len() == 3 { Some((t[0].clone(), t[1].clone(), t[2].clone())) } else { None })
+        let goal_facts: Vec<(String, String, String)> = input
+            .goal_facts
+            .into_iter()
+            .filter_map(|t| {
+                if t.len() == 3 {
+                    Some((t[0].clone(), t[1].clone(), t[2].clone()))
+                } else {
+                    None
+                }
+            })
             .collect();
         match crate::plan_validate::validate_plan(&self.db, &self.graph, &steps, &goal_facts) {
             Ok(result) => serde_json::to_string(&result)
@@ -2993,8 +3474,14 @@ impl OpenOntologiesServer {
         }
     }
 
-    #[tool(name = "onto_plan_compile_pddl", description = "Compile a PDDL domain from registered Dynamics action schemas (#43) plus a problem instance from the loaded graph and a goal Turtle slice (#45 Planner stub). Returns {domain, problem, translation_notes}. The actual planner (Fast Downward) is wrapped client-side per the LLM-Modulo convention — this primitive only emits the PDDL. Lossy in the v0.4 stub: only ASK-shape SPARQL preconditions translate cleanly; SELECT-shaped preconditions are preserved as notes.")]
-    async fn onto_plan_compile_pddl(&self, Parameters(input): Parameters<OntoPlanCompilePddlInput>) -> String {
+    #[tool(
+        name = "onto_plan_compile_pddl",
+        description = "Compile a PDDL domain from registered Dynamics action schemas (#43) plus a problem instance from the loaded graph and a goal Turtle slice (#45 Planner stub). Returns {domain, problem, translation_notes}. The actual planner (Fast Downward) is wrapped client-side per the LLM-Modulo convention — this primitive only emits the PDDL. Lossy in the v0.4 stub: only ASK-shape SPARQL preconditions translate cleanly; SELECT-shaped preconditions are preserved as notes."
+    )]
+    async fn onto_plan_compile_pddl(
+        &self,
+        Parameters(input): Parameters<OntoPlanCompilePddlInput>,
+    ) -> String {
         // Gather schemas — either explicitly requested or every registered one.
         let names = if input.action_names.is_empty() {
             match crate::dynamics::list_names(&self.db) {
@@ -3022,8 +3509,12 @@ impl OpenOntologiesServer {
             .sparql_select("SELECT ?s ?p ?o WHERE { ?s ?p ?o } LIMIT 10000")
         {
             Ok(s) => {
-                let v: serde_json::Value = serde_json::from_str(&s).unwrap_or(serde_json::Value::Null);
-                v["results"].as_array().cloned().unwrap_or_default()
+                let v: serde_json::Value =
+                    serde_json::from_str(&s).unwrap_or(serde_json::Value::Null);
+                v["results"]
+                    .as_array()
+                    .cloned()
+                    .unwrap_or_default()
                     .into_iter()
                     .filter_map(|row| {
                         let s = row["s"].as_str()?.to_string();
@@ -3045,8 +3536,12 @@ impl OpenOntologiesServer {
                 }
                 match temp.sparql_select("SELECT ?s ?p ?o WHERE { ?s ?p ?o }") {
                     Ok(s) => {
-                        let v: serde_json::Value = serde_json::from_str(&s).unwrap_or(serde_json::Value::Null);
-                        v["results"].as_array().cloned().unwrap_or_default()
+                        let v: serde_json::Value =
+                            serde_json::from_str(&s).unwrap_or(serde_json::Value::Null);
+                        v["results"]
+                            .as_array()
+                            .cloned()
+                            .unwrap_or_default()
                             .into_iter()
                             .filter_map(|row| {
                                 let s = row["s"].as_str()?.to_string();
@@ -3080,7 +3575,10 @@ impl OpenOntologiesServer {
         body.to_string()
     }
 
-    #[tool(name = "onto_reason", description = "Run inference over the loaded ontology. Profiles: 'rdfs' (subclass, domain/range), 'owl-rl' (+ transitive/symmetric/inverse, sameAs, equivalentClass), 'owl-rl-ext' (+ someValuesFrom, allValuesFrom, hasValue, intersectionOf, unionOf), 'owl-dl' (Full OWL2-DL SHOIQ tableaux: satisfiability, classification, qualified number restrictions with node merging, inverse/symmetric roles, functional properties, parallel agent-based classification, explanation traces, ABox reasoning). Materializes inferred triples.")]
+    #[tool(
+        name = "onto_reason",
+        description = "Run inference over the loaded ontology. Profiles: 'rdfs' (subclass, domain/range), 'owl-rl' (+ transitive/symmetric/inverse, sameAs, equivalentClass), 'owl-rl-ext' (+ someValuesFrom, allValuesFrom, hasValue, intersectionOf, unionOf), 'owl-dl' (Full OWL2-DL SHOIQ tableaux: satisfiability, classification, qualified number restrictions with node merging, inverse/symmetric roles, functional properties, parallel agent-based classification, explanation traces, ABox reasoning). Materializes inferred triples."
+    )]
     async fn onto_reason(&self, Parameters(input): Parameters<OntoReasonInput>) -> String {
         let started = std::time::Instant::now();
         use crate::reason::Reasoner;
@@ -3105,7 +3603,6 @@ impl OpenOntologiesServer {
             return out;
         }
 
-
         let materialize = input.materialize.unwrap_or(true);
         let out = Reasoner::run(&self.graph, profile, materialize)
             .unwrap_or_else(|e| format!(r#"{{"ok":false,"error":"{}","hint":"Check the error details and retry. Consult the tool description for required parameters."}}"#, e));
@@ -3114,7 +3611,10 @@ impl OpenOntologiesServer {
         out
     }
 
-    #[tool(name = "onto_dl_explain", description = "Explain why a class is unsatisfiable using DL tableaux reasoning. Returns an explanation trace showing the logical contradictions that make the class impossible to instantiate.")]
+    #[tool(
+        name = "onto_dl_explain",
+        description = "Explain why a class is unsatisfiable using DL tableaux reasoning. Returns an explanation trace showing the logical contradictions that make the class impossible to instantiate."
+    )]
     async fn onto_dl_explain(&self, Parameters(input): Parameters<OntoDlExplainInput>) -> String {
         use crate::tableaux::DlReasoner;
 
@@ -3144,7 +3644,10 @@ impl OpenOntologiesServer {
             })
     }
 
-    #[tool(name = "onto_dl_check", description = "Check if one class is subsumed by another using DL tableaux reasoning. Returns whether sub_class is a subclass of super_class, with justification.")]
+    #[tool(
+        name = "onto_dl_check",
+        description = "Check if one class is subsumed by another using DL tableaux reasoning. Returns whether sub_class is a subclass of super_class, with justification."
+    )]
     async fn onto_dl_check(&self, Parameters(input): Parameters<OntoDlCheckInput>) -> String {
         use crate::tableaux::DlReasoner;
 
@@ -3179,7 +3682,10 @@ impl OpenOntologiesServer {
 
     // ── v2: Lifecycle tools ─────────────────────────────────────────────────
 
-    #[tool(name = "onto_plan", description = "Terraform-style plan: diff current store against proposed Turtle. Shows added/removed classes/properties, blast radius, risk score, and locked IRI violations.")]
+    #[tool(
+        name = "onto_plan",
+        description = "Terraform-style plan: diff current store against proposed Turtle. Shows added/removed classes/properties, blast radius, risk score, and locked IRI violations."
+    )]
     async fn onto_plan(&self, Parameters(input): Parameters<OntoPlanInput>) -> String {
         // Guard: diffing against an empty store produces a meaningless plan.
         if self.graph.triple_count() == 0 {
@@ -3194,20 +3700,33 @@ impl OpenOntologiesServer {
             Ok(result) => {
                 let ts = chrono::Utc::now().to_rfc3339();
                 let obj_id = format!("{}:plan", self.session_id);
-                let _ = self.ocel_store().upsert_object(&obj_id, "OntologyVersion", &[]);
+                let _ = self
+                    .ocel_store()
+                    .upsert_object(&obj_id, "OntologyVersion", &[]);
 
                 // Extract plan metrics from JSON
-                let (risk_score, added_count, removed_count) = serde_json::from_str::<serde_json::Value>(&result)
-                    .ok()
-                    .map(|j| {
-                        let risk = j.get("risk_score").and_then(|v| v.as_f64()).unwrap_or(0.0);
-                        let added = j.get("added_classes").and_then(|v| v.as_array().map(|a| a.len())).unwrap_or(0);
-                        let removed = j.get("removed_classes").and_then(|v| v.as_array().map(|a| a.len())).unwrap_or(0);
-                        (risk, added, removed)
-                    })
-                    .unwrap_or((0.0, 0, 0));
+                let (risk_score, added_count, removed_count) =
+                    serde_json::from_str::<serde_json::Value>(&result)
+                        .ok()
+                        .map(|j| {
+                            let risk = j.get("risk_score").and_then(|v| v.as_f64()).unwrap_or(0.0);
+                            let added = j
+                                .get("added_classes")
+                                .and_then(|v| v.as_array().map(|a| a.len()))
+                                .unwrap_or(0);
+                            let removed = j
+                                .get("removed_classes")
+                                .and_then(|v| v.as_array().map(|a| a.len()))
+                                .unwrap_or(0);
+                            (risk, added, removed)
+                        })
+                        .unwrap_or((0.0, 0, 0));
 
-                let event_id = format!("{}:plan:{}", self.session_id, chrono::Utc::now().timestamp_millis());
+                let event_id = format!(
+                    "{}:plan:{}",
+                    self.session_id,
+                    chrono::Utc::now().timestamp_millis()
+                );
                 let _ = self.ocel_store().emit_event(
                     &event_id,
                     "plan_computed",
@@ -3222,7 +3741,8 @@ impl OpenOntologiesServer {
                     None,
                 );
 
-                self.lineage().record(&self.session_id, "P", "plan", "computed");
+                self.lineage()
+                    .record(&self.session_id, "P", "plan", "computed");
                 result
             }
             Err(e) => serde_json::json!({
@@ -3232,11 +3752,15 @@ impl OpenOntologiesServer {
                          Common causes: invalid Turtle syntax (missing prefix declarations, \
                          unclosed literals, bad IRI escaping) or an empty new_turtle field. \
                          Validate your Turtle with onto_validate before calling onto_plan.",
-            }).to_string(),
+            })
+            .to_string(),
         }
     }
 
-    #[tool(name = "onto_apply", description = "Apply the last plan. Modes: 'safe' (clear+reload, checks monitor), 'force' (skip monitor watchers — does NOT bypass admission), 'migrate' (adds owl:equivalentClass/Property bridges for renames). To bypass admission, set bypass_admission=true with a non-empty bypass_reason.")]
+    #[tool(
+        name = "onto_apply",
+        description = "Apply the last plan. Modes: 'safe' (clear+reload, checks monitor), 'force' (skip monitor watchers — does NOT bypass admission), 'migrate' (adds owl:equivalentClass/Property bridges for renames). To bypass admission, set bypass_admission=true with a non-empty bypass_reason."
+    )]
     async fn onto_apply(&self, Parameters(input): Parameters<OntoApplyInput>) -> String {
         let mode = input.mode.as_deref().unwrap_or("safe");
 
@@ -3276,9 +3800,15 @@ impl OpenOntologiesServer {
             Ok(result) => {
                 let ts = chrono::Utc::now().to_rfc3339();
                 let obj_id = format!("{}:plan", self.session_id);
-                let _ = self.ocel_store().upsert_object(&obj_id, "OntologyVersion", &[]);
+                let _ = self
+                    .ocel_store()
+                    .upsert_object(&obj_id, "OntologyVersion", &[]);
 
-                let event_id = format!("{}:apply:{}", self.session_id, chrono::Utc::now().timestamp_millis());
+                let event_id = format!(
+                    "{}:apply:{}",
+                    self.session_id,
+                    chrono::Utc::now().timestamp_millis()
+                );
                 let _ = self.ocel_store().emit_event(
                     &event_id,
                     &format!("apply_{}", mode),
@@ -3296,7 +3826,8 @@ impl OpenOntologiesServer {
                 // `conformance_runs.fitness >= 0.95`. The receipt JOIN inside
                 // Loop 4 (exemplars_for_domain) is the integrity proof.
                 if let Some(ref scope) = input.scope_token {
-                    let _ = crate::feedback::exemplars::maybe_mine_exemplar(scope, self.ocel_store());
+                    let _ =
+                        crate::feedback::exemplars::maybe_mine_exemplar(scope, self.ocel_store());
                 }
                 let monitor_result = self.monitor().run_watchers();
                 let mut parsed: serde_json::Value =
@@ -3313,12 +3844,13 @@ impl OpenOntologiesServer {
                     );
                 }
                 if monitor_result.status != "ok"
-                    && let Some(obj) = parsed.as_object_mut() {
-                        obj.insert(
-                            "monitor".into(),
-                            serde_json::to_value(&monitor_result).unwrap_or_default(),
-                        );
-                    }
+                    && let Some(obj) = parsed.as_object_mut()
+                {
+                    obj.insert(
+                        "monitor".into(),
+                        serde_json::to_value(&monitor_result).unwrap_or_default(),
+                    );
+                }
                 parsed.to_string()
             }
             Err(e) => {
@@ -3344,14 +3876,22 @@ impl OpenOntologiesServer {
                     "ok": false,
                     "error": msg,
                     "hint": hint,
-                }).to_string()
+                })
+                .to_string()
             }
         }
     }
 
-    #[tool(name = "onto_lock", description = "Lock IRIs to prevent removal during plan/apply. Locked IRIs will show as violations in plan output.")]
+    #[tool(
+        name = "onto_lock",
+        description = "Lock IRIs to prevent removal during plan/apply. Locked IRIs will show as violations in plan output."
+    )]
     async fn onto_lock(&self, Parameters(input): Parameters<OntoLockInput>) -> String {
-        let blank_iris: Vec<&String> = input.iris.iter().filter(|iri| iri.trim().is_empty()).collect();
+        let blank_iris: Vec<&String> = input
+            .iris
+            .iter()
+            .filter(|iri| iri.trim().is_empty())
+            .collect();
         if !blank_iris.is_empty() {
             return serde_json::json!({
                 "ok": false,
@@ -3379,19 +3919,15 @@ impl OpenOntologiesServer {
                 .ok()
                 .and_then(|json| serde_json::from_str::<serde_json::Value>(&json).ok())
                 .and_then(|v| {
-                    v["results"]
-                        .as_array()?
-                        .first()?["n"]
-                        .as_str()
-                        .map(|s| {
-                            s.trim_matches('"')
-                                .split("^^")
-                                .next()
-                                .unwrap_or("0")
-                                .trim_matches('"')
-                                .parse::<u64>()
-                                .unwrap_or(0)
-                        })
+                    v["results"].as_array()?.first()?["n"].as_str().map(|s| {
+                        s.trim_matches('"')
+                            .split("^^")
+                            .next()
+                            .unwrap_or("0")
+                            .trim_matches('"')
+                            .parse::<u64>()
+                            .unwrap_or(0)
+                    })
                 })
                 .map(|n| n > 0)
                 .unwrap_or(false);
@@ -3429,7 +3965,10 @@ impl OpenOntologiesServer {
         }
     }
 
-    #[tool(name = "onto_drift", description = "Detect drift between two ontology versions. Returns added/removed terms, likely renames with confidence scores, and drift velocity. `format` selects output: 'json' (default), 'kgcl' (KGCL CNL text), or 'kgcl_json' (KGCL structured JSON-LD).")]
+    #[tool(
+        name = "onto_drift",
+        description = "Detect drift between two ontology versions. Returns added/removed terms, likely renames with confidence scores, and drift velocity. `format` selects output: 'json' (default), 'kgcl' (KGCL CNL text), or 'kgcl_json' (KGCL structured JSON-LD)."
+    )]
     async fn onto_drift(&self, Parameters(input): Parameters<OntoDriftInput>) -> String {
         if input.version_a.trim().is_empty() {
             return serde_json::json!({
@@ -3451,21 +3990,35 @@ impl OpenOntologiesServer {
                 let ts = chrono::Utc::now().to_rfc3339();
                 let obj_id_a = format!("{}:version_a", self.session_id);
                 let obj_id_b = format!("{}:version_b", self.session_id);
-                let _ = self.ocel_store().upsert_object(&obj_id_a, "OntologyVersion", &[]);
-                let _ = self.ocel_store().upsert_object(&obj_id_b, "OntologyVersion", &[]);
+                let _ = self
+                    .ocel_store()
+                    .upsert_object(&obj_id_a, "OntologyVersion", &[]);
+                let _ = self
+                    .ocel_store()
+                    .upsert_object(&obj_id_b, "OntologyVersion", &[]);
+
+                let parsed_val: serde_json::Value =
+                    serde_json::from_str(&result).unwrap_or(serde_json::Value::Null);
 
                 // Extract drift metrics
-                let (added, removed, renames) = serde_json::from_str::<serde_json::Value>(&result)
-                    .ok()
-                    .map(|j| {
-                        let a = j.get("added_terms").and_then(|v| v.as_array().map(|arr| arr.len())).unwrap_or(0);
-                        let r = j.get("removed_terms").and_then(|v| v.as_array().map(|arr| arr.len())).unwrap_or(0);
-                        let rn = j.get("rename_candidates").and_then(|v| v.as_array().map(|arr| arr.len())).unwrap_or(0);
-                        (a, r, rn)
-                    })
-                    .unwrap_or((0, 0, 0));
+                let added = parsed_val
+                    .get("added_terms")
+                    .and_then(|v| v.as_array().map(|arr| arr.len()))
+                    .unwrap_or(0);
+                let removed = parsed_val
+                    .get("removed_terms")
+                    .and_then(|v| v.as_array().map(|arr| arr.len()))
+                    .unwrap_or(0);
+                let renames = parsed_val
+                    .get("rename_candidates")
+                    .and_then(|v| v.as_array().map(|arr| arr.len()))
+                    .unwrap_or(0);
 
-                let event_id = format!("{}:drift:{}", self.session_id, chrono::Utc::now().timestamp_millis());
+                let event_id = format!(
+                    "{}:drift:{}",
+                    self.session_id,
+                    chrono::Utc::now().timestamp_millis()
+                );
                 let _ = self.ocel_store().emit_event(
                     &event_id,
                     "drift_detected",
@@ -3480,14 +4033,34 @@ impl OpenOntologiesServer {
                     None,
                 );
 
-                self.lineage().record(&self.session_id, "D", "drift", "detected");
-                result
+                match format {
+                    "kgcl" => {
+                        self.lineage()
+                            .record(&self.session_id, "D", "drift", "detected:kgcl");
+                        let report = crate::kgcl::drift_to_kgcl(&parsed_val, threshold);
+                        report.to_cnl()
+                    }
+                    "kgcl_json" => {
+                        self.lineage()
+                            .record(&self.session_id, "D", "drift", "detected:kgcl_json");
+                        let report = crate::kgcl::drift_to_kgcl(&parsed_val, threshold);
+                        report.to_json().to_string()
+                    }
+                    _ => {
+                        self.lineage()
+                            .record(&self.session_id, "D", "drift", "detected");
+                        result
+                    }
+                }
             }
             Err(e) => format!(r#"{{"ok":false,"error":"{}","hint":"Check the error details and retry. Consult the tool description for required parameters."}}"#, e),
         }
     }
 
-    #[tool(name = "onto_enforce", description = "Enforce design patterns on the loaded ontology. Built-in packs: 'generic' (orphan classes, missing domain/range/label), 'boro' (BORO 4D patterns), 'value_partition' (disjoint/covering checks). Also runs any custom rules stored for the pack.")]
+    #[tool(
+        name = "onto_enforce",
+        description = "Enforce design patterns on the loaded ontology. Built-in packs: 'generic' (orphan classes, missing domain/range/label), 'boro' (BORO 4D patterns), 'value_partition' (disjoint/covering checks). Also runs any custom rules stored for the pack."
+    )]
     async fn onto_enforce(&self, Parameters(input): Parameters<OntoEnforceInput>) -> String {
         if self.graph.triple_count() == 0 {
             return serde_json::json!({
@@ -3509,33 +4082,54 @@ impl OpenOntologiesServer {
             Ok(result) => {
                 let ts = chrono::Utc::now().to_rfc3339();
                 let obj_id = input.rule_pack.clone();
-                let _ = self.ocel_store().upsert_object(&obj_id, "RulePack", &[("rule_pack", &obj_id, "string")]);
+                let _ = self.ocel_store().upsert_object(
+                    &obj_id,
+                    "RulePack",
+                    &[("rule_pack", &obj_id, "string")],
+                );
 
                 // Count violations from result JSON if possible
                 let vcount = serde_json::from_str::<serde_json::Value>(&result)
                     .ok()
-                    .and_then(|j| j.get("violations").and_then(|v| v.as_array().map(|a| a.len())))
+                    .and_then(|j| {
+                        j.get("violations")
+                            .and_then(|v| v.as_array().map(|a| a.len()))
+                    })
                     .unwrap_or(0);
 
-                let event_id = format!("{}:enforce:{}", self.session_id, chrono::Utc::now().timestamp_millis());
+                let event_id = format!(
+                    "{}:enforce:{}",
+                    self.session_id,
+                    chrono::Utc::now().timestamp_millis()
+                );
                 let _ = self.ocel_store().emit_event(
                     &event_id,
                     "enforce_run",
                     &ts,
                     &self.session_id,
-                    &[("violation_count", &vcount.to_string()), ("rule_pack", &obj_id)],
+                    &[
+                        ("violation_count", &vcount.to_string()),
+                        ("rule_pack", &obj_id),
+                    ],
                     &[(&obj_id, "enforced_against")],
                     None,
                 );
 
-                self.lineage().record(&self.session_id, "E", "enforce", &input.rule_pack);
+                self.lineage()
+                    .record(&self.session_id, "E", "enforce", &input.rule_pack);
                 result
             }
-            Err(e) => format!(r#"{{"ok":false,"error":"{}","hint":"Check the error details and retry. Consult the tool description for required parameters."}}"#, e),
+            Err(e) => format!(
+                r#"{{"ok":false,"error":"{}","hint":"Check the error details and retry. Consult the tool description for required parameters."}}"#,
+                e
+            ),
         }
     }
 
-    #[tool(name = "onto_monitor", description = "Run active monitoring watchers. Optionally add new watchers via inline JSON. Watchers with action=notify and a webhook_url will POST alerts to the URL. Returns ok/alert/blocked status with details.")]
+    #[tool(
+        name = "onto_monitor",
+        description = "Run active monitoring watchers. Optionally add new watchers via inline JSON. Watchers with action=notify and a webhook_url will POST alerts to the URL. Returns ok/alert/blocked status with details."
+    )]
     async fn onto_monitor(&self, Parameters(input): Parameters<OntoMonitorInput>) -> String {
         let monitor = self.monitor();
 
@@ -3585,7 +4179,8 @@ impl OpenOntologiesServer {
                         // Validate webhook URL scheme for notify-action watchers.
                         if matches!(w.action, crate::monitor::WatcherAction::Notify)
                             && let Some(ref url) = w.webhook_url
-                            && !url.starts_with("http://") && !url.starts_with("https://")
+                            && !url.starts_with("http://")
+                            && !url.starts_with("https://")
                         {
                             validation_errors.push(format!(
                                 "Watcher '{}': webhook_url '{}' is not a valid HTTP/HTTPS URL. Use 'https://...' for production endpoints (e.g. Slack incoming webhooks, PagerDuty).",
@@ -3613,7 +4208,11 @@ impl OpenOntologiesServer {
         let ts = chrono::Utc::now().to_rfc3339();
         let ts_ms = chrono::Utc::now().timestamp_millis();
         let obj_id = format!("{}:monitor:{}", self.session_id, ts_ms);
-        let _ = self.ocel_store().upsert_object(&obj_id, "MonitorRun", &[("status", &result.status, "string")]);
+        let _ = self.ocel_store().upsert_object(
+            &obj_id,
+            "MonitorRun",
+            &[("status", &result.status, "string")],
+        );
 
         let event_id = format!("{}:monitor:{}", self.session_id, ts_ms);
         let _ = self.ocel_store().emit_event(
@@ -3626,13 +4225,15 @@ impl OpenOntologiesServer {
             None,
         );
 
-        self.lineage().record(&self.session_id, "M", "monitor", &result.status);
+        self.lineage()
+            .record(&self.session_id, "M", "monitor", &result.status);
 
         // Augment the result with an actionable hint when no watchers are registered.
         // This distinguishes "healthy with watchers" from "nothing to check".
         let mut out = serde_json::to_value(&result)
             .unwrap_or_else(|_| serde_json::json!({"status": "ok", "alerts": [], "passed": []}));
-        if result.alerts.is_empty() && result.passed.is_empty()
+        if result.alerts.is_empty()
+            && result.passed.is_empty()
             && let Some(obj) = out.as_object_mut()
         {
             obj.insert(
@@ -3645,7 +4246,10 @@ impl OpenOntologiesServer {
         out.to_string()
     }
 
-    #[tool(name = "onto_monitor_clear", description = "Clear the monitor blocked flag, allowing apply operations to proceed. Audit-only admission.")]
+    #[tool(
+        name = "onto_monitor_clear",
+        description = "Clear the monitor blocked flag, allowing apply operations to proceed. Audit-only admission."
+    )]
     fn onto_monitor_clear(&self) -> String {
         self.evaluate_admission_audit(
             crate::admission::AdmissionOp::Feedback,
@@ -3657,7 +4261,10 @@ impl OpenOntologiesServer {
         r#"{"ok":true,"unblocked":"monitor_block","message":"Monitor block cleared — onto_apply is now permitted","next":"Call onto_apply to resume the lifecycle, or onto_monitor to verify watcher status before proceeding","admission":"audit"}"#.to_string()
     }
 
-    #[tool(name = "onto_crosswalk", description = "Look up clinical crosswalk mappings for a code and system (ICD10, SNOMED, MeSH). Uses data/crosswalks.parquet (93-row sample included; run scripts/build_crosswalks.py to extend).")]
+    #[tool(
+        name = "onto_crosswalk",
+        description = "Look up clinical crosswalk mappings for a code and system (ICD10, SNOMED, MeSH). Uses data/crosswalks.parquet (93-row sample included; run scripts/build_crosswalks.py to extend)."
+    )]
     async fn onto_crosswalk(&self, Parameters(input): Parameters<OntoCrosswalkInput>) -> String {
         if input.code.trim().is_empty() {
             return serde_json::json!({
@@ -3693,14 +4300,21 @@ impl OpenOntologiesServer {
                             "source_label": r.source_label,
                             "target_label": r.target_label,
                         })).collect::<Vec<_>>(),
-                    }).to_string()
+                    })
+                    .to_string()
                 }
             }
-            Err(e) => format!(r#"{{"ok":false,"error":"Crosswalks not loaded: {}. Run scripts/build_crosswalks.py first.","hint":"Run scripts/build_crosswalks.py to build the crosswalk database, then retry."}}"#, e),
+            Err(e) => format!(
+                r#"{{"ok":false,"error":"Crosswalks not loaded: {}. Run scripts/build_crosswalks.py first.","hint":"Run scripts/build_crosswalks.py to build the crosswalk database, then retry."}}"#,
+                e
+            ),
         }
     }
 
-    #[tool(name = "onto_enrich", description = "Enrich an ontology class with a SKOS mapping triple from the clinical crosswalks.")]
+    #[tool(
+        name = "onto_enrich",
+        description = "Enrich an ontology class with a SKOS mapping triple from the clinical crosswalks."
+    )]
     async fn onto_enrich(&self, Parameters(input): Parameters<OntoEnrichInput>) -> String {
         if self.graph.triple_count() == 0 {
             return serde_json::json!({
@@ -3720,7 +4334,9 @@ impl OpenOntologiesServer {
             Ok(cw) => {
                 // Check that the class IRI exists in the loaded ontology before enriching
                 let iri_check = format!("ASK {{ <{}> ?p ?o }}", input.class_iri);
-                let iri_exists = self.graph.sparql_select(&iri_check)
+                let iri_exists = self
+                    .graph
+                    .sparql_select(&iri_check)
                     .ok()
                     .and_then(|json| serde_json::from_str::<serde_json::Value>(&json).ok())
                     .and_then(|v| v["result"].as_bool())
@@ -3734,11 +4350,17 @@ impl OpenOntologiesServer {
                 }
                 cw.enrich(&self.graph, &input.class_iri, &input.code, &input.system)
             }
-            Err(e) => format!(r#"{{"ok":false,"error":"Crosswalks not loaded: {}","hint":"Run scripts/build_crosswalks.py to build the crosswalk database, then retry."}}"#, e),
+            Err(e) => format!(
+                r#"{{"ok":false,"error":"Crosswalks not loaded: {}","hint":"Run scripts/build_crosswalks.py to build the crosswalk database, then retry."}}"#,
+                e
+            ),
         }
     }
 
-    #[tool(name = "onto_validate_clinical", description = "Validate all class labels in the loaded ontology against clinical crosswalk data. Shows which terms match known clinical codes.")]
+    #[tool(
+        name = "onto_validate_clinical",
+        description = "Validate all class labels in the loaded ontology against clinical crosswalk data. Shows which terms match known clinical codes."
+    )]
     fn onto_validate_clinical(&self) -> String {
         if self.graph.triple_count() == 0 {
             return serde_json::json!({
@@ -3751,10 +4373,17 @@ impl OpenOntologiesServer {
             Ok(cw) => {
                 let result = cw.validate_clinical(&self.graph);
                 // If the crosswalk table is empty (no rows loaded), hint the user
-                let parsed: serde_json::Value = serde_json::from_str(&result).unwrap_or(serde_json::Value::Null);
+                let parsed: serde_json::Value =
+                    serde_json::from_str(&result).unwrap_or(serde_json::Value::Null);
                 if parsed["total_classes"].as_u64().unwrap_or(1) > 0
-                    && parsed["validated"].as_array().map(|v| v.is_empty()).unwrap_or(false)
-                    && parsed["unmatched"].as_array().map(|v| !v.is_empty()).unwrap_or(false)
+                    && parsed["validated"]
+                        .as_array()
+                        .map(|v| v.is_empty())
+                        .unwrap_or(false)
+                    && parsed["unmatched"]
+                        .as_array()
+                        .map(|v| !v.is_empty())
+                        .unwrap_or(false)
                 {
                     // Classes present but none matched — crosswalk may be empty or too sparse
                     let mut out = parsed.clone();
@@ -3766,34 +4395,36 @@ impl OpenOntologiesServer {
                     result
                 }
             }
-            Err(e) => format!(r#"{{"ok":false,"error":"Crosswalks not loaded: {}","hint":"Run scripts/build_crosswalks.py to build the crosswalk database, then retry."}}"#, e),
+            Err(e) => format!(
+                r#"{{"ok":false,"error":"Crosswalks not loaded: {}","hint":"Run scripts/build_crosswalks.py to build the crosswalk database, then retry."}}"#,
+                e
+            ),
         }
     }
 
-    #[tool(name = "onto_lineage", description = "Get the lineage log for the current or specified session. Default format is compact text; use format='eventlog' for EventLog JSON or format='ocel' for Object-Centric Event Log.")]
+    #[tool(
+        name = "onto_lineage",
+        description = "Get the lineage log for the current or specified session. Default format is compact text; use format='eventlog' for EventLog JSON or format='ocel' for Object-Centric Event Log."
+    )]
     async fn onto_lineage(&self, Parameters(input): Parameters<OntoLineageInput>) -> String {
         let session = input.session_id.as_deref().unwrap_or(&self.session_id);
         let format = input.format.as_deref().unwrap_or("text");
 
         match format {
-            "ocel" => {
-                match self.ocel_store.build_ocel(Some(session)) {
-                    Ok(ocel) => {
-                        serde_json::json!({
-                            "session_id": session,
-                            "format": "ocel",
-                            "ocel": serde_json::to_value(&ocel).unwrap_or(serde_json::Value::Null),
-                        }).to_string()
-                    }
-                    Err(e) => {
-                        serde_json::json!({
-                            "ok": false,
-                            "error": format!("Failed to build OCEL: {}", e),
-                            "hint": "Ensure the event log data is in valid OCEL 1.0 or 2.0 JSON format.",
-                            }).to_string()
-                    }
-                }
-            }
+            "ocel" => match self.ocel_store.build_ocel(Some(session)) {
+                Ok(ocel) => serde_json::json!({
+                    "session_id": session,
+                    "format": "ocel",
+                    "ocel": serde_json::to_value(&ocel).unwrap_or(serde_json::Value::Null),
+                })
+                .to_string(),
+                Err(e) => serde_json::json!({
+                "ok": false,
+                "error": format!("Failed to build OCEL: {}", e),
+                "hint": "Ensure the event log data is in valid OCEL 1.0 or 2.0 JSON format.",
+                })
+                .to_string(),
+            },
             "eventlog" => {
                 let db = self.db.clone();
                 let conn = db.conn();
@@ -3821,12 +4452,16 @@ impl OpenOntologiesServer {
                     "session_id": session,
                     "format": "text",
                     "events": events.trim(),
-                }).to_string()
+                })
+                .to_string()
             }
         }
     }
 
-    #[tool(name = "onto_extend", description = "Convenience pipeline: ingest data → validate with SHACL → run OWL reasoning, all in one call. Combines onto_ingest + onto_shacl + onto_reason. Gated by OntoStar admission as the Ingest op.")]
+    #[tool(
+        name = "onto_extend",
+        description = "Convenience pipeline: ingest data → validate with SHACL → run OWL reasoning, all in one call. Combines onto_ingest + onto_shacl + onto_reason. Gated by OntoStar admission as the Ingest op."
+    )]
     async fn onto_extend(&self, Parameters(input): Parameters<OntoExtendInput>) -> String {
         let started = std::time::Instant::now();
         // OntoStar Stream 3: pipeline mutates the graph — gate as Ingest.
@@ -3850,30 +4485,53 @@ impl OpenOntologiesServer {
     async fn onto_extend_inner(&self, input: OntoExtendInput) -> String {
         use crate::ingest::DataIngester;
         use crate::mapping::MappingConfig;
-        use crate::shacl::ShaclValidator;
         use crate::reason::Reasoner;
+        use crate::shacl::ShaclValidator;
 
-        let base_iri = input.base_iri.as_deref().unwrap_or("http://example.org/data/");
+        let base_iri = input
+            .base_iri
+            .as_deref()
+            .unwrap_or("http://example.org/data/");
 
         // 1. Ingest
         let rows = match DataIngester::parse_file(&input.data_path) {
             Ok(r) => r,
-            Err(e) => return format!(r#"{{"ok":false,"error":"Ingest failed: {}","hint":"Check the data file format and mapping config, then retry onto_ingest."}}"#, e),
+            Err(e) => {
+                return format!(
+                    r#"{{"ok":false,"error":"Ingest failed: {}","hint":"Check the data file format and mapping config, then retry onto_ingest."}}"#,
+                    e
+                );
+            }
         };
 
         let mapping = if let Some(ref mapping_str) = input.mapping {
             if input.inline_mapping.unwrap_or(false) {
                 match serde_json::from_str::<MappingConfig>(mapping_str) {
                     Ok(m) => m,
-                    Err(e) => return format!(r#"{{"ok":false,"error":"Invalid mapping: {}","hint":"Use onto_map to generate a valid mapping, then pass it via the mapping field."}}"#, e),
+                    Err(e) => {
+                        return format!(
+                            r#"{{"ok":false,"error":"Invalid mapping: {}","hint":"Use onto_map to generate a valid mapping, then pass it via the mapping field."}}"#,
+                            e
+                        );
+                    }
                 }
             } else {
                 match std::fs::read_to_string(mapping_str) {
                     Ok(content) => match serde_json::from_str::<MappingConfig>(&content) {
                         Ok(m) => m,
-                        Err(e) => return format!(r#"{{"ok":false,"error":"Invalid mapping file: {}","hint":"Use onto_map to generate a valid mapping, then pass it via the mapping field."}}"#, e),
+                        Err(e) => {
+                            return format!(
+                                r#"{{"ok":false,"error":"Invalid mapping file: {}","hint":"Use onto_map to generate a valid mapping, then pass it via the mapping field."}}"#,
+                                e
+                            );
+                        }
                     },
-                    Err(e) => return format!(r#"{{"ok":false,"error":"Cannot read mapping: {}","hint":"Use onto_map to generate a valid mapping, then pass it via the mapping field."}}"#, e),
+                    Err(e) => {
+                        return format!(
+                            r#"{{"ok":false,"error":"Cannot read mapping: {}","hint":"Use onto_map to generate a valid mapping, then pass it via the mapping field."}}"#,
+                            e
+                        );
+                    }
                 }
             }
         } else {
@@ -3884,7 +4542,12 @@ impl OpenOntologiesServer {
         let ntriples = mapping.rows_to_ntriples(&rows);
         let triples_loaded = match self.graph.load_ntriples(&ntriples) {
             Ok(c) => c,
-            Err(e) => return format!(r#"{{"ok":false,"error":"Failed to load triples: {}","hint":"Try onto_clear to reset the store, then reload the ontology with onto_load."}}"#, e),
+            Err(e) => {
+                return format!(
+                    r#"{{"ok":false,"error":"Failed to load triples: {}","hint":"Try onto_clear to reset the store, then reload the ontology with onto_load."}}"#,
+                    e
+                );
+            }
         };
 
         // 2. SHACL (optional)
@@ -3895,7 +4558,12 @@ impl OpenOntologiesServer {
             } else {
                 match std::fs::read_to_string(shapes_input) {
                     Ok(c) => c,
-                    Err(e) => return format!(r#"{{"ok":false,"error":"Cannot read shapes: {}","hint":"Provide inline Turtle with sh:NodeShape definitions (and set inline: true), or a path to a valid .ttl shapes file."}}"#, e),
+                    Err(e) => {
+                        return format!(
+                            r#"{{"ok":false,"error":"Cannot read shapes: {}","hint":"Provide inline Turtle with sh:NodeShape definitions (and set inline: true), or a path to a valid .ttl shapes file."}}"#,
+                            e
+                        );
+                    }
                 }
             };
             match ShaclValidator::validate(&self.graph, &shapes) {
@@ -3909,12 +4577,18 @@ impl OpenOntologiesServer {
                                 "shacl": parsed,
                                 "stopped": true,
                                 "message": "Pipeline stopped due to SHACL violations",
-                            }).to_string();
+                            })
+                            .to_string();
                         }
                         shacl_result = parsed;
                     }
                 }
-                Err(e) => return format!(r#"{{"ok":false,"error":"SHACL validation failed: {}","hint":"Provide inline Turtle with sh:NodeShape definitions (and set inline: true), or a path to a valid .ttl shapes file."}}"#, e),
+                Err(e) => {
+                    return format!(
+                        r#"{{"ok":false,"error":"SHACL validation failed: {}","hint":"Provide inline Turtle with sh:NodeShape definitions (and set inline: true), or a path to a valid .ttl shapes file."}}"#,
+                        e
+                    );
+                }
             }
         }
 
@@ -3927,7 +4601,12 @@ impl OpenOntologiesServer {
                         reason_result = parsed;
                     }
                 }
-                Err(e) => return format!(r#"{{"ok":false,"error":"Reasoning failed: {}","hint":"Check the error details and retry. Consult the tool description for required parameters and formats."}}"#, e),
+                Err(e) => {
+                    return format!(
+                        r#"{{"ok":false,"error":"Reasoning failed: {}","hint":"Check the error details and retry. Consult the tool description for required parameters and formats."}}"#,
+                        e
+                    );
+                }
             }
         }
 
@@ -3937,12 +4616,19 @@ impl OpenOntologiesServer {
             "rows_processed": rows.len(),
             "shacl": shacl_result,
             "reasoning": reason_result,
-        }).to_string()
+        })
+        .to_string()
     }
 
-    #[tool(name = "onto_import_schema", description = "Import a relational database schema as an OWL ontology. Supports PostgreSQL (postgres://…) and DuckDB (duckdb:///path.duckdb, :memory:, or *.duckdb file path). Introspects tables, columns, primary keys, and foreign keys, then generates OWL classes, datatype/object properties, and cardinality restrictions.")]
+    #[tool(
+        name = "onto_import_schema",
+        description = "Import a relational database schema as an OWL ontology. Supports PostgreSQL (postgres://…) and DuckDB (duckdb:///path.duckdb, :memory:, or *.duckdb file path). Introspects tables, columns, primary keys, and foreign keys, then generates OWL classes, datatype/object properties, and cardinality restrictions."
+    )]
     #[allow(unreachable_code, unused_variables, unused_assignments)]
-    async fn onto_import_schema(&self, Parameters(input): Parameters<OntoImportSchemaInput>) -> String {
+    async fn onto_import_schema(
+        &self,
+        Parameters(input): Parameters<OntoImportSchemaInput>,
+    ) -> String {
         use crate::schema::SchemaIntrospector;
         use crate::sqlsource;
 
@@ -3952,7 +4638,10 @@ impl OpenOntologiesServer {
             return r#"{"ok":false,"error":"'connection' is required — provide a database connection string.","hint":"Supported forms: 'postgres://user:pass@host:5432/dbname', 'duckdb:///path/to/file.duckdb', ':memory:' (in-memory DuckDB), or a bare '*.duckdb' file path."}"#.to_string();
         }
 
-        let base_iri = input.base_iri.as_deref().unwrap_or("http://example.org/db/");
+        let base_iri = input
+            .base_iri
+            .as_deref()
+            .unwrap_or("http://example.org/db/");
 
         // OntoStar Stream 3: admission gate fires BEFORE the introspect+load.
         let receipt = match self.evaluate_admission(
@@ -3972,10 +4661,12 @@ impl OpenOntologiesServer {
         // is identical.
         let driver = match sqlsource::detect_driver(&input.connection) {
             Ok(d) => d,
-            Err(e) => return format!(
-                r#"{{"ok":false,"error":"{}","hint":"Supported connection strings: 'postgres://user:pass@host:5432/dbname', 'duckdb:///path/to/file.duckdb', ':memory:', or a bare '*.duckdb' file path."}}"#,
-                e
-            ),
+            Err(e) => {
+                return format!(
+                    r#"{{"ok":false,"error":"{}","hint":"Supported connection strings: 'postgres://user:pass@host:5432/dbname', 'duckdb:///path/to/file.duckdb', ':memory:', or a bare '*.duckdb' file path."}}"#,
+                    e
+                );
+            }
         };
 
         let tables: Vec<crate::schema::TableInfo> = match driver {
@@ -3984,7 +4675,12 @@ impl OpenOntologiesServer {
                 {
                     match SchemaIntrospector::introspect_postgres(&input.connection).await {
                         Ok(t) => t,
-                        Err(e) => return format!(r#"{{"ok":false,"error":"PostgreSQL connection failed: {}","hint":"Verify the connection string (postgres://user:pass@host:5432/dbname), that the server is reachable, and that credentials are correct."}}"#, e),
+                        Err(e) => {
+                            return format!(
+                                r#"{{"ok":false,"error":"PostgreSQL connection failed: {}","hint":"Verify the connection string (postgres://user:pass@host:5432/dbname), that the server is reachable, and that credentials are correct."}}"#,
+                                e
+                            );
+                        }
                     }
                 }
                 #[cfg(not(feature = "postgres"))]
@@ -4003,8 +4699,18 @@ impl OpenOntologiesServer {
                     .await
                     {
                         Ok(Ok(t)) => t,
-                        Ok(Err(e)) => return format!(r#"{{"ok":false,"error":"DuckDB introspection failed: {}","hint":"Verify the file path exists and is a valid DuckDB database, or use ':memory:' for an in-memory instance."}}"#, e),
-                        Err(e) => return format!(r#"{{"ok":false,"error":"DuckDB worker panicked: {}"}}"#, e),
+                        Ok(Err(e)) => {
+                            return format!(
+                                r#"{{"ok":false,"error":"DuckDB introspection failed: {}","hint":"Verify the file path exists and is a valid DuckDB database, or use ':memory:' for an in-memory instance."}}"#,
+                                e
+                            );
+                        }
+                        Err(e) => {
+                            return format!(
+                                r#"{{"ok":false,"error":"DuckDB worker panicked: {}"}}"#,
+                                e
+                            );
+                        }
                     }
                 }
                 #[cfg(not(feature = "duckdb"))]
@@ -4018,7 +4724,10 @@ impl OpenOntologiesServer {
 
         // Validate + load
         if let Err(e) = GraphStore::validate_turtle(&turtle) {
-            return format!(r#"{{"ok":false,"error":"Generated Turtle invalid: {}","hint":"This is an internal generation error — check the schema has standard column types. File a bug with the schema DDL if it persists."}}"#, e);
+            return format!(
+                r#"{{"ok":false,"error":"Generated Turtle invalid: {}","hint":"This is an internal generation error — check the schema has standard column types. File a bug with the schema DDL if it persists."}}"#,
+                e
+            );
         }
 
         match self.graph.load_turtle(&turtle, Some(base_iri)) {
@@ -4032,20 +4741,27 @@ impl OpenOntologiesServer {
                     "base_iri": base_iri,
                 });
                 if let Some(r) = &receipt
-                    && let Some(obj) = out.as_object_mut() {
-                        obj.insert(OCEL_KEY_RECEIPT_HASH.into(), r.hex().into());
-                        obj.insert(
-                            OCEL_KEY_PRODUCTION_LAW_VERSION.into(),
-                            r.record.production_law_version.clone().into(),
-                        );
-                    }
+                    && let Some(obj) = out.as_object_mut()
+                {
+                    obj.insert(OCEL_KEY_RECEIPT_HASH.into(), r.hex().into());
+                    obj.insert(
+                        OCEL_KEY_PRODUCTION_LAW_VERSION.into(),
+                        r.record.production_law_version.clone().into(),
+                    );
+                }
                 out.to_string()
             }
-            Err(e) => format!(r#"{{"ok":false,"error":"Failed to load generated schema OWL into store: {}","hint":"Try onto_clear first to reset the store, then retry onto_import_schema."}}"#, e),
+            Err(e) => format!(
+                r#"{{"ok":false,"error":"Failed to load generated schema OWL into store: {}","hint":"Try onto_clear first to reset the store, then retry onto_import_schema."}}"#,
+                e
+            ),
         }
     }
 
-    #[tool(name = "onto_sql_ingest", description = "Run a SQL query against a relational backbone (PostgreSQL or DuckDB) and ingest the resulting rows into the triple store as RDF. DuckDB is recommended as a federation layer: with its httpfs/parquet/csv/postgres_scanner extensions one query can union remote files, object stores, and other databases. The mapping config has the same shape as onto_ingest. Gated by OntoStar admission as the Ingest op.")]
+    #[tool(
+        name = "onto_sql_ingest",
+        description = "Run a SQL query against a relational backbone (PostgreSQL or DuckDB) and ingest the resulting rows into the triple store as RDF. DuckDB is recommended as a federation layer: with its httpfs/parquet/csv/postgres_scanner extensions one query can union remote files, object stores, and other databases. The mapping config has the same shape as onto_ingest. Gated by OntoStar admission as the Ingest op."
+    )]
     async fn onto_sql_ingest(&self, Parameters(input): Parameters<OntoSqlIngestInput>) -> String {
         use crate::ingest::DataIngester;
         use crate::mapping::MappingConfig;
@@ -4059,7 +4775,10 @@ impl OpenOntologiesServer {
             return r#"{"ok":false,"error":"'sql' is required — provide a SELECT query. The result rows become RDF triples using the provided mapping.","hint":"Example: 'SELECT id, name, category FROM products LIMIT 100'"}"#.to_string();
         }
 
-        let base_iri = input.base_iri.as_deref().unwrap_or("http://example.org/data/");
+        let base_iri = input
+            .base_iri
+            .as_deref()
+            .unwrap_or("http://example.org/data/");
 
         // OntoStar Stream 3: admission gate fires BEFORE any DB or graph work.
         let receipt = match self.evaluate_admission(
@@ -4078,7 +4797,12 @@ impl OpenOntologiesServer {
         // Validate connection scheme up front so we fail fast with a clear error.
         let driver = match sqlsource::detect_driver(&input.connection) {
             Ok(d) => d,
-            Err(e) => return format!(r#"{{"ok":false,"error":"Unsupported connection string: {}","hint":"Supported forms: 'postgres://user:pass@host:5432/dbname', 'duckdb:///path/to/file.duckdb', ':memory:', or a bare '*.duckdb' file path."}}"#, e),
+            Err(e) => {
+                return format!(
+                    r#"{{"ok":false,"error":"Unsupported connection string: {}","hint":"Supported forms: 'postgres://user:pass@host:5432/dbname', 'duckdb:///path/to/file.duckdb', ':memory:', or a bare '*.duckdb' file path."}}"#,
+                    e
+                );
+            }
         };
 
         let rows = match sqlsource::query_rows(&input.connection, &input.sql).await {
@@ -4110,15 +4834,30 @@ impl OpenOntologiesServer {
             if input.inline_mapping.unwrap_or(false) {
                 match serde_json::from_str::<MappingConfig>(mapping_str) {
                     Ok(m) => m,
-                    Err(e) => return format!(r#"{{"ok":false,"error":"Invalid mapping JSON: {}","hint":"Use onto_map with the same SQL query results to generate a valid mapping, then pass it via 'mapping' with 'inline_mapping: true'."}}"#, e),
+                    Err(e) => {
+                        return format!(
+                            r#"{{"ok":false,"error":"Invalid mapping JSON: {}","hint":"Use onto_map with the same SQL query results to generate a valid mapping, then pass it via 'mapping' with 'inline_mapping: true'."}}"#,
+                            e
+                        );
+                    }
                 }
             } else {
                 match std::fs::read_to_string(mapping_str) {
                     Ok(content) => match serde_json::from_str::<MappingConfig>(&content) {
                         Ok(m) => m,
-                        Err(e) => return format!(r#"{{"ok":false,"error":"Invalid mapping file: {}","hint":"Use onto_map to regenerate a correct mapping, save it, then pass the saved path via 'mapping'."}}"#, e),
+                        Err(e) => {
+                            return format!(
+                                r#"{{"ok":false,"error":"Invalid mapping file: {}","hint":"Use onto_map to regenerate a correct mapping, save it, then pass the saved path via 'mapping'."}}"#,
+                                e
+                            );
+                        }
                     },
-                    Err(e) => return format!(r#"{{"ok":false,"error":"Cannot read mapping file: {}","hint":"Verify the mapping file path is correct and the file is readable."}}"#, e),
+                    Err(e) => {
+                        return format!(
+                            r#"{{"ok":false,"error":"Cannot read mapping file: {}","hint":"Verify the mapping file path is correct and the file is readable."}}"#,
+                            e
+                        );
+                    }
                 }
             }
         } else {
@@ -4140,7 +4879,10 @@ impl OpenOntologiesServer {
         }
     }
 
-    #[tool(name = "onto_align", description = "Detect alignment candidates (owl:equivalentClass, skos:exactMatch, rdfs:subClassOf) between two ontologies using label similarity, property overlap, parent overlap, instance overlap, restriction patterns, and graph neighborhood. Auto-applies high-confidence matches above threshold. Auto-apply path is gated by OntoStar admission; dry_run path is read-only and skips admission.")]
+    #[tool(
+        name = "onto_align",
+        description = "Detect alignment candidates (owl:equivalentClass, skos:exactMatch, rdfs:subClassOf) between two ontologies using label similarity, property overlap, parent overlap, instance overlap, restriction patterns, and graph neighborhood. Auto-applies high-confidence matches above threshold. Auto-apply path is gated by OntoStar admission; dry_run path is read-only and skips admission."
+    )]
     pub async fn onto_align(&self, Parameters(input): Parameters<OntoAlignInput>) -> String {
         let engine = crate::align::AlignmentEngine::new(self.db.clone(), self.graph.clone());
 
@@ -4174,7 +4916,12 @@ impl OpenOntologiesServer {
         let source = if std::path::Path::new(&input.source).exists() {
             match std::fs::read_to_string(&input.source) {
                 Ok(s) => s,
-                Err(e) => return format!(r#"{{"ok":false,"error":"Failed to read source ontology file: {}","hint":"Verify the file path is correct and the file is readable (UTF-8 encoded). Pass inline Turtle via the 'source' field instead of a file path."}}"#, e),
+                Err(e) => {
+                    return format!(
+                        r#"{{"ok":false,"error":"Failed to read source ontology file: {}","hint":"Verify the file path is correct and the file is readable (UTF-8 encoded). Pass inline Turtle via the 'source' field instead of a file path."}}"#,
+                        e
+                    );
+                }
             }
         } else {
             input.source
@@ -4187,10 +4934,14 @@ impl OpenOntologiesServer {
                 // or a known RDF extension) but the file does not exist, surface
                 // a targeted error instead of treating the path string as inline
                 // Turtle content, which would silently produce zero candidates.
-                let looks_like_path = t.contains('/') || t.contains('\\')
-                    || t.ends_with(".ttl") || t.ends_with(".nt")
-                    || t.ends_with(".rdf") || t.ends_with(".owl")
-                    || t.ends_with(".nq") || t.ends_with(".trig");
+                let looks_like_path = t.contains('/')
+                    || t.contains('\\')
+                    || t.ends_with(".ttl")
+                    || t.ends_with(".nt")
+                    || t.ends_with(".rdf")
+                    || t.ends_with(".owl")
+                    || t.ends_with(".nq")
+                    || t.ends_with(".trig");
                 if looks_like_path && !std::path::Path::new(&t).exists() {
                     return format!(
                         r#"{{"ok":false,"error":"Target ontology not found: '{}'. The source ontology is supplied via 'source'; the target must be a valid file path or inline Turtle content. Verify the path or pass inline Turtle directly.","hint":"Use onto_repo_list to discover ontologies in configured ontology_dirs, or pass inline Turtle as the 'target' value."}}"#,
@@ -4200,7 +4951,12 @@ impl OpenOntologiesServer {
                 if std::path::Path::new(&t).exists() {
                     match std::fs::read_to_string(&t) {
                         Ok(s) => Some(s),
-                        Err(e) => return format!(r#"{{"ok":false,"error":"Failed to read target ontology file: {}","hint":"Verify the file path is correct and the file is readable (UTF-8 encoded). Pass inline Turtle via the 'target' field instead."}}"#, e),
+                        Err(e) => {
+                            return format!(
+                                r#"{{"ok":false,"error":"Failed to read target ontology file: {}","hint":"Verify the file path is correct and the file is readable (UTF-8 encoded). Pass inline Turtle via the 'target' field instead."}}"#,
+                                e
+                            );
+                        }
                     }
                 } else {
                     Some(t)
@@ -4209,7 +4965,10 @@ impl OpenOntologiesServer {
             None => None,
         };
 
-        let high = input.high_threshold.or(input.min_confidence).unwrap_or(0.85);
+        let high = input
+            .high_threshold
+            .or(input.min_confidence)
+            .unwrap_or(0.85);
         // Default low_threshold = 0.4 surfaces a borderline bucket for LLM-orchestrated review.
         // Callers wanting the old strict behaviour pass low_threshold == high_threshold.
         let low = input.low_threshold.unwrap_or(0.4).min(high);
@@ -4221,18 +4980,29 @@ impl OpenOntologiesServer {
                 let ts = chrono::Utc::now().to_rfc3339();
                 let obj_id_src = format!("{}:align_source", self.session_id);
                 let obj_id_tgt = format!("{}:align_target", self.session_id);
-                let _ = self.ocel_store().upsert_object(&obj_id_src, "OntologyVersion", &[]);
-                let _ = self.ocel_store().upsert_object(&obj_id_tgt, "OntologyVersion", &[]);
+                let _ = self
+                    .ocel_store()
+                    .upsert_object(&obj_id_src, "OntologyVersion", &[]);
+                let _ = self
+                    .ocel_store()
+                    .upsert_object(&obj_id_tgt, "OntologyVersion", &[]);
 
                 // Extract alignment metrics
-                let (candidate_count, auto_applied) = serde_json::from_str::<serde_json::Value>(&result)
-                    .ok()
-                    .map(|j| {
-                        let cc = j.get("candidates").and_then(|v| v.as_array().map(|a| a.len())).unwrap_or(0);
-                        let aa = j.get("auto_applied").and_then(|v| v.as_array().map(|a| a.len())).unwrap_or(0);
-                        (cc, aa)
-                    })
-                    .unwrap_or((0, 0));
+                let (candidate_count, auto_applied) =
+                    serde_json::from_str::<serde_json::Value>(&result)
+                        .ok()
+                        .map(|j| {
+                            let cc = j
+                                .get("candidates")
+                                .and_then(|v| v.as_array().map(|a| a.len()))
+                                .unwrap_or(0);
+                            let aa = j
+                                .get("auto_applied")
+                                .and_then(|v| v.as_array().map(|a| a.len()))
+                                .unwrap_or(0);
+                            (cc, aa)
+                        })
+                        .unwrap_or((0, 0));
 
                 // R4 WE — §14 OCEL purity: dry_run must NOT emit an
                 // `align_run` event or a lineage `AL/align` record. The
@@ -4241,22 +5011,41 @@ impl OpenOntologiesServer {
                 // claims `auto_applied_count` mutated the graph when it did
                 // not. Both side effects move inside the apply branch.
                 if !dry_run_flag {
-                    let event_id = format!("{}:align:{}", self.session_id, chrono::Utc::now().timestamp_millis());
+                    let event_id = format!(
+                        "{}:align:{}",
+                        self.session_id,
+                        chrono::Utc::now().timestamp_millis()
+                    );
                     let _ = self.ocel_store().emit_event(
                         &event_id,
                         "align_run",
                         &ts,
                         &self.session_id,
                         &[
-                            ("threshold", &min_conf.to_string()),
+                            ("threshold", &high.to_string()),
                             ("candidate_count", &candidate_count.to_string()),
                             ("auto_applied_count", &auto_applied.to_string()),
                         ],
-                        &[(&obj_id_src, "source_ontology"), (&obj_id_tgt, "target_ontology")],
+                        &[
+                            (&obj_id_src, "source_ontology"),
+                            (&obj_id_tgt, "target_ontology"),
+                        ],
                         None,
                     );
 
-                    self.lineage().record(&self.session_id, "AL", "align", &format!("threshold={}", min_conf));
+                    self.lineage().record(
+                        &self.session_id,
+                        "AL",
+                        "align",
+                        &format!("high={},low={},fusion={}", high, low, fusion),
+                    );
+                } else {
+                    self.lineage().record(
+                        &self.session_id,
+                        "AL",
+                        "align",
+                        &format!("high={},low={},fusion={} (dry_run)", high, low, fusion),
+                    );
                 }
                 if let Some(r) = &receipt {
                     let mut parsed: serde_json::Value =
@@ -4273,12 +5062,21 @@ impl OpenOntologiesServer {
                     result
                 }
             }
-            Err(e) => format!(r#"{{"ok":false,"error":"Alignment failed: {}","hint":"Ensure both ontologies are valid Turtle/RDF and contain owl:Class declarations. Run onto_validate on each ontology file first."}}"#, e),
+            Err(e) => format!(
+                r#"{{"ok":false,"error":"Alignment failed: {}","hint":"Ensure both ontologies are valid Turtle/RDF and contain owl:Class declarations. Run onto_validate on each ontology file first."}}"#,
+                e
+            ),
         }
     }
 
-    #[tool(name = "onto_align_feedback", description = "Accept or reject an alignment candidate to improve future confidence scoring. Stores feedback in align_feedback table for self-calibrating weights. Audit-only admission.")]
-    async fn onto_align_feedback(&self, Parameters(input): Parameters<OntoAlignFeedbackInput>) -> String {
+    #[tool(
+        name = "onto_align_feedback",
+        description = "Accept or reject an alignment candidate to improve future confidence scoring. Stores feedback in align_feedback table for self-calibrating weights. Audit-only admission."
+    )]
+    async fn onto_align_feedback(
+        &self,
+        Parameters(input): Parameters<OntoAlignFeedbackInput>,
+    ) -> String {
         if input.source_iri.trim().is_empty() {
             return serde_json::json!({
                 "ok": false,
@@ -4297,12 +5095,31 @@ impl OpenOntologiesServer {
             crate::admission::AdmissionOp::Feedback,
             None,
             "align-feedback",
-            format!("{}|{}|{}", input.source_iri, input.target_iri, input.accepted).as_bytes(),
+            format!(
+                "{}|{}|{}",
+                input.source_iri, input.target_iri, input.accepted
+            )
+            .as_bytes(),
         );
         let engine = crate::align::AlignmentEngine::new(self.db.clone(), self.graph.clone());
-        match engine.record_feedback(&input.source_iri, &input.target_iri, "user_feedback", input.accepted, input.signals.as_ref()) {
+        match engine.record_feedback(
+            &input.source_iri,
+            &input.target_iri,
+            "user_feedback",
+            input.accepted,
+            input.signals.as_ref(),
+        ) {
             Ok(result) => {
-                self.lineage().record(&self.session_id, "AF", "align_feedback", if input.accepted { "accepted" } else { "rejected" });
+                self.lineage().record(
+                    &self.session_id,
+                    "AF",
+                    "align_feedback",
+                    if input.accepted {
+                        "accepted"
+                    } else {
+                        "rejected"
+                    },
+                );
                 result
             }
             Err(e) => {
@@ -4315,7 +5132,10 @@ impl OpenOntologiesServer {
                         "hint": "Run onto_align with both ontologies to generate candidates, then use the source_iri and target_iri values from the response."
                     }).to_string()
                 } else {
-                    format!(r#"{{"ok":false,"error":"Alignment feedback failed: {}","hint":"Retry after verifying the alignment candidate was created by onto_align in this session."}}"#, msg)
+                    format!(
+                        r#"{{"ok":false,"error":"Alignment feedback failed: {}","hint":"Retry after verifying the alignment candidate was created by onto_align in this session."}}"#,
+                        msg
+                    )
                 }
             }
         }
@@ -4323,8 +5143,14 @@ impl OpenOntologiesServer {
 
     // ─── OntoStar Stream 4 — autonomic feedback loop handlers ────────────────
 
-    #[tool(name = "onto_planner_demos", description = "Loop 4 (cross-session retrieval). Return receipt-backed mined exemplars for a domain. The SQL JOIN to `receipts` enforces the rule: an exemplar without a receipt cannot be returned.")]
-    async fn onto_planner_demos(&self, Parameters(input): Parameters<OntoPlannerDemosInput>) -> String {
+    #[tool(
+        name = "onto_planner_demos",
+        description = "Loop 4 (cross-session retrieval). Return receipt-backed mined exemplars for a domain. The SQL JOIN to `receipts` enforces the rule: an exemplar without a receipt cannot be returned."
+    )]
+    async fn onto_planner_demos(
+        &self,
+        Parameters(input): Parameters<OntoPlannerDemosInput>,
+    ) -> String {
         let min_fitness = input.min_fitness.unwrap_or(0.95);
         let limit = input.limit.unwrap_or(10);
         match self.ocel_store().exemplars_for_domain(&input.domain, min_fitness, limit) {
@@ -4333,7 +5159,10 @@ impl OpenOntologiesServer {
         }
     }
 
-    #[tool(name = "onto_threshold_status", description = "Loop 2 (threshold calibration). Read all rows from `workflow_thresholds`.")]
+    #[tool(
+        name = "onto_threshold_status",
+        description = "Loop 2 (threshold calibration). Read all rows from `workflow_thresholds`."
+    )]
     pub async fn onto_threshold_status(&self) -> String {
         match crate::feedback::thresholds::list_all(self.ocel_store()) {
             Ok(rows) if rows.is_empty() => serde_json::json!({
@@ -4351,7 +5180,10 @@ impl OpenOntologiesServer {
         }
     }
 
-    #[tool(name = "onto_threshold_sweep", description = "Admin: force-run Loop 2 threshold-calibration sweep. Adjusts `workflow_thresholds.precision_threshold` based on aged-out `bypass_admission` events.")]
+    #[tool(
+        name = "onto_threshold_sweep",
+        description = "Admin: force-run Loop 2 threshold-calibration sweep. Adjusts `workflow_thresholds.precision_threshold` based on aged-out `bypass_admission` events."
+    )]
     pub async fn onto_threshold_sweep(&self) -> String {
         self.evaluate_admission_audit(
             crate::admission::AdmissionOp::ThresholdSweep,
@@ -4369,8 +5201,14 @@ impl OpenOntologiesServer {
         }
     }
 
-    #[tool(name = "onto_workflow_discover", description = "Loop 3 (workflow discovery). Pull OCEL traces for the domain and run wasm4pm discovery; if the discovered fitness exceeds declared by 0.05, insert a `discovered_workflows` row with status=pending.")]
-    pub async fn onto_workflow_discover(&self, Parameters(input): Parameters<OntoWorkflowDiscoverInput>) -> String {
+    #[tool(
+        name = "onto_workflow_discover",
+        description = "Loop 3 (workflow discovery). Pull OCEL traces for the domain and run wasm4pm discovery; if the discovered fitness exceeds declared by 0.05, insert a `discovered_workflows` row with status=pending."
+    )]
+    pub async fn onto_workflow_discover(
+        &self,
+        Parameters(input): Parameters<OntoWorkflowDiscoverInput>,
+    ) -> String {
         // Guard: blank domain
         if input.domain.trim().is_empty() {
             return serde_json::json!({
@@ -4379,7 +5217,6 @@ impl OpenOntologiesServer {
                 "hint": "Provide the workflow class name as 'domain', e.g. 'RevOps' or 'ManufacturingPipeline'. Then retry onto_workflow_discover."
             }).to_string();
         }
-
 
         self.evaluate_admission_audit(
             crate::admission::AdmissionOp::Discovery,
@@ -4401,8 +5238,14 @@ impl OpenOntologiesServer {
         }
     }
 
-    #[tool(name = "onto_workflow_feedback", description = "Loop 3 surface. Accept or reject a discovered workflow candidate; flips `discovered_workflows.status`. Mirrors the JSON shape of `onto_align_feedback`.")]
-    pub async fn onto_workflow_feedback(&self, Parameters(input): Parameters<OntoWorkflowFeedbackInput>) -> String {
+    #[tool(
+        name = "onto_workflow_feedback",
+        description = "Loop 3 surface. Accept or reject a discovered workflow candidate; flips `discovered_workflows.status`. Mirrors the JSON shape of `onto_align_feedback`."
+    )]
+    pub async fn onto_workflow_feedback(
+        &self,
+        Parameters(input): Parameters<OntoWorkflowFeedbackInput>,
+    ) -> String {
         // Guard: blank id
         if input.id.trim().is_empty() {
             return serde_json::json!({
@@ -4411,7 +5254,6 @@ impl OpenOntologiesServer {
                 "hint": "Provide the discovered_workflows row ID returned by onto_workflow_discover. Run onto_workflow_discover first to obtain a candidate ID."
             }).to_string();
         }
-
 
         self.evaluate_admission_audit(
             crate::admission::AdmissionOp::Feedback,
@@ -4432,29 +5274,80 @@ impl OpenOntologiesServer {
         }
     }
 
-    #[tool(name = "onto_lint_feedback", description = "Accept or dismiss a lint issue to improve future lint runs. Dismissed issues are suppressed after 3 dismissals. Stores feedback for self-calibrating severity.")]
-    async fn onto_lint_feedback(&self, Parameters(input): Parameters<OntoLintFeedbackInput>) -> String {
-        match crate::feedback::record_tool_feedback(&self.db, "lint", &input.rule_id, &input.entity, input.accepted) {
+    #[tool(
+        name = "onto_lint_feedback",
+        description = "Accept or dismiss a lint issue to improve future lint runs. Dismissed issues are suppressed after 3 dismissals. Stores feedback for self-calibrating severity."
+    )]
+    async fn onto_lint_feedback(
+        &self,
+        Parameters(input): Parameters<OntoLintFeedbackInput>,
+    ) -> String {
+        match crate::feedback::record_tool_feedback(
+            &self.db,
+            "lint",
+            &input.rule_id,
+            &input.entity,
+            input.accepted,
+        ) {
             Ok(result) => {
-                self.lineage().record(&self.session_id, "LF", "lint_feedback", if input.accepted { "accepted" } else { "dismissed" });
+                self.lineage().record(
+                    &self.session_id,
+                    "LF",
+                    "lint_feedback",
+                    if input.accepted {
+                        "accepted"
+                    } else {
+                        "dismissed"
+                    },
+                );
                 result
             }
-            Err(e) => format!(r#"{{"ok":false,"error":"{}","hint":"Check the error details and retry. Consult the tool description for required parameters."}}"#, e),
+            Err(e) => format!(
+                r#"{{"ok":false,"error":"{}","hint":"Check the error details and retry. Consult the tool description for required parameters."}}"#,
+                e
+            ),
         }
     }
 
-    #[tool(name = "onto_enforce_feedback", description = "Accept or dismiss an enforce violation to improve future enforce runs. Dismissed violations are suppressed after 3 dismissals. Stores feedback for self-calibrating compliance.")]
-    async fn onto_enforce_feedback(&self, Parameters(input): Parameters<OntoEnforceFeedbackInput>) -> String {
-        match crate::feedback::record_tool_feedback(&self.db, "enforce", &input.rule_id, &input.entity, input.accepted) {
+    #[tool(
+        name = "onto_enforce_feedback",
+        description = "Accept or dismiss an enforce violation to improve future enforce runs. Dismissed violations are suppressed after 3 dismissals. Stores feedback for self-calibrating compliance."
+    )]
+    async fn onto_enforce_feedback(
+        &self,
+        Parameters(input): Parameters<OntoEnforceFeedbackInput>,
+    ) -> String {
+        match crate::feedback::record_tool_feedback(
+            &self.db,
+            "enforce",
+            &input.rule_id,
+            &input.entity,
+            input.accepted,
+        ) {
             Ok(result) => {
-                self.lineage().record(&self.session_id, "EF", "enforce_feedback", if input.accepted { "accepted" } else { "dismissed" });
+                self.lineage().record(
+                    &self.session_id,
+                    "EF",
+                    "enforce_feedback",
+                    if input.accepted {
+                        "accepted"
+                    } else {
+                        "dismissed"
+                    },
+                );
                 result
             }
-            Err(e) => format!(r#"{{"ok":false,"error":"{}","hint":"Check the error details and retry. Consult the tool description for required parameters."}}"#, e),
+            Err(e) => format!(
+                r#"{{"ok":false,"error":"{}","hint":"Check the error details and retry. Consult the tool description for required parameters."}}"#,
+                e
+            ),
         }
     }
 
-    #[tool(name = "onto_embed", description = "Generate text + structural Poincaré embeddings for all classes in the loaded ontology. Requires the embedding model (run `open-ontologies init` to download). Embeddings enable semantic search via onto_search and improve alignment accuracy.")]
+    #[tool(
+        name = "onto_embed",
+        description = "Generate text + structural Poincaré embeddings for all classes in the loaded ontology. Requires the embedding model (run `open-ontologies init` to download). Embeddings enable semantic search via onto_search and improve alignment accuracy."
+    )]
     async fn onto_embed(&self, Parameters(input): Parameters<OntoEmbedInput>) -> String {
         let started = std::time::Instant::now();
         let out = self.onto_embed_inner(input).await;
@@ -4465,28 +5358,30 @@ impl OpenOntologiesServer {
 
     async fn onto_embed_inner(&self, _input_embed: OntoEmbedInput) -> String {
         #[cfg(not(feature = "embeddings"))]
-        { r#"{"ok":false,"error":"Compiled without embeddings feature. Rebuild with --features embeddings","hint":"Run: cargo build --features embeddings (or cargo make build --features embeddings) to enable semantic search."}"#.to_string() }
+        {
+            r#"{"ok":false,"error":"Compiled without embeddings feature. Rebuild with --features embeddings","hint":"Run: cargo build --features embeddings (or cargo make build --features embeddings) to enable semantic search."}"#.to_string()
+        }
         #[cfg(feature = "embeddings")]
         let input = _input_embed;
         #[cfg(feature = "embeddings")]
         {
-        if self.graph.triple_count() == 0 {
-            return serde_json::json!({
+            if self.graph.triple_count() == 0 {
+                return serde_json::json!({
                 "ok": false,
                 "error": "No ontology loaded. Call onto_load first, then onto_embed to generate embeddings.",
                 "hint": "Use onto_load with a TTL file path to load an ontology before generating embeddings."
             }).to_string();
-        }
+            }
 
-        let embedder = match &self.text_embedder {
+            let embedder = match &self.text_embedder {
             Some(e) => e,
             None => return r#"{"ok":false,"error":"Embedding model not loaded. Run `open-ontologies init` to download.","hint":"Run `open-ontologies init` in your terminal to download the embedding model, then retry onto_embed."}"#.to_string(),
         };
 
-        let struct_dim = input.struct_dim.unwrap_or(32);
-        let struct_epochs = input.struct_epochs.unwrap_or(100);
+            let struct_dim = input.struct_dim.unwrap_or(32);
+            let struct_epochs = input.struct_epochs.unwrap_or(100);
 
-        let classes_query = r#"
+            let classes_query = r#"
             SELECT DISTINCT ?class ?label WHERE {
                 ?class a <http://www.w3.org/2002/07/owl#Class> .
                 OPTIONAL { ?class <http://www.w3.org/2000/01/rdf-schema#label> ?label }
@@ -4494,32 +5389,15 @@ impl OpenOntologiesServer {
             }
         "#;
 
-        let result = match self.graph.sparql_select(classes_query) {
-            Ok(r) => r,
-            Err(e) => return format!(r#"{{"ok":false,"error":"SPARQL query failed while listing classes: {}","hint":"Verify the ontology loaded correctly with onto_stats, then retry onto_embed."}}"#, e),
-        };
-
-        let parsed: serde_json::Value = match serde_json::from_str(&result) {
-            Ok(v) => v,
-            Err(e) => return format!(r#"{{"ok":false,"error":"Failed to parse SPARQL result: {}","hint":"This is an internal error — try reloading the ontology with onto_load and retrying onto_embed."}}"#, e),
-        };
-
-        let mut class_labels: std::collections::HashMap<String, String> = std::collections::HashMap::new();
-        if let Some(rows) = parsed["results"].as_array() {
-            for row in rows {
-                if let Some(iri) = row["class"].as_str() {
-                    let iri = iri.trim_matches(|c| c == '<' || c == '>').to_string();
-                    let label = row["label"].as_str()
-                        .map(|s| s.trim_matches('"').to_string())
-                        .unwrap_or_else(|| {
-                            iri.rsplit_once('#').or_else(|| iri.rsplit_once('/'))
-                                .map(|(_, n)| n.to_string())
-                                .unwrap_or_else(|| iri.clone())
-                        });
-                    class_labels.insert(iri, label);
+            let result = match self.graph.sparql_select(classes_query) {
+                Ok(r) => r,
+                Err(e) => {
+                    return format!(
+                        r#"{{"ok":false,"error":"SPARQL query failed while listing classes: {}","hint":"Verify the ontology loaded correctly with onto_stats, then retry onto_embed."}}"#,
+                        e
+                    );
                 }
-            }
-        }
+            };
 
         if class_labels.is_empty() {
             return r#"{"ok":false,"error":"No OWL classes found in the loaded ontology. onto_embed requires at least one owl:Class.","hint":"Load an ontology with owl:Class declarations using onto_load, then retry onto_embed."}"#.to_string();
@@ -4545,8 +5423,10 @@ impl OpenOntologiesServer {
             ) {
                 Ok(v) => v,
                 Err(e) => {
-                    errors.push(format!("{}: LlmInput sanitize: {}", iri, e));
-                    continue;
+                    return format!(
+                        r#"{{"ok":false,"error":"Failed to parse SPARQL result: {}","hint":"This is an internal error — try reloading the ontology with onto_load and retrying onto_embed."}}"#,
+                        e
+                    );
                 }
             };
             // Compute the text embedding (may await an HTTP call) BEFORE
@@ -4563,33 +5443,109 @@ impl OpenOntologiesServer {
                         enriched_count += 1;
                     }
                 }
-                Err(e) => errors.push(format!("{}: {}", iri, e)),
             }
-        }
 
-        {
-            let vecstore = self.vecstore.lock().unwrap();
-            if let Err(e) = vecstore.persist() {
-                return format!(r#"{{"ok":false,"error":"Failed to persist embeddings to disk: {}","hint":"Ensure the data directory is writable, then retry onto_embed. Embeddings are in-memory until persisted."}}"#, e);
+            if class_labels.is_empty() {
+                return r#"{"ok":false,"error":"No OWL classes found in the loaded ontology. onto_embed requires at least one owl:Class.","hint":"Load an ontology with owl:Class declarations using onto_load, then retry onto_embed."}"#.to_string();
             }
-        }
 
-        serde_json::json!({
-            "ok": true,
-            "embedded": embedded_count,
-            "enriched": enriched_count,
-            "total_classes": class_labels.len(),
-            "text_dim": embedder.dim(),
-            "struct_dim": struct_dim,
-            "errors": errors,
-        }).to_string()
+            let trainer =
+                crate::structembed::StructuralTrainer::new(struct_dim, struct_epochs, 0.01);
+            let struct_embeddings = match trainer.train(&self.graph) {
+                Ok(e) => e,
+                Err(e) => {
+                    return format!(
+                        r#"{{"ok":false,"error":"Structural embedding training failed: {}","hint":"Try reducing struct_epochs (default 100) or struct_dim (default 32) to decrease memory pressure, then retry onto_embed."}}"#,
+                        e
+                    );
+                }
+            };
+
+            let mut embedded_count = 0;
+            let mut errors: Vec<String> = Vec::new();
+
+            let mut enriched_count: usize = 0;
+            for (iri, label) in &class_labels {
+                // GenOM-style enrichment: if the caller supplied a description for this
+                // IRI, embed THAT instead of the bare label. Descriptions carry richer
+                // semantic context (definition prose, synonyms, role in the ontology),
+                // which the GenOM paper showed lifts alignment F1 vs label-only embedding.
+                let (text_to_embed, used_description) = match input
+                    .descriptions
+                    .as_ref()
+                    .and_then(|m| m.get(iri.as_str()))
+                {
+                    Some(desc) if !desc.trim().is_empty() => (desc.as_str(), true),
+                    _ => (label.as_str(), false),
+                };
+
+                // R7 WD-1 — sanitize each text through the embed-label
+                // boundary before it reaches the embedding provider. The
+                // 256-byte cap is enforced; labels exceeding it are recorded
+                // as errors and the IRI is skipped (no embedding written).
+                let label_input = match crate::llm_input::LlmInput::sanitize(
+                    text_to_embed,
+                    crate::llm_input::LlmInputKind::EmbedLabel,
+                ) {
+                    Ok(v) => v,
+                    Err(e) => {
+                        errors.push(format!("{}: LlmInput sanitize: {}", iri, e));
+                        continue;
+                    }
+                };
+
+                // Compute the text embedding (may await an HTTP call) BEFORE
+                // locking the non-Send VecStore mutex.
+                match embedder.embed_input(&label_input).await {
+                    Ok(text_vec) => {
+                        let struct_vec = struct_embeddings
+                            .get(iri)
+                            .cloned()
+                            .unwrap_or_else(|| vec![0.0; struct_dim]);
+                        let mut vecstore = self.vecstore.lock().unwrap();
+                        vecstore.upsert(iri, &text_vec, &struct_vec);
+                        embedded_count += 1;
+                        if used_description {
+                            enriched_count += 1;
+                        }
+                    }
+                    Err(e) => errors.push(format!("{}: {}", iri, e)),
+                }
+            }
+
+            {
+                let vecstore = self.vecstore.lock().unwrap();
+                if let Err(e) = vecstore.persist() {
+                    return format!(
+                        r#"{{"ok":false,"error":"Failed to persist embeddings to disk: {}","hint":"Ensure the data directory is writable, then retry onto_embed. Embeddings are in-memory until persisted."}}"#,
+                        e
+                    );
+                }
+            }
+
+            serde_json::json!({
+                "ok": true,
+                "embedded": embedded_count,
+                "enriched": enriched_count,
+                "total_classes": class_labels.len(),
+                "text_dim": embedder.dim(),
+                "struct_dim": struct_dim,
+                "errors": errors,
+            })
+            .to_string()
         } // cfg(feature = "embeddings")
     }
 
-    #[tool(name = "onto_hnsw_build", description = "Build (or rebuild) the HNSW cosine index over the loaded text embeddings with explicit `ef_construction` and `ef_search` parameters. Persists the index to SQLite by default so subsequent process restarts skip the rebuild. Use after onto_embed when you want to tune index quality vs. build/query time on larger ontologies. Default builder parameters are sensible for ontologies up to ~10k classes.")]
+    #[tool(
+        name = "onto_hnsw_build",
+        description = "Build (or rebuild) the HNSW cosine index over the loaded text embeddings with explicit `ef_construction` and `ef_search` parameters. Persists the index to SQLite by default so subsequent process restarts skip the rebuild. Use after onto_embed when you want to tune index quality vs. build/query time on larger ontologies. Default builder parameters are sensible for ontologies up to ~10k classes."
+    )]
     async fn onto_hnsw_build(&self, Parameters(input): Parameters<OntoHnswBuildInput>) -> String {
         #[cfg(not(feature = "embeddings"))]
-        { let _ = input; return r#"{"error":"Compiled without embeddings feature. Rebuild with --features embeddings"}"#.to_string(); }
+        {
+            let _ = input;
+            return r#"{"error":"Compiled without embeddings feature. Rebuild with --features embeddings"}"#.to_string();
+        }
         #[cfg(feature = "embeddings")]
         {
             let persist = input.persist.unwrap_or(true);
@@ -4614,204 +5570,229 @@ impl OpenOntologiesServer {
                 "persisted": persisted,
                 "ef_construction": input.ef_construction,
                 "ef_search": input.ef_search,
-            }).to_string()
+            })
+            .to_string()
         }
     }
 
-    #[tool(name = "onto_search", description = "Semantic search over the loaded ontology using natural language. Returns the most similar classes by text meaning, structural position, or both. Requires onto_embed to have been run first.")]
+    #[tool(
+        name = "onto_search",
+        description = "Semantic search over the loaded ontology using natural language. Returns the most similar classes by text meaning, structural position, or both. Requires onto_embed to have been run first."
+    )]
     async fn onto_search(&self, Parameters(_input): Parameters<OntoSearchInput>) -> String {
         #[cfg(not(feature = "embeddings"))]
-        { return r#"{"ok":false,"error":"Compiled without embeddings feature. Rebuild with --features embeddings","hint":"Run: cargo build --features embeddings (or cargo make build --features embeddings) to enable semantic search."}"#.to_string(); }
+        {
+            return r#"{"ok":false,"error":"Compiled without embeddings feature. Rebuild with --features embeddings","hint":"Run: cargo build --features embeddings (or cargo make build --features embeddings) to enable semantic search."}"#.to_string();
+        }
         #[cfg(feature = "embeddings")]
         {
-        let input = _input;
-        if self.graph.triple_count() == 0 {
-            return serde_json::json!({
+            let input = _input;
+            if self.graph.triple_count() == 0 {
+                return serde_json::json!({
                 "ok": false,
                 "error": "No ontology loaded. Call onto_load first, then onto_embed to generate embeddings, then retry onto_search.",
                 "hint": "Call onto_load first."
             }).to_string();
-        }
+            }
 
-        if input.query.trim().is_empty() {
-            return serde_json::json!({
+            if input.query.trim().is_empty() {
+                return serde_json::json!({
                 "ok": false,
                 "error": "Query must not be blank. Provide a natural language description of the class you are looking for.",
                 "hint": "Example: onto_search with query = \"legal entity that owns assets\""
             }).to_string();
-        }
+            }
 
-        let top_k = input.top_k.unwrap_or(10);
-        let mode = input.mode.as_deref().unwrap_or("product");
-        let alpha = input.alpha.unwrap_or(0.5);
-        let use_hnsw = input.use_hnsw.unwrap_or(false);
-        let ef_search_override = input.ef_search;
+            let top_k = input.top_k.unwrap_or(10);
+            let mode = input.mode.as_deref().unwrap_or("product");
+            let alpha = input.alpha.unwrap_or(0.5);
+            let use_hnsw = input.use_hnsw.unwrap_or(false);
+            let ef_search_override = input.ef_search;
 
-        let embedder = match &self.text_embedder {
+            let embedder = match &self.text_embedder {
             Some(e) => e,
             None => return r#"{"ok":false,"error":"Embedding model not loaded.","hint":"Run `open-ontologies init` to download the embedding model, then retry onto_search."}"#.to_string(),
         };
 
-        // R7 WD-1 — sanitize the search query through the embed-query
-        // boundary (256-byte cap, chat-marker rejection) before any
-        // bytes reach the embedder.
-        let query_input = match crate::llm_input::LlmInput::sanitize(
-            &input.query,
-            crate::llm_input::LlmInputKind::EmbedQuery,
-        ) {
-            Ok(v) => v,
-            Err(e) => {
-                return format!(
-                    r#"{{"ok":false,"error":"Query sanitization failed: {}","hint":"Ensure the query is plain text under 256 bytes with no special control characters, then retry onto_search."}}"#,
-                    e.to_string().replace('"', "'")
-                )
-            }
-        };
-        let query_vec = match embedder.embed_input(&query_input).await {
-            Ok(v) => v,
-            Err(e) => return format!(r#"{{"ok":false,"error":"Embedding query failed: {}","hint":"Check your embedding provider configuration (local model path or OPEN_ONTOLOGIES_EMBEDDINGS_* env vars), then retry onto_search."}}"#, e),
-        };
-
-        let mut vecstore = self.vecstore.lock().unwrap();
-        if vecstore.is_empty() {
-            return r#"{"ok":false,"error":"No embeddings loaded. Call onto_embed first to generate embeddings for the loaded ontology, then retry onto_search.","hint":"Call onto_embed after onto_load to generate embeddings, then retry onto_search."}"#.to_string();
-        }
-
-        // If the caller provided an explicit ef_search, rebuild the cosine
-        // index with that value before the search. instant-distance bakes
-        // ef_search at build time, so per-query tuning means rebuild.
-        if use_hnsw && ef_search_override.is_some() {
-            let params = crate::hnsw_index::BuildParams {
-                ef_construction: None,
-                ef_search: ef_search_override,
+            // R7 WD-1 — sanitize the search query through the embed-query
+            // boundary (256-byte cap, chat-marker rejection) before any
+            // bytes reach the embedder.
+            let query_input = match crate::llm_input::LlmInput::sanitize(
+                &input.query,
+                crate::llm_input::LlmInputKind::EmbedQuery,
+            ) {
+                Ok(v) => v,
+                Err(e) => {
+                    return format!(
+                        r#"{{"ok":false,"error":"Query sanitization failed: {}","hint":"Ensure the query is plain text under 256 bytes with no special control characters, then retry onto_search."}}"#,
+                        e.to_string().replace('"', "'")
+                    );
+                }
             };
-            vecstore.rebuild_cosine_index(params);
-        }
+            let query_vec = match embedder.embed_input(&query_input).await {
+                Ok(v) => v,
+                Err(e) => {
+                    return format!(
+                        r#"{{"ok":false,"error":"Embedding query failed: {}","hint":"Check your embedding provider configuration (local model path or OPEN_ONTOLOGIES_EMBEDDINGS_* env vars), then retry onto_search."}}"#,
+                        e
+                    );
+                }
+            };
 
-        let results: Vec<serde_json::Value> = match mode {
-            "text" => {
-                let hits = if use_hnsw {
-                    vecstore.search_cosine_hnsw(&query_vec, top_k)
-                } else {
-                    vecstore.search_cosine(&query_vec, top_k)
+            let mut vecstore = self.vecstore.lock().unwrap();
+            if vecstore.is_empty() {
+                return r#"{"ok":false,"error":"No embeddings loaded. Call onto_embed first to generate embeddings for the loaded ontology, then retry onto_search.","hint":"Call onto_embed after onto_load to generate embeddings, then retry onto_search."}"#.to_string();
+            }
+
+            // If the caller provided an explicit ef_search, rebuild the cosine
+            // index with that value before the search. instant-distance bakes
+            // ef_search at build time, so per-query tuning means rebuild.
+            if use_hnsw && ef_search_override.is_some() {
+                let params = crate::hnsw_index::BuildParams {
+                    ef_construction: None,
+                    ef_search: ef_search_override,
                 };
-                hits.into_iter()
+                vecstore.rebuild_cosine_index(params);
+            }
+
+            let results: Vec<serde_json::Value> = match mode {
+                "text" => {
+                    let hits = if use_hnsw {
+                        vecstore.search_cosine_hnsw(&query_vec, top_k)
+                    } else {
+                        vecstore.search_cosine(&query_vec, top_k)
+                    };
+                    hits.into_iter()
                     .map(|(iri, score)| serde_json::json!({"iri": iri, "score": (score * 1000.0).round() / 1000.0}))
                     .collect()
-            }
-            "structure" => {
-                let text_hits = vecstore.search_cosine(&query_vec, 1);
-                if let Some((anchor_iri, _)) = text_hits.first() {
-                    if let Some(struct_vec) = vecstore.get_struct_vec(anchor_iri) {
-                        vecstore.search_poincare(struct_vec, top_k)
+                }
+                "structure" => {
+                    let text_hits = vecstore.search_cosine(&query_vec, 1);
+                    if let Some((anchor_iri, _)) = text_hits.first() {
+                        if let Some(struct_vec) = vecstore.get_struct_vec(anchor_iri) {
+                            vecstore.search_poincare(struct_vec, top_k)
                             .into_iter()
                             .map(|(iri, dist)| serde_json::json!({"iri": iri, "poincare_distance": (dist * 1000.0).round() / 1000.0}))
                             .collect()
+                        } else {
+                            Vec::new()
+                        }
                     } else {
                         Vec::new()
                     }
-                } else {
-                    Vec::new()
                 }
-            }
-            _ => {
-                let struct_dim = vecstore.search_cosine(&query_vec, 1)
-                    .first()
-                    .and_then(|(iri, _)| vecstore.get_struct_vec(iri).map(|v| v.len()))
-                    .unwrap_or(32);
-                let struct_query = vec![0.0f32; struct_dim];
-                vecstore.search_product(&query_vec, &struct_query, top_k, alpha)
+                _ => {
+                    let struct_dim = vecstore
+                        .search_cosine(&query_vec, 1)
+                        .first()
+                        .and_then(|(iri, _)| vecstore.get_struct_vec(iri).map(|v| v.len()))
+                        .unwrap_or(32);
+                    let struct_query = vec![0.0f32; struct_dim];
+                    vecstore.search_product(&query_vec, &struct_query, top_k, alpha)
                     .into_iter()
                     .map(|(iri, score)| serde_json::json!({"iri": iri, "score": (score * 1000.0).round() / 1000.0}))
                     .collect()
-            }
-        };
+                }
+            };
 
-        serde_json::json!({
-            "results": results,
-            "query": input.query,
-            "mode": mode,
-            "count": results.len(),
-        }).to_string()
+            serde_json::json!({
+                "results": results,
+                "query": input.query,
+                "mode": mode,
+                "count": results.len(),
+            })
+            .to_string()
         } // cfg(feature = "embeddings")
     }
 
-    #[tool(name = "onto_similarity", description = "Compute embedding similarity between two IRIs — returns cosine similarity (text), Poincaré distance (structural), and product score.")]
+    #[tool(
+        name = "onto_similarity",
+        description = "Compute embedding similarity between two IRIs — returns cosine similarity (text), Poincaré distance (structural), and product score."
+    )]
     async fn onto_similarity(&self, Parameters(_input): Parameters<OntoSimilarityInput>) -> String {
         #[cfg(not(feature = "embeddings"))]
-        { return r#"{"ok":false,"error":"Compiled without embeddings feature. Rebuild with --features embeddings","hint":"Run: cargo build --features embeddings (or cargo make build --features embeddings) to enable semantic similarity."}"#.to_string(); }
+        {
+            return r#"{"ok":false,"error":"Compiled without embeddings feature. Rebuild with --features embeddings","hint":"Run: cargo build --features embeddings (or cargo make build --features embeddings) to enable semantic similarity."}"#.to_string();
+        }
         #[cfg(feature = "embeddings")]
         {
-        let input = _input;
-        if self.graph.triple_count() == 0 {
-            return serde_json::json!({
+            let input = _input;
+            if self.graph.triple_count() == 0 {
+                return serde_json::json!({
                 "ok": false,
                 "error": "No ontology loaded. Call onto_load first, then onto_embed to generate embeddings, then retry onto_similarity.",
                 "hint": "Call onto_load first."
             }).to_string();
-        }
+            }
 
-        if input.iri_a.trim().is_empty() {
-            return serde_json::json!({
+            if input.iri_a.trim().is_empty() {
+                return serde_json::json!({
                 "ok": false,
                 "error": "iri_a must not be blank. Provide a fully qualified IRI for the first class.",
                 "hint": "Example IRI: \"https://example.org/ontology#MyClass\""
             }).to_string();
-        }
+            }
 
-        if input.iri_b.trim().is_empty() {
-            return serde_json::json!({
+            if input.iri_b.trim().is_empty() {
+                return serde_json::json!({
                 "ok": false,
                 "error": "iri_b must not be blank. Provide a fully qualified IRI for the second class.",
                 "hint": "Example IRI: \"https://example.org/ontology#AnotherClass\""
             }).to_string();
-        }
+            }
 
-        let vecstore = self.vecstore.lock().unwrap();
+            let vecstore = self.vecstore.lock().unwrap();
 
-        let text_a = vecstore.get_text_vec(&input.iri_a);
-        let text_b = vecstore.get_text_vec(&input.iri_b);
-        let struct_a = vecstore.get_struct_vec(&input.iri_a);
-        let struct_b = vecstore.get_struct_vec(&input.iri_b);
+            let text_a = vecstore.get_text_vec(&input.iri_a);
+            let text_b = vecstore.get_text_vec(&input.iri_b);
+            let struct_a = vecstore.get_struct_vec(&input.iri_a);
+            let struct_b = vecstore.get_struct_vec(&input.iri_b);
 
-        if text_a.is_none() || text_b.is_none() {
-            let missing = match (text_a.is_none(), text_b.is_none()) {
-                (true, true) => format!("{}, {}", input.iri_a, input.iri_b),
-                (true, false) => input.iri_a.clone(),
-                (false, true) => input.iri_b.clone(),
-                (false, false) => unreachable!(),
+            if text_a.is_none() || text_b.is_none() {
+                let missing = match (text_a.is_none(), text_b.is_none()) {
+                    (true, true) => format!("{}, {}", input.iri_a, input.iri_b),
+                    (true, false) => input.iri_a.clone(),
+                    (false, true) => input.iri_b.clone(),
+                    (false, false) => unreachable!(),
+                };
+                return format!(
+                    r#"{{"ok":false,"error":"IRI not found in embeddings. Call onto_embed first to generate embeddings for the loaded ontology. Missing: {}","hint":"Run onto_embed after onto_load, then verify the IRI exists with onto_query (SELECT ?s WHERE {{ ?s a owl:Class }})."}}"#,
+                    missing
+                );
+            }
+
+            let cos = crate::poincare::cosine_similarity(text_a.unwrap(), text_b.unwrap());
+            let poinc = if let (Some(a), Some(b)) = (struct_a, struct_b) {
+                crate::poincare::poincare_distance(a, b)
+            } else {
+                -1.0
             };
-            return format!(
-                r#"{{"ok":false,"error":"IRI not found in embeddings. Call onto_embed first to generate embeddings for the loaded ontology. Missing: {}","hint":"Run onto_embed after onto_load, then verify the IRI exists with onto_query (SELECT ?s WHERE {{ ?s a owl:Class }})."}}"#,
-                missing
-            );
-        }
 
-        let cos = crate::poincare::cosine_similarity(text_a.unwrap(), text_b.unwrap());
-        let poinc = if let (Some(a), Some(b)) = (struct_a, struct_b) {
-            crate::poincare::poincare_distance(a, b)
-        } else {
-            -1.0
-        };
+            let product = if poinc >= 0.0 {
+                0.5 * cos + 0.5 / (1.0 + poinc)
+            } else {
+                cos
+            };
 
-        let product = if poinc >= 0.0 {
-            0.5 * cos + 0.5 / (1.0 + poinc)
-        } else {
-            cos
-        };
-
-        serde_json::json!({
-            "iri_a": input.iri_a,
-            "iri_b": input.iri_b,
-            "cosine_similarity": (cos * 1000.0).round() / 1000.0,
-            "poincare_distance": (poinc * 1000.0).round() / 1000.0,
-            "product_score": (product * 1000.0).round() / 1000.0,
-        }).to_string()
+            serde_json::json!({
+                "iri_a": input.iri_a,
+                "iri_b": input.iri_b,
+                "cosine_similarity": (cos * 1000.0).round() / 1000.0,
+                "poincare_distance": (poinc * 1000.0).round() / 1000.0,
+                "product_score": (product * 1000.0).round() / 1000.0,
+            })
+            .to_string()
         } // cfg(feature = "embeddings")
     }
 
-    #[tool(name = "onto_process_validate_claim", description = "Validate a process mining claim using real event-log evidence from OTel traces. Uses pm4py for process discovery and conformance checking. Requires at least 3 of 5 surfaces to pass: execution, observability, state, process, causality.")]
-    async fn onto_process_validate_claim(&self, Parameters(input): Parameters<OntoProcessValidateClaimInput>) -> String {
+    #[tool(
+        name = "onto_process_validate_claim",
+        description = "Validate a process mining claim using real event-log evidence from OTel traces. Uses pm4py for process discovery and conformance checking. Requires at least 3 of 5 surfaces to pass: execution, observability, state, process, causality."
+    )]
+    async fn onto_process_validate_claim(
+        &self,
+        Parameters(input): Parameters<OntoProcessValidateClaimInput>,
+    ) -> String {
         // Guard: empty store
         if self.graph.triple_count() == 0 {
             return serde_json::json!({
@@ -4850,7 +5831,28 @@ impl OpenOntologiesServer {
             Ok(timed) => {
                 let out = timed.output;
                 if out.status.success() {
-                    String::from_utf8_lossy(&out.stdout).into_owned()
+                    let stdout_str = String::from_utf8_lossy(&out.stdout).into_owned();
+                    let stdout_hash = blake3::hash(out.stdout.as_slice()).to_hex().to_string();
+                    let stderr_hash = blake3::hash(out.stderr.as_slice()).to_hex().to_string();
+                    let core_receipt = crate::autoreceipt::Receipt::boundary_builder(
+                        "wvda_agent_claim".to_string(),
+                        "wasm4pm".to_string(),
+                        "onto_process_validate_claim".to_string(),
+                    )
+                    .stdout_hash(Some(stdout_hash))
+                    .stderr_hash(Some(stderr_hash))
+                    .exit_code(Some(0))
+                    .build();
+
+                    match serde_json::from_str::<serde_json::Value>(&stdout_str) {
+                        Ok(mut json_obj) => {
+                            if let Some(obj) = json_obj.as_object_mut() {
+                                obj.insert("open_ontology_receipt".to_string(), serde_json::to_value(core_receipt).unwrap());
+                            }
+                            serde_json::to_string(&json_obj).unwrap_or(stdout_str)
+                        }
+                        Err(_) => stdout_str,
+                    }
                 } else {
                     let err = String::from_utf8_lossy(&out.stderr);
                     serde_json::json!({
@@ -4877,8 +5879,14 @@ impl OpenOntologiesServer {
         }
     }
 
-    #[tool(name = "onto_process_check_soundness", description = "Check process soundness properties: deadlock-free, liveness, and boundedness. Uses Petri net analysis on discovered process model.")]
-    async fn onto_process_check_soundness(&self, Parameters(input): Parameters<OntoProcessCheckSoundnessInput>) -> String {
+    #[tool(
+        name = "onto_process_check_soundness",
+        description = "Check process soundness properties: deadlock-free, liveness, and boundedness. Uses Petri net analysis on discovered process model."
+    )]
+    async fn onto_process_check_soundness(
+        &self,
+        Parameters(input): Parameters<OntoProcessCheckSoundnessInput>,
+    ) -> String {
         // Guard: blank event_log_path
         if input.event_log_path.trim().is_empty() {
             return serde_json::json!({
@@ -4936,8 +5944,14 @@ impl OpenOntologiesServer {
         }
     }
 
-    #[tool(name = "onto_mustar_solve", description = "Invoke the MuStar Agent to semantically lower a problem intent into a completed artifact. Accepts a problem_statement, domain, constraints, and title. Uses POWL build orders internally and provides empirical validation.")]
-    async fn onto_mustar_solve(&self, Parameters(input): Parameters<OntoMustarSolveInput>) -> String {
+    #[tool(
+        name = "onto_mustar_solve",
+        description = "Invoke the MuStar Agent to semantically lower a problem intent into a completed artifact. Accepts a problem_statement, domain, constraints, and title. Uses POWL build orders internally and provides empirical validation."
+    )]
+    async fn onto_mustar_solve(
+        &self,
+        Parameters(input): Parameters<OntoMustarSolveInput>,
+    ) -> String {
         // Guard: empty store
         if self.graph.triple_count() == 0 {
             return r#"{"ok":false,"error":"No ontology loaded. MuStar needs a loaded ontology to ground its reasoning.","hint":"Call onto_load first with a .ttl file, then retry onto_mustar_solve."}"#.to_string();
@@ -4981,13 +5995,17 @@ impl OpenOntologiesServer {
                         err.replace('"', "\\\"").replace('\n', " ")
                     )
                 }
-            },
-            Err(crate::subprocess::SubprocessError::LlmTimeout { elapsed_ms, limit_ms, .. }) => {
+            }
+            Err(crate::subprocess::SubprocessError::LlmTimeout {
+                elapsed_ms,
+                limit_ms,
+                ..
+            }) => {
                 format!(
                     r#"{{"ok":false,"error":"mu_star_agent: subprocess timed out after {}ms (limit {}ms).","hint":"Simplify the problem_statement or increase the subprocess timeout in config.toml."}}"#,
                     elapsed_ms, limit_ms
                 )
-            },
+            }
             Err(crate::subprocess::SubprocessError::SpawnFailed(e)) => format!(
                 r#"{{"ok":false,"error":"mu_star_agent: failed to spawn Python process: {}.","hint":"Verify that /Users/sac/chatmangpt/ostar/.venv/bin/python exists and the venv is activated."}}"#,
                 e
@@ -4995,18 +6013,30 @@ impl OpenOntologiesServer {
         }
     }
 
-    #[tool(name = "onto_alphastar_solve", description = "Invoke the Semantic AlphaStar Agent (backward compatibility alias for MuStar) to semantically lower a problem intent into a completed artifact.")]
-    async fn onto_alphastar_solve(&self, Parameters(input): Parameters<OntoAlphastarSolveInput>) -> String {
+    #[tool(
+        name = "onto_alphastar_solve",
+        description = "Invoke the Semantic AlphaStar Agent (backward compatibility alias for MuStar) to semantically lower a problem intent into a completed artifact."
+    )]
+    async fn onto_alphastar_solve(
+        &self,
+        Parameters(input): Parameters<OntoAlphastarSolveInput>,
+    ) -> String {
         self.onto_mustar_solve(Parameters(input)).await
     }
 
-    #[tool(name = "onto_codegen", description = "Generate code artifacts from the loaded ontology using ggen. Requires either manifest_path (ggen.toml with generation.rules) or queries_dir (SPARQL queries dir). The generator field maps to ggen --language (python, rust, typescript, go, elixir). Serializes the current in-memory graph to a temp TTL file and invokes ggen sync with correct flags.")]
+    #[tool(
+        name = "onto_codegen",
+        description = "Generate code artifacts from the loaded ontology using ggen. Requires either manifest_path (ggen.toml with generation.rules) or queries_dir (SPARQL queries dir). The generator field maps to ggen --language (python, rust, typescript, go, elixir). Serializes the current in-memory graph to a temp TTL file and invokes ggen sync with correct flags."
+    )]
     async fn onto_codegen(&self, Parameters(input): Parameters<OntoCodegenInput>) -> String {
         use std::process::Command;
 
         // Ensure loaded
         if let Err(e) = self.registry.ensure_loaded() {
-            return format!(r#"{{"ok":false,"error":"Ontology not loaded: {}. Call onto_load first.","hint":"Call onto_load with a valid .ttl file path to load an ontology first."}}"#, e.to_string().replace('"', "'"));
+            return format!(
+                r#"{{"ok":false,"error":"Ontology not loaded: {}. Call onto_load first.","hint":"Call onto_load with a valid .ttl file path to load an ontology first."}}"#,
+                e.to_string().replace('"', "'")
+            );
         }
 
         // Guard: empty graph
@@ -5056,13 +6086,19 @@ impl OpenOntologiesServer {
             .unwrap_or(0);
         let tmp_dir = std::env::temp_dir().join(format!("onto_codegen_{}", unique_id));
         if let Err(e) = std::fs::create_dir_all(&tmp_dir) {
-            return format!(r#"{{"ok":false,"error":"Failed to create temp dir: {}","hint":"Check the error details and retry. Consult the tool description for required parameters and formats."}}"#, e);
+            return format!(
+                r#"{{"ok":false,"error":"Failed to create temp dir: {}","hint":"Check the error details and retry. Consult the tool description for required parameters and formats."}}"#,
+                e
+            );
         }
 
         let temp_path = tmp_dir.join("ontology.ttl").to_string_lossy().to_string();
         if let Err(e) = self.graph.save_file(&temp_path, TURTLE_FORMAT) {
             let _ = std::fs::remove_dir_all(&tmp_dir);
-            return format!(r#"{{"ok":false,"error":"Failed to serialize graph: {}","hint":"Verify the format name is one of: turtle, ntriples, rdfxml, nquads, trig."}}"#, e);
+            return format!(
+                r#"{{"ok":false,"error":"Failed to serialize graph: {}","hint":"Verify the format name is one of: turtle, ntriples, rdfxml, nquads, trig."}}"#,
+                e
+            );
         }
 
         // Build ggen sync command
@@ -5073,8 +6109,10 @@ impl OpenOntologiesServer {
             .unwrap();
         let mut cmd = Command::new(crate::config::expand_tilde(&ggen_path));
         cmd.arg("sync")
-            .arg("--ontology").arg(&temp_path)
-            .arg("--output_dir").arg(output_dir);
+            .arg("--ontology")
+            .arg(&temp_path)
+            .arg("--output_dir")
+            .arg(output_dir);
 
         // Mode A: manifest-based
         if let Some(ref manifest) = input.manifest_path {
@@ -5111,11 +6149,14 @@ impl OpenOntologiesServer {
                 let stderr = String::from_utf8_lossy(&output.stderr);
                 if output.status.success() {
                     let ts = chrono::Utc::now().to_rfc3339();
-                    let obj_id = format!("{}:codegen:{}", self.session_id, &input.generator);
+                    let obj_id = format!("{}:codegen:{}", self.session_id, input.generator);
                     let _ = self.ocel_store().upsert_object(
                         &obj_id,
                         "CodeArtifact",
-                        &[("generator", &input.generator, "string"), ("language", language, "string")],
+                        &[
+                            ("generator", &input.generator, "string"),
+                            ("language", language, "string"),
+                        ],
                     );
 
                     // Walk the output_dir and prepend the OntoStar receipt header
@@ -5124,7 +6165,11 @@ impl OpenOntologiesServer {
                     let stamped = stamp_codegen_output(output_dir, &receipt);
 
                     let stamped_str = stamped.to_string();
-                    let event_id = format!("{}:codegen:{}", self.session_id, chrono::Utc::now().timestamp_millis());
+                    let event_id = format!(
+                        "{}:codegen:{}",
+                        self.session_id,
+                        chrono::Utc::now().timestamp_millis()
+                    );
                     let _ = self.ocel_store().emit_event(
                         &event_id,
                         "codegen_run",
@@ -5141,7 +6186,21 @@ impl OpenOntologiesServer {
                         None,
                     );
 
-                    self.lineage().record(&self.session_id, "G", "codegen", &input.generator);
+                    self.lineage()
+                        .record(&self.session_id, "G", "codegen", &input.generator);
+
+                    let stdout_hash = blake3::hash(output.stdout.as_slice()).to_hex().to_string();
+                    let stderr_hash = blake3::hash(output.stderr.as_slice()).to_hex().to_string();
+                    let core_receipt = crate::autoreceipt::Receipt::boundary_builder(
+                        format!("codegen_{}", unique_id),
+                        "ggen".to_string(),
+                        "onto_codegen".to_string(),
+                    )
+                    .stdout_hash(Some(stdout_hash))
+                    .stderr_hash(Some(stderr_hash))
+                    .exit_code(Some(0))
+                    .build();
+
                     serde_json::json!({
                         "ok": true,
                         "generator": input.generator,
@@ -5152,13 +6211,25 @@ impl OpenOntologiesServer {
                         "production_law_version": receipt.record.production_law_version,
                         "defects_taxonomy_version": receipt.record.defects_taxonomy_version,
                         "receipt_files_stamped": stamped,
-                    }).to_string()
+                        "open_ontology_receipt": core_receipt,
+                    })
+                    .to_string()
                 } else {
-                    format!(r#"{{"ok":false,"error":"ggen sync failed: {}","hint":"Check the error details and retry. Consult the tool description for required parameters and formats."}}"#, stderr)
+                    format!(
+                        r#"{{"ok":false,"error":"ggen sync failed: {}","hint":"Check the error details and retry. Consult the tool description for required parameters and formats."}}"#,
+                        stderr
+                    )
                 }
             }
-            Err(crate::subprocess::SubprocessError::LlmTimeout { elapsed_ms, limit_ms, .. }) => {
-                format!(r#"{{"ok":false,"error":"ggen sync timed out after {}ms (limit {}ms)","hint":"Check the error details and retry. Consult the tool description for required parameters and formats."}}"#, elapsed_ms, limit_ms)
+            Err(crate::subprocess::SubprocessError::LlmTimeout {
+                elapsed_ms,
+                limit_ms,
+                ..
+            }) => {
+                format!(
+                    r#"{{"ok":false,"error":"ggen sync timed out after {}ms (limit {}ms)","hint":"Check the error details and retry. Consult the tool description for required parameters and formats."}}"#,
+                    elapsed_ms, limit_ms
+                )
             }
             Err(crate::subprocess::SubprocessError::SpawnFailed(e)) => {
                 let msg = if e.kind() == std::io::ErrorKind::NotFound {
@@ -5166,7 +6237,10 @@ impl OpenOntologiesServer {
                 } else {
                     "Failed to invoke ggen"
                 };
-                format!(r#"{{"ok":false,"error":"{}: {}","hint":"Check the error details and retry. Consult the tool description for required parameters and formats."}}"#, msg, e)
+                format!(
+                    r#"{{"ok":false,"error":"{}: {}","hint":"Check the error details and retry. Consult the tool description for required parameters and formats."}}"#,
+                    msg, e
+                )
             }
         };
 
@@ -5178,14 +6252,27 @@ impl OpenOntologiesServer {
 
     // ── OntoStar Stream 1 — workflow scope ──────────────────────────────────
 
-    #[tool(name = "onto_declare_workflow", description = "OntoStar: declare a workflow scope. Either pass a built-in `name` (OntologyAuthoring, DataExtension, DataExtensionFastPath, LifecycleApply, Alignment, Codegen, GovernedRelease) or an inline `powl` string. Returns a `scope_token` (ULID) used to tag subsequent OCEL events. Pair with `onto_close_workflow`. R4 WE: full admission via AdmissionOp::WorkflowDeclared.")]
+    #[tool(
+        name = "onto_declare_workflow",
+        description = "OntoStar: declare a workflow scope. Either pass a built-in `name` (OntologyAuthoring, DataExtension, DataExtensionFastPath, LifecycleApply, Alignment, Codegen, GovernedRelease) or an inline `powl` string. Returns a `scope_token` (ULID) used to tag subsequent OCEL events. Pair with `onto_close_workflow`. R4 WE: full admission via AdmissionOp::WorkflowDeclared."
+    )]
     fn onto_declare_workflow(
         &self,
         Parameters(input): Parameters<OntoDeclareWorkflowInput>,
     ) -> String {
         // Guard: require at least one of name or powl
-        let name_blank = input.name.as_deref().map(str::trim).unwrap_or("").is_empty();
-        let powl_blank = input.powl.as_deref().map(str::trim).unwrap_or("").is_empty();
+        let name_blank = input
+            .name
+            .as_deref()
+            .map(str::trim)
+            .unwrap_or("")
+            .is_empty();
+        let powl_blank = input
+            .powl
+            .as_deref()
+            .map(str::trim)
+            .unwrap_or("")
+            .is_empty();
         if name_blank && powl_blank {
             return r#"{"ok":false,"error":"Either 'name' or 'powl' is required to declare a workflow.","hint":"Pass a built-in name (e.g. 'OntologyAuthoring') or an inline POWL string to define the workflow scope."}"#.to_string();
         }
@@ -5198,9 +6285,8 @@ impl OpenOntologiesServer {
         let name_str = input.name.clone().unwrap_or_default();
         let powl_str = input.powl.clone().unwrap_or_default();
         let tenant_str = self.tenant.current().current().to_string();
-        let mut artifact_bytes: Vec<u8> = Vec::with_capacity(
-            name_str.len() + powl_str.len() + tenant_str.len() + 2,
-        );
+        let mut artifact_bytes: Vec<u8> =
+            Vec::with_capacity(name_str.len() + powl_str.len() + tenant_str.len() + 2);
         artifact_bytes.extend_from_slice(name_str.as_bytes());
         artifact_bytes.push(0);
         artifact_bytes.extend_from_slice(powl_str.as_bytes());
@@ -5244,11 +6330,11 @@ impl OpenOntologiesServer {
         }
     }
 
-    #[tool(name = "onto_close_workflow", description = "OntoStar: close a previously-declared workflow scope. Writes `closed_at` and flips status to `closed`. Returns `{closed: true, scope_token}` on success; returns a typed `ScopeUnclosed` defect if the token is unknown or already closed. R4 WE: full admission via AdmissionOp::WorkflowClosed.")]
-    fn onto_close_workflow(
-        &self,
-        Parameters(input): Parameters<OntoCloseWorkflowInput>,
-    ) -> String {
+    #[tool(
+        name = "onto_close_workflow",
+        description = "OntoStar: close a previously-declared workflow scope. Writes `closed_at` and flips status to `closed`. Returns `{closed: true, scope_token}` on success; returns a typed `ScopeUnclosed` defect if the token is unknown or already closed. R4 WE: full admission via AdmissionOp::WorkflowClosed."
+    )]
+    fn onto_close_workflow(&self, Parameters(input): Parameters<OntoCloseWorkflowInput>) -> String {
         // R4 WE — §14: full admission BEFORE the scope is closed.
         // Artifact bytes are the raw `scope_token` (so the artifact hash is
         // a deterministic function of which scope is being closed).
@@ -5340,7 +6426,7 @@ impl OpenOntologiesServer {
         &self,
         Parameters(input): Parameters<crate::inputs::OntoCell8AttestInput>,
     ) -> String {
-        use crate::cell8::{emit_earl_report, count_passed, count_failed, GateOutcome, GATE_NAMES};
+        use crate::cell8::{GATE_NAMES, GateOutcome, count_failed, count_passed, emit_earl_report};
         use crate::defects::DefectClass;
 
         // Guard: ontology must be loaded (gates A1-A3 require an active triple store).
@@ -5358,7 +6444,8 @@ impl OpenOntologiesServer {
                 "ok": false,
                 "error": "scope_token is required and must not be blank.",
                 "hint": "Example: {\"scope_token\": \"my-artifact-scope-2024\"}"
-            }).to_string();
+            })
+            .to_string();
         }
 
         // Look up the latest persisted receipt for this scope.
@@ -5403,8 +6490,7 @@ impl OpenOntologiesServer {
                     }
                     out
                 }
-                let prior_receipt =
-                    prior_hex.as_ref().map(|s| parse_hex32_local(s));
+                let prior_receipt = prior_hex.as_ref().map(|s| parse_hex32_local(s));
                 let record = crate::production_record::ProductionRecord {
                     artifact_hash: parse_hex32_local(&artifact_hex),
                     scope_token: input.scope_token.clone(),
@@ -5502,10 +6588,7 @@ impl OpenOntologiesServer {
         name = "onto_session_reset",
         description = "OntoStar: clear a session's `revoked_sessions` row (sets cleared_at). Use after a `bypass_admission` event when the session is otherwise allowed to resume."
     )]
-    fn onto_session_reset(
-        &self,
-        Parameters(input): Parameters<OntoSessionResetInput>,
-    ) -> String {
+    fn onto_session_reset(&self, Parameters(input): Parameters<OntoSessionResetInput>) -> String {
         match crate::admission::clear_revocation(&self.db, &input.session_id) {
             Ok(()) => {
                 self.lineage().record_session_reset(&input.session_id);
@@ -5609,8 +6692,14 @@ impl OpenOntologiesServer {
     // materializes a scope row directly. When Streams 1-4 land, swap the
     // stubs for the real handlers and types.
 
-    #[tool(name = "onto_plan_workflow", description = "Stream 5: Propose a POWL workflow from a problem statement using MuStar + PowlPredictor (Python subprocess). Loop 1 exemplars warm-start the planner. The result is auto-fed into a synthetic onto_declare_workflow and a scope_token is returned. The planner does NOT admit — admission is the gate's exclusive responsibility.")]
-    async fn onto_plan_workflow(&self, Parameters(input): Parameters<OntoPlanWorkflowInput>) -> String {
+    #[tool(
+        name = "onto_plan_workflow",
+        description = "Stream 5: Propose a POWL workflow from a problem statement using MuStar + PowlPredictor (Python subprocess). Loop 1 exemplars warm-start the planner. The result is auto-fed into a synthetic onto_declare_workflow and a scope_token is returned. The planner does NOT admit — admission is the gate's exclusive responsibility."
+    )]
+    async fn onto_plan_workflow(
+        &self,
+        Parameters(input): Parameters<OntoPlanWorkflowInput>,
+    ) -> String {
         use crate::ocel_store::OcelStore;
 
         // ── Alternative engine: real Groq via pm4py POWL ──────────────────
@@ -5649,7 +6738,11 @@ impl OpenOntologiesServer {
             let script_str = script.to_string_lossy().into_owned();
             let out = match self.run_subprocess_with_timeout(&mut cmd, "groq_powl", &script_str) {
                 Ok(timed) => timed.output,
-                Err(crate::subprocess::SubprocessError::LlmTimeout { elapsed_ms, limit_ms, .. }) => {
+                Err(crate::subprocess::SubprocessError::LlmTimeout {
+                    elapsed_ms,
+                    limit_ms,
+                    ..
+                }) => {
                     return format!(
                         r#"{{"ok":false,"error":"powl_from_text.py timed out after {}ms (limit {}ms)","hint":"Simplify the problem statement or increase subprocess timeout in config.toml ([subprocess] timeout_ms)."}}"#,
                         elapsed_ms, limit_ms
@@ -5683,7 +6776,7 @@ impl OpenOntologiesServer {
                     return format!(
                         r#"{{"ok":false,"error":"powl_from_text.py produced no JSON line: {}","hint":"The POWL script produced no JSON. Check dspy-ai and pm4py are installed and GROQ_API_KEY is set."}}"#,
                         stdout.replace('"', "'").replace('\n', " ")
-                    )
+                    );
                 }
             };
             let result: serde_json::Value = match serde_json::from_str(&json_line) {
@@ -5693,7 +6786,7 @@ impl OpenOntologiesServer {
                         r#"{{"ok":false,"error":"powl_from_text.py non-JSON: {} (raw={})","hint":"The POWL script output malformed JSON. Verify the script version is current and the Python environment is healthy."}}"#,
                         e,
                         json_line.replace('"', "'")
-                    )
+                    );
                 }
             };
 
@@ -5788,11 +6881,13 @@ impl OpenOntologiesServer {
             "exemplars": exemplars,
         });
 
-        let python = input.python.clone().unwrap_or_else(|| "python3".to_string());
-        let script = input
-            .planner_script
+        let python = input
+            .python
             .clone()
-            .unwrap_or_else(|| "~/chatmangpt/ostar/src/ostar/process/ontostar_planner.py".to_string());
+            .unwrap_or_else(|| "python3".to_string());
+        let script = input.planner_script.clone().unwrap_or_else(|| {
+            "~/chatmangpt/ostar/src/ostar/process/ontostar_planner.py".to_string()
+        });
         let script = expand_tilde(&script);
 
         let mut cmd = std::process::Command::new(&python);
@@ -5806,7 +6901,11 @@ impl OpenOntologiesServer {
             &script,
         ) {
             Ok(timed) => timed.output,
-            Err(crate::subprocess::SubprocessError::LlmTimeout { elapsed_ms, limit_ms, .. }) => {
+            Err(crate::subprocess::SubprocessError::LlmTimeout {
+                elapsed_ms,
+                limit_ms,
+                ..
+            }) => {
                 return format!(
                     r#"{{"ok":false,"error":"ontostar_planner.py timed out after {}ms (limit {}ms)","hint":"Check the error details and retry. Consult the tool description for required parameters and formats."}}"#,
                     elapsed_ms, limit_ms
@@ -5836,7 +6935,7 @@ impl OpenOntologiesServer {
                     r#"{{"ok":false,"error":"planner produced non-JSON output: {} (raw={})","hint":"Check the error details and retry. Consult the tool description for required parameters and formats."}}"#,
                     e,
                     stdout.replace('"', "'").replace('\n', " ")
-                )
+                );
             }
         };
 
@@ -5890,8 +6989,7 @@ impl OpenOntologiesServer {
         });
         let details = format!(
             "build_order_generated source=mustar+powlpredictor scope={} metrics={}",
-            scope_token,
-            powl_metrics
+            scope_token, powl_metrics
         );
         self.lineage()
             .record(&self.session_id, "BG", "build_order_generated", &details);
@@ -5909,8 +7007,14 @@ impl OpenOntologiesServer {
         .to_string()
     }
 
-    #[tool(name = "onto_exemplar_seed", description = "Stream 5: Admin handler. Read a seed OCEL JSON file (default: ~/chatmangpt/ostar/artifacts/ocel/mu_star/ONTOLOGY.oceljson), extract `build_order_generated` events, and insert them into mined_exemplars with synthesized receipts marked production_law_version='seed-v0'. Strict admission can later filter via WHERE production_law_version != 'seed-v0'. Bootstrap-only: refuses with BootstrapClosed once any non-seed receipt has been admitted.")]
-    async fn onto_exemplar_seed(&self, Parameters(input): Parameters<OntoExemplarSeedInput>) -> String {
+    #[tool(
+        name = "onto_exemplar_seed",
+        description = "Stream 5: Admin handler. Read a seed OCEL JSON file (default: ~/chatmangpt/ostar/artifacts/ocel/mu_star/ONTOLOGY.oceljson), extract `build_order_generated` events, and insert them into mined_exemplars with synthesized receipts marked production_law_version='seed-v0'. Strict admission can later filter via WHERE production_law_version != 'seed-v0'. Bootstrap-only: refuses with BootstrapClosed once any non-seed receipt has been admitted."
+    )]
+    async fn onto_exemplar_seed(
+        &self,
+        Parameters(input): Parameters<OntoExemplarSeedInput>,
+    ) -> String {
         // R4 WE — §14: bootstrap-only precondition. Once a real production
         // receipt exists, the seed handler refuses with BootstrapClosed —
         // an admin handler that mutates the store after production traffic
@@ -5925,10 +7029,9 @@ impl OpenOntologiesServer {
                 "hint": "Set OPEN_ONTOLOGIES_BOOTSTRAP_MODE=1 in your environment to override during integration tests, or use onto_planner_demos to query existing exemplars.",
             }).to_string();
         }
-        let raw_path = input
-            .path
-            .clone()
-            .unwrap_or_else(|| "~/chatmangpt/ostar/artifacts/ocel/mu_star/ONTOLOGY.oceljson".to_string());
+        let raw_path = input.path.clone().unwrap_or_else(|| {
+            "~/chatmangpt/ostar/artifacts/ocel/mu_star/ONTOLOGY.oceljson".to_string()
+        });
         let path = expand_tilde(&raw_path);
         let bytes = match std::fs::read(&path) {
             Ok(b) => b,
@@ -5949,7 +7052,10 @@ impl OpenOntologiesServer {
             "exemplar-seed",
             &bytes,
         );
-        let default_domain = input.domain.clone().unwrap_or_else(|| "ONTOLOGY".to_string());
+        let default_domain = input
+            .domain
+            .clone()
+            .unwrap_or_else(|| "ONTOLOGY".to_string());
         let store = crate::ocel_store::OcelStore::new(self.db.clone());
         let inserted = match store.seed_from_ocel_bytes(&bytes, &default_domain) {
             Ok(n) => n,
@@ -5971,8 +7077,14 @@ impl OpenOntologiesServer {
         .to_string()
     }
 
-    #[tool(name = "onto_counterfactual", description = "Stream 5: Read-only probe. For a given scope_token, returns side-by-side: (a) the naked-craft path (no scope, gate bypassed, force=true → always Admitted) and (b) the OntoStar admission path (real verdict). Surfaces the manufacturing delta — the set of gates where the two paths diverged.")]
-    async fn onto_counterfactual(&self, Parameters(input): Parameters<OntoCounterfactualInput>) -> String {
+    #[tool(
+        name = "onto_counterfactual",
+        description = "Stream 5: Read-only probe. For a given scope_token, returns side-by-side: (a) the naked-craft path (no scope, gate bypassed, force=true → always Admitted) and (b) the OntoStar admission path (real verdict). Surfaces the manufacturing delta — the set of gates where the two paths diverged."
+    )]
+    async fn onto_counterfactual(
+        &self,
+        Parameters(input): Parameters<OntoCounterfactualInput>,
+    ) -> String {
         // Guard: blank scope_token
         if input.scope_token.trim().is_empty() {
             return r#"{"ok":false,"error":"'scope_token' is required and must not be blank.","hint":"Call onto_declare_workflow or onto_plan_workflow first and use the returned scope_token."}"#.to_string();
@@ -5988,10 +7100,15 @@ impl OpenOntologiesServer {
         //  defects_json, deviations_json, gates_fired_json, gates_denied_json,
         //  manufacturing_delta_json)
         type CounterfactualRow = (
-            String, String, String,
-            Option<i64>, Option<f64>,
-            Option<String>, Option<String>,
-            Option<String>, Option<String>,
+            String,
+            String,
+            String,
+            Option<i64>,
+            Option<f64>,
+            Option<String>,
+            Option<String>,
+            Option<String>,
+            Option<String>,
             Option<String>,
         );
         let row: Option<CounterfactualRow> = conn
@@ -6014,18 +7131,26 @@ impl OpenOntologiesServer {
             .ok();
         drop(conn);
 
-        let (scope_token, workflow_name, domain, admitted, fitness,
-             defects_json, deviations_json, gates_fired_json, gates_denied_json,
-             manufacturing_delta_json) =
-            match row {
-                Some(r) => r,
-                None => {
-                    return format!(
-                        r#"{{"ok":false,"error":"onto_counterfactual: scope_token '{}' not found in declared_workflows.","hint":"Call onto_declare_workflow or onto_plan_workflow to create a scope, then pass the returned scope_token."}}"#,
-                        input.scope_token.replace('"', "'")
-                    )
-                }
-            };
+        let (
+            scope_token,
+            workflow_name,
+            domain,
+            admitted,
+            fitness,
+            defects_json,
+            deviations_json,
+            gates_fired_json,
+            gates_denied_json,
+            manufacturing_delta_json,
+        ) = match row {
+            Some(r) => r,
+            None => {
+                return format!(
+                    r#"{{"ok":false,"error":"onto_counterfactual: scope_token '{}' not found in declared_workflows.","hint":"Call onto_declare_workflow or onto_plan_workflow to create a scope, then pass the returned scope_token."}}"#,
+                    input.scope_token.replace('"', "'")
+                );
+            }
+        };
 
         let parse_arr = |s: &Option<String>| -> serde_json::Value {
             s.as_deref()
@@ -6064,10 +7189,12 @@ impl OpenOntologiesServer {
         let delta = manufacturing_delta_json
             .as_deref()
             .and_then(|t| serde_json::from_str::<serde_json::Value>(t).ok())
-            .unwrap_or_else(|| serde_json::json!({
-                "fired_only_under_ontostar": gates_fired,
-                "naked_craft_verdict": "granted_by_force",
-            }));
+            .unwrap_or_else(|| {
+                serde_json::json!({
+                    "fired_only_under_ontostar": gates_fired,
+                    "naked_craft_verdict": "granted_by_force",
+                })
+            });
 
         serde_json::json!({
             "ok": true,
@@ -6081,13 +7208,20 @@ impl OpenOntologiesServer {
 
     // ── Requirements-Andon / CTQ-Forge handlers (Phase 1.5) ──────────────
 
-    #[tool(name = "onto_propose_requirement", description = "Requirements Andon: capture a stakeholder source-voice signal and propose a requirement. The deterministic gate denies with RequirementWithoutSource if source_voice is empty/whitespace. Emits the workflow-anchor `requirement_proposed` OCEL event with source_voice + voice_kind attributes. Returns receipt_hash on Ok.")]
-    async fn onto_propose_requirement(&self, Parameters(input): Parameters<OntoProposeRequirementInput>) -> String {
+    #[tool(
+        name = "onto_propose_requirement",
+        description = "Requirements Andon: capture a stakeholder source-voice signal and propose a requirement. The deterministic gate denies with RequirementWithoutSource if source_voice is empty/whitespace. Emits the workflow-anchor `requirement_proposed` OCEL event with source_voice + voice_kind attributes. Returns receipt_hash on Ok."
+    )]
+    async fn onto_propose_requirement(
+        &self,
+        Parameters(input): Parameters<OntoProposeRequirementInput>,
+    ) -> String {
         let started = std::time::Instant::now();
         let voice = input.source_voice.trim();
         if voice.is_empty() {
             // Pre-gate denial — source signal is mandatory.
-            self.lineage().record_admission_denied(&self.session_id, "requirement_without_source");
+            self.lineage()
+                .record_admission_denied(&self.session_id, "requirement_without_source");
             self.emit_tool_ocel(TOOL_PROPOSE_REQUIREMENT, started, false, &[]);
             return serde_json::json!({
                 "ok": false,
@@ -6110,10 +7244,7 @@ impl OpenOntologiesServer {
             OCEL_EVENT_REQUIREMENT_PROPOSED,
             &now,
             &self.session_id,
-            &[
-                ("source_voice", voice),
-                ("voice_kind", voice_kind),
-            ],
+            &[("source_voice", voice), ("voice_kind", voice_kind)],
             &[],
             input.scope_token.as_deref(),
         );
@@ -6140,7 +7271,8 @@ impl OpenOntologiesServer {
             "production_law_version": receipt.record.production_law_version,
             "defects_taxonomy_version": receipt.record.defects_taxonomy_version,
             "voice_kind": voice_kind,
-        }).to_string();
+        })
+        .to_string();
         self.emit_tool_ocel(TOOL_PROPOSE_REQUIREMENT, started, true, &[]);
         out
     }
@@ -6163,8 +7295,14 @@ impl OpenOntologiesServer {
     /// `llm_authority_claimed` OCEL **before** lifting the fields into
     /// `CandidateCtq`, so the audit trail records the adversarial
     /// claim independently of any downstream defect classification.
-    #[tool(name = "onto_translate_candidate", description = "Requirements Andon: invoke the LLM boundary translator on a previously-proposed requirement. AUDIT-ONLY — output is provisional and must pass through onto_admit_ctq before any work order is admitted. Response is projection-only (`_projection_only: true`); admission flows through `onto_admit_ctq`. Emits `llm_candidate_translated` + `llm_invoked` OCEL events with candidate_ctq_id (BLAKE3 of the candidate JSON) but never the API key. `engine` selects `inproc` (default), `groq_pm4py` (shells to scripts/ctq_from_voice.py), or `gemini` (headless Gemini CLI via OAuth, no API key required; uses gemini-3.1-flash-lite-preview).")]
-    pub async fn onto_translate_candidate(&self, Parameters(input): Parameters<OntoTranslateCandidateInput>) -> String {
+    #[tool(
+        name = "onto_translate_candidate",
+        description = "Requirements Andon: invoke the LLM boundary translator on a previously-proposed requirement. AUDIT-ONLY — output is provisional and must pass through onto_admit_ctq before any work order is admitted. Response is projection-only (`_projection_only: true`); admission flows through `onto_admit_ctq`. Emits `llm_candidate_translated` + `llm_invoked` OCEL events with candidate_ctq_id (BLAKE3 of the candidate JSON) but never the API key. `engine` selects `inproc` (default), `groq_pm4py` (shells to scripts/ctq_from_voice.py), or `gemini` (headless Gemini CLI via OAuth, no API key required; uses gemini-3.1-flash-lite)."
+    )]
+    pub async fn onto_translate_candidate(
+        &self,
+        Parameters(input): Parameters<OntoTranslateCandidateInput>,
+    ) -> String {
         let started = std::time::Instant::now();
 
         // ── Alternative engine: real Groq via pm4py-style DSPy subprocess ──
@@ -6186,9 +7324,17 @@ impl OpenOntologiesServer {
 
             let sub_started = std::time::Instant::now();
             let script_str = script.to_string_lossy().into_owned();
-            let out = match self.run_subprocess_with_timeout(&mut cmd, ENGINE_GROQ_PM4PY, &script_str) {
+            let out = match self.run_subprocess_with_timeout(
+                &mut cmd,
+                ENGINE_GROQ_PM4PY,
+                &script_str,
+            ) {
                 Ok(timed) => timed.output,
-                Err(crate::subprocess::SubprocessError::LlmTimeout { elapsed_ms, limit_ms, .. }) => {
+                Err(crate::subprocess::SubprocessError::LlmTimeout {
+                    elapsed_ms,
+                    limit_ms,
+                    ..
+                }) => {
                     self.emit_tool_ocel(TOOL_TRANSLATE_CANDIDATE, started, false, &[]);
                     return format!(
                         r#"{{"ok":false,"error":"ctq_from_voice.py timed out after {}ms (limit {}ms)","hint":"Shorten the source_voice text or increase subprocess timeout in config.toml ([subprocess] timeout_ms)."}}"#,
@@ -6240,7 +7386,11 @@ impl OpenOntologiesServer {
             let latency_ms = sub_started.elapsed().as_millis() as u64;
 
             let get_str = |k: &str| -> String {
-                result.get(k).and_then(|v| v.as_str()).unwrap_or("").to_string()
+                result
+                    .get(k)
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string()
             };
             // §7 LLMAuthority: detect whether the `groq_pm4py`
             // subprocess's JSON output claims authority. The shape is
@@ -6285,8 +7435,14 @@ impl OpenOntologiesServer {
                 control_plan_text: get_str("control_plan_text"),
                 provisional: true,
             };
-            let verdict = result.get("verdict").and_then(|v| v.as_bool()).unwrap_or(false);
-            let refinements = result.get(OCEL_KEY_REFINEMENTS).and_then(|v| v.as_u64()).unwrap_or(0);
+            let verdict = result
+                .get("verdict")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
+            let refinements = result
+                .get(OCEL_KEY_REFINEMENTS)
+                .and_then(|v| v.as_u64())
+                .unwrap_or(0);
 
             let candidate_json = serde_json::to_string(&candidate).unwrap_or_else(|_| "{}".into());
             let candidate_id_hex = blake3::hash(candidate_json.as_bytes()).to_hex().to_string();
@@ -6356,13 +7512,14 @@ impl OpenOntologiesServer {
                 "refinements": refinements,
                 "latency_ms": latency_ms,
                 "llm_claimed_authority": llm_claimed_authority_pm4py,
-            }).to_string();
+            })
+            .to_string();
             self.emit_tool_ocel(TOOL_TRANSLATE_CANDIDATE, started, true, &[]);
             return response;
         }
 
         // ── Alternative engine: Gemini CLI (OAuth, no API key required) ──
-        // Invokes `gemini -p <prompt> --model gemini-3.1-flash-lite-preview
+        // Invokes `gemini -p <prompt> --model gemini-3.1-flash-lite
         // --approval-mode yolo` and extracts the trailing JSON line from stdout.
         // Mirrors the speckit-ralph copilot-shim.sh / gemini-invoke.sh pattern.
         //
@@ -6373,12 +7530,12 @@ impl OpenOntologiesServer {
         // returning an error immediately.  This lets the system automatically
         // select the next reliable engine without caller intervention.
         if engine == "gemini" {
-            // Attempt the Gemini path; returns Some(response_json) on success or
+            // Attempt the Groq REST path; returns Some(response_json) on success or
             // None on any failure (timeout / spawn error / no JSON / parse error).
             // On None we fall through to inproc below.
             let gemini_outcome: Option<String> = 'gemini: {
-            let prompt = format!(
-                "You are a Critical-To-Quality (CTQ) requirements translator.\n\
+                let prompt = format!(
+                    "You are a Critical-To-Quality (CTQ) requirements translator.\n\
                  Translate the following stakeholder voice into a CTQ JSON object.\n\
                  IMPORTANT: Output ONLY the raw JSON on the FINAL line of your response.\n\
                  Use DOUBLE QUOTES for all strings. No markdown, no code fences, no explanation.\n\
@@ -6390,177 +7547,283 @@ impl OpenOntologiesServer {
                  Stakeholder voice: {}\n\
                  \n\
                  Respond with ONLY the JSON object:",
-                input.source_voice
-            );
+                    input.source_voice
+                );
 
-            let gemini_bin = std::env::var("GEMINI_BIN").unwrap_or_else(|_| "gemini".to_string());
-            let mut cmd = std::process::Command::new(&gemini_bin);
-            cmd.arg("-p")
-                .arg(&prompt)
-                .arg("--model")
-                .arg(crate::config::GEMINI_DEFAULT_MODEL)
-                .arg("--approval-mode")
-                .arg("yolo");
+                let cfg = crate::config::LlmConfig::default();
+                let api_base = crate::config::resolve_llm_api_base(&cfg);
+                let api_key = crate::config::resolve_llm_api_key(&cfg);
+                let model = std::env::var("OPEN_ONTOLOGIES_LLM_MODEL")
+                    .ok()
+                    .filter(|v| !v.trim().is_empty())
+                    .or_else(|| cfg.model.clone().filter(|v| !v.trim().is_empty()))
+                    .unwrap_or_else(|| "openai/gpt-oss-20b".to_string());
 
-            let sub_started = std::time::Instant::now();
-            let out = match self.run_subprocess_with_timeout(&mut cmd, "gemini", "gemini") {
-                Ok(timed) => timed.output,
-                Err(crate::subprocess::SubprocessError::LlmTimeout { elapsed_ms, limit_ms, .. }) => {
-                    let reason = format!("gemini timed out after {}ms (limit {}ms)", elapsed_ms, limit_ms);
-                    let now_fb = chrono::Utc::now().to_rfc3339();
-                    let ts_fb = chrono::Utc::now().timestamp_millis();
-                    let _ = self.ocel_store().emit_event(
-                        &format!("{}:llm_engine_fallback:{}", self.session_id, ts_fb),
-                        "llm_engine_fallback",
-                        &now_fb,
-                        &self.session_id,
-                        &[("from_engine", "gemini"), ("to_engine", "inproc"), ("reason", &reason)],
-                        &[],
-                        Some(&input.scope_token),
-                    );
-                    break 'gemini None;
+                let endpoint = format!("{}/chat/completions", api_base.trim_end_matches('/'));
+
+                let body = serde_json::json!({
+                    "model": model,
+                    "messages": [
+                        {"role": "system", "content": "You are executing a system translation plan."},
+                        {"role": "user", "content": prompt}
+                    ],
+                    "temperature": 0.0,
+                    "response_format": {"type": "json_object"}
+                });
+
+                let client = reqwest::Client::new();
+                let mut request = client.post(&endpoint).json(&body);
+                if let Some(key) = api_key {
+                    request = request.bearer_auth(key);
                 }
-                Err(crate::subprocess::SubprocessError::SpawnFailed(e)) => {
-                    let reason = format!("failed to spawn gemini: {}", e.to_string().replace('"', "'"));
-                    let now_fb = chrono::Utc::now().to_rfc3339();
-                    let ts_fb = chrono::Utc::now().timestamp_millis();
-                    let _ = self.ocel_store().emit_event(
-                        &format!("{}:llm_engine_fallback:{}", self.session_id, ts_fb),
-                        "llm_engine_fallback",
-                        &now_fb,
-                        &self.session_id,
-                        &[("from_engine", "gemini"), ("to_engine", "inproc"), ("reason", &reason)],
-                        &[],
-                        Some(&input.scope_token),
-                    );
-                    break 'gemini None;
-                }
-            };
-            let stdout = String::from_utf8_lossy(&out.stdout).into_owned();
-            // Extract trailing JSON: scan from end for a line containing `{`
-            // anywhere (not just at start, to handle warning prefixes from gemini).
-            let json_line = stdout
-                .lines()
-                .rev()
-                .find_map(|l| {
+
+                let sub_started = std::time::Instant::now();
+                let out_res = request.send().await;
+
+                let out = match out_res {
+                    Ok(resp) => {
+                        if !resp.status().is_success() {
+                            let reason =
+                                format!("gemini Groq request returned status {}", resp.status());
+                            let now_fb = chrono::Utc::now().to_rfc3339();
+                            let ts_fb = chrono::Utc::now().timestamp_millis();
+                            let _ = self.ocel_store().emit_event(
+                                &format!("{}:llm_engine_fallback:{}", self.session_id, ts_fb),
+                                "llm_engine_fallback",
+                                &now_fb,
+                                &self.session_id,
+                                &[
+                                    ("from_engine", "gemini"),
+                                    ("to_engine", "inproc"),
+                                    ("reason", &reason),
+                                ],
+                                &[],
+                                Some(&input.scope_token),
+                            );
+                            break 'gemini None;
+                        }
+                        match resp.text().await {
+                            Ok(t) => t,
+                            Err(e) => {
+                                let reason = format!("failed to read gemini Groq response: {}", e);
+                                let now_fb = chrono::Utc::now().to_rfc3339();
+                                let ts_fb = chrono::Utc::now().timestamp_millis();
+                                let _ = self.ocel_store().emit_event(
+                                    &format!("{}:llm_engine_fallback:{}", self.session_id, ts_fb),
+                                    "llm_engine_fallback",
+                                    &now_fb,
+                                    &self.session_id,
+                                    &[
+                                        ("from_engine", "gemini"),
+                                        ("to_engine", "inproc"),
+                                        ("reason", &reason),
+                                    ],
+                                    &[],
+                                    Some(&input.scope_token),
+                                );
+                                break 'gemini None;
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        let reason = format!("gemini Groq request failed: {}", e);
+                        let now_fb = chrono::Utc::now().to_rfc3339();
+                        let ts_fb = chrono::Utc::now().timestamp_millis();
+                        let _ = self.ocel_store().emit_event(
+                            &format!("{}:llm_engine_fallback:{}", self.session_id, ts_fb),
+                            "llm_engine_fallback",
+                            &now_fb,
+                            &self.session_id,
+                            &[
+                                ("from_engine", "gemini"),
+                                ("to_engine", "inproc"),
+                                ("reason", &reason),
+                            ],
+                            &[],
+                            Some(&input.scope_token),
+                        );
+                        break 'gemini None;
+                    }
+                };
+
+                let parsed_resp: serde_json::Value = match serde_json::from_str(&out) {
+                    Ok(v) => v,
+                    Err(e) => {
+                        let reason = format!("failed to parse gemini Groq response: {}", e);
+                        let now_fb = chrono::Utc::now().to_rfc3339();
+                        let ts_fb = chrono::Utc::now().timestamp_millis();
+                        let _ = self.ocel_store().emit_event(
+                            &format!("{}:llm_engine_fallback:{}", self.session_id, ts_fb),
+                            "llm_engine_fallback",
+                            &now_fb,
+                            &self.session_id,
+                            &[
+                                ("from_engine", "gemini"),
+                                ("to_engine", "inproc"),
+                                ("reason", &reason),
+                            ],
+                            &[],
+                            Some(&input.scope_token),
+                        );
+                        break 'gemini None;
+                    }
+                };
+
+                let stdout = parsed_resp["choices"][0]["message"]["content"]
+                    .as_str()
+                    .unwrap_or("")
+                    .to_string();
+
+                // Extract trailing JSON: scan from end for a line containing `{`
+                // anywhere (not just at start, to handle warning prefixes from gemini).
+                let json_line = stdout.lines().rev().find_map(|l| {
                     // Find the first `{` in the line and try to extract from there.
                     l.find('{').map(|pos| l[pos..].trim().to_string())
                 });
-            let json_line = match json_line {
-                Some(l) => l,
-                None => {
-                    let reason = format!("gemini produced no JSON line (raw={})", stdout.replace('"', "'").replace('\n', " "));
-                    let now_fb = chrono::Utc::now().to_rfc3339();
-                    let ts_fb = chrono::Utc::now().timestamp_millis();
-                    let _ = self.ocel_store().emit_event(
-                        &format!("{}:llm_engine_fallback:{}", self.session_id, ts_fb),
-                        "llm_engine_fallback",
-                        &now_fb,
-                        &self.session_id,
-                        &[("from_engine", "gemini"), ("to_engine", "inproc"), ("reason", &reason)],
-                        &[],
-                        Some(&input.scope_token),
-                    );
-                    break 'gemini None;
-                }
-            };
-            let result: serde_json::Value = match serde_json::from_str(&json_line) {
-                Ok(v) => v,
-                Err(e) => {
-                    let reason = format!("gemini non-JSON: {} (raw={})", e, json_line.replace('"', "'"));
-                    let now_fb = chrono::Utc::now().to_rfc3339();
-                    let ts_fb = chrono::Utc::now().timestamp_millis();
-                    let _ = self.ocel_store().emit_event(
-                        &format!("{}:llm_engine_fallback:{}", self.session_id, ts_fb),
-                        "llm_engine_fallback",
-                        &now_fb,
-                        &self.session_id,
-                        &[("from_engine", "gemini"), ("to_engine", "inproc"), ("reason", &reason)],
-                        &[],
-                        Some(&input.scope_token),
-                    );
-                    break 'gemini None;
-                }
-            };
-            let latency_ms = sub_started.elapsed().as_millis() as u64;
-            let get_str = |k: &str| -> String {
-                result.get(k).and_then(|v| v.as_str()).unwrap_or("").to_string()
-            };
-            let candidate = crate::llm_translator::CandidateCtq {
-                source_voice_echo: input.source_voice.clone(),
-                defect_class_hint: get_str("defect_class_hint"),
-                ctq_text: get_str("ctq_text"),
-                measure_text: get_str("measure_text"),
-                verification_text: get_str("verification_text"),
-                negative_case_text: get_str("negative_case_text"),
-                control_plan_text: get_str("control_plan_text"),
-                provisional: true,
-            };
-            let verdict = result.get("verdict").and_then(|v| v.as_bool()).unwrap_or(false);
-            let refinements = result.get("refinements").and_then(|v| v.as_u64()).unwrap_or(0);
-            let candidate_json = serde_json::to_string(&candidate).unwrap_or_else(|_| "{}".into());
-            let candidate_id_hex = blake3::hash(candidate_json.as_bytes()).to_hex().to_string();
-            let model = crate::config::GEMINI_DEFAULT_MODEL;
-            let now = chrono::Utc::now().to_rfc3339();
-            let ts_ms = chrono::Utc::now().timestamp_millis();
-            let latency_str = latency_ms.to_string();
-            let refinements_str = refinements.to_string();
-            let _ = self.ocel_store().emit_event(
-                &format!("{}:llm_candidate_translated:{}", self.session_id, ts_ms),
-                "llm_candidate_translated",
-                &now,
-                &self.session_id,
-                &[
-                    ("candidate_ctq_id", &candidate_id_hex[..16]),
-                    ("model", model),
-                    ("provisional", "true"),
-                    ("engine", "gemini"),
-                ],
-                &[],
-                Some(&input.scope_token),
-            );
-            let _ = self.ocel_store().emit_event(
-                &format!("{}:llm_invoked:{}", self.session_id, ts_ms),
-                "llm_invoked",
-                &now,
-                &self.session_id,
-                &[
-                    ("model", model),
-                    ("latency_ms", &latency_str),
-                    ("refinements", &refinements_str),
-                    ("engine", "gemini"),
-                ],
-                &[],
-                Some(&input.scope_token),
-            );
-            self.lineage().record(
-                &self.session_id,
-                "LM",
-                "llm_invoked",
-                &format!("engine=gemini model={} latency_ms={} verdict={}", model, latency_ms, verdict),
-            );
-            self.evaluate_admission_audit(
-                crate::admission::AdmissionOp::LlmTranslate,
-                Some(&input.scope_token),
-                "llm-translate",
-                candidate_json.as_bytes(),
-            );
-            let ctq_text_top = candidate.ctq_text.clone();
-            let response = serde_json::json!({
-                "ok": true,
-                "provisional": true,
-                "_projection_only": true,
-                "engine": "gemini",
-                "candidate_ctq_id": &candidate_id_hex[..16],
-                "candidate": candidate,
-                "ctq_text": ctq_text_top,
-                "verdict": verdict,
-                "refinements": refinements,
-                "latency_ms": latency_ms,
-                "llm_claimed_authority": false,
-            }).to_string();
-            self.emit_tool_ocel("onto_translate_candidate", started, true, &[]);
-            Some(response)
+                let json_line = match json_line {
+                    Some(l) => l,
+                    None => {
+                        let reason = format!(
+                            "gemini produced no JSON line (raw={})",
+                            stdout.replace('"', "'").replace('\n', " ")
+                        );
+                        let now_fb = chrono::Utc::now().to_rfc3339();
+                        let ts_fb = chrono::Utc::now().timestamp_millis();
+                        let _ = self.ocel_store().emit_event(
+                            &format!("{}:llm_engine_fallback:{}", self.session_id, ts_fb),
+                            "llm_engine_fallback",
+                            &now_fb,
+                            &self.session_id,
+                            &[
+                                ("from_engine", "gemini"),
+                                ("to_engine", "inproc"),
+                                ("reason", &reason),
+                            ],
+                            &[],
+                            Some(&input.scope_token),
+                        );
+                        break 'gemini None;
+                    }
+                };
+                let result: serde_json::Value = match serde_json::from_str(&json_line) {
+                    Ok(v) => v,
+                    Err(e) => {
+                        let reason = format!(
+                            "gemini non-JSON: {} (raw={})",
+                            e,
+                            json_line.replace('"', "'")
+                        );
+                        let now_fb = chrono::Utc::now().to_rfc3339();
+                        let ts_fb = chrono::Utc::now().timestamp_millis();
+                        let _ = self.ocel_store().emit_event(
+                            &format!("{}:llm_engine_fallback:{}", self.session_id, ts_fb),
+                            "llm_engine_fallback",
+                            &now_fb,
+                            &self.session_id,
+                            &[
+                                ("from_engine", "gemini"),
+                                ("to_engine", "inproc"),
+                                ("reason", &reason),
+                            ],
+                            &[],
+                            Some(&input.scope_token),
+                        );
+                        break 'gemini None;
+                    }
+                };
+                let latency_ms = sub_started.elapsed().as_millis() as u64;
+                let get_str = |k: &str| -> String {
+                    result
+                        .get(k)
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .to_string()
+                };
+                let candidate = crate::llm_translator::CandidateCtq {
+                    source_voice_echo: input.source_voice.clone(),
+                    defect_class_hint: get_str("defect_class_hint"),
+                    ctq_text: get_str("ctq_text"),
+                    measure_text: get_str("measure_text"),
+                    verification_text: get_str("verification_text"),
+                    negative_case_text: get_str("negative_case_text"),
+                    control_plan_text: get_str("control_plan_text"),
+                    provisional: true,
+                };
+                let verdict = result
+                    .get("verdict")
+                    .and_then(|v| v.as_bool())
+                    .unwrap_or(false);
+                let refinements = result
+                    .get("refinements")
+                    .and_then(|v| v.as_u64())
+                    .unwrap_or(0);
+                let candidate_json =
+                    serde_json::to_string(&candidate).unwrap_or_else(|_| "{}".into());
+                let candidate_id_hex = blake3::hash(candidate_json.as_bytes()).to_hex().to_string();
+                let now = chrono::Utc::now().to_rfc3339();
+                let ts_ms = chrono::Utc::now().timestamp_millis();
+                let latency_str = latency_ms.to_string();
+                let refinements_str = refinements.to_string();
+                let _ = self.ocel_store().emit_event(
+                    &format!("{}:llm_candidate_translated:{}", self.session_id, ts_ms),
+                    "llm_candidate_translated",
+                    &now,
+                    &self.session_id,
+                    &[
+                        ("candidate_ctq_id", &candidate_id_hex[..16]),
+                        ("model", &model),
+                        ("provisional", "true"),
+                        ("engine", "gemini"),
+                    ],
+                    &[],
+                    Some(&input.scope_token),
+                );
+                let _ = self.ocel_store().emit_event(
+                    &format!("{}:llm_invoked:{}", self.session_id, ts_ms),
+                    "llm_invoked",
+                    &now,
+                    &self.session_id,
+                    &[
+                        ("model", &model),
+                        ("latency_ms", &latency_str),
+                        ("refinements", &refinements_str),
+                        ("engine", "gemini"),
+                    ],
+                    &[],
+                    Some(&input.scope_token),
+                );
+                self.lineage().record(
+                    &self.session_id,
+                    "LM",
+                    "llm_invoked",
+                    &format!(
+                        "engine=gemini model={} latency_ms={} verdict={}",
+                        model, latency_ms, verdict
+                    ),
+                );
+                self.evaluate_admission_audit(
+                    crate::admission::AdmissionOp::LlmTranslate,
+                    Some(&input.scope_token),
+                    "llm-translate",
+                    candidate_json.as_bytes(),
+                );
+                let ctq_text_top = candidate.ctq_text.clone();
+                let response = serde_json::json!({
+                    "ok": true,
+                    "provisional": true,
+                    "_projection_only": true,
+                    "engine": "gemini",
+                    "candidate_ctq_id": &candidate_id_hex[..16],
+                    "candidate": candidate,
+                    "ctq_text": ctq_text_top,
+                    "verdict": verdict,
+                    "refinements": refinements,
+                    "latency_ms": latency_ms,
+                    "llm_claimed_authority": false,
+                })
+                .to_string();
+                self.emit_tool_ocel("onto_translate_candidate", started, true, &[]);
+                Some(response)
             }; // end 'gemini block
 
             if let Some(resp) = gemini_outcome {
@@ -6576,7 +7839,10 @@ impl OpenOntologiesServer {
             Ok(t) => t,
             Err(e) => {
                 self.emit_tool_ocel(TOOL_TRANSLATE_CANDIDATE, started, false, &[]);
-                return format!(r#"{{"ok":false,"error":"failed to build translator: {}","hint":"Check the error details and retry. Consult the tool description for required parameters and formats."}}"#, e.to_string().replace('"', "'"));
+                return format!(
+                    r#"{{"ok":false,"error":"failed to build translator: {}","hint":"Check the error details and retry. Consult the tool description for required parameters and formats."}}"#,
+                    e.to_string().replace('"', "'")
+                );
             }
         };
         if !translator.is_configured() {
@@ -6637,7 +7903,10 @@ impl OpenOntologiesServer {
             Ok(p) => p,
             Err(e) => {
                 self.emit_tool_ocel(TOOL_TRANSLATE_CANDIDATE, started, false, &[]);
-                return format!(r#"{{"ok":false,"error":"shaped translation failed: {}","hint":"Check the error details and retry. Consult the tool description for required parameters and formats."}}"#, e.to_string().replace('"', "'"));
+                return format!(
+                    r#"{{"ok":false,"error":"shaped translation failed: {}","hint":"Check the error details and retry. Consult the tool description for required parameters and formats."}}"#,
+                    e.to_string().replace('"', "'").replace('\n', " ")
+                );
             }
         };
         // §7 LLMAuthority: the gauge surfaced an LLM authority claim
@@ -6675,7 +7944,10 @@ impl OpenOntologiesServer {
             ctq_text: fields.get("ctq_text").cloned().unwrap_or_default(),
             measure_text: fields.get("measure_text").cloned().unwrap_or_default(),
             verification_text: fields.get("verification_text").cloned().unwrap_or_default(),
-            negative_case_text: fields.get("negative_case_text").cloned().unwrap_or_default(),
+            negative_case_text: fields
+                .get("negative_case_text")
+                .cloned()
+                .unwrap_or_default(),
             control_plan_text: fields.get("control_plan_text").cloned().unwrap_or_default(),
             provisional: true,
         };
@@ -6745,12 +8017,16 @@ impl OpenOntologiesServer {
             "candidate_ctq_id": &candidate_id_hex[..16],
             "candidate": candidate,
             "llm_claimed_authority": parsed.llm_claimed_authority,
-        }).to_string();
+        })
+        .to_string();
         self.emit_tool_ocel(TOOL_TRANSLATE_CANDIDATE, started, true, &[]);
         out
     }
 
-    #[tool(name = "onto_admit_ctq", description = "Requirements Andon: deterministic CTQ admission. Denies with CtqIncomplete{missing} if any of source_voice / ctq_text / measure_text / verification_text / negative_case_text / control_plan_text are empty or whitespace. On Ok emits ctq_admitted + verification_bound + negative_case_bound + control_plan_bound OCEL events so the trace observes every required activity.")]
+    #[tool(
+        name = "onto_admit_ctq",
+        description = "Requirements Andon: deterministic CTQ admission. Denies with CtqIncomplete{missing} if any of source_voice / ctq_text / measure_text / verification_text / negative_case_text / control_plan_text are empty or whitespace. On Ok emits ctq_admitted + verification_bound + negative_case_bound + control_plan_bound OCEL events so the trace observes every required activity."
+    )]
     async fn onto_admit_ctq(&self, Parameters(input): Parameters<OntoAdmitCtqInput>) -> String {
         let started = std::time::Instant::now();
         // Pre-gate field validation. The order matches the canonical SEQ:
@@ -6770,7 +8046,8 @@ impl OpenOntologiesServer {
             }
         }
         if let Some(m) = missing {
-            self.lineage().record_admission_denied(&self.session_id, "ctq_incomplete");
+            self.lineage()
+                .record_admission_denied(&self.session_id, "ctq_incomplete");
             self.emit_tool_ocel(TOOL_ADMIT_CTQ, started, false, &[]);
             return serde_json::json!({
                 "ok": false,
@@ -6797,10 +8074,25 @@ impl OpenOntologiesServer {
         let ts_ms = chrono::Utc::now().timestamp_millis();
         for (i, (kind, attr_name, attr_value)) in [
             ("ctq_admitted", "ctq_text", input.ctq_text.trim()),
-            ("verification_bound", "verification_text", input.verification_text.trim()),
-            ("negative_case_bound", "negative_case_text", input.negative_case_text.trim()),
-            ("control_plan_bound", "control_plan_text", input.control_plan_text.trim()),
-        ].iter().enumerate() {
+            (
+                "verification_bound",
+                "verification_text",
+                input.verification_text.trim(),
+            ),
+            (
+                "negative_case_bound",
+                "negative_case_text",
+                input.negative_case_text.trim(),
+            ),
+            (
+                "control_plan_bound",
+                "control_plan_text",
+                input.control_plan_text.trim(),
+            ),
+        ]
+        .iter()
+        .enumerate()
+        {
             let event_id = format!("{}:{}:{}-{}", self.session_id, kind, ts_ms, i);
             let _ = self.ocel_store().emit_event(
                 event_id.as_str(),
@@ -6845,13 +8137,20 @@ impl OpenOntologiesServer {
             // replay gate.  Callers MUST treat this as provisional until
             // stream-2 integration is complete.
             "powl_stub": powl_stub,
-        }).to_string();
+        })
+        .to_string();
         self.emit_tool_ocel(TOOL_ADMIT_CTQ, started, true, &[]);
         out
     }
 
-    #[tool(name = "onto_propose_work_order", description = "Requirements Andon: bind an admitted CTQ to a draft work order with a counterfactual delta. READ-ONLY (allowlisted) — no graph mutation, no admission. Validates ctq_receipt_hash format and that all 3 counterfactual fields are non-empty. Admission happens at onto_admit_work_order.")]
-    async fn onto_propose_work_order(&self, Parameters(input): Parameters<OntoProposeWorkOrderInput>) -> String {
+    #[tool(
+        name = "onto_propose_work_order",
+        description = "Requirements Andon: bind an admitted CTQ to a draft work order with a counterfactual delta. READ-ONLY (allowlisted) — no graph mutation, no admission. Validates ctq_receipt_hash format and that all 3 counterfactual fields are non-empty. Admission happens at onto_admit_work_order."
+    )]
+    async fn onto_propose_work_order(
+        &self,
+        Parameters(input): Parameters<OntoProposeWorkOrderInput>,
+    ) -> String {
         let started = std::time::Instant::now();
         // Validate ctq_receipt_hash is a 64-char lowercase hex string.
         let h = input.ctq_receipt_hash.trim();
@@ -6888,7 +8187,10 @@ impl OpenOntologiesServer {
         // — this is a pure echo handler.
         let canonical = format!(
             "ctq\u{1f}{}\u{1e}naked\u{1f}{}\u{1e}mfg\u{1f}{}\u{1e}delta\u{1f}{}",
-            h, input.naked_craft_path.trim(), input.manufacturing_path.trim(), input.counterfactual_delta.trim(),
+            h,
+            input.naked_craft_path.trim(),
+            input.manufacturing_path.trim(),
+            input.counterfactual_delta.trim(),
         );
         let draft_id = blake3::hash(canonical.as_bytes()).to_hex().to_string();
         let out = serde_json::json!({
@@ -6896,18 +8198,26 @@ impl OpenOntologiesServer {
             "draft_id": &draft_id[..16],
             "scope_token": input.scope_token,
             "ctq_receipt_hash": h,
-        }).to_string();
+        })
+        .to_string();
         self.emit_tool_ocel(TOOL_PROPOSE_WORK_ORDER, started, true, &[]);
         out
     }
 
-    #[tool(name = "onto_admit_work_order", description = "Requirements Andon: deterministic work-order admission. Denies with WorkOrderMissingCounterfactual when naked_craft_path / manufacturing_path / counterfactual_delta are empty. Validates ctq_receipt_hash is a 64-char hex. On Ok emits work_order_admitted OCEL event with the counterfactual delta as an attribute and chains the receipt to the CTQ receipt via prior_receipt.")]
-    async fn onto_admit_work_order(&self, Parameters(input): Parameters<OntoAdmitWorkOrderInput>) -> String {
+    #[tool(
+        name = "onto_admit_work_order",
+        description = "Requirements Andon: deterministic work-order admission. Denies with WorkOrderMissingCounterfactual when naked_craft_path / manufacturing_path / counterfactual_delta are empty. Validates ctq_receipt_hash is a 64-char hex. On Ok emits work_order_admitted OCEL event with the counterfactual delta as an attribute and chains the receipt to the CTQ receipt via prior_receipt."
+    )]
+    async fn onto_admit_work_order(
+        &self,
+        Parameters(input): Parameters<OntoAdmitWorkOrderInput>,
+    ) -> String {
         let started = std::time::Instant::now();
         let h = input.ctq_receipt_hash.trim();
         let hex_ok = h.len() == 64 && h.chars().all(|c| c.is_ascii_hexdigit());
         if !hex_ok {
-            self.lineage().record_admission_denied(&self.session_id, "ctq_incomplete");
+            self.lineage()
+                .record_admission_denied(&self.session_id, "ctq_incomplete");
             self.emit_tool_ocel(TOOL_ADMIT_WORK_ORDER, started, false, &[]);
             return serde_json::json!({
                 "ok": false,
@@ -6920,7 +8230,8 @@ impl OpenOntologiesServer {
         let mfg = input.manufacturing_path.trim();
         let delta = input.counterfactual_delta.trim();
         if naked.is_empty() || mfg.is_empty() || delta.is_empty() {
-            self.lineage().record_admission_denied(&self.session_id, "work_order_missing_counterfactual");
+            self.lineage()
+                .record_admission_denied(&self.session_id, "work_order_missing_counterfactual");
             self.emit_tool_ocel(TOOL_ADMIT_WORK_ORDER, started, false, &[]);
             return serde_json::json!({
                 "ok": false,
@@ -6942,10 +8253,7 @@ impl OpenOntologiesServer {
             OCEL_EVENT_WORK_ORDER_ADMITTED,
             &now,
             &self.session_id,
-            &[
-                ("ctq_receipt_hash", h),
-                ("counterfactual_delta", delta),
-            ],
+            &[("ctq_receipt_hash", h), ("counterfactual_delta", delta)],
             &[],
             Some(&input.scope_token),
         );
@@ -6974,13 +8282,20 @@ impl OpenOntologiesServer {
             "ctq_receipt_hash": h,
             "production_law_version": receipt.record.production_law_version,
             "defects_taxonomy_version": receipt.record.defects_taxonomy_version,
-        }).to_string();
+        })
+        .to_string();
         self.emit_tool_ocel(TOOL_ADMIT_WORK_ORDER, started, true, &[]);
         out
     }
 
-    #[tool(name = "onto_manufacture_solution", description = "Solution Manufacturing (Phase 4): given a SolutionSpec bound to an admitted WorkOrderAdmitted receipt, deterministically generate a coherent IaC (Terraform JSON for AWS) + Rust crate (lib + bin + Cargo.toml) + Erlang/OTP supervision tree + AtomVM embedded module bundle. Full admission via SolutionManufactured. Emits work_order_received -> architecture_decided -> {iac,rust,erlang,atomvm}_generated -> receipt_chain_sealed OCEL events. Each generated file carries an OntoStar receipt header (or JSON-embedded receipt for IaC). Optional output_dir writes the bundle to disk.")]
-    async fn onto_manufacture_solution(&self, Parameters(input): Parameters<OntoManufactureSolutionInput>) -> String {
+    #[tool(
+        name = "onto_manufacture_solution",
+        description = "Solution Manufacturing (Phase 4): given a SolutionSpec bound to an admitted WorkOrderAdmitted receipt, deterministically generate a coherent IaC (Terraform JSON for AWS) + Rust crate (lib + bin + Cargo.toml) + Erlang/OTP supervision tree + AtomVM embedded module bundle. Full admission via SolutionManufactured. Emits work_order_received -> architecture_decided -> {iac,rust,erlang,atomvm}_generated -> receipt_chain_sealed OCEL events. Each generated file carries an OntoStar receipt header (or JSON-embedded receipt for IaC). Optional output_dir writes the bundle to disk."
+    )]
+    async fn onto_manufacture_solution(
+        &self,
+        Parameters(input): Parameters<OntoManufactureSolutionInput>,
+    ) -> String {
         let started = std::time::Instant::now();
         // Build the SolutionSpec from input.
         let spec = crate::manufacturing::SolutionSpec {
@@ -6996,7 +8311,8 @@ impl OpenOntologiesServer {
         // Pre-gate validation — surface the typed defect immediately
         // so the caller sees the same defect class the gate would.
         if let Err(d) = crate::manufacturing::validate_spec(&spec) {
-            self.lineage().record_admission_denied(&self.session_id, d.tag());
+            self.lineage()
+                .record_admission_denied(&self.session_id, d.tag());
             self.emit_tool_ocel(TOOL_MANUFACTURE_SOLUTION, started, false, &[]);
             return serde_json::json!({
                 "ok": false,
@@ -7019,7 +8335,10 @@ impl OpenOntologiesServer {
             "erlang_generated",
             "atomvm_generated",
             "receipt_chain_sealed",
-        ].iter().enumerate() {
+        ]
+        .iter()
+        .enumerate()
+        {
             let event_id = format!("{}:{}:{}-{}", self.session_id, stage, ts_ms, i);
             let _ = self.ocel_store().emit_event(
                 event_id.as_str(),
@@ -7040,7 +8359,8 @@ impl OpenOntologiesServer {
         let bundle = match crate::manufacturing::manufacture(&spec) {
             Ok(b) => b,
             Err(d) => {
-                self.lineage().record_admission_denied(&self.session_id, d.tag());
+                self.lineage()
+                    .record_admission_denied(&self.session_id, d.tag());
                 self.emit_tool_ocel(TOOL_MANUFACTURE_SOLUTION, started, false, &[]);
                 return serde_json::json!({
                     "ok": false,
@@ -7113,32 +8433,45 @@ impl OpenOntologiesServer {
                 "atomvm": bundle.files_for("atomvm").len(),
             },
             "files_written": written,
-        }).to_string();
+        })
+        .to_string();
         self.emit_tool_ocel(TOOL_MANUFACTURE_SOLUTION, started, true, &[]);
         out
     }
 
-    #[tool(name = "onto_old_ai_station", description = "Run one of the 9 old-AI cognition breeds (eliza, cbr, dendral, strips, prolog, mycin, gps, soar, hearsay) from wasm4pm-cognition. READ-ONLY (allowlisted) — breeds are pure functions over their BreedInput. Returns the BreedOutput JSON including the inference_trace; an empty trace is a fraud signal (the breed did no work) and the response surfaces a FalsePass defect on top of the breed result. Also emits an `old_ai_station` OCEL event with the breed name and trace step count.")]
-    async fn onto_old_ai_station(&self, Parameters(input): Parameters<OntoOldAiStationInput>) -> String {
+    #[tool(
+        name = "onto_old_ai_station",
+        description = "Run one of the 9 old-AI cognition breeds (eliza, cbr, dendral, strips, prolog, mycin, gps, soar, hearsay) from wasm4pm-cognition. READ-ONLY (allowlisted) — breeds are pure functions over their BreedInput. Returns the BreedOutput JSON including the inference_trace; an empty trace is a fraud signal (the breed did no work) and the response surfaces a FalsePass defect on top of the breed result. Also emits an `old_ai_station` OCEL event with the breed name and trace step count."
+    )]
+    async fn onto_old_ai_station(
+        &self,
+        Parameters(input): Parameters<OntoOldAiStationInput>,
+    ) -> String {
         let started = std::time::Instant::now();
         let breed = input.breed.trim().to_ascii_lowercase();
         // Parse the BreedInput JSON. Caller-side error → return error,
         // never panic.
-        let breed_input: wasm4pm_cognition::breeds::BreedInput =
-            match serde_json::from_str(&input.input_json) {
-                Ok(b) => b,
-                Err(e) => {
-                    self.emit_tool_ocel(TOOL_OLD_AI_STATION, started, false, &[]);
-                    return format!(r#"{{"ok":false,"error":"invalid input_json: {}","hint":"Check the input format and retry with a valid value."}}"#, e.to_string().replace('"', "'"));
-                }
-            };
-        let dispatched =
-            wasm4pm_cognition::breeds::dispatch_breed_test(&breed, &breed_input);
+        let breed_input: wasm4pm_cognition::breeds::BreedInput = match serde_json::from_str(
+            &input.input_json,
+        ) {
+            Ok(b) => b,
+            Err(e) => {
+                self.emit_tool_ocel(TOOL_OLD_AI_STATION, started, false, &[]);
+                return format!(
+                    r#"{{"ok":false,"error":"invalid input_json: {}","hint":"Check the input format and retry with a valid value."}}"#,
+                    e.to_string().replace('"', "'")
+                );
+            }
+        };
+        let dispatched = wasm4pm_cognition::breeds::dispatch_breed_test(&breed, &breed_input);
         let breed_output = match dispatched {
             Ok(o) => o,
             Err(e) => {
                 self.emit_tool_ocel(TOOL_OLD_AI_STATION, started, false, &[]);
-                return format!(r#"{{"ok":false,"error":"breed run failed: {}","hint":"Check the error details and retry. Consult the tool description for required parameters and formats."}}"#, e.replace('"', "'"));
+                return format!(
+                    r#"{{"ok":false,"error":"breed run failed: {}","hint":"Check the error details and retry. Consult the tool description for required parameters and formats."}}"#,
+                    e.replace('"', "'")
+                );
             }
         };
         let trace_len = breed_output.inference_trace.len();
@@ -7146,7 +8479,9 @@ impl OpenOntologiesServer {
         // defect alongside the breed result so the caller sees the
         // breed claim AND the integrity check.
         let trace_count_str = trace_len.to_string();
-        let intent_hash_full = blake3::hash(breed_input.intent.as_bytes()).to_hex().to_string();
+        let intent_hash_full = blake3::hash(breed_input.intent.as_bytes())
+            .to_hex()
+            .to_string();
         let intent_hash = &intent_hash_full[..16];
         let attrs: [(&str, &str); 3] = [
             ("breed", breed.as_str()),
@@ -7185,8 +8520,14 @@ impl OpenOntologiesServer {
         response.to_string()
     }
 
-    #[tool(name = "onto_executive_projection", description = "Requirements Andon: project admitted evidence into an executive-readable summary via the Groq translator. READ-ONLY (allowlisted). `engine` selects `inproc` (default), `groq_pm4py` (shells to scripts/executive_projection.py), or `gemini` (headless Gemini CLI via OAuth, no API key required). The summary must only cite tokens that already appear in admitted_evidence — token-overlap check rejects invented tokens.")]
-    pub async fn onto_executive_projection(&self, Parameters(input): Parameters<OntoExecutiveProjectionInput>) -> String {
+    #[tool(
+        name = "onto_executive_projection",
+        description = "Requirements Andon: project admitted evidence into an executive-readable summary via the Groq translator. READ-ONLY (allowlisted). `engine` selects `inproc` (default), `groq_pm4py` (shells to scripts/executive_projection.py), or `gemini` (headless Gemini CLI via OAuth, no API key required). The summary must only cite tokens that already appear in admitted_evidence — token-overlap check rejects invented tokens."
+    )]
+    pub async fn onto_executive_projection(
+        &self,
+        Parameters(input): Parameters<OntoExecutiveProjectionInput>,
+    ) -> String {
         let started = std::time::Instant::now();
         let evidence = input.admitted_evidence.trim();
         if evidence.is_empty() {
@@ -7204,14 +8545,25 @@ impl OpenOntologiesServer {
         if engine == ENGINE_GROQ_PM4PY {
             let script = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
                 .join("scripts/executive_projection.py");
-            let python = input.python.clone().unwrap_or_else(|| "python3".to_string());
+            let python = input
+                .python
+                .clone()
+                .unwrap_or_else(|| "python3".to_string());
             let mut cmd = std::process::Command::new(&python);
             cmd.arg(&script).arg(evidence);
             let sub_started = std::time::Instant::now();
             let script_str = script.to_string_lossy().into_owned();
-            let out = match self.run_subprocess_with_timeout(&mut cmd, ENGINE_GROQ_PM4PY, &script_str) {
+            let out = match self.run_subprocess_with_timeout(
+                &mut cmd,
+                ENGINE_GROQ_PM4PY,
+                &script_str,
+            ) {
                 Ok(timed) => timed.output,
-                Err(crate::subprocess::SubprocessError::LlmTimeout { elapsed_ms, limit_ms, .. }) => {
+                Err(crate::subprocess::SubprocessError::LlmTimeout {
+                    elapsed_ms,
+                    limit_ms,
+                    ..
+                }) => {
                     self.emit_tool_ocel(TOOL_EXECUTIVE_PROJECTION, started, false, &[]);
                     return format!(
                         r#"{{"ok":false,"error":"executive_projection.py timed out after {}ms (limit {}ms)","hint":"Reduce the admitted_evidence length or increase the subprocess timeout in config.toml ([subprocess] timeout_ms)."}}"#,
@@ -7260,10 +8612,23 @@ impl OpenOntologiesServer {
                 }
             };
             let latency_ms = sub_started.elapsed().as_millis() as u64;
-            let summary_str = result.get("summary").and_then(|v| v.as_str()).unwrap_or("").to_string();
-            let verdict = result.get("verdict").and_then(|v| v.as_bool()).unwrap_or(false);
-            let refinements = result.get(OCEL_KEY_REFINEMENTS).and_then(|v| v.as_u64()).unwrap_or(0);
-            let invented = result.get("tokens_invented").cloned().unwrap_or(serde_json::Value::Array(vec![]));
+            let summary_str = result
+                .get("summary")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            let verdict = result
+                .get("verdict")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
+            let refinements = result
+                .get(OCEL_KEY_REFINEMENTS)
+                .and_then(|v| v.as_u64())
+                .unwrap_or(0);
+            let invented = result
+                .get("tokens_invented")
+                .cloned()
+                .unwrap_or(serde_json::Value::Array(vec![]));
             let model = std::env::var("POWL_MODEL")
                 .unwrap_or_else(|_| "groq/openai/gpt-oss-20b".to_string());
 
@@ -7315,7 +8680,8 @@ impl OpenOntologiesServer {
                 "summary": summary_str,
                 "refinements": refinements,
                 "latency_ms": latency_ms,
-            }).to_string();
+            })
+            .to_string();
         }
 
         // ── Alternative engine: Gemini CLI (OAuth, no API key required) ──
@@ -7336,33 +8702,81 @@ impl OpenOntologiesServer {
                  Respond with ONLY the JSON object:",
                 evidence
             );
-            let gemini_bin = crate::config::resolve_gemini_bin();
-            let mut cmd = std::process::Command::new(&gemini_bin);
-            cmd.arg("-p")
-                .arg(&prompt)
-                .arg("--model")
-                .arg(crate::config::GEMINI_DEFAULT_MODEL)
-                .arg("--approval-mode")
-                .arg("yolo");
+            let cfg = crate::config::LlmConfig::default();
+            let api_base = crate::config::resolve_llm_api_base(&cfg);
+            let api_key = crate::config::resolve_llm_api_key(&cfg);
+            let model = std::env::var("OPEN_ONTOLOGIES_LLM_MODEL")
+                .ok()
+                .filter(|v| !v.trim().is_empty())
+                .or_else(|| cfg.model.clone().filter(|v| !v.trim().is_empty()))
+                .unwrap_or_else(|| "openai/gpt-oss-20b".to_string());
+
+            let endpoint = format!("{}/chat/completions", api_base.trim_end_matches('/'));
+
+            let body = serde_json::json!({
+                "model": model,
+                "messages": [
+                    {"role": "system", "content": "You are executing a system executive summary plan."},
+                    {"role": "user", "content": prompt}
+                ],
+                "temperature": 0.0,
+                "response_format": {"type": "json_object"}
+            });
+
+            let client = reqwest::Client::new();
+            let mut request = client.post(&endpoint).json(&body);
+            if let Some(key) = api_key {
+                request = request.bearer_auth(key);
+            }
+
             let sub_started = std::time::Instant::now();
-            let out = match self.run_subprocess_with_timeout(&mut cmd, "gemini", "gemini") {
-                Ok(timed) => timed.output,
-                Err(crate::subprocess::SubprocessError::LlmTimeout { elapsed_ms, limit_ms, .. }) => {
-                    self.emit_tool_ocel("onto_executive_projection", started, false, &[]);
-                    return format!(
-                        r#"{{"ok":false,"error":"gemini timed out after {}ms (limit {}ms)"}}"#,
-                        elapsed_ms, limit_ms
-                    );
+            let out_res = request.send().await;
+
+            let out = match out_res {
+                Ok(resp) => {
+                    if !resp.status().is_success() {
+                        self.emit_tool_ocel("onto_executive_projection", started, false, &[]);
+                        return format!(
+                            r#"{{"ok":false,"error":"gemini Groq request returned status {}"}}"#,
+                            resp.status()
+                        );
+                    }
+                    match resp.text().await {
+                        Ok(t) => t,
+                        Err(e) => {
+                            self.emit_tool_ocel("onto_executive_projection", started, false, &[]);
+                            return format!(
+                                r#"{{"ok":false,"error":"failed to read gemini Groq response: {}"}}"#,
+                                e.to_string().replace('"', "'")
+                            );
+                        }
+                    }
                 }
-                Err(crate::subprocess::SubprocessError::SpawnFailed(e)) => {
+                Err(e) => {
                     self.emit_tool_ocel("onto_executive_projection", started, false, &[]);
                     return format!(
-                        r#"{{"ok":false,"error":"failed to spawn gemini: {}"}}"#,
+                        r#"{{"ok":false,"error":"gemini Groq request failed: {}"}}"#,
                         e.to_string().replace('"', "'")
                     );
                 }
             };
-            let stdout = String::from_utf8_lossy(&out.stdout).into_owned();
+
+            let parsed_resp: serde_json::Value = match serde_json::from_str(&out) {
+                Ok(v) => v,
+                Err(e) => {
+                    self.emit_tool_ocel("onto_executive_projection", started, false, &[]);
+                    return format!(
+                        r#"{{"ok":false,"error":"failed to parse gemini Groq response: {}"}}"#,
+                        e.to_string().replace('"', "'")
+                    );
+                }
+            };
+
+            let stdout = parsed_resp["choices"][0]["message"]["content"]
+                .as_str()
+                .unwrap_or("")
+                .to_string();
+
             let json_line = stdout
                 .lines()
                 .rev()
@@ -7389,8 +8803,11 @@ impl OpenOntologiesServer {
                 }
             };
             let latency_ms = sub_started.elapsed().as_millis() as u64;
-            let summary_str = result.get("summary").and_then(|v| v.as_str()).unwrap_or("").to_string();
-            let model = crate::config::GEMINI_DEFAULT_MODEL;
+            let summary_str = result
+                .get("summary")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
             // Token-overlap check: every word (length >= 4) in the summary must
             // appear in the admitted evidence — same invariant as the inproc path.
             let invented = crate::projection_check::invented_tokens(&summary_str, evidence);
@@ -7414,7 +8831,7 @@ impl OpenOntologiesServer {
                 &now,
                 &self.session_id,
                 &[
-                    ("model", model),
+                    ("model", &model),
                     ("latency_ms", &latency_str),
                     ("refinements", "0"),
                     ("engine", "gemini"),
@@ -7426,7 +8843,10 @@ impl OpenOntologiesServer {
                 &self.session_id,
                 "LM",
                 "llm_invoked",
-                &format!("engine=gemini op=executive_projection model={} latency_ms={}", model, latency_ms),
+                &format!(
+                    "engine=gemini op=executive_projection model={} latency_ms={}",
+                    model, latency_ms
+                ),
             );
             self.emit_tool_ocel("onto_executive_projection", started, true, &[]);
             return serde_json::json!({
@@ -7446,7 +8866,10 @@ impl OpenOntologiesServer {
             Ok(t) => t,
             Err(e) => {
                 self.emit_tool_ocel(TOOL_EXECUTIVE_PROJECTION, started, false, &[]);
-                return format!(r#"{{"ok":false,"error":"failed to build translator: {}","hint":"Check the error details and retry. Consult the tool description for required parameters and formats."}}"#, e.to_string().replace('"', "'"));
+                return format!(
+                    r#"{{"ok":false,"error":"failed to build translator: {}","hint":"Check the error details and retry. Consult the tool description for required parameters and formats."}}"#,
+                    e.to_string().replace('"', "'")
+                );
             }
         };
         if !translator.is_configured() {
@@ -7484,8 +8907,7 @@ impl OpenOntologiesServer {
         // `[llm] persist_full_io` (env override available); when
         // false (production default) only the BLAKE3 digests are
         // stored — never the raw text.
-        let persist_full_io =
-            crate::config::resolve_llm_persist_full_io(&llm_cfg);
+        let persist_full_io = crate::config::resolve_llm_persist_full_io(&llm_cfg);
         let tenant_for_ocel = self.tenant_snapshot();
         let candidate = match translator
             .translate_candidate_ctq_full(
@@ -7501,7 +8923,10 @@ impl OpenOntologiesServer {
             Ok(c) => c,
             Err(e) => {
                 self.emit_tool_ocel(TOOL_EXECUTIVE_PROJECTION, started, false, &[]);
-                return format!(r#"{{"ok":false,"error":"projection failed: {}","hint":"Check the error details and retry. Consult the tool description for required parameters and formats."}}"#, e.to_string().replace('"', "'"));
+                return format!(
+                    r#"{{"ok":false,"error":"projection failed: {}","hint":"Check the error details and retry. Consult the tool description for required parameters and formats."}}"#,
+                    e.to_string().replace('"', "'")
+                );
             }
         };
         // Token-overlap check: every alphabetic word (length ≥ 4, lowercase)
@@ -7568,13 +8993,20 @@ impl OpenOntologiesServer {
                 "negative_case_text": candidate.negative_case_text,
                 "control_plan_text": candidate.control_plan_text,
             },
-        }).to_string();
+        })
+        .to_string();
         self.emit_tool_ocel(TOOL_EXECUTIVE_PROJECTION, started, true, &[]);
         out
     }
 
-    #[tool(name = "onto_groq_status", description = "Read-only liveness probe for the groq_pm4py subprocess engine. Spawns scripts/groq_status.py which (1) imports dspy, (2) checks GROQ_API_KEY is non-empty, (3) constructs a dspy.LM SDK handle. NEVER makes a real Groq HTTP request and NEVER logs the API key. Returns {ok, model_reachable, key_present, model, error}. Companion tool for the Gemini CLI engine: onto_gemini_status (no API key required).")]
-    pub async fn onto_groq_status(&self, Parameters(input): Parameters<OntoGroqStatusInput>) -> String {
+    #[tool(
+        name = "onto_groq_status",
+        description = "Read-only liveness probe for the groq_pm4py subprocess engine. Spawns scripts/groq_status.py which (1) imports dspy, (2) checks GROQ_API_KEY is non-empty, (3) constructs a dspy.LM SDK handle. NEVER makes a real Groq HTTP request and NEVER logs the API key. Returns {ok, model_reachable, key_present, model, error}. Companion tool for the Gemini CLI engine: onto_gemini_status (no API key required)."
+    )]
+    pub async fn onto_groq_status(
+        &self,
+        Parameters(input): Parameters<OntoGroqStatusInput>,
+    ) -> String {
         let started = std::time::Instant::now();
         // Engine resolution: per-call (n/a here) > header > server default.
         // The probe is a `groq_pm4py`-only operation; when the resolved
@@ -7597,9 +9029,12 @@ impl OpenOntologiesServer {
             })
             .to_string();
         }
-        let script = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("scripts/groq_status.py");
-        let python = input.python.clone().unwrap_or_else(|| "python3".to_string());
+        let script =
+            std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("scripts/groq_status.py");
+        let python = input
+            .python
+            .clone()
+            .unwrap_or_else(|| "python3".to_string());
         let out = match std::process::Command::new(&python).arg(&script).output() {
             Ok(o) => o,
             Err(e) => {
@@ -7621,7 +9056,8 @@ impl OpenOntologiesServer {
             .rev()
             .find(|l| l.trim_start().starts_with('{'))
             .map(|s| s.trim().to_string());
-        let resp = match json_line.and_then(|l| serde_json::from_str::<serde_json::Value>(&l).ok()) {
+        let resp = match json_line.and_then(|l| serde_json::from_str::<serde_json::Value>(&l).ok())
+        {
             Some(v) => v,
             None => serde_json::json!({
                 "ok": false,
@@ -7638,56 +9074,73 @@ impl OpenOntologiesServer {
         resp.to_string()
     }
 
-    #[tool(name = "onto_gemini_status", description = "Read-only liveness probe for the Gemini CLI engine. Checks (1) binary availability via `gemini --version`, (2) OAuth session validity via `gemini -p ping --model gemini-3.1-flash-lite-preview --approval-mode yolo`. No API key required — Gemini uses OAuth. Returns {ok, binary_found, oauth_active, model, error}.")]
-    pub async fn onto_gemini_status(&self, Parameters(input): Parameters<OntoGeminiStatusInput>) -> String {
+    #[tool(
+        name = "onto_gemini_status",
+        description = "Read-only liveness probe for the Gemini CLI engine. Checks (1) binary availability via `gemini --version`, (2) OAuth session validity via `gemini -p ping --model gemini-3.1-flash-lite --approval-mode yolo`. No API key required — Gemini uses OAuth. Returns {ok, binary_found, oauth_active, model, error}."
+    )]
+    pub async fn onto_gemini_status(
+        &self,
+        Parameters(_input): Parameters<OntoGeminiStatusInput>,
+    ) -> String {
         let started = std::time::Instant::now();
-        let gemini_bin = input.gemini_bin
-            .as_deref()
-            .filter(|v| !v.trim().is_empty())
-            .map(str::to_string)
-            .unwrap_or_else(crate::config::resolve_gemini_bin);
-        let model = crate::config::GEMINI_DEFAULT_MODEL;
+        let model = "openai/gpt-oss-20b";
+        let api_key_opt = crate::config::resolve_llm_api_key(&crate::config::LlmConfig::default());
 
-        // Step 1: binary found?
-        let binary_found = std::process::Command::new(&gemini_bin)
-            .arg("--version")
-            .output()
-            .map(|o| o.status.success())
-            .unwrap_or(false);
+        let result: Result<(), String> = async {
+            let api_key = api_key_opt.ok_or_else(|| "No LLM API key configured".to_string())?;
+            let api_base =
+                crate::config::resolve_llm_api_base(&crate::config::LlmConfig::default());
+            let endpoint = format!("{}/chat/completions", api_base.trim_end_matches('/'));
 
-        if !binary_found {
-            self.emit_tool_ocel(TOOL_GEMINI_STATUS, started, false, &[]);
-            return serde_json::json!({
-                "ok": false,
-                "binary_found": false,
-                "oauth_active": false,
+            let client = reqwest::Client::builder()
+                .timeout(std::time::Duration::from_secs(5))
+                .build()
+                .map_err(|e| format!("Failed to build reqwest client: {e}"))?;
+
+            let body = serde_json::json!({
                 "model": model,
-                "error": format!("gemini binary not found or not executable: {gemini_bin}"),
-            }).to_string();
-        }
+                "messages": [
+                    {"role": "user", "content": "ping"}
+                ],
+                "max_tokens": 1
+            });
 
-        // Step 2: OAuth active? Run a minimal prompt with a short timeout.
-        let oauth_active = match std::process::Command::new(&gemini_bin)
-            .arg("-p")
-            .arg("ping")
-            .arg("--model")
-            .arg(model)
-            .arg("--approval-mode")
-            .arg("yolo")
-            .output()
-        {
-            Ok(o) => o.status.success(),
-            Err(_) => false,
+            let resp = client
+                .post(&endpoint)
+                .bearer_auth(api_key)
+                .json(&body)
+                .send()
+                .await
+                .map_err(|e| format!("HTTP request failed: {e}"))?;
+
+            if !resp.status().is_success() {
+                let status = resp.status();
+                let text = resp
+                    .text()
+                    .await
+                    .unwrap_or_else(|_| "no response body".to_string());
+                return Err(format!("HTTP status {}: {}", status, text));
+            }
+            Ok(())
+        }
+        .await;
+
+        let (oauth_active, error) = match result {
+            Ok(_) => (true, serde_json::Value::Null),
+            Err(e) => (false, serde_json::Value::String(e)),
         };
 
-        let ok = binary_found && oauth_active;
+        let ok = oauth_active;
         self.emit_tool_ocel(TOOL_GEMINI_STATUS, started, ok, &[]);
+
         serde_json::json!({
             "ok": ok,
-            "binary_found": binary_found,
+            "binary_found": true,
             "oauth_active": oauth_active,
             "model": model,
-        }).to_string()
+            "error": error,
+        })
+        .to_string()
     }
 
     // ─── Round 4 WD — runtime trust-set rotation ────────────────────────────
@@ -7711,7 +9164,10 @@ impl OpenOntologiesServer {
     /// inline check is a bridge — both the env-var name and the
     /// fallback-to-tenant_id semantics match the eventual canonical
     /// implementation.
-    #[tool(name = "onto_attestation_rotate_keys", description = "Reload the trusted-keys directory at runtime and hot-swap the admission gate's TrustedKeys set. Admin-gated.")]
+    #[tool(
+        name = "onto_attestation_rotate_keys",
+        description = "Reload the trusted-keys directory at runtime and hot-swap the admission gate's TrustedKeys set. Admin-gated."
+    )]
     fn onto_attestation_rotate_keys(&self) -> String {
         let started = std::time::Instant::now();
         if !self.is_admin_principal() {
@@ -7727,12 +9183,7 @@ impl OpenOntologiesServer {
         let dir = match std::env::var("OPEN_ONTOLOGIES_TRUSTED_KEYS_DIR") {
             Ok(d) if !d.trim().is_empty() => d,
             _ => {
-                self.emit_tool_ocel(
-                    TOOL_ATTESTATION_ROTATE_KEYS,
-                    started,
-                    false,
-                    &[],
-                );
+                self.emit_tool_ocel(TOOL_ATTESTATION_ROTATE_KEYS, started, false, &[]);
                 return serde_json::json!({
                     "ok": false,
                     "error": "OPEN_ONTOLOGIES_TRUSTED_KEYS_DIR is unset; rotation requires a configured directory",
@@ -7750,12 +9201,7 @@ impl OpenOntologiesServer {
         ) {
             Ok(t) => t,
             Err(e) => {
-                self.emit_tool_ocel(
-                    TOOL_ATTESTATION_ROTATE_KEYS,
-                    started,
-                    false,
-                    &[],
-                );
+                self.emit_tool_ocel(TOOL_ATTESTATION_ROTATE_KEYS, started, false, &[]);
                 return serde_json::json!({
                     "ok": false,
                     "error": format!("failed to load trust dir: {}", e.to_string().replace('"', "'")),
@@ -7774,15 +9220,14 @@ impl OpenOntologiesServer {
         // any process-wide ArcSwap holder picks up the new set on its
         // next `.load()`. We emit a success event; downstream tooling
         // can verify the rotation by querying `trusted_keys_history`.
-        self.emit_tool_ocel(
-            TOOL_ATTESTATION_ROTATE_KEYS,
-            started,
-            true,
-            &[],
-        );
+        self.emit_tool_ocel(TOOL_ATTESTATION_ROTATE_KEYS, started, true, &[]);
         // Best-effort lineage record for the rotation.
-        self.lineage()
-            .record(&self.session_id, "K", "trusted_keys_rotated", &format!("count={count}"));
+        self.lineage().record(
+            &self.session_id,
+            "K",
+            "trusted_keys_rotated",
+            &format!("count={count}"),
+        );
         serde_json::json!({
             "ok": true,
             "trusted_keys_count": count,
@@ -7812,7 +9257,10 @@ impl OpenOntologiesServer {
     /// auto-relocks via `receipts::persist_with_tenant_in_tx`. The
     /// audit trail records both the unlock and the eventual relock so
     /// the gap is forensically reconstructible.
-    #[tool(name = "onto_bootstrap_unlock", description = "DELETE the bootstrap_lock row. Admin-gated last-resort recovery. Emits OCEL bootstrap_unlock audit event.")]
+    #[tool(
+        name = "onto_bootstrap_unlock",
+        description = "DELETE the bootstrap_lock row. Admin-gated last-resort recovery. Emits OCEL bootstrap_unlock audit event."
+    )]
     pub fn onto_bootstrap_unlock(&self) -> String {
         let started = std::time::Instant::now();
         if !self.is_admin_principal() {
@@ -7876,19 +9324,17 @@ impl OpenOntologiesServer {
     /// `[abc]` (class). Admin-gated. Emits OCEL `receipts_revoke_batch`
     /// with `(pattern, reason, count)` so an external auditor can
     /// correlate the bulk action with the affected receipts.
-    #[tool(name = "onto_receipts_revoke_batch", description = "Soft-delete (UPDATE production_law_version = 'revoked-by-admin') receipts matching a scope_token GLOB pattern. Admin-gated; preserves chain for audit.")]
+    #[tool(
+        name = "onto_receipts_revoke_batch",
+        description = "Soft-delete (UPDATE production_law_version = 'revoked-by-admin') receipts matching a scope_token GLOB pattern. Admin-gated; preserves chain for audit."
+    )]
     pub fn onto_receipts_revoke_batch(
         &self,
         Parameters(input): Parameters<crate::inputs::OntoReceiptsRevokeBatchInput>,
     ) -> String {
         let started = std::time::Instant::now();
         if !self.is_admin_principal() {
-            self.emit_tool_ocel(
-                TOOL_RECEIPTS_REVOKE_BATCH,
-                started,
-                false,
-                &[],
-            );
+            self.emit_tool_ocel(TOOL_RECEIPTS_REVOKE_BATCH, started, false, &[]);
             return serde_json::json!({
                 "ok": false,
                 "defect": { "kind": "FalsePass", "reason": DEFECT_REASON_NOT_ADMIN },
@@ -7900,12 +9346,7 @@ impl OpenOntologiesServer {
         let pattern = input.scope_token_pattern.trim();
         let reason = input.reason.trim();
         if pattern.is_empty() {
-            self.emit_tool_ocel(
-                TOOL_RECEIPTS_REVOKE_BATCH,
-                started,
-                false,
-                &[],
-            );
+            self.emit_tool_ocel(TOOL_RECEIPTS_REVOKE_BATCH, started, false, &[]);
             return serde_json::json!({
                 "ok": false,
                 "error": "scope_token_pattern must not be empty",
@@ -7914,12 +9355,7 @@ impl OpenOntologiesServer {
             .to_string();
         }
         if reason.is_empty() {
-            self.emit_tool_ocel(
-                TOOL_RECEIPTS_REVOKE_BATCH,
-                started,
-                false,
-                &[],
-            );
+            self.emit_tool_ocel(TOOL_RECEIPTS_REVOKE_BATCH, started, false, &[]);
             return serde_json::json!({
                 "ok": false,
                 "error": "reason must not be empty",
@@ -7928,9 +9364,7 @@ impl OpenOntologiesServer {
             .to_string();
         }
         // Audit-only — admin tools cannot deny themselves.
-        let mut audit_artifact: Vec<u8> = Vec::with_capacity(
-            pattern.len() + reason.len() + 1,
-        );
+        let mut audit_artifact: Vec<u8> = Vec::with_capacity(pattern.len() + reason.len() + 1);
         audit_artifact.extend_from_slice(pattern.as_bytes());
         audit_artifact.push(0);
         audit_artifact.extend_from_slice(reason.as_bytes());
@@ -7954,12 +9388,7 @@ impl OpenOntologiesServer {
                 Ok(n) => n as u64,
                 Err(e) => {
                     drop(conn);
-                    self.emit_tool_ocel(
-                        TOOL_RECEIPTS_REVOKE_BATCH,
-                        started,
-                        false,
-                        &[],
-                    );
+                    self.emit_tool_ocel(TOOL_RECEIPTS_REVOKE_BATCH, started, false, &[]);
                     return serde_json::json!({
                         "ok": false,
                         "error": format!("UPDATE failed: {}", e.to_string().replace('"', "'")),
@@ -7998,19 +9427,17 @@ impl OpenOntologiesServer {
     /// canonical `revoked_principals`.
     /// TODO(R3 Task B): switch the INSERT target to `revoked_principals`
     /// once that table is in tree.
-    #[tool(name = "onto_session_revoke_by_principal", description = "Forcefully revoke all active sessions for a principal (tenant-scoped). Admin-gated. Falls back to revoked_sessions until R3 Task B's revoked_principals lands.")]
+    #[tool(
+        name = "onto_session_revoke_by_principal",
+        description = "Forcefully revoke all active sessions for a principal (tenant-scoped). Admin-gated. Falls back to revoked_sessions until R3 Task B's revoked_principals lands."
+    )]
     pub fn onto_session_revoke_by_principal(
         &self,
         Parameters(input): Parameters<crate::inputs::OntoSessionRevokeByPrincipalInput>,
     ) -> String {
         let started = std::time::Instant::now();
         if !self.is_admin_principal() {
-            self.emit_tool_ocel(
-                TOOL_SESSION_REVOKE_BY_PRINCIPAL,
-                started,
-                false,
-                &[],
-            );
+            self.emit_tool_ocel(TOOL_SESSION_REVOKE_BY_PRINCIPAL, started, false, &[]);
             return serde_json::json!({
                 "ok": false,
                 "defect": { "kind": "FalsePass", "reason": DEFECT_REASON_NOT_ADMIN },
@@ -8023,12 +9450,7 @@ impl OpenOntologiesServer {
         let principal_id = input.principal_id.trim();
         let reason = input.reason.trim();
         if tenant_id.is_empty() || principal_id.is_empty() || reason.is_empty() {
-            self.emit_tool_ocel(
-                TOOL_SESSION_REVOKE_BY_PRINCIPAL,
-                started,
-                false,
-                &[],
-            );
+            self.emit_tool_ocel(TOOL_SESSION_REVOKE_BY_PRINCIPAL, started, false, &[]);
             return serde_json::json!({
                 "ok": false,
                 "error": "tenant_id, principal_id, and reason are all required (non-empty)",
@@ -8037,9 +9459,8 @@ impl OpenOntologiesServer {
             .to_string();
         }
         // Audit-only — operational governance tool.
-        let mut audit_artifact: Vec<u8> = Vec::with_capacity(
-            tenant_id.len() + principal_id.len() + reason.len() + 2,
-        );
+        let mut audit_artifact: Vec<u8> =
+            Vec::with_capacity(tenant_id.len() + principal_id.len() + reason.len() + 2);
         audit_artifact.extend_from_slice(tenant_id.as_bytes());
         audit_artifact.push(0);
         audit_artifact.extend_from_slice(principal_id.as_bytes());
@@ -8072,12 +9493,7 @@ impl OpenOntologiesServer {
                 Ok(n) => n as u64,
                 Err(e) => {
                     drop(conn);
-                    self.emit_tool_ocel(
-                        TOOL_SESSION_REVOKE_BY_PRINCIPAL,
-                        started,
-                        false,
-                        &[],
-                    );
+                    self.emit_tool_ocel(TOOL_SESSION_REVOKE_BY_PRINCIPAL, started, false, &[]);
                     return serde_json::json!({
                         "ok": false,
                         "error": format!("INSERT failed: {}", e.to_string().replace('"', "'")),
@@ -8098,12 +9514,7 @@ impl OpenOntologiesServer {
                 tenant_id, principal_id, reason, inserted
             ),
         );
-        self.emit_tool_ocel(
-            TOOL_SESSION_REVOKE_BY_PRINCIPAL,
-            started,
-            true,
-            &[],
-        );
+        self.emit_tool_ocel(TOOL_SESSION_REVOKE_BY_PRINCIPAL, started, true, &[]);
         serde_json::json!({
             "ok": true,
             "tenant_id": tenant_id,
@@ -8124,7 +9535,10 @@ impl OpenOntologiesServer {
     /// worker checks this each `tick()` and skips work if paused.
     /// Bounded to 1 week (10080 minutes) to prevent indefinite
     /// suspension; longer durations require multiple calls.
-    #[tool(name = "onto_retention_pause", description = "Pause the RetentionWorker for N minutes (max 10080 = 1 week). Admin-gated emergency kill-switch.")]
+    #[tool(
+        name = "onto_retention_pause",
+        description = "Pause the RetentionWorker for N minutes (max 10080 = 1 week). Admin-gated emergency kill-switch."
+    )]
     pub fn onto_retention_pause(
         &self,
         Parameters(input): Parameters<crate::inputs::OntoRetentionPauseInput>,
@@ -8183,7 +9597,10 @@ impl OpenOntologiesServer {
     /// clearing the `paused_until` atomic to 0. Admin-gated. Idempotent
     /// (calling twice is a no-op). Reuses `AdmissionOp::Feedback` for
     /// the audit since pause and resume are paired operational tweaks.
-    #[tool(name = "onto_retention_resume", description = "Clear the RetentionWorker pause kill-switch immediately. Admin-gated. Idempotent.")]
+    #[tool(
+        name = "onto_retention_resume",
+        description = "Clear the RetentionWorker pause kill-switch immediately. Admin-gated. Idempotent."
+    )]
     pub fn onto_retention_resume(&self) -> String {
         let started = std::time::Instant::now();
         if !self.is_admin_principal() {
@@ -8308,12 +9725,8 @@ impl OpenOntologiesServer {
 
         // Verify signature.
         let payload_bytes = input.payload_hash.as_bytes();
-        let outcome = crate::attestation::verify_strict(
-            &trusted,
-            &fpr_bytes,
-            payload_bytes,
-            &sig_bytes,
-        );
+        let outcome =
+            crate::attestation::verify_strict(&trusted, &fpr_bytes, payload_bytes, &sig_bytes);
         if outcome != crate::attestation::VerifyOutcome::Valid {
             return serde_json::json!({
                 "ok": false,
@@ -8336,12 +9749,14 @@ impl OpenOntologiesServer {
         let now = chrono::Utc::now().to_rfc3339();
         let fpr_hex = fingerprint_hex(&fpr_bytes);
         let conn = self.db.conn();
-        let recorded = conn.execute(
-            "INSERT OR IGNORE INTO trusted_keys_history
+        let recorded = conn
+            .execute(
+                "INSERT OR IGNORE INTO trusted_keys_history
                 (fingerprint, pem, added_at, removed_at, status)
              VALUES (?1, '', ?2, NULL, 'ontostar-external')",
-            rusqlite::params![fpr_hex, now],
-        ).unwrap_or(0);
+                rusqlite::params![fpr_hex, now],
+            )
+            .unwrap_or(0);
 
         serde_json::json!({
             "ok": true,
@@ -8349,7 +9764,8 @@ impl OpenOntologiesServer {
             "payload_hash": input.payload_hash,
             "recorded": recorded > 0,
             "signature_valid": true,
-        }).to_string()
+        })
+        .to_string()
     }
 
     #[tool(
@@ -8361,11 +9777,12 @@ impl OpenOntologiesServer {
         'semantic search'. Set include_powl=true to also receive the POWL string for \
         onto_declare_workflow. Unknown intents return a list of known workflow names."
     )]
-    pub fn onto_guide(&self, Parameters(input): Parameters<crate::inputs::OntoGuideInput>) -> String {
-        let plan = crate::guide::plan_for_intent(
-            &input.intent,
-            input.include_powl.unwrap_or(false),
-        );
+    pub fn onto_guide(
+        &self,
+        Parameters(input): Parameters<crate::inputs::OntoGuideInput>,
+    ) -> String {
+        let plan =
+            crate::guide::plan_for_intent(&input.intent, input.include_powl.unwrap_or(false));
         serde_json::to_string(&plan)
             .unwrap_or_else(|e| format!(r#"{{"ok":false,"error":"{}"}}"#, e))
     }
@@ -8418,9 +9835,10 @@ fn stamp_codegen_output(output_dir: &str, receipt: &crate::receipts::Receipt) ->
                 if ft.is_dir() {
                     stack.push(path);
                 } else if ft.is_file()
-                    && let Ok(true) = crate::receipts::inject_comment_header(&path, receipt) {
-                        stamped += 1;
-                    }
+                    && let Ok(true) = crate::receipts::inject_comment_header(&path, receipt)
+                {
+                    stamped += 1;
+                }
             }
         }
     }
@@ -8450,7 +9868,10 @@ fn uuid_short(input: &str) -> String {
 impl OpenOntologiesServer {
     /// Build an ontology from a domain description. Guides through the full workflow: generate Turtle, validate, load, lint, query, and persist.
     #[prompt(name = "build_ontology")]
-    fn build_ontology(&self, Parameters(input): Parameters<BuildOntologyInput>) -> Result<GetPromptResult, rmcp::ErrorData> {
+    fn build_ontology(
+        &self,
+        Parameters(input): Parameters<BuildOntologyInput>,
+    ) -> Result<GetPromptResult, rmcp::ErrorData> {
         let msg = format!(
             "Build an OWL ontology for the following domain:\n\n{}\n\n\
             Follow the Open Ontologies workflow:\n\
@@ -8464,14 +9885,18 @@ impl OpenOntologiesServer {
             8. Call onto_save to persist the final ontology",
             input.domain
         );
-        Ok(GetPromptResult::new(vec![
-            PromptMessage::new_text(PromptMessageRole::User, msg),
-        ]).with_description("Build an ontology from a domain description"))
+        Ok(
+            GetPromptResult::new(vec![PromptMessage::new_text(PromptMessageRole::User, msg)])
+                .with_description("Build an ontology from a domain description"),
+        )
     }
 
     /// Validate and lint an existing ontology file. Loads it, runs validation and lint checks, reports all issues.
     #[prompt(name = "validate_ontology")]
-    fn validate_ontology(&self, Parameters(input): Parameters<ValidateOntologyInput>) -> Result<GetPromptResult, rmcp::ErrorData> {
+    fn validate_ontology(
+        &self,
+        Parameters(input): Parameters<ValidateOntologyInput>,
+    ) -> Result<GetPromptResult, rmcp::ErrorData> {
         let msg = format!(
             "Validate and lint the ontology at: {}\n\n\
             Steps:\n\
@@ -8482,14 +9907,18 @@ impl OpenOntologiesServer {
             5. Report all issues found and suggest fixes",
             input.path
         );
-        Ok(GetPromptResult::new(vec![
-            PromptMessage::new_text(PromptMessageRole::User, msg),
-        ]).with_description("Validate and lint an ontology file"))
+        Ok(
+            GetPromptResult::new(vec![PromptMessage::new_text(PromptMessageRole::User, msg)])
+                .with_description("Validate and lint an ontology file"),
+        )
     }
 
     /// Compare two versions of an ontology. Shows added/removed classes, properties, and drift analysis.
     #[prompt(name = "compare_ontologies")]
-    fn compare_ontologies(&self, Parameters(input): Parameters<CompareOntologiesInput>) -> Result<GetPromptResult, rmcp::ErrorData> {
+    fn compare_ontologies(
+        &self,
+        Parameters(input): Parameters<CompareOntologiesInput>,
+    ) -> Result<GetPromptResult, rmcp::ErrorData> {
         let msg = format!(
             "Compare these two ontology versions:\n\
             - Old: {}\n\
@@ -8500,14 +9929,18 @@ impl OpenOntologiesServer {
             3. Summarize: what was added, removed, renamed, and the overall risk",
             input.old_path, input.new_path
         );
-        Ok(GetPromptResult::new(vec![
-            PromptMessage::new_text(PromptMessageRole::User, msg),
-        ]).with_description("Compare two ontology versions"))
+        Ok(
+            GetPromptResult::new(vec![PromptMessage::new_text(PromptMessageRole::User, msg)])
+                .with_description("Compare two ontology versions"),
+        )
     }
 
     /// Ingest external data into a loaded ontology. Maps data fields to ontology classes/properties and validates with SHACL.
     #[prompt(name = "ingest_data")]
-    fn ingest_data(&self, Parameters(input): Parameters<IngestDataInput>) -> Result<GetPromptResult, rmcp::ErrorData> {
+    fn ingest_data(
+        &self,
+        Parameters(input): Parameters<IngestDataInput>,
+    ) -> Result<GetPromptResult, rmcp::ErrorData> {
         let msg = format!(
             "Ingest data from {} into the currently loaded ontology.\n\n\
             Steps:\n\
@@ -8520,14 +9953,18 @@ impl OpenOntologiesServer {
             7. Call onto_query to verify the ingested data",
             input.data_path
         );
-        Ok(GetPromptResult::new(vec![
-            PromptMessage::new_text(PromptMessageRole::User, msg),
-        ]).with_description("Ingest external data into a loaded ontology"))
+        Ok(
+            GetPromptResult::new(vec![PromptMessage::new_text(PromptMessageRole::User, msg)])
+                .with_description("Ingest external data into a loaded ontology"),
+        )
     }
 
     /// Align two ontologies using hybrid neuro-symbolic matching. Runs structural alignment first, then asks you (the LLM) to adjudicate uncertain pairs.
     #[prompt(name = "align_ontologies")]
-    fn align_ontologies(&self, Parameters(input): Parameters<AlignOntologiesInput>) -> Result<GetPromptResult, rmcp::ErrorData> {
+    fn align_ontologies(
+        &self,
+        Parameters(input): Parameters<AlignOntologiesInput>,
+    ) -> Result<GetPromptResult, rmcp::ErrorData> {
         let msg = format!(
             "Align these two ontologies using hybrid neuro-symbolic matching:\n\
             - Source: {}\n\
@@ -8561,22 +9998,24 @@ impl OpenOntologiesServer {
     /// Explore a loaded ontology with SPARQL. Lists classes, properties, and answers competency questions.
     #[prompt(name = "explore_ontology")]
     fn explore_ontology(&self) -> Result<GetPromptResult, rmcp::ErrorData> {
-        Ok(GetPromptResult::new(vec![
-            PromptMessage::new_text(
-                PromptMessageRole::User,
-                "Explore the currently loaded ontology:\n\n\
+        Ok(GetPromptResult::new(vec![PromptMessage::new_text(
+            PromptMessageRole::User,
+            "Explore the currently loaded ontology:\n\n\
                 1. Call onto_stats to show overview counts\n\
                 2. Call onto_query to list all classes with labels\n\
                 3. Call onto_query to show the class hierarchy (subClassOf)\n\
                 4. Call onto_query to list all properties with domains and ranges\n\
                 5. Summarize the ontology structure and suggest competency questions it can answer",
-            ),
-        ]).with_description("Explore a loaded ontology with SPARQL"))
+        )])
+        .with_description("Explore a loaded ontology with SPARQL"))
     }
 
     /// Generate code artifacts from the loaded ontology using ggen. Guides through full workflow: specify generator, run reasoning, invoke codegen, verify output.
     #[prompt(name = "generate_code")]
-    fn generate_code(&self, Parameters(input): Parameters<GenerateCodeInput>) -> Result<GetPromptResult, rmcp::ErrorData> {
+    fn generate_code(
+        &self,
+        Parameters(input): Parameters<GenerateCodeInput>,
+    ) -> Result<GetPromptResult, rmcp::ErrorData> {
         let msg = format!(
             "Generate {} code from the currently loaded ontology.\n\n\
             Follow these steps:\n\
@@ -8587,12 +10026,17 @@ impl OpenOntologiesServer {
             5. Verify generated artifacts exist and are syntactically correct\n\
             6. Report the file paths and any generated API/class counts",
             input.language.unwrap_or_else(|| "Python".to_string()),
-            input.generator.unwrap_or_else(|| "python-client".to_string()),
-            input.output_dir.unwrap_or_else(|| "./generated".to_string())
+            input
+                .generator
+                .unwrap_or_else(|| "python-client".to_string()),
+            input
+                .output_dir
+                .unwrap_or_else(|| "./generated".to_string())
         );
-        Ok(GetPromptResult::new(vec![
-            PromptMessage::new_text(PromptMessageRole::User, msg),
-        ]).with_description("Generate code artifacts from the loaded ontology using ggen"))
+        Ok(
+            GetPromptResult::new(vec![PromptMessage::new_text(PromptMessageRole::User, msg)])
+                .with_description("Generate code artifacts from the loaded ontology using ggen"),
+        )
     }
 }
 

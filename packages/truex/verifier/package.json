@@ -1,0 +1,14 @@
+{
+  "name": "@truex/verifier",
+  "version": "1.0.0",
+  "description": "Independent receipt verification and refusal authority.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "jest"
+  },
+  "dependencies": {
+    "blake3": "^2.1.7"
+  }
+}

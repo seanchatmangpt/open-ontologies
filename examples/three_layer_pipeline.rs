@@ -20,14 +20,14 @@
 //! No external dependencies (Python / DoWhy / Fast Downward) required —
 //! every layer is exercised through its in-process API.
 
-use open_ontologies::civex::{certify_action, ActionFrame, Verdict};
+use open_ontologies::civex::{ActionFrame, Verdict, certify_action};
 use open_ontologies::dynamics::{
-    list_names, lookup, register, ActionSchema, EffectSpec, Outcome, Parameter,
+    ActionSchema, EffectSpec, Outcome, Parameter, list_names, lookup, register,
 };
 use open_ontologies::graph::GraphStore;
 use open_ontologies::plan_classical::parse_sas_plan;
 use open_ontologies::plan_pddl::{compile_domain, compile_problem};
-use open_ontologies::plan_validate::{validate_plan, PlanStep};
+use open_ontologies::plan_validate::{PlanStep, validate_plan};
 use open_ontologies::state::StateDb;
 use std::collections::BTreeMap;
 use std::path::Path;
@@ -66,7 +66,10 @@ fn build_noisy_add_class_schema() -> ActionSchema {
     // are robust to both outcomes.
     ActionSchema {
         name: "noisy_add_class".to_string(),
-        parameters: vec![Parameter { name: "iri".to_string(), type_iri: None }],
+        parameters: vec![Parameter {
+            name: "iri".to_string(),
+            type_iri: None,
+        }],
         preconditions: vec![],
         effects: vec![], // ignored when outcomes is non-empty
         reversible: true,
@@ -74,13 +77,17 @@ fn build_noisy_add_class_schema() -> ActionSchema {
         outcomes: vec![
             Outcome {
                 probability: 0.8,
-                effects: vec![EffectSpec::AddClass { iri: "{iri}".to_string() }],
+                effects: vec![EffectSpec::AddClass {
+                    iri: "{iri}".to_string(),
+                }],
                 label: Some("clean".to_string()),
             },
             Outcome {
                 probability: 0.2,
                 effects: vec![
-                    EffectSpec::AddClass { iri: "{iri}".to_string() },
+                    EffectSpec::AddClass {
+                        iri: "{iri}".to_string(),
+                    },
                     EffectSpec::AddTriple {
                         subject: "{iri}".to_string(),
                         predicate: "http://example.org/audit#flaggedBy".to_string(),
@@ -190,11 +197,18 @@ fn main() -> anyhow::Result<()> {
             .ok_or_else(|| anyhow::anyhow!("unknown action `{}` in plan", op.name))?;
         let mut bindings = BTreeMap::new();
         for (param, arg) in schema.parameters.iter().zip(op.args.iter()) {
-            let resolved = iri_map.get(arg.as_str()).copied().unwrap_or(arg.as_str()).to_string();
+            let resolved = iri_map
+                .get(arg.as_str())
+                .copied()
+                .unwrap_or(arg.as_str())
+                .to_string();
             bindings.insert(param.name.clone(), resolved);
         }
         println!("  {} bindings: {:?}", op.name, bindings);
-        plan_steps.push(PlanStep { action_name: op.name.clone(), bindings });
+        plan_steps.push(PlanStep {
+            action_name: op.name.clone(),
+            bindings,
+        });
     }
 
     // ── Layer 3: Planner — validate the bound plan in a sandbox ─────────
@@ -214,7 +228,11 @@ fn main() -> anyhow::Result<()> {
         report.unsatisfied_goals.len()
     );
     // The real graph must still be untouched at this point.
-    assert_eq!(graph.triple_count(), 3, "sandbox must not mutate real graph");
+    assert_eq!(
+        graph.triple_count(),
+        3,
+        "sandbox must not mutate real graph"
+    );
 
     // ── Layer 2: Causal — certify + apply each step ─────────────────────
     print_section("6. Per-step: CIVeX certify, then apply with ramification");
@@ -269,8 +287,7 @@ fn main() -> anyhow::Result<()> {
 
         // Apply with OWL-RL ramification + a deterministic seed so the
         // non-deterministic outcome is reproducible across runs of the demo.
-        let result =
-            schema.apply_with_ramification(&graph, &db, &bindings, "owl-rl")?;
+        let result = schema.apply_with_ramification(&graph, &db, &bindings, "owl-rl")?;
         // For nondeterministic schemas, apply_with_ramification used SystemTime
         // seeding inside apply(). For a deterministic demo we'd use
         // apply_with_seed first; for clarity here we just print what landed.
@@ -289,16 +306,27 @@ fn main() -> anyhow::Result<()> {
     let ask = graph.sparql_select(
         "ASK { <http://ex.org/Cat> <http://www.w3.org/2000/01/rdf-schema#subClassOf> <http://ex.org/Animal> }",
     )?;
-    println!("Cat rdfs:subClassOf Animal? {}", if ask.contains("\"result\":true") { "YES" } else { "no" });
-    let ask2 = graph.sparql_select(
-        "ASK { <http://ex.org/tigger> a <http://ex.org/Animal> }",
-    )?;
+    println!(
+        "Cat rdfs:subClassOf Animal? {}",
+        if ask.contains("\"result\":true") {
+            "YES"
+        } else {
+            "no"
+        }
+    );
+    let ask2 = graph.sparql_select("ASK { <http://ex.org/tigger> a <http://ex.org/Animal> }")?;
     println!(
         "tigger a Animal (entailed via OWL-RL ramification)? {}",
-        if ask2.contains("\"result\":true") { "YES" } else { "no" }
+        if ask2.contains("\"result\":true") {
+            "YES"
+        } else {
+            "no"
+        }
     );
 
-    println!("\nDone. Every layer of the three-layer architecture exercised through its public API.");
+    println!(
+        "\nDone. Every layer of the three-layer architecture exercised through its public API."
+    );
     Ok(())
 }
 
@@ -326,13 +354,21 @@ fn synthesise_proposed_ttl(schema: &ActionSchema, bindings: &[(String, String)])
     let mut ttl = String::new();
     for effect in effects {
         match effect {
-            EffectSpec::AddTriple { subject, predicate, object } => {
+            EffectSpec::AddTriple {
+                subject,
+                predicate,
+                object,
+            } => {
                 let s = schema.substitute(subject, bindings);
                 let p = schema.substitute(predicate, bindings);
                 let o = schema.substitute(object, bindings);
                 ttl.push_str(&format!("<{}> <{}> <{}> .\n", s, p, o));
             }
-            EffectSpec::RemoveTriple { subject, predicate, object } => {
+            EffectSpec::RemoveTriple {
+                subject,
+                predicate,
+                object,
+            } => {
                 // Removal isn't expressible in Turtle directly; CIVeX uses the
                 // delta as the post-state under structural-dependency analysis,
                 // so we omit removals here and rely on the lock-IRI machinery

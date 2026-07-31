@@ -1,0 +1,28 @@
+{
+  "receipt_type": "GeminiCliActuationReceipt",
+  "action_id": "actuate_CL-7",
+  "requested_by": "open-ontologies",
+  "actuator": "gemini-cli",
+  "working_directory": "/Users/sac/wasm4pm",
+  "command": "STRICT EXECUTION DIRECTIVE: Execute the following shell command exactly as written. Do not attempt to debug, alter, or retry if it fails. Output only the command results. Command: echo 'Success'",
+  "inputs_hash": "0849e66f5e60985255cbfb8a84e652b28d72b0bbb458d19b0667fbc84fbf0483",
+  "stdout_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stderr_hash": "446a4eb5b043c45b896c6d5a085758ec9e25cd83566da25c8d6118c26974a2d0",
+  "raw_evidence_hash": "4d4e79b5842b6493fe477e8cde25683976ed9cfef81e0bec36c1d45da4365786",
+  "exit_code": 1,
+  "files_changed": [
+    "artifacts/actuation/raw_evidence/raw_evidence_actuate_CL-1_1779431230.json",
+    "artifacts/actuation/raw_evidence/raw_evidence_actuate_CL-4_1779431230.json",
+    "packages/kernel/package.json",
+    "wasm4pm/package.json"
+  ],
+  "git_before": "2709c771333876ba8ae072de92f6c0d12467b280",
+  "git_after": "e138f95a23f4af0bf601a8ea6e8cc6285130282c",
+  "policy_id": "auto_receipt_batch",
+  "actor_basis8": "persona_compliance",
+  "boundary_type": "headless_membrane",
+  "allowed": true,
+  "refusal_code": null,
+  "created_at": "2026-05-22T06:33:28Z",
+  "receipt_hash": "3c15e53ffda5481bc2200e8dd1d78747ab4ab30078c2ae025d15b548e9c90add"
+}

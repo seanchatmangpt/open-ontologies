@@ -9,7 +9,10 @@ mod tests {
             Path::new("/nonexistent/model.onnx"),
             Path::new("/nonexistent/tokenizer.json"),
         );
-        assert!(result.is_err(), "Should error when model file doesn't exist");
+        assert!(
+            result.is_err(),
+            "Should error when model file doesn't exist"
+        );
     }
 
     #[test]

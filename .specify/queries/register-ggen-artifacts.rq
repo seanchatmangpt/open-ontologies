@@ -1,0 +1,52 @@
+PREFIX ggen: <https://ggen.io/onto/ggen/>
+PREFIX onto: <https://open-ontologies.io/onto/>
+PREFIX dct: <http://purl.org/dc/terms/>
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+
+INSERT {
+  GRAPH onto:artifact-registry {
+    ?artifact
+      a ggen:Artifact ;
+      ggen:path ?path ;
+      ggen:fileHash ?hash ;
+      ggen:hashAlgorithm "blake3" ;
+      ggen:receipt ?receipt ;
+      ggen:generatedAt ?timestamp ;
+      ggen:sourceTTL ?sourceTTL ;
+      ggen:queryUsed ?query ;
+      ggen:templateUsed ?template ;
+      ggen:mimeType ?mimeType ;
+      ggen:registeredAt ?registeredAt ;
+      rdfs:label ?label ;
+      rdfs:comment ?comment .
+
+    ?receipt
+      a ggen:Receipt ;
+      ggen:operationId ?operationId ;
+      ggen:signature ?signature ;
+      ggen:previousReceiptHash ?previousReceiptHash ;
+      ggen:artifactCount ?artifactCount ;
+      dct:issued ?timestamp .
+  }
+}
+WHERE {
+  # Input bindings (provided by registration procedure):
+  # ?path - artifact file path (string)
+  # ?hash - BLAKE3 hash of artifact (hex string)
+  # ?timestamp - generation timestamp (xsd:dateTime)
+  # ?sourceTTL - source TTL file path(s) used (string)
+  # ?query - SPARQL query file path used (string)
+  # ?template - Tera template file path used (string)
+  # ?mimeType - MIME type of artifact (string)
+  # ?operationId - ggen operation UUID (string)
+  # ?signature - Ed25519 signature (base64 string)
+  # ?previousReceiptHash - BLAKE3 hash of previous receipt (hex string)
+  # ?artifactCount - total number of artifacts in this operation (int)
+
+  BIND(URI(CONCAT('urn:ggen:artifact:', REPLACE(?path, '/', ':'))) AS ?artifact)
+  BIND(URI(CONCAT('urn:ggen:receipt:', ?operationId)) AS ?receipt)
+  BIND(CONCAT('Artifact: ', ?path) AS ?label)
+  BIND(CONCAT('Generated artifact registered with BLAKE3 hash ', SUBSTR(?hash, 1, 16), '...') AS ?comment)
+  BIND(NOW() AS ?registeredAt)
+}

@@ -1,0 +1,14 @@
+{
+  "name": "@truex/canonical",
+  "version": "1.0.0",
+  "description": "Canonical OCEL ordering and stable digest generation.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "jest"
+  },
+  "dependencies": {
+    "blake3": "^2.1.7"
+  }
+}

@@ -105,9 +105,16 @@ pub const DEFECTS_TAXONOMY_DISCRIMINANT_HASH: &str =
 pub enum DefectClass {
     /// Required stage missing in OCEL.
     CapabilityZero,
-    SkippedTask { stage: String },
-    ExtraTask { stage: String },
-    WrongOrder { expected: String, got: String },
+    SkippedTask {
+        stage: String,
+    },
+    ExtraTask {
+        stage: String,
+    },
+    WrongOrder {
+        expected: String,
+        got: String,
+    },
     /// Session under `bypass_admission` revocation. R5 WC-1: enriched
     /// with a structured `reason` field so the unified bypass denial
     /// JSON (`Err({ok:false, admission:"bypassed_session_revoked",
@@ -130,14 +137,18 @@ pub enum DefectClass {
     },
     /// No successful replay against declared POWL.
     ReplayFailed,
-    DeadParameter { param: String },
+    DeadParameter {
+        param: String,
+    },
     // --- Requirements-Andon / CTQ-Forge taxonomy v2.0.0 ---
     /// A `RequirementProposed` op was attempted with no source-voice signal.
     RequirementWithoutSource,
     /// CTQ admission denied because a mandatory field is missing or empty.
     /// `missing` carries one of: "measure", "verification", "negative_case",
     /// "control_plan", "source_voice".
-    CtqIncomplete { missing: String },
+    CtqIncomplete {
+        missing: String,
+    },
     /// Work-order admission denied because no naked-craft counterfactual
     /// delta was bound.
     WorkOrderMissingCounterfactual,
@@ -163,27 +174,41 @@ pub enum DefectClass {
     },
     /// Export contains a restricted raw-data field (e.g. customer email,
     /// real account name).
-    RawDataLeak { field: String },
+    RawDataLeak {
+        field: String,
+    },
     // --- Solution Manufacturing taxonomy v2.1.0 ---
     /// A target generator (iac/rust/erlang/atomvm) emitted no bytes —
     /// the manufacturing pipeline cannot ship an empty artifact.
-    GeneratorEmpty { target: String },
+    GeneratorEmpty {
+        target: String,
+    },
     /// Generated IaC (Terraform/Pulumi) failed deterministic validation
     /// (e.g. unbalanced braces, missing required block, illegal IRI).
-    IacInvalid { reason: String },
+    IacInvalid {
+        reason: String,
+    },
     /// Generated Rust failed deterministic validation (no `pub fn main`,
     /// missing receipt header, unbalanced braces).
-    RustInvalid { reason: String },
+    RustInvalid {
+        reason: String,
+    },
     /// Generated Erlang failed deterministic validation (missing -module
     /// declaration, missing -export, unmatched parens).
-    ErlangInvalid { reason: String },
+    ErlangInvalid {
+        reason: String,
+    },
     /// Generated AtomVM target failed deterministic validation (missing
     /// `start/0`, no AVM-loadable shape).
-    AtomVmInvalid { reason: String },
+    AtomVmInvalid {
+        reason: String,
+    },
     /// One or more required manufacturing stages (architecture decided,
     /// IaC generated, Rust generated, etc.) is missing — the chain is
     /// broken and cannot ship.
-    ManufacturingChainBroken { missing: String },
+    ManufacturingChainBroken {
+        missing: String,
+    },
     /// Solution architecture was not bound to an admitted work order.
     /// Without an upstream WorkOrderAdmitted receipt, no architecture
     /// may be manufactured.
@@ -193,12 +218,17 @@ pub enum DefectClass {
     /// attempted to read or mutate resources owned by tenant `to`. The
     /// admission gate refuses cross-tenant access regardless of any other
     /// authority the caller may hold within their own tenant.
-    TenantBoundary { from: String, to: String },
+    TenantBoundary {
+        from: String,
+        to: String,
+    },
     // --- Cell8 Phase-10 13-conjunct expansion (Phase 7 / cell_ready.rs) ---
     /// A9 ProvenanceChain failed: the `artifact_hash` was not present in
     /// `provenance_evidence`, so the `prov:wasGeneratedBy` lineage cannot
     /// be closed.
-    ProvenanceMissing { artifact_hash: String },
+    ProvenanceMissing {
+        artifact_hash: String,
+    },
     /// A10 ExternalAttestation failed: no external attestation digest
     /// matches the artifact bit-for-bit. (Phase-10 stub: digest-equality
     /// stand-in for Ed25519. See `src/cell_ready.rs` A10 conjunct.)
@@ -207,14 +237,21 @@ pub enum DefectClass {
     /// not monotonically non-decreasing. `observed_skew_ms` is the worst
     /// negative delta between adjacent timestamps in milliseconds (or 0
     /// when the chain is empty).
-    TemporalSkew { observed_skew_ms: i64 },
+    TemporalSkew {
+        observed_skew_ms: i64,
+    },
     /// A12 DependencyClosure failed: the `prior_receipt` is referenced
     /// but does not appear in the admitted-receipts set. `missing_hash`
     /// is the hex of the absent prior receipt.
-    DependencyClosureBroken { missing_hash: String },
+    DependencyClosureBroken {
+        missing_hash: String,
+    },
     /// A13 ReplayProof failed: deterministic POWL replay produced an OCEL
     /// canonical hash that diverges from the recorded `ocel_trace_hash`.
-    ReplayDivergence { expected: String, observed: String },
+    ReplayDivergence {
+        expected: String,
+        observed: String,
+    },
     /// A10 ExternalAttestation failed under the real-Ed25519 path: a
     /// signature was supplied but `verify_strict` rejected it. `reason`
     /// distinguishes "signature_invalid" (key found, signature did not
@@ -222,7 +259,9 @@ pub enum DefectClass {
     /// trust set), and "no_trust_set" (admission gate had no trust set
     /// loaded). The legacy `AttestationMissing` is reserved for the
     /// signature-absent path.
-    AttestationInvalid { reason: String },
+    AttestationInvalid {
+        reason: String,
+    },
     /// R4 WE — §14: a bootstrap-only handler (e.g. `onto_exemplar_seed`)
     /// was invoked after the bootstrap window closed (i.e. at least one
     /// non-`seed-v0` receipt has been admitted, and the
@@ -474,7 +513,9 @@ impl DefectClass {
                 "No open workflow scope. Call onto_declare_workflow to open one, \
                  then retry this operation with the returned scope_token.",
                 Some("onto_declare_workflow"),
-                Some(json!({"name": "OntologyAuthoring", "description": "auto-opened by remediation"})),
+                Some(
+                    json!({"name": "OntologyAuthoring", "description": "auto-opened by remediation"}),
+                ),
                 true,
             ),
             DefectClass::CapabilityZero => RemediationBlock::blocking(
@@ -545,18 +586,20 @@ impl DefectClass {
                 Some(json!({})),
                 false,
             ),
-            DefectClass::ThresholdFailed { metric, observed, required } => {
-                RemediationBlock::blocking(
-                    format!(
-                        "Threshold check failed: {} is {:.3} but must be ≥ {:.3}. \
+            DefectClass::ThresholdFailed {
+                metric,
+                observed,
+                required,
+            } => RemediationBlock::blocking(
+                format!(
+                    "Threshold check failed: {} is {:.3} but must be ≥ {:.3}. \
                          Run onto_threshold_sweep to see which parameters meet the threshold.",
-                        metric, observed, required
-                    ),
-                    Some("onto_threshold_sweep"),
-                    None,
-                    false,
-                )
-            }
+                    metric, observed, required
+                ),
+                Some("onto_threshold_sweep"),
+                None,
+                false,
+            ),
             DefectClass::ReplayFailed => RemediationBlock::blocking(
                 "POWL replay against the declared workflow failed. Check that all \
                  required stages were executed in order, then retry.",

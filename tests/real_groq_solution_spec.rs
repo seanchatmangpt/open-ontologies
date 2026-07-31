@@ -1,3 +1,5 @@
+#![allow(clippy::all, unused)]
+
 //! REAL Groq end-to-end test for the SolutionSpec proposer.
 //!
 //! Spawns scripts/spec_from_ctq.py against the chatmangpt/ostar venv,
@@ -19,8 +21,7 @@ use std::process::Command;
 
 const VENV_PYTHON: &str = "/Users/sac/chatmangpt/ostar/.venv/bin/python";
 
-const FIXED_HASH: &str =
-    "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789";
+const FIXED_HASH: &str = "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789";
 
 fn read_groq_key() -> Option<String> {
     // Prefer the project .env so the test runs against the pinned key
@@ -70,8 +71,8 @@ fn ctq_payload(hash: &str) -> String {
 }
 
 fn run_spec(ctq_json: &str, key: &str) -> serde_json::Value {
-    let script = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("scripts/spec_from_ctq.py");
+    let script =
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("scripts/spec_from_ctq.py");
     let output = Command::new(VENV_PYTHON)
         .arg(&script)
         .arg(ctq_json)
@@ -91,12 +92,9 @@ fn run_spec(ctq_json: &str, key: &str) -> serde_json::Value {
         .lines()
         .rev()
         .find(|l| l.trim_start().starts_with('{'))
-        .unwrap_or_else(|| {
-            panic!("no JSON line in stdout:\nstdout:\n{stdout}\nstderr:\n{stderr}")
-        });
-    serde_json::from_str(json_line.trim()).unwrap_or_else(|e| {
-        panic!("JSON parse failed: {e}\nline: {json_line}\nstderr: {stderr}")
-    })
+        .unwrap_or_else(|| panic!("no JSON line in stdout:\nstdout:\n{stdout}\nstderr:\n{stderr}"));
+    serde_json::from_str(json_line.trim())
+        .unwrap_or_else(|e| panic!("JSON parse failed: {e}\nline: {json_line}\nstderr: {stderr}"))
 }
 
 #[test]
@@ -136,7 +134,10 @@ fn real_groq_proposes_shape_valid_solution_spec() {
     let wor_hash = spec["work_order_receipt_hash"].as_str().unwrap_or("");
 
     assert!(!name.is_empty(), "name must be non-empty: {spec}");
-    assert!(!description.is_empty(), "description must be non-empty: {spec}");
+    assert!(
+        !description.is_empty(),
+        "description must be non-empty: {spec}"
+    );
     assert_eq!(iac_target, "aws", "iac_target must be 'aws': {spec}");
     assert!(!region.is_empty(), "region must be non-empty: {spec}");
     assert!(
@@ -154,9 +155,8 @@ fn real_groq_proposes_shape_valid_solution_spec() {
         "name must start with a lowercase letter: {name:?}"
     );
     assert!(
-        name.chars().all(|c| c.is_ascii_lowercase()
-            || c.is_ascii_digit()
-            || c == '_'),
+        name.chars()
+            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_'),
         "name must match [a-z][a-z0-9_]*: {name:?}"
     );
     assert_eq!(
@@ -174,8 +174,7 @@ fn real_groq_preserves_work_order_receipt_hash_verbatim() {
     // Use a distinct hash so we know the script is forwarding it
     // rather than echoing whatever the LLM emitted (the LLM is
     // explicitly told NOT to emit this field).
-    let unique_hash =
-        "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+    let unique_hash = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
     assert_ne!(unique_hash, FIXED_HASH, "test hashes must differ");
 
     let result = run_spec(&ctq_payload(unique_hash), &key);

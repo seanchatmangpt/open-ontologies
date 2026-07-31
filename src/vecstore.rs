@@ -115,10 +115,13 @@ impl VecStore {
     /// # }
     /// ```
     pub fn upsert(&mut self, iri: &str, text_vec: &[f32], struct_vec: &[f32]) {
-        self.entries.insert(iri.to_string(), VecEntry {
-            text_vec: l2_normalize(text_vec),
-            struct_vec: struct_vec.to_vec(),
-        });
+        self.entries.insert(
+            iri.to_string(),
+            VecEntry {
+                text_vec: l2_normalize(text_vec),
+                struct_vec: struct_vec.to_vec(),
+            },
+        );
         // Invalidate BOTH HNSW indices — instant-distance is immutable.
         self.cosine_index = None;
         self.poincare_index = None;
@@ -211,7 +214,9 @@ impl VecStore {
     /// ```
     pub fn search_cosine(&self, query: &[f32], top_k: usize) -> Vec<(String, f32)> {
         let query_norm = l2_normalize(query);
-        let mut scores: Vec<(String, f32)> = self.entries.iter()
+        let mut scores: Vec<(String, f32)> = self
+            .entries
+            .iter()
             .map(|(iri, e)| (iri.clone(), cosine_similarity(&query_norm, &e.text_vec)))
             .collect();
         scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
@@ -247,7 +252,9 @@ impl VecStore {
     /// # }
     /// ```
     pub fn search_poincare(&self, query: &[f32], top_k: usize) -> Vec<(String, f32)> {
-        let mut scores: Vec<(String, f32)> = self.entries.iter()
+        let mut scores: Vec<(String, f32)> = self
+            .entries
+            .iter()
             .map(|(iri, e)| (iri.clone(), poincare_distance(query, &e.struct_vec)))
             .collect();
         scores.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
@@ -310,7 +317,9 @@ impl VecStore {
         alpha: f32,
     ) -> Vec<(String, f32)> {
         let text_norm = l2_normalize(text_query);
-        let mut scores: Vec<(String, f32)> = self.entries.iter()
+        let mut scores: Vec<(String, f32)> = self
+            .entries
+            .iter()
             .map(|(iri, e)| {
                 let cos = cosine_similarity(&text_norm, &e.text_vec);
                 let poinc = poincare_distance(struct_query, &e.struct_vec);
@@ -417,10 +426,13 @@ impl VecStore {
 
             for row in rows {
                 let (iri, text_bytes, struct_bytes) = row?;
-                self.entries.insert(iri, VecEntry {
-                    text_vec: bytes_to_f32_vec(&text_bytes),
-                    struct_vec: bytes_to_f32_vec(&struct_bytes),
-                });
+                self.entries.insert(
+                    iri,
+                    VecEntry {
+                        text_vec: bytes_to_f32_vec(&text_bytes),
+                        struct_vec: bytes_to_f32_vec(&struct_bytes),
+                    },
+                );
             }
         }
         // Invalidate any previously-built HNSW indices; try to load persisted

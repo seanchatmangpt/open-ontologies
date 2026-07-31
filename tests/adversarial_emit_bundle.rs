@@ -1,7 +1,7 @@
 //! Adversarial: write the manufactured bundle to /tmp so external
 //! toolchains (rustc, erlc, terraform) can be run against it.
 
-use open_ontologies::manufacturing::{manufacture, SolutionSpec};
+use open_ontologies::manufacturing::{SolutionSpec, manufacture};
 
 #[test]
 #[ignore] // run on demand: cargo test --test adversarial_emit_bundle -- --ignored --nocapture

@@ -88,6 +88,7 @@ struct ScanVisitor<'a> {
 }
 
 impl<'ast, 'a> Visit<'ast> for ScanVisitor<'a> {
+    #[allow(clippy::collapsible_if)]
     fn visit_local(&mut self, local: &'ast Local) {
         // Pattern must be `let _` (Wild pattern).
         let is_wild = matches!(&local.pat, Pat::Wild(_));
@@ -173,10 +174,7 @@ impl<'a> ScanVisitor<'a> {
 }
 
 fn is_benign_dead_param_ident(ident: &str) -> bool {
-    matches!(
-        ident,
-        "result" | "Err" | "Ok" | "guard" | "_guard"
-    )
+    matches!(ident, "result" | "Err" | "Ok" | "guard" | "_guard")
 }
 
 /// Walk a directory tree and run `cb(path, contents)` for every `*.rs`
@@ -277,13 +275,10 @@ fn no_dead_params_in_expanded_if_present() {
     // invoked from `src/cmds/`. The pre-expansion gate is blind because
     // the literal `let _` doesn't appear in `src/cmds/`.
     let expanded = Path::new(env!("CARGO_MANIFEST_DIR")).join("target/expanded.rs");
-    if !expanded.exists() {
-        eprintln!(
-            "skipping expanded scan: target/expanded.rs not present. \
-             Run `make expand` to produce it."
-        );
-        return;
-    }
+    assert!(
+        expanded.exists(),
+        "target/expanded.rs missing — run make expand first. Absence is a defect, not skippable."
+    );
     let src = std::fs::read_to_string(&expanded).expect("read expanded.rs");
     let Ok(file) = syn::parse_file(&src) else {
         // cargo expand can produce non-stable tokens; print head and

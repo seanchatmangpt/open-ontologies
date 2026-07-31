@@ -1,5 +1,5 @@
-use open_ontologies::ontology::OntologyService;
 use open_ontologies::graph::GraphStore;
+use open_ontologies::ontology::OntologyService;
 use open_ontologies::state::StateDb;
 use std::sync::Arc;
 
@@ -42,11 +42,18 @@ fn test_rollback_version() {
     "#;
     store.clear().unwrap();
     store.load_turtle(ttl2, None).unwrap();
-    assert!(store.sparql_select("SELECT ?s WHERE { ?s a <http://example.org/Person> }").unwrap().contains("Bob"));
+    assert!(
+        store
+            .sparql_select("SELECT ?s WHERE { ?s a <http://example.org/Person> }")
+            .unwrap()
+            .contains("Bob")
+    );
 
     let result = OntologyService::rollback_version(&db, &store, "v1");
     assert!(result.is_ok());
-    let query_result = store.sparql_select("SELECT ?s WHERE { ?s a <http://example.org/Person> }").unwrap();
+    let query_result = store
+        .sparql_select("SELECT ?s WHERE { ?s a <http://example.org/Person> }")
+        .unwrap();
     assert!(query_result.contains("Alice"));
     assert!(!query_result.contains("Bob"));
 }

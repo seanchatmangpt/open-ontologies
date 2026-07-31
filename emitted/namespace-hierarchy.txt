@@ -1,0 +1,231 @@
+OPEN-ONTOLOGIES NAMESPACE HIERARCHY
+Generated: 2026-06-01
+
+================================================================================
+TIER 1: W3C CORE (Implicit in all files)
+================================================================================
+
+  owl (http://www.w3.org/2002/07/owl#)
+  rdf (http://www.w3.org/1999/02/22-rdf-syntax-ns#)
+  rdfs (http://www.w3.org/2000/01/rdf-schema#)
+  xsd (http://www.w3.org/2001/XMLSchema#)
+
+================================================================================
+TIER 2: W3C / STANDARD VOCABULARIES (Explicit imports)
+================================================================================
+
+  Metadata & Documentation:
+    dcterms (http://purl.org/dc/terms/)
+    doco (http://purl.org/spar/doco/)
+    bibo (http://purl.org/ontology/bibo/)
+    cito (http://purl.org/spar/cito/)
+    nanopub (http://purl.org/nanopub/)
+
+  Provenance & Change:
+    prov (http://www.w3.org/ns/prov#)
+    sioc (http://rdfs.org/sioc/ns#)
+    as (https://www.w3.org/ns/activitystreams#)
+
+  Semantics & Concepts:
+    skos (http://www.w3.org/2004/02/skos/core#)
+    schema (https://schema.org/)
+    foaf (http://xmlns.com/foaf/0.1/)
+
+  Organization & People:
+    org (http://www.w3.org/ns/org#)
+    vcard (http://www.w3.org/2006/vcard/ns#)
+
+  Governance & Access:
+    odrl (http://www.w3.org/ns/odrl/2/)
+    acl (http://www.w3.org/ns/auth/acl#)
+
+  Quality & Conformance:
+    sh (http://www.w3.org/ns/shacl#)
+    earl (http://www.w3.org/ns/earl#)
+
+  Data & Temporal:
+    dcat (http://www.w3.org/ns/dcat#)
+    time (http://www.w3.org/2006/time#)
+    qb (http://purl.org/linked-data/cube#)
+
+  Geospatial & Standards:
+    geo (http://www.opengis.net/ont/geosparql#)
+    sf (http://www.opengis.net/ont/sf#)
+    spdx (http://spdx.org/rdf/terms#)
+
+  Enterprise Standards:
+    fibo-be-oac (https://spec.edmcouncil.org/fibo/ontology/BE/OwnershipAndControl/ControlParties/)
+    fibo-fnd-acc-cur (https://spec.edmcouncil.org/fibo/ontology/FND/Accounting/CurrencyAmount/)
+
+================================================================================
+TIER 3: ONTOSTAR DOMAIN AUTHORITIES (URN: namespace family)
+================================================================================
+
+  Process Mining & Workflows:
+    w4pm (urn:ontostar:wasm4pm:)          ← wasm4pm-stubs.ttl [SOURCE OF TRUTH]
+    powl (urn:ontostar:powl:)             ← powl-process-mining.ttl
+
+  Manufacturing & Quality:
+    c8 (urn:ontostar:cell8:)              ← cell8-core.ttl
+    cell8 (urn:ontostar:cell8:shape:)     ← cell8-shapes.ttl [SHACL]
+    attest (urn:ontostar:attestation:)    ← attestation-shapes.ttl [SHACL]
+
+  Proof Chains & Execution:
+    aat (urn:ontostar:aat:live:)          ← aat-live-rules.ttl
+    mcpp (urn:ontostar:mcpp:)             ← mcpp-proof-chain.ttl
+    sr (urn:ontostar:shared-receipt:)     ← shared-receipt-shapes.ttl [SHACL]
+
+  Integration & Root:
+    integ (urn:ontostar:integration:wasm4pm-mcpp:)  ← ontostar-wasm4pm-integration.ttl
+    ostar (urn:ostar:ontology#)           ← Generic OntoStar root [LEGACY]
+
+================================================================================
+TIER 4: PUBLISHED PROFILES (https:// namespace family)
+================================================================================
+
+  GGen Ecosystem:
+    ggen (https://open-ontologies.org/ggen#)
+    cli (https://ggen.io/onto/cli/spec/)
+    onto (https://ggen.io/onto/cli/open-ontologies/)
+
+  Domain Profiles:
+    ghf (https://open-ontologies.org/profile/github-factory#)
+    truex (https://open-ontologies.org/profile/truex#)
+
+  Manufacturing Pipelines:
+    req (https://ggen.io/onto/requirements/)
+    tm (https://ggen.io/onto/thesis-manufacturing/)
+    port (https://ggen.io/onto/portfolio-os/)
+    revops (https://ggen.io/onto/cli/revops/)
+
+  Domain-Specific Ecosystems:
+    zoe (https://zoela.org/ontology/)  [40 ZOE LA modules]
+
+================================================================================
+DEPENDENCY GRAPH (Master → Subordinate)
+================================================================================
+
+ontostar-wasm4pm-integration.ttl (MASTER)
+  │
+  ├─→ w4pm:* (wasm4pm-stubs.ttl)
+  │   └─→ powl:* (powl-process-mining.ttl)
+  │
+  ├─→ aat:* (aat-live-rules.ttl)
+  │
+  └─→ sr:* (shared-receipt-shapes.ttl)
+
+portfolio-os.ttl
+  ├─→ prov:* (W3C Provenance)
+  ├─→ org:* (W3C Organization)
+  ├─→ earl:* (W3C EARL)
+  ├─→ odrl:* (W3C ODRL)
+  └─→ qb:* (RDF Data Cube)
+
+thesis-manufacturing.ttl & thesis-shapes.ttl
+  ├─→ dcterms:* (Dublin Core)
+  ├─→ skos:* (SKOS Concepts)
+  ├─→ earl:* (EARL Assertions)
+  ├─→ bibo:* (Bibliographic)
+  ├─→ doco:* (Document Ontology)
+  ├─→ cito:* (Citation Typing)
+  └─→ nanopub:* (Nanopublications)
+
+cell8-*.ttl (5 files)
+  ├─→ c8:*, cell8:* (Cell8 core & shapes)
+  └─→ sh:* (SHACL)
+
+zoela/core.ttl (MASTER for ZOE LA)
+  ├─→ zoe:campus
+  ├─→ zoe:ministry
+  ├─→ zoe:connect-groups
+  ├─→ zoe:roles
+  ├─→ zoe:permissions
+  ├─→ zoe:consent
+  ├─→ zoe:routes
+  ├─→ zoe:evidence
+  ├─→ zoe:ocel
+  ├─→ zoe:volunteer
+  ├─→ zoe:resource
+  ├─→ zoe:care
+  ├─→ zoe:need
+  ├─→ zoe:receipt
+  ├─→ zoe:policy
+  ├─→ zoe:generations
+  ├─→ zoe:kids
+  ├─→ zoe:yth
+  ├─→ zoe:leadership-college
+  └─→ [+20 more modules]
+
+  All ZOE LA modules import:
+  ├─→ rdf, rdfs, owl, xsd (implicit)
+  ├─→ skos (concepts)
+  ├─→ schema (generic entities)
+  ├─→ prov (provenance)
+  ├─→ dcterms (metadata)
+  ├─→ foaf (people)
+  ├─→ org (organizations)
+  └─→ odrl (policies & rights)
+
+================================================================================
+TIER 5: INTERNAL ALIGNMENT (Cross-domain bridges)
+================================================================================
+
+public-alignment.ttl
+  Maps:
+    generic Prov/SKOS ↔ OntoStar domain classes
+    (e.g., prov:Activity → w4pm:BreedDispatch)
+
+cli-open-ontologies.ttl
+  Maps:
+    CLI spec (ggen/cli/spec/) → Truex ecosystem
+    Ontology resolution logic → owl:imports chains
+
+================================================================================
+CANONICAL NAMESPACE OWNERSHIP
+================================================================================
+
+OntoStar (urn:ontostar:*)
+  └─ Canonical Authority: OntoStar project
+     Sub-authorities:
+       - w4pm: wasm4pm crate maintainers
+       - powl: pm4py / POWL standard maintainers
+       - aat: AAT engine maintainers
+       - mcpp: MCPP pipeline maintainers
+       - c8/cell8: Truex/Cell8 maintainers
+       - sr: SharedReceipt chain maintainers
+
+Published Profiles (https://open-ontologies.org/ & https://ggen.io/)
+  └─ Authority: open-ontologies.org & ggen.io
+     Modules:
+       - ggen, ghf, truex (open-ontologies.org)
+       - cli, onto, req, tm, port, revops (ggen.io)
+
+External Domains (https://zoela.org/)
+  └─ Authority: ZOE LA project
+     40+ domain modules
+
+================================================================================
+IMPORT RULES & CONSTRAINTS
+================================================================================
+
+1. W3C Vocabularies (rdf, rdfs, owl, xsd) are implicitly available everywhere.
+
+2. OntoStar namespaces MUST use owl:imports:
+   owl:imports <urn:ontostar:powl:ontology> (for w4pm)
+   owl:imports <urn:ontostar:aat:live:> (for integration)
+
+3. W3C Extended vocabularies use owl:imports:
+   owl:imports <http://www.w3.org/ns/prov#Ontology>
+   owl:imports <http://www.w3.org/ns/org#Ontology>
+
+4. Published profiles use explicit owl:imports:
+   owl:imports <https://ggen.io/onto/cli/spec/>
+
+5. Maximum import depth: 3 levels (CLI spec configurable).
+
+6. No circular owl:imports allowed.
+
+7. Domain-local prefixes MUST be declared at file top:
+   @prefix w4pm: <urn:ontostar:wasm4pm:>
+
+================================================================================

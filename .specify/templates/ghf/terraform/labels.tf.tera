@@ -1,0 +1,14 @@
+# GitHub Labels
+{% set repo_names_list = repoNames | split(pat="|") %}
+{% set label_names_list = labelNames | split(pat="|") %}
+{% set label_colors_list = labelColors | split(pat="|") %}
+{% set label_descs_list = labelDescs | split(pat="|") %}
+
+{% for label_name in label_names_list %}
+resource "github_issue_label" "{{ repo_names_list[loop.index0] | replace(from="-", to="_") }}_{{ label_name | replace(from=" ", to="_") }}" {
+  repository = github_repository.{{ repo_names_list[loop.index0] | replace(from="-", to="_") }}.name
+  name       = "{{ label_name }}"
+  color      = "{{ label_colors_list[loop.index0] }}"
+  description = "{{ label_descs_list[loop.index0] }}"
+}
+{% endfor %}

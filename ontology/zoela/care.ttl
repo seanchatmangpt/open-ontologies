@@ -187,14 +187,14 @@ zoe:dueAt a owl:DatatypeProperty ;
   rdfs:range   xsd:dateTime ;
   rdfs:label   "Due At"@en ;
   rdfs:comment "ISO-8601 timestamp by which this follow-up task should be completed."@en ;
-  skos:notation "due_at" .
+  skos:notation "task_due_at" .
 
 zoe:assignedTo a owl:DatatypeProperty ;
   rdfs:domain  zoe:FollowUpTask ;
   rdfs:range   xsd:string ;
   rdfs:label   "Assigned To"@en ;
   rdfs:comment "Identifier of the pastoral staff member or care team volunteer responsible for this follow-up task."@en ;
-  skos:notation "assigned_to" .
+  skos:notation "task_assigned_to" .
 
 zoe:followUpMethod a owl:ObjectProperty ;
   rdfs:domain  zoe:FollowUpTask ;
@@ -208,14 +208,21 @@ zoe:taskCompletedAt a owl:DatatypeProperty ;
   rdfs:range   xsd:dateTime ;
   rdfs:label   "Completed At"@en ;
   rdfs:comment "ISO-8601 timestamp when this follow-up task was marked complete."@en ;
-  skos:notation "completed_at" .
+  skos:notation "task_completed_at" .
 
-zoe:outcomeNote a owl:DatatypeProperty ;
+zoe:taskDescription a owl:DatatypeProperty ;
   rdfs:domain  zoe:FollowUpTask ;
   rdfs:range   xsd:string ;
-  rdfs:label   "Outcome Note"@en ;
-  rdfs:comment "Narrative notes recorded by the assignee describing the outcome or contact made during this follow-up."@en ;
-  skos:notation "outcome_note" .
+  rdfs:label   "Task Description"@en ;
+  rdfs:comment "Narrative description of the follow-up action to be taken."@en ;
+  skos:notation "task_description" .
+
+zoe:relatedNeedId a owl:DatatypeProperty ;
+  rdfs:domain  zoe:FollowUpTask ;
+  rdfs:range   xsd:string ;
+  rdfs:label   "Related Need ID"@en ;
+  rdfs:comment "Identifier of the parent Need that generated this follow-up task."@en ;
+  skos:notation "related_need_id" .
 
 zoe:isComplete a owl:DatatypeProperty ;
   rdfs:domain  zoe:FollowUpTask ;

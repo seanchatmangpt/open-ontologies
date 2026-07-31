@@ -255,10 +255,8 @@ impl Reasoner {
     /// let v: serde_json::Value = serde_json::from_str(&json).unwrap();
     /// assert_eq!(v["profile_used"], "owl-rl");
     ///
-    /// // "owlrl" (without hyphens) is not a valid profile — it falls back to rdfs.
-    /// let json2 = Reasoner::run(&graph, "owlrl", false).unwrap();
-    /// let v2: serde_json::Value = serde_json::from_str(&json2).unwrap();
-    /// assert_eq!(v2["profile_used"], "rdfs");
+    /// // "owlrl" (without hyphens) is not a valid profile — it returns an Err.
+    /// assert!(Reasoner::run(&graph, "owlrl", false).is_err());
     /// ```
     ///
     /// `inferred_count` is always a non-negative integer (u64-representable).
@@ -328,27 +326,41 @@ impl Reasoner {
         let owl_sameas = interner.intern(OWL_SAMEAS);
 
         // Pre-extract static schema relations
-        let domain_map: Vec<(u32, u32)> = facts.iter()
+        let domain_map: Vec<(u32, u32)> = facts
+            .iter()
             .filter(|&&(_, p, _)| p == interner.intern(RDFS_DOMAIN))
-            .map(|&(s, _, o)| (s, o)).collect();
-        let range_map: Vec<(u32, u32)> = facts.iter()
+            .map(|&(s, _, o)| (s, o))
+            .collect();
+        let range_map: Vec<(u32, u32)> = facts
+            .iter()
             .filter(|&&(_, p, _)| p == interner.intern(RDFS_RANGE))
-            .map(|&(s, _, o)| (s, o)).collect();
-        let transitive_set: HashSet<u32> = facts.iter()
+            .map(|&(s, _, o)| (s, o))
+            .collect();
+        let transitive_set: HashSet<u32> = facts
+            .iter()
             .filter(|&&(_, p, o)| p == rdf_type && o == interner.intern(OWL_TRANSITIVE))
-            .map(|&(s, _, _)| s).collect();
-        let symmetric_set: HashSet<u32> = facts.iter()
+            .map(|&(s, _, _)| s)
+            .collect();
+        let symmetric_set: HashSet<u32> = facts
+            .iter()
             .filter(|&&(_, p, o)| p == rdf_type && o == interner.intern(OWL_SYMMETRIC))
-            .map(|&(s, _, _)| s).collect();
-        let inverse_pairs: Vec<(u32, u32)> = facts.iter()
+            .map(|&(s, _, _)| s)
+            .collect();
+        let inverse_pairs: Vec<(u32, u32)> = facts
+            .iter()
             .filter(|&&(_, p, _)| p == interner.intern(OWL_INVERSE))
-            .map(|&(s, _, o)| (s, o)).collect();
-        let equiv_class: Vec<(u32, u32)> = facts.iter()
+            .map(|&(s, _, o)| (s, o))
+            .collect();
+        let equiv_class: Vec<(u32, u32)> = facts
+            .iter()
             .filter(|&&(_, p, _)| p == interner.intern(OWL_EQUIV_CLASS))
-            .map(|&(s, _, o)| (s, o)).collect();
-        let equiv_prop: Vec<(u32, u32)> = facts.iter()
+            .map(|&(s, _, o)| (s, o))
+            .collect();
+        let equiv_prop: Vec<(u32, u32)> = facts
+            .iter()
             .filter(|&&(_, p, _)| p == interner.intern(OWL_EQUIV_PROP))
-            .map(|&(s, _, o)| (s, o)).collect();
+            .map(|&(s, _, o)| (s, o))
+            .collect();
 
         // OWL restriction structures (for owl-rl-ext)
         let owl_on_property = interner.intern(OWL_ON_PROPERTY);
@@ -363,23 +375,34 @@ impl Reasoner {
 
         if include_ext {
             for &(s, p, o) in &facts {
-                if p == owl_on_property { restr_prop.insert(s, o); }
-                if p == owl_some_values { restr_svf.insert(s, o); }
-                if p == owl_all_values { restr_avf.insert(s, o); }
-                if p == owl_has_value { restr_hv.insert(s, o); }
+                if p == owl_on_property {
+                    restr_prop.insert(s, o);
+                }
+                if p == owl_some_values {
+                    restr_svf.insert(s, o);
+                }
+                if p == owl_all_values {
+                    restr_avf.insert(s, o);
+                }
+                if p == owl_has_value {
+                    restr_hv.insert(s, o);
+                }
             }
         }
 
         // svf_rules: (property, filler_class, restriction_node)
-        let svf_rules: Vec<(u32, u32, u32)> = restr_svf.iter()
+        let svf_rules: Vec<(u32, u32, u32)> = restr_svf
+            .iter()
             .filter_map(|(&r, &filler)| restr_prop.get(&r).map(|&prop| (prop, filler, r)))
             .collect();
         // hv_rules: (property, value, restriction_node)
-        let hv_rules: Vec<(u32, u32, u32)> = restr_hv.iter()
+        let hv_rules: Vec<(u32, u32, u32)> = restr_hv
+            .iter()
             .filter_map(|(&r, &val)| restr_prop.get(&r).map(|&prop| (prop, val, r)))
             .collect();
         // avf_rules: (property, filler_class, restriction_node)
-        let _avf_rules: Vec<(u32, u32, u32)> = restr_avf.iter()
+        let _avf_rules: Vec<(u32, u32, u32)> = restr_avf
+            .iter()
             .filter_map(|(&r, &filler)| restr_prop.get(&r).map(|&prop| (prop, filler, r)))
             .collect();
 
@@ -393,19 +416,27 @@ impl Reasoner {
             let owl_intersection = interner.intern(OWL_INTERSECTION);
             let owl_union = interner.intern(OWL_UNION);
 
-            let first_map: HashMap<u32, u32> = facts.iter()
+            let first_map: HashMap<u32, u32> = facts
+                .iter()
                 .filter(|&&(_, p, _)| p == rdf_first)
-                .map(|&(s, _, o)| (s, o)).collect();
-            let rest_map: HashMap<u32, u32> = facts.iter()
+                .map(|&(s, _, o)| (s, o))
+                .collect();
+            let rest_map: HashMap<u32, u32> = facts
+                .iter()
                 .filter(|&&(_, p, _)| p == rdf_rest)
-                .map(|&(s, _, o)| (s, o)).collect();
+                .map(|&(s, _, o)| (s, o))
+                .collect();
 
             let walk_list = |head: u32| -> Vec<u32> {
                 let mut items = Vec::new();
                 let mut cur = head;
                 for _ in 0..100 {
-                    if cur == rdf_nil { break; }
-                    if let Some(&item) = first_map.get(&cur) { items.push(item); }
+                    if cur == rdf_nil {
+                        break;
+                    }
+                    if let Some(&item) = first_map.get(&cur) {
+                        items.push(item);
+                    }
                     cur = *rest_map.get(&cur).unwrap_or(&rdf_nil);
                 }
                 items
@@ -414,11 +445,15 @@ impl Reasoner {
             for &(s, p, o) in &facts {
                 if p == owl_intersection {
                     let items = walk_list(o);
-                    if !items.is_empty() { intersection_classes.push((s, items)); }
+                    if !items.is_empty() {
+                        intersection_classes.push((s, items));
+                    }
                 }
                 if p == owl_union {
                     let items = walk_list(o);
-                    if !items.is_empty() { union_classes.push((s, items)); }
+                    if !items.is_empty() {
+                        union_classes.push((s, items));
+                    }
                 }
             }
         }
@@ -434,15 +469,21 @@ impl Reasoner {
             let mut new: Vec<(u32, u32, u32)> = Vec::new();
 
             // Build per-iteration indices
-            let type_idx: Vec<(u32, u32)> = triple_set.iter()
+            let type_idx: Vec<(u32, u32)> = triple_set
+                .iter()
                 .filter(|&&(_, p, _)| p == rdf_type)
-                .map(|&(s, _, o)| (s, o)).collect();
-            let subclass_idx: Vec<(u32, u32)> = triple_set.iter()
+                .map(|&(s, _, o)| (s, o))
+                .collect();
+            let subclass_idx: Vec<(u32, u32)> = triple_set
+                .iter()
                 .filter(|&&(_, p, _)| p == rdfs_subclass)
-                .map(|&(s, _, o)| (s, o)).collect();
-            let subprop_idx: Vec<(u32, u32)> = triple_set.iter()
+                .map(|&(s, _, o)| (s, o))
+                .collect();
+            let subprop_idx: Vec<(u32, u32)> = triple_set
+                .iter()
                 .filter(|&&(_, p, _)| p == rdfs_subprop)
-                .map(|&(s, _, o)| (s, o)).collect();
+                .map(|&(s, _, o)| (s, o))
+                .collect();
 
             // Build a subclass lookup: sub → [super]
             let mut sub_to_super: HashMap<u32, Vec<u32>> = HashMap::new();
@@ -477,7 +518,9 @@ impl Reasoner {
             // rdfs2: s p o, p domain class → s type class
             for &(prop, cls) in &domain_map {
                 for &(s, p, _) in &triple_set.iter().collect::<Vec<_>>() {
-                    if *p == prop { new.push((*s, rdf_type, cls)); }
+                    if *p == prop {
+                        new.push((*s, rdf_type, cls));
+                    }
                 }
             }
 
@@ -509,7 +552,9 @@ impl Reasoner {
             for &(sub, sup) in &subprop_idx {
                 if sub != sup {
                     for &(s, p, o) in &triple_set.iter().collect::<Vec<_>>() {
-                        if *p == sub { new.push((*s, sup, *o)); }
+                        if *p == sub {
+                            new.push((*s, sup, *o));
+                        }
                     }
                 }
             }
@@ -518,9 +563,11 @@ impl Reasoner {
             if include_owl {
                 // Transitive: x P y, y P z → x P z
                 for &tp in &transitive_set {
-                    let pairs: Vec<(u32, u32)> = triple_set.iter()
+                    let pairs: Vec<(u32, u32)> = triple_set
+                        .iter()
                         .filter(|&&(_, p, _)| p == tp)
-                        .map(|&(s, _, o)| (s, o)).collect();
+                        .map(|&(s, _, o)| (s, o))
+                        .collect();
                     let mut by_subj: HashMap<u32, Vec<u32>> = HashMap::new();
                     for &(s, o) in &pairs {
                         by_subj.entry(s).or_default().push(o);
@@ -528,7 +575,9 @@ impl Reasoner {
                     for &(x, y) in &pairs {
                         if let Some(zs) = by_subj.get(&y) {
                             for &z in zs {
-                                if x != z { new.push((x, tp, z)); }
+                                if x != z {
+                                    new.push((x, tp, z));
+                                }
                             }
                         }
                     }
@@ -536,28 +585,36 @@ impl Reasoner {
 
                 // Symmetric: s P o → o P s
                 for &sp in &symmetric_set {
-                    let to_add: Vec<_> = triple_set.iter()
+                    let to_add: Vec<_> = triple_set
+                        .iter()
                         .filter(|&&(_, p, _)| p == sp)
-                        .map(|&(s, _, o)| (o, sp, s)).collect();
+                        .map(|&(s, _, o)| (o, sp, s))
+                        .collect();
                     new.extend(to_add);
                 }
 
                 // Inverse: s P o, P inverseOf Q → o Q s (both directions)
                 for &(p, q) in &inverse_pairs {
-                    let fwd: Vec<_> = triple_set.iter()
+                    let fwd: Vec<_> = triple_set
+                        .iter()
                         .filter(|&&(_, pred, _)| pred == p)
-                        .map(|&(s, _, o)| (o, q, s)).collect();
-                    let rev: Vec<_> = triple_set.iter()
+                        .map(|&(s, _, o)| (o, q, s))
+                        .collect();
+                    let rev: Vec<_> = triple_set
+                        .iter()
                         .filter(|&&(_, pred, _)| pred == q)
-                        .map(|&(s, _, o)| (o, p, s)).collect();
+                        .map(|&(s, _, o)| (o, p, s))
+                        .collect();
                     new.extend(fwd);
                     new.extend(rev);
                 }
 
                 // sameAs: symmetry + transitivity
-                let sameas: Vec<(u32, u32)> = triple_set.iter()
+                let sameas: Vec<(u32, u32)> = triple_set
+                    .iter()
                     .filter(|&&(_, p, _)| p == owl_sameas)
-                    .map(|&(s, _, o)| (s, o)).collect();
+                    .map(|&(s, _, o)| (s, o))
+                    .collect();
                 for &(a, b) in &sameas {
                     new.push((b, owl_sameas, a));
                 }
@@ -586,18 +643,24 @@ impl Reasoner {
                 // cls-svf1: x P y, y type filler, restriction(P, svf=filler),
                 //           class subClassOf restriction → x type class
                 for &(prop, filler, restr) in &svf_rules {
-                    let prop_pairs: Vec<(u32, u32)> = triple_set.iter()
+                    let prop_pairs: Vec<(u32, u32)> = triple_set
+                        .iter()
                         .filter(|&&(_, p, _)| p == prop)
-                        .map(|&(s, _, o)| (s, o)).collect();
+                        .map(|&(s, _, o)| (s, o))
+                        .collect();
 
-                    let filler_insts: HashSet<u32> = type_idx.iter()
+                    let filler_insts: HashSet<u32> = type_idx
+                        .iter()
                         .filter(|&&(_, cls)| cls == filler)
-                        .map(|&(inst, _)| inst).collect();
+                        .map(|&(inst, _)| inst)
+                        .collect();
 
                     // Classes whose superclass is this restriction
-                    let parent_classes: Vec<u32> = subclass_idx.iter()
+                    let parent_classes: Vec<u32> = subclass_idx
+                        .iter()
                         .filter(|&&(_, sup)| sup == restr)
-                        .map(|&(sub, _)| sub).collect();
+                        .map(|&(sub, _)| sub)
+                        .collect();
 
                     for &(x, y) in &prop_pairs {
                         if filler_insts.contains(&y) || y == filler {
@@ -612,9 +675,11 @@ impl Reasoner {
                 // cls-hv: x type class, class subClassOf restriction(P, hasValue v) → x P v
                 // and:    x P v, restriction(P, hasValue v) → x type restriction
                 for &(prop, val, restr) in &hv_rules {
-                    let parent_classes: Vec<u32> = subclass_idx.iter()
+                    let parent_classes: Vec<u32> = subclass_idx
+                        .iter()
                         .filter(|&&(_, sup)| sup == restr)
-                        .map(|&(sub, _)| sub).collect();
+                        .map(|&(sub, _)| sub)
+                        .collect();
 
                     for &cls in &parent_classes {
                         for &(x, c) in &type_idx {
@@ -634,9 +699,10 @@ impl Reasoner {
                 for (cls, members) in &intersection_classes {
                     for &(x, _) in &type_idx {
                         if let Some(x_types) = inst_types.get(&x)
-                            && members.iter().all(|m| x_types.contains(m)) {
-                                new.push((x, rdf_type, *cls));
-                            }
+                            && members.iter().all(|m| x_types.contains(m))
+                        {
+                            new.push((x, rdf_type, *cls));
+                        }
                     }
                 }
 
@@ -655,7 +721,8 @@ impl Reasoner {
                 triple_set.insert(t);
             }
 
-            if triple_set.len() == before || iterations >= crate::runtime::reasoner_max_iterations() {
+            if triple_set.len() == before || iterations >= crate::runtime::reasoner_max_iterations()
+            {
                 break;
             }
         }
@@ -681,7 +748,8 @@ impl Reasoner {
 
         // Sample
         let original: HashSet<(u32, u32, u32)> = facts.iter().copied().collect();
-        let sample: Vec<String> = triple_set.iter()
+        let sample: Vec<String> = triple_set
+            .iter()
             .filter(|t| !original.contains(t))
             .filter(|&&(_, p, _)| p == rdf_type)
             .take(10)

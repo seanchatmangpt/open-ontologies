@@ -252,10 +252,7 @@ pub fn emit_earl_report(receipt: &Receipt, gate_results: &[(&str, GateOutcome)])
 
     // Receipt subject declaration + per-gate forward `cell8:hasGate` edges.
     s.push_str(&format!("<{receipt_iri}> a earl:TestSubject ;\n"));
-    s.push_str(&format!(
-        "    dcterms:identifier \"{}\" ;\n",
-        receipt.hex()
-    ));
+    s.push_str(&format!("    dcterms:identifier \"{}\" ;\n", receipt.hex()));
     // Emit one cell8:hasGate per assertion so the SHACL shape can count
     // coverage on a forward path.
     let last = gate_results.len().saturating_sub(1);
@@ -276,9 +273,7 @@ pub fn emit_earl_report(receipt: &Receipt, gate_results: &[(&str, GateOutcome)])
         };
         s.push_str("[] a earl:Assertion ;\n");
         s.push_str(&format!("    earl:subject <{receipt_iri}> ;\n"));
-        s.push_str(&format!(
-            "    earl:test <urn:ontostar:gate:{gate}> ;\n"
-        ));
+        s.push_str(&format!("    earl:test <urn:ontostar:gate:{gate}> ;\n"));
         s.push_str("    earl:result [\n");
         s.push_str("        a earl:TestResult ;\n");
         s.push_str(&format!("        earl:outcome {outcome_iri} ;\n"));

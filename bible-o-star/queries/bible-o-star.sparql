@@ -1,0 +1,311 @@
+# Bible O* SPARQL Query Library
+# Ontology: https://open-ontologies.org/bible-o-star#
+# Source: nehemiah-52.ttl + bible-o-star.ttl
+# License: CC BY 4.0
+#
+# PREFIX declarations are repeated in each query for standalone executability.
+
+# =============================================================================
+# list_all_gates
+# SELECT all 10 sanctioned bos:Gate instances with label and comment.
+# =============================================================================
+
+PREFIX bos: <https://open-ontologies.org/bible-o-star#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX owl: <http://www.w3.org/2002/07/owl#>
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+
+SELECT ?gate ?label ?comment ?canonicalRef
+WHERE {
+  ?gate a bos:Gate .
+  OPTIONAL { ?gate rdfs:label ?label . }
+  OPTIONAL { ?gate rdfs:comment ?comment . }
+  OPTIONAL { ?gate bos:hasCanonicalReference ?canonicalRef . }
+}
+ORDER BY ?canonicalRef
+
+
+# =============================================================================
+# list_builders_by_gate
+# SELECT builders and their assigned gates.
+# =============================================================================
+
+PREFIX bos: <https://open-ontologies.org/bible-o-star#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX owl: <http://www.w3.org/2002/07/owl#>
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+
+SELECT ?builder ?builderLabel ?gate ?gateLabel
+WHERE {
+  ?builder a bos:Builder .
+  OPTIONAL { ?builder rdfs:label ?builderLabel . }
+  OPTIONAL {
+    ?builder bos:assignedToGate ?gate .
+    OPTIONAL { ?gate rdfs:label ?gateLabel . }
+  }
+  OPTIONAL {
+    ?builder bos:repairsGate ?gate .
+    OPTIONAL { ?gate rdfs:label ?gateLabel . }
+  }
+}
+ORDER BY ?gateLabel ?builderLabel
+
+
+# =============================================================================
+# list_wall_sections
+# SELECT wall sections with their assigned builder and gate.
+# =============================================================================
+
+PREFIX bos: <https://open-ontologies.org/bible-o-star#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX owl: <http://www.w3.org/2002/07/owl#>
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+
+SELECT ?section ?sectionLabel ?builder ?builderLabel ?gate ?gateLabel
+WHERE {
+  ?section a bos:WallSection .
+  OPTIONAL { ?section rdfs:label ?sectionLabel . }
+  OPTIONAL {
+    ?section bos:hasBuilder ?builder .
+    OPTIONAL { ?builder rdfs:label ?builderLabel . }
+  }
+  OPTIONAL {
+    { ?section bos:assignedToGate ?gate . }
+    UNION
+    { ?gate bos:hasWallSection ?section . }
+    OPTIONAL { ?gate rdfs:label ?gateLabel . }
+  }
+}
+ORDER BY ?sectionLabel
+
+
+# =============================================================================
+# find_false_reports
+# SELECT all FalseReport instances with their refused payload and gate.
+# =============================================================================
+
+PREFIX bos: <https://open-ontologies.org/bible-o-star#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX owl: <http://www.w3.org/2002/07/owl#>
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+
+SELECT ?report ?reportLabel ?comment ?refusesPoison ?classifiedPayload ?gate ?gateLabel
+WHERE {
+  ?report a bos:FalseReport .
+  OPTIONAL { ?report rdfs:label ?reportLabel . }
+  OPTIONAL { ?report rdfs:comment ?comment . }
+  OPTIONAL { ?report bos:refusesPoison ?refusesPoison . }
+  OPTIONAL { ?report bos:classifiesPayload ?classifiedPayload . }
+  OPTIONAL {
+    ?courierRecord bos:routesToGate ?gate .
+    ?courierRecord bos:classifiesPayload ?classifiedPayload .
+    OPTIONAL { ?gate rdfs:label ?gateLabel . }
+  }
+}
+ORDER BY ?reportLabel
+
+
+# =============================================================================
+# list_mocker_feedback
+# SELECT all MockerFeedback instances with their adversarial comments.
+# =============================================================================
+
+PREFIX bos: <https://open-ontologies.org/bible-o-star#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX owl: <http://www.w3.org/2002/07/owl#>
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+
+SELECT ?feedback ?feedbackLabel ?comment ?signal ?mocker ?mockerLabel
+WHERE {
+  ?feedback a bos:MockerFeedback .
+  OPTIONAL { ?feedback rdfs:label ?feedbackLabel . }
+  OPTIONAL { ?feedback rdfs:comment ?comment . }
+  OPTIONAL { ?feedback bos:extractsSignal ?signal . }
+  OPTIONAL {
+    ?mocker bos:hasMockerFeedback ?feedback .
+    OPTIONAL { ?mocker rdfs:label ?mockerLabel . }
+  }
+}
+ORDER BY ?mockerLabel ?feedbackLabel
+
+
+# =============================================================================
+# list_inspection_receipts
+# SELECT all InspectionReceipt instances with verdict and source.
+# =============================================================================
+
+PREFIX bos: <https://open-ontologies.org/bible-o-star#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX owl: <http://www.w3.org/2002/07/owl#>
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+
+SELECT ?receipt ?receiptLabel ?verdict ?verdictLabel ?source ?sourceLabel
+WHERE {
+  ?receipt a bos:InspectionReceipt .
+  OPTIONAL { ?receipt rdfs:label ?receiptLabel . }
+  OPTIONAL {
+    ?receipt bos:hasVerdict ?verdict .
+    OPTIONAL { ?verdict rdfs:label ?verdictLabel . }
+  }
+  OPTIONAL {
+    ?receipt bos:hasSource ?source .
+    OPTIONAL { ?source rdfs:label ?sourceLabel . }
+  }
+}
+ORDER BY ?receiptLabel
+
+
+# =============================================================================
+# find_cross_references_for_passage
+# SELECT cross-references for a given passage (parameterized with ?passage).
+# Usage: bind a specific passage IRI to ?passage before executing, e.g.:
+#   BIND(<https://open-ontologies.org/bible-o-star#Neh.3.1> AS ?passage)
+# =============================================================================
+
+PREFIX bos: <https://open-ontologies.org/bible-o-star#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX owl: <http://www.w3.org/2002/07/owl#>
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+
+SELECT ?passage ?passageLabel ?crossRef ?crossRefLabel ?canonicalRef
+WHERE {
+  # Bind a specific passage IRI here to filter results:
+  # BIND(<https://open-ontologies.org/bible-o-star#Neh.3.1> AS ?passage)
+  ?passage a bos:Passage .
+  ?passage bos:hasCrossReference ?crossRef .
+  OPTIONAL { ?passage rdfs:label ?passageLabel . }
+  OPTIONAL { ?crossRef rdfs:label ?crossRefLabel . }
+  OPTIONAL { ?crossRef bos:hasCanonicalReference ?canonicalRef . }
+}
+ORDER BY ?passageLabel ?canonicalRef
+
+
+# =============================================================================
+# list_courier_records
+# SELECT courier records with routing gate and payload classification.
+# =============================================================================
+
+PREFIX bos: <https://open-ontologies.org/bible-o-star#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX owl: <http://www.w3.org/2002/07/owl#>
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+
+SELECT ?record ?recordLabel ?courier ?courierLabel ?routingGate ?gateLabel ?payloadClass
+WHERE {
+  ?record a bos:CourierRecord .
+  OPTIONAL { ?record rdfs:label ?recordLabel . }
+  OPTIONAL {
+    ?courier bos:hasCourierRecord ?record .
+    OPTIONAL { ?courier rdfs:label ?courierLabel . }
+  }
+  OPTIONAL {
+    ?record bos:routesToGate ?routingGate .
+    OPTIONAL { ?routingGate rdfs:label ?gateLabel . }
+  }
+  OPTIONAL { ?record bos:classifiesPayload ?payloadClass . }
+}
+ORDER BY ?courierLabel ?gateLabel
+
+
+# =============================================================================
+# list_usury_audit_records
+# SELECT usury ledger records with source and builder.
+# =============================================================================
+
+PREFIX bos: <https://open-ontologies.org/bible-o-star#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX owl: <http://www.w3.org/2002/07/owl#>
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+
+SELECT ?record ?recordLabel ?comment ?ledger ?ledgerLabel ?source ?sourceLabel ?builder ?builderLabel
+WHERE {
+  ?record a bos:UsuryLedgerRecord .
+  OPTIONAL { ?record rdfs:label ?recordLabel . }
+  OPTIONAL { ?record rdfs:comment ?comment . }
+  OPTIONAL {
+    ?ledger bos:hasUsuryAudit ?record .
+    OPTIONAL { ?ledger rdfs:label ?ledgerLabel . }
+  }
+  OPTIONAL {
+    ?record bos:hasSource ?source .
+    OPTIONAL { ?source rdfs:label ?sourceLabel . }
+  }
+  OPTIONAL {
+    ?record bos:hasBuilder ?builder .
+    OPTIONAL { ?builder rdfs:label ?builderLabel . }
+  }
+}
+ORDER BY ?ledgerLabel ?recordLabel
+
+
+# =============================================================================
+# list_muster_records
+# SELECT muster ledger records with builder names and gate assignments.
+# =============================================================================
+
+PREFIX bos: <https://open-ontologies.org/bible-o-star#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX owl: <http://www.w3.org/2002/07/owl#>
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+
+SELECT ?record ?recordLabel ?comment ?ledger ?ledgerLabel ?builder ?builderLabel ?gate ?gateLabel
+WHERE {
+  ?record a bos:MusterLedgerRecord .
+  OPTIONAL { ?record rdfs:label ?recordLabel . }
+  OPTIONAL { ?record rdfs:comment ?comment . }
+  OPTIONAL {
+    ?ledger bos:hasMusterRecord ?record .
+    OPTIONAL { ?ledger rdfs:label ?ledgerLabel . }
+  }
+  OPTIONAL {
+    ?record bos:hasBuilder ?builder .
+    OPTIONAL { ?builder rdfs:label ?builderLabel . }
+    OPTIONAL {
+      ?builder bos:assignedToGate ?gate .
+      OPTIONAL { ?gate rdfs:label ?gateLabel . }
+    }
+  }
+}
+ORDER BY ?ledgerLabel ?builderLabel
+
+
+# =============================================================================
+# find_refused_fake_gates
+# SELECT all owl:deprecated gate names (the 7 fake gates).
+# =============================================================================
+
+PREFIX bos: <https://open-ontologies.org/bible-o-star#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX owl: <http://www.w3.org/2002/07/owl#>
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+
+SELECT ?fakeGate ?label ?comment
+WHERE {
+  ?fakeGate owl:deprecated true .
+  OPTIONAL { ?fakeGate rdfs:label ?label . }
+  OPTIONAL { ?fakeGate rdfs:comment ?comment . }
+}
+ORDER BY ?label
+
+
+# =============================================================================
+# list_prophetic_proclamations
+# SELECT all PropheticProclamation instances with label and proclamation text.
+# =============================================================================
+
+PREFIX bos: <https://open-ontologies.org/bible-o-star#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX owl: <http://www.w3.org/2002/07/owl#>
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+
+SELECT ?proclamation ?label ?comment ?prophetOffice ?officeLabel
+WHERE {
+  ?proclamation a bos:PropheticProclamation .
+  OPTIONAL { ?proclamation rdfs:label ?label . }
+  OPTIONAL { ?proclamation rdfs:comment ?comment . }
+  OPTIONAL {
+    ?prophetOffice bos:hasProclamation ?proclamation .
+    OPTIONAL { ?prophetOffice rdfs:label ?officeLabel . }
+  }
+}
+ORDER BY ?officeLabel ?label

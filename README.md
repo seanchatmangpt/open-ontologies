@@ -1,43 +1,38 @@
-<!-- mcp-name: io.github.fabio-rovai/open-ontologies -->
+# Open Ontologies - RDF Command Vocabulary
 
-# OntoStar
+RDF-based ontology for the `clap-noun-verb` CLI framework version 26.6.1.
 
-**Receipt-bound recursive admission for AI-manufactured software.**
+**Test totals:** 714 `#[test]` functions across `tests/`
 
-[![CI](https://img.shields.io/badge/CI-pending-lightgrey?style=flat-square)](https://github.com/fabio-rovai/open-ontologies/actions)
-[![docs](https://img.shields.io/badge/docs-docs%2F-blue?style=flat-square)](docs/00-overview.md)
-[![crate](https://img.shields.io/badge/crate-pending-lightgrey?style=flat-square)](https://crates.io/crates/open-ontologies)
-[![license](https://img.shields.io/badge/license-MIT-green?style=flat-square)](LICENSE)
+## Files
 
----
+### Core Ontology
 
 ## Why this exists
 
-LLMs cannot be trusted as authority. They produce plausible artifacts at high speed,
-but plausibility is not provenance, and a passing test does not prove that a lawful
-process happened. OntoStar is the layer that turns an LLM into a *manufacturing
-operator* whose every output must pass through admission gates before it is allowed
-to exist.
+### Version-Specific Commands
 
-Requirements, work orders, mutations, and emitted artifacts are not the same kind
-of object — they break in different ways and they need different gates.
-Requirements need CTQ admission. Work orders need ontological alignment. Mutations
-need conformance replay. Emitted artifacts need cryptographic receipts. OntoStar
-gives each its own gate and refuses to let upstream admission excuse downstream
-failure.
+**`v26.6.1-commands.ttl`** (153 triples)
+- Command definitions for all 6 verbs in clap-noun-verb v26.6.1
+- Three noun namespaces:
+  - **graph** (3 verbs): load, query, validate
+  - **pack** (2 verbs): add, remove
+  - **doctor** (1 verb): check
+- Full metadata for each verb: docstring, handler, parameters, return types, errors, examples
 
-Every artifact carries its receipt of admission. The receipt is a BLAKE3-chained
-record of (a) which gate granted it, (b) what the inputs hashed to, (c) which
-session and tenant it belongs to, and (d) what came before it in the chain.
-When a signing key is configured (`OPEN_ONTOLOGIES_SIGNING_KEY_PATH`), each
-record is additionally Ed25519-signed; the Cell8 A10 conjunct then verifies the
-signature with `verify_strict` against a trust set loaded from
-`OPEN_ONTOLOGIES_TRUSTED_KEYS_DIR`. Without a signing key, receipts are emitted
-unsigned and admitted by A10 only when `[admission] verify_legacy_receipts =
-true`; otherwise A10 raises `DefectClass::AttestationMissing`. An external
-verifier can replay the chain offline. Fix-forward is the only way out.
+### SPARQL Queries
 
-## Architecture
+**`queries/cli-commands.sparql`**
+- 15 query patterns for discovering and analyzing CLI commands
+- Examples:
+  - `list_all_verbs` - Get all commands by namespace
+  - `get_verb_definition` - Full metadata for a specific verb
+  - `required_parameters` - Input validation rules
+  - `output_type_schema` - Output structure and serialization
+  - `error_reference` - Error handling guide
+  - `namespace_parameters` - Per-namespace parameter definitions
+  - `commands_per_namespace` - Capacity metrics
+  - `parameter_types` - Type system analysis
 
 ```
                     Requirement (NL / DSPy signature)
@@ -75,10 +70,8 @@ verifier can replay the chain offline. Fix-forward is the only way out.
 ## Quickstart
 
 ```bash
-git clone https://github.com/fabio-rovai/open-ontologies && cd open-ontologies
-cargo build --release
-./target/release/open-ontologies mcp start --transport stdio       # serve
-./target/release/open-ontologies verify --receipt .ggen/receipts/latest.json
+# Generate CLI scaffolding from RDF vocabulary
+clap-noun-verb-gen --from-ontology=v26.6.1-commands.ttl --output=generated-cli.rs
 ```
 
 A receipt that fails to verify exits non-zero and prints the broken link in the

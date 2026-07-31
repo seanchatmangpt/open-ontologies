@@ -52,12 +52,15 @@ fn validate_load_query_roundtrip() {
     // Stats
     let stats = graph.get_stats().unwrap();
     let stats_val: serde_json::Value = serde_json::from_str(&stats).unwrap();
-    assert!(stats_val["classes"].as_u64().unwrap() >= 3, "Should have at least 3 classes");
+    assert!(
+        stats_val["classes"].as_u64().unwrap() >= 3,
+        "Should have at least 3 classes"
+    );
 
     // SPARQL query
-    let result = graph.sparql_select(
-        "SELECT ?c WHERE { ?c a <http://www.w3.org/2002/07/owl#Class> } ORDER BY ?c"
-    ).unwrap();
+    let result = graph
+        .sparql_select("SELECT ?c WHERE { ?c a <http://www.w3.org/2002/07/owl#Class> } ORDER BY ?c")
+        .unwrap();
     assert!(result.contains("Animal"), "Should find Animal class");
     assert!(result.contains("Dog"), "Should find Dog class");
     assert!(result.contains("Cat"), "Should find Cat class");
@@ -74,7 +77,10 @@ ex:Unlabeled a owl:Class .
 "#;
     let report = OntologyService::lint(no_label).unwrap();
     let val: serde_json::Value = serde_json::from_str(&report).unwrap();
-    assert!(val["issue_count"].as_u64().unwrap() > 0, "Should detect missing label");
+    assert!(
+        val["issue_count"].as_u64().unwrap() > 0,
+        "Should detect missing label"
+    );
 }
 
 #[test]
@@ -88,7 +94,11 @@ fn version_save_and_rollback() {
 
     // Save version
     let save_result = OntologyService::save_version(&db, &graph, "v1");
-    assert!(save_result.is_ok(), "Version save failed: {:?}", save_result.err());
+    assert!(
+        save_result.is_ok(),
+        "Version save failed: {:?}",
+        save_result.err()
+    );
 
     // Clear and verify empty
     graph.clear().unwrap();
@@ -96,8 +106,15 @@ fn version_save_and_rollback() {
 
     // Rollback
     let rollback_result = OntologyService::rollback_version(&db, &graph, "v1");
-    assert!(rollback_result.is_ok(), "Rollback failed: {:?}", rollback_result.err());
-    assert!(graph.triple_count() > 0, "Should have triples after rollback");
+    assert!(
+        rollback_result.is_ok(),
+        "Rollback failed: {:?}",
+        rollback_result.err()
+    );
+    assert!(
+        graph.triple_count() > 0,
+        "Should have triples after rollback"
+    );
 }
 
 #[test]
@@ -122,8 +139,14 @@ ex:Fish a owl:Class ;
     let diff = OntologyService::diff(original, modified).unwrap();
     let val: serde_json::Value = serde_json::from_str(&diff).unwrap();
     // Cat removed, Fish added
-    assert!(val["removed"].as_u64().unwrap() > 0, "Should detect removals");
-    assert!(val["added"].as_u64().unwrap() > 0, "Should detect additions");
+    assert!(
+        val["removed"].as_u64().unwrap() > 0,
+        "Should detect removals"
+    );
+    assert!(
+        val["added"].as_u64().unwrap() > 0,
+        "Should detect additions"
+    );
 }
 
 #[test]

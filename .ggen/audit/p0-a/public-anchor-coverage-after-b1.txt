@@ -1,0 +1,14 @@
+Unanchored ZOE classes: 13
+https://zoela.org/ontology/AdmissionCondition
+https://zoela.org/ontology/AdmissionGate
+https://zoela.org/ontology/ConsentRequirement
+https://zoela.org/ontology/EscalationRule
+https://zoela.org/ontology/GroupCapacityRule
+https://zoela.org/ontology/GroupSchedule
+https://zoela.org/ontology/GroupSeason
+https://zoela.org/ontology/OcelObjectRef
+https://zoela.org/ontology/PushCardTemplate
+https://zoela.org/ontology/ResourceNeedMatch
+https://zoela.org/ontology/SensitivityClassification
+https://zoela.org/ontology/SpotReservation
+https://zoela.org/ontology/WaitlistEntry

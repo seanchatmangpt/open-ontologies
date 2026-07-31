@@ -84,10 +84,7 @@ pub struct MinedExemplar {
 /// let result = maybe_mine_exemplar("scope-no-receipt", &store).unwrap();
 /// assert!(result.is_none());
 /// ```
-pub fn maybe_mine_exemplar(
-    scope_token: &str,
-    store: &OcelStore,
-) -> Result<Option<MinedExemplar>> {
+pub fn maybe_mine_exemplar(scope_token: &str, store: &OcelStore) -> Result<Option<MinedExemplar>> {
     let db = store.db();
     let conn = db.conn();
 
@@ -126,7 +123,13 @@ pub fn maybe_mine_exemplar(
             "SELECT fitness, workflow_class, scope_token FROM conformance_runs
              WHERE scope_token = ?1 ORDER BY ran_at DESC LIMIT 1",
             rusqlite::params![scope_token],
-            |r| Ok((r.get::<_, f64>(0)?, r.get::<_, Option<String>>(1)?, r.get::<_, Option<String>>(2)?)),
+            |r| {
+                Ok((
+                    r.get::<_, f64>(0)?,
+                    r.get::<_, Option<String>>(1)?,
+                    r.get::<_, Option<String>>(2)?,
+                ))
+            },
         )
         .optional()?;
     let Some((fitness, workflow_class, _)) = run else {
@@ -137,7 +140,12 @@ pub fn maybe_mine_exemplar(
     }
 
     // 4. Find a powl_string + domain. Best-effort: pull declared workflow if Stream 1 schema is present.
-    let (domain, powl_string, problem_context, source_session): (String, String, String, Option<String>) = conn
+    let (domain, powl_string, problem_context, source_session): (
+        String,
+        String,
+        String,
+        Option<String>,
+    ) = conn
         .query_row(
             "SELECT name, powl_string, COALESCE(name, 'unknown'), session_id
              FROM declared_workflows WHERE scope_token = ?1",

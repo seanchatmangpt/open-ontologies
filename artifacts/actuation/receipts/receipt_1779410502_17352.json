@@ -1,0 +1,33 @@
+{
+  "receipt_type": "GeminiCliActuationReceipt",
+  "action_id": "JTBD-001",
+  "requested_by": "open-ontologies",
+  "actuator": "gemini-cli",
+  "working_directory": "/Users/sac/open-ontologies",
+  "command": "STRICT EXECUTION DIRECTIVE: Execute the following shell command exactly as written. Do not attempt to debug, alter, or retry if it fails. Output only the command results. Command: bash scripts/gh-create-issue.sh JTBD-001 architect \"Autonomic GHF Verification\"",
+  "inputs_hash": "8231494594b83871161e92d38731d9ebff65a0c87c3c1adb42ab782dd381d8a6",
+  "stdout_hash": "f4d9f4f01305a1a4d0c66f19c22c50b2d8303e77a194161f189920659489496b",
+  "stderr_hash": "2ec7813ce3c2033c2129167785d024847f03167f422f86ac594f2d34c0f929e5",
+  "exit_code": 0,
+  "files_changed": [
+    "artifacts/actuation/plans/OA-1.actuation-plan.json",
+    "artifacts/actuation/plans/OA-2.actuation-plan.json",
+    "artifacts/actuation/plans/OA-3.actuation-plan.json",
+    "artifacts/autoreceipt/AUTORECEIPT_CLOSURE_CERTIFICATE.v26.5.21.json",
+    "artifacts/autoreceipt/alignment/OA-1.alignment.receipt.json",
+    "artifacts/autoreceipt/alignment/OA-2.alignment.receipt.json",
+    "artifacts/autoreceipt/alignment/OA-3.alignment.receipt.json",
+    "artifacts/autoreceipt/observed-ocel/OA-1.observed.ocel.json",
+    "artifacts/autoreceipt/observed-ocel/OA-2.observed.ocel.json",
+    "artifacts/autoreceipt/observed-ocel/OA-3.observed.ocel.json"
+  ],
+  "git_before": "d645b57b02282d1bc96616c01455915f4cfab8b8",
+  "git_after": "d645b57b02282d1bc96616c01455915f4cfab8b8",
+  "policy_id": "auto_receipt_batch",
+  "actor_basis8": "persona_autonomous",
+  "boundary_type": "headless_membrane",
+  "allowed": true,
+  "refusal_code": null,
+  "created_at": "2026-05-22T00:41:14Z",
+  "receipt_hash": "67ad4088e821ab9bf2203f102d4ae1af0f7972e4a6bf156c59e736d1a1c66866"
+}

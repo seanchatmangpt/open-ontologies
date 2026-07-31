@@ -309,19 +309,21 @@ const PREDICATE_PREFIXES: &[&str] = &[
 /// assert!(!has_scheme("locationCreated")); // camelCase predicate
 /// assert!(!has_scheme(""));               // empty string
 /// ```
-fn ground_with_prefixes(
-    graph: &Arc<GraphStore>,
-    s: &str,
-    p: &str,
-    o: &str,
-) -> (u64, u64) {
+fn ground_with_prefixes(graph: &Arc<GraphStore>, s: &str, p: &str, o: &str) -> (u64, u64) {
     // If s/p/o already look like full IRIs, try them directly first
-    let s_has_scheme = s.starts_with("http://") || s.starts_with("https://") || s.starts_with("urn:");
-    let p_has_scheme = p.starts_with("http://") || p.starts_with("https://") || p.starts_with("urn:");
-    let o_has_scheme = o.starts_with("http://") || o.starts_with("https://") || o.starts_with("urn:");
+    let s_has_scheme =
+        s.starts_with("http://") || s.starts_with("https://") || s.starts_with("urn:");
+    let p_has_scheme =
+        p.starts_with("http://") || p.starts_with("https://") || p.starts_with("urn:");
+    let o_has_scheme =
+        o.starts_with("http://") || o.starts_with("https://") || o.starts_with("urn:");
 
     let s_prefixes: &[&str] = if s_has_scheme { &[""] } else { ENTITY_PREFIXES };
-    let p_prefixes: &[&str] = if p_has_scheme { &[""] } else { PREDICATE_PREFIXES };
+    let p_prefixes: &[&str] = if p_has_scheme {
+        &[""]
+    } else {
+        PREDICATE_PREFIXES
+    };
     let o_prefixes: &[&str] = if o_has_scheme { &[""] } else { ENTITY_PREFIXES };
 
     let best_evidence: u64 = 0;
@@ -335,9 +337,8 @@ fn ground_with_prefixes(
                 let full_o = format!("{op}{o}");
 
                 // Try as IRI object
-                let iri_query = format!(
-                    "SELECT (COUNT(*) AS ?c) WHERE {{ <{full_s}> <{full_p}> <{full_o}> }}"
-                );
+                let iri_query =
+                    format!("SELECT (COUNT(*) AS ?c) WHERE {{ <{full_s}> <{full_p}> <{full_o}> }}");
                 let iri_count = run_count_query(graph, &iri_query);
 
                 // Also try as literal object (for dates, strings, etc.)
@@ -388,10 +389,16 @@ fn handle_ground(graph: &Arc<GraphStore>, triples: &[Triple]) -> serde_json::Val
         let (evidence_count, contra_count) = ground_with_prefixes(graph, &t.s, &t.p, &t.o);
 
         let (status, confidence) = if evidence_count > 0 && contra_count == 0 {
-            ("grounded", std::cmp::min(50 + (evidence_count as u32) * 15, 100))
+            (
+                "grounded",
+                std::cmp::min(50 + (evidence_count as u32) * 15, 100),
+            )
         } else if evidence_count > 0 && contra_count > 0 {
             // Evidence exists but so do contradictions — partial
-            ("grounded", std::cmp::min(30 + (evidence_count as u32) * 10, 70))
+            (
+                "grounded",
+                std::cmp::min(30 + (evidence_count as u32) * 10, 70),
+            )
         } else if contra_count > 0 {
             ("contradicted", 0)
         } else {
@@ -410,10 +417,7 @@ fn handle_ground(graph: &Arc<GraphStore>, triples: &[Triple]) -> serde_json::Val
 
 // ── Consistency check ────────────────────────────────────────────────
 
-fn handle_check_consistency(
-    graph: &Arc<GraphStore>,
-    triples: &[Triple],
-) -> serde_json::Value {
+fn handle_check_consistency(graph: &Arc<GraphStore>, triples: &[Triple]) -> serde_json::Value {
     // Build INSERT DATA body
     let mut insert_body = String::new();
     for t in triples {
@@ -496,9 +500,10 @@ fn run_count_query(graph: &Arc<GraphStore>, query: &str) -> u64 {
             // sparql_select returns {"variables":["c"],"results":[{"c":"\"3\"^^…"}]}
             if let Ok(v) = serde_json::from_str::<serde_json::Value>(&json_str)
                 && let Some(row) = v["results"].as_array().and_then(|a| a.first())
-                && let Some(val) = row["c"].as_str() {
-                    // Oxigraph wraps the value like  "\"3\"^^<…integer>"
-                    return parse_sparql_integer(val);
+                && let Some(val) = row["c"].as_str()
+            {
+                // Oxigraph wraps the value like  "\"3\"^^<…integer>"
+                return parse_sparql_integer(val);
             }
             0
         }
@@ -542,11 +547,7 @@ fn run_count_query(graph: &Arc<GraphStore>, query: &str) -> u64 {
 /// ```
 fn parse_sparql_integer(raw: &str) -> u64 {
     // Strip surrounding quotes and datatype suffix
-    let s = raw
-        .trim_start_matches('"')
-        .split('"')
-        .next()
-        .unwrap_or("0");
+    let s = raw.trim_start_matches('"').split('"').next().unwrap_or("0");
     s.parse::<u64>().unwrap_or(0)
 }
 
@@ -556,8 +557,14 @@ mod tests {
 
     #[test]
     fn parse_sparql_integer_variants() {
-        assert_eq!(parse_sparql_integer("\"3\"^^<http://www.w3.org/2001/XMLSchema#integer>"), 3);
-        assert_eq!(parse_sparql_integer("\"0\"^^<http://www.w3.org/2001/XMLSchema#integer>"), 0);
+        assert_eq!(
+            parse_sparql_integer("\"3\"^^<http://www.w3.org/2001/XMLSchema#integer>"),
+            3
+        );
+        assert_eq!(
+            parse_sparql_integer("\"0\"^^<http://www.w3.org/2001/XMLSchema#integer>"),
+            0
+        );
         assert_eq!(parse_sparql_integer("\"42\""), 42);
         assert_eq!(parse_sparql_integer("bad"), 0);
     }

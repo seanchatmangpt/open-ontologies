@@ -5,7 +5,7 @@
 //! recomputing the BLAKE3 of the body must equal the `ostar-artifact-hash`
 //! line. Mutating the body must break the equality.
 
-use open_ontologies::production_record::{hex32_pub, ProductionRecord};
+use open_ontologies::production_record::{ProductionRecord, hex32_pub};
 use open_ontologies::receipts::{self, Receipt};
 
 fn body_hash_after_stripping_header(file_bytes: &[u8]) -> [u8; 32] {
@@ -17,9 +17,8 @@ fn body_hash_after_stripping_header(file_bytes: &[u8]) -> [u8; 32] {
         let trimmed = line.trim_end_matches('\n').trim_end_matches('\r');
         let is_header = trimmed.starts_with("# ostar-")
             && trimmed
-                .splitn(2, ": ")
-                .nth(1)
-                .map(|v| !v.is_empty())
+                .split_once(": ")
+                .map(|(_, v)| !v.is_empty())
                 .unwrap_or(false);
         if is_header {
             body_start += line.len();
@@ -68,8 +67,7 @@ fn ttl_header_round_trips_with_blake3_verify() {
     // the `ostar-artifact-hash` line value.
     let computed = body_hash_after_stripping_header(&file_bytes);
     assert_eq!(
-        computed,
-        receipt.record.artifact_hash,
+        computed, receipt.record.artifact_hash,
         "stripped-body BLAKE3 must equal ostar-artifact-hash"
     );
 
@@ -116,8 +114,7 @@ fn ttl_header_verification_fails_when_body_is_mutated() {
 
     let computed = body_hash_after_stripping_header(&file_bytes);
     assert_ne!(
-        computed,
-        receipt.record.artifact_hash,
+        computed, receipt.record.artifact_hash,
         "tampered body must NOT match ostar-artifact-hash"
     );
 }

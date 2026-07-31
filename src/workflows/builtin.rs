@@ -94,8 +94,7 @@ pub static BUILTIN_WORKFLOWS: &[BuiltinWorkflow] = &[
         name: "OntologyAuthoring",
         // SEQ(load, validate, * (X (invalid, fix), validate), reason,
         //     PO{lint, enforce_run}, save, version)
-        powl_string:
-            "PO=(nodes={load, validate, * (X (invalid, fix), validate), reason, PO=(nodes={lint, enforce_run}, order={}), save, version}, order={load-->validate, validate-->* (X (invalid, fix), validate), * (X (invalid, fix), validate)-->reason, reason-->PO=(nodes={lint, enforce_run}, order={}), PO=(nodes={lint, enforce_run}, order={})-->save, save-->version})",
+        powl_string: "PO=(nodes={load, validate, * (X (invalid, fix), validate), reason, PO=(nodes={lint, enforce_run}, order={}), save, version}, order={load-->validate, validate-->* (X (invalid, fix), validate), * (X (invalid, fix), validate)-->reason, reason-->PO=(nodes={lint, enforce_run}, order={}), PO=(nodes={lint, enforce_run}, order={})-->save, save-->version})",
         alphabet: &[
             "load",
             "validate",
@@ -107,13 +106,19 @@ pub static BUILTIN_WORKFLOWS: &[BuiltinWorkflow] = &[
             "save",
             "version",
         ],
-        required_stages: &["load", "validate", "reason", "enforce_run", "save", "version"],
+        required_stages: &[
+            "load",
+            "validate",
+            "reason",
+            "enforce_run",
+            "save",
+            "version",
+        ],
     },
     BuiltinWorkflow {
         name: "DataExtension",
         // SEQ(map, ingest, PO{stats, shacl}, reason, query)
-        powl_string:
-            "PO=(nodes={map, ingest, PO=(nodes={stats, shacl}, order={}), reason, query}, order={map-->ingest, ingest-->PO=(nodes={stats, shacl}, order={}), PO=(nodes={stats, shacl}, order={})-->reason, reason-->query})",
+        powl_string: "PO=(nodes={map, ingest, PO=(nodes={stats, shacl}, order={}), reason, query}, order={map-->ingest, ingest-->PO=(nodes={stats, shacl}, order={}), PO=(nodes={stats, shacl}, order={})-->reason, reason-->query})",
         alphabet: &["map", "ingest", "stats", "shacl", "reason", "query"],
         required_stages: &["map", "ingest", "shacl", "reason", "query"],
     },
@@ -131,8 +136,7 @@ pub static BUILTIN_WORKFLOWS: &[BuiltinWorkflow] = &[
         //     PO{monitor_ok, monitor_alert, monitor_blocked},
         //     X (drift_detected, rollback))
         // CG{...} → XOR for now (TODO above).
-        powl_string:
-            "PO=(nodes={plan_computed, enforce_run, X (violations, enforce_run), X (apply_safe, apply_migrate, apply_force), PO=(nodes={monitor_ok, monitor_alert, monitor_blocked}, order={}), X (drift_detected, rollback)}, order={plan_computed-->enforce_run, enforce_run-->X (violations, enforce_run), X (violations, enforce_run)-->X (apply_safe, apply_migrate, apply_force), X (apply_safe, apply_migrate, apply_force)-->PO=(nodes={monitor_ok, monitor_alert, monitor_blocked}, order={}), PO=(nodes={monitor_ok, monitor_alert, monitor_blocked}, order={})-->X (drift_detected, rollback)})",
+        powl_string: "PO=(nodes={plan_computed, enforce_run, X (violations, enforce_run), X (apply_safe, apply_migrate, apply_force), PO=(nodes={monitor_ok, monitor_alert, monitor_blocked}, order={}), X (drift_detected, rollback)}, order={plan_computed-->enforce_run, enforce_run-->X (violations, enforce_run), X (violations, enforce_run)-->X (apply_safe, apply_migrate, apply_force), X (apply_safe, apply_migrate, apply_force)-->PO=(nodes={monitor_ok, monitor_alert, monitor_blocked}, order={}), PO=(nodes={monitor_ok, monitor_alert, monitor_blocked}, order={})-->X (drift_detected, rollback)})",
         alphabet: &[
             "plan_computed",
             "enforce_run",
@@ -155,18 +159,34 @@ pub static BUILTIN_WORKFLOWS: &[BuiltinWorkflow] = &[
         // partial order with unique node ids; we collapse to a single `load`
         // step (the alphabet still matches). TODO: revisit when POWL gains
         // labeled-instance disambiguation.
-        powl_string:
-            "PO=(nodes={load, embed, align_run, X (low_confidence, align_feedback)}, order={load-->embed, embed-->align_run, align_run-->X (low_confidence, align_feedback)})",
-        alphabet: &["load", "embed", "align_run", "low_confidence", "align_feedback"],
+        powl_string: "PO=(nodes={load, embed, align_run, X (low_confidence, align_feedback)}, order={load-->embed, embed-->align_run, align_run-->X (low_confidence, align_feedback)})",
+        alphabet: &[
+            "load",
+            "embed",
+            "align_run",
+            "low_confidence",
+            "align_feedback",
+        ],
         required_stages: &["load", "embed", "align_run"],
     },
     BuiltinWorkflow {
         name: "Codegen",
         // SEQ(load, validate, reason, codegen_run, lineage_recorded)
-        powl_string:
-            "PO=(nodes={load, validate, reason, codegen_run, lineage_recorded}, order={load-->validate, validate-->reason, reason-->codegen_run, codegen_run-->lineage_recorded})",
-        alphabet: &["load", "validate", "reason", "codegen_run", "lineage_recorded"],
-        required_stages: &["load", "validate", "reason", "codegen_run", "lineage_recorded"],
+        powl_string: "PO=(nodes={load, validate, reason, codegen_run, lineage_recorded}, order={load-->validate, validate-->reason, reason-->codegen_run, codegen_run-->lineage_recorded})",
+        alphabet: &[
+            "load",
+            "validate",
+            "reason",
+            "codegen_run",
+            "lineage_recorded",
+        ],
+        required_stages: &[
+            "load",
+            "validate",
+            "reason",
+            "codegen_run",
+            "lineage_recorded",
+        ],
     },
     BuiltinWorkflow {
         name: "GovernedRelease",
@@ -174,8 +194,7 @@ pub static BUILTIN_WORKFLOWS: &[BuiltinWorkflow] = &[
         // Sub-workflow names are kept as opaque activity labels here so the
         // top-level shape is replayable; the alphabet enumerates the named
         // sub-workflows plus the activities each of them admits.
-        powl_string:
-            "PO=(nodes={OntologyAuthoring, LifecycleApply, Codegen}, order={OntologyAuthoring-->LifecycleApply, LifecycleApply-->Codegen})",
+        powl_string: "PO=(nodes={OntologyAuthoring, LifecycleApply, Codegen}, order={OntologyAuthoring-->LifecycleApply, LifecycleApply-->Codegen})",
         alphabet: &["OntologyAuthoring", "LifecycleApply", "Codegen"],
         required_stages: &["OntologyAuthoring", "LifecycleApply", "Codegen"],
     },
@@ -188,8 +207,7 @@ pub static BUILTIN_WORKFLOWS: &[BuiltinWorkflow] = &[
         // SEQ(requirement_proposed, llm_candidate_translated, ctq_admitted,
         //     verification_bound, negative_case_bound, control_plan_bound,
         //     work_order_admitted)
-        powl_string:
-            "PO=(nodes={requirement_proposed, llm_candidate_translated, ctq_admitted, verification_bound, negative_case_bound, control_plan_bound, work_order_admitted}, order={requirement_proposed-->llm_candidate_translated, llm_candidate_translated-->ctq_admitted, ctq_admitted-->verification_bound, verification_bound-->negative_case_bound, negative_case_bound-->control_plan_bound, control_plan_bound-->work_order_admitted})",
+        powl_string: "PO=(nodes={requirement_proposed, llm_candidate_translated, ctq_admitted, verification_bound, negative_case_bound, control_plan_bound, work_order_admitted}, order={requirement_proposed-->llm_candidate_translated, llm_candidate_translated-->ctq_admitted, ctq_admitted-->verification_bound, verification_bound-->negative_case_bound, negative_case_bound-->control_plan_bound, control_plan_bound-->work_order_admitted})",
         alphabet: &[
             "requirement_proposed",
             "llm_candidate_translated",
@@ -220,8 +238,7 @@ pub static BUILTIN_WORKFLOWS: &[BuiltinWorkflow] = &[
         // _sealed stage is the gate fire that proves all 4 generators
         // emitted non-empty bytes AND each artifact carries the
         // upstream WorkOrderAdmitted receipt hash in its header.
-        powl_string:
-            "PO=(nodes={work_order_received, architecture_decided, PO=(nodes={iac_generated, rust_generated, erlang_generated, atomvm_generated}, order={}), receipt_chain_sealed}, order={work_order_received-->architecture_decided, architecture_decided-->PO=(nodes={iac_generated, rust_generated, erlang_generated, atomvm_generated}, order={}), PO=(nodes={iac_generated, rust_generated, erlang_generated, atomvm_generated}, order={})-->receipt_chain_sealed})",
+        powl_string: "PO=(nodes={work_order_received, architecture_decided, PO=(nodes={iac_generated, rust_generated, erlang_generated, atomvm_generated}, order={}), receipt_chain_sealed}, order={work_order_received-->architecture_decided, architecture_decided-->PO=(nodes={iac_generated, rust_generated, erlang_generated, atomvm_generated}, order={}), PO=(nodes={iac_generated, rust_generated, erlang_generated, atomvm_generated}, order={})-->receipt_chain_sealed})",
         alphabet: &[
             "work_order_received",
             "architecture_decided",
@@ -248,8 +265,7 @@ pub static BUILTIN_WORKFLOWS: &[BuiltinWorkflow] = &[
         // Sub-workflow names are opaque labels at the top level for replay;
         // the RevOps activity alphabet is unioned in so per-event traces
         // (forecast_submitted, contract_executed, etc.) replay cleanly.
-        powl_string:
-            "PO=(nodes={RequirementsManufacturing, DataExtensionFastPath, LifecycleApply, Codegen}, order={RequirementsManufacturing-->DataExtensionFastPath, DataExtensionFastPath-->LifecycleApply, LifecycleApply-->Codegen})",
+        powl_string: "PO=(nodes={RequirementsManufacturing, DataExtensionFastPath, LifecycleApply, Codegen}, order={RequirementsManufacturing-->DataExtensionFastPath, DataExtensionFastPath-->LifecycleApply, LifecycleApply-->Codegen})",
         alphabet: &[
             "RequirementsManufacturing",
             "DataExtensionFastPath",
@@ -385,7 +401,12 @@ mod tests {
     #[test]
     fn solution_manufacturing_required_stages_cover_all_targets() {
         let w = by_name("SolutionManufacturing").unwrap();
-        for required in &["iac_generated", "rust_generated", "erlang_generated", "atomvm_generated"] {
+        for required in &[
+            "iac_generated",
+            "rust_generated",
+            "erlang_generated",
+            "atomvm_generated",
+        ] {
             assert!(w.required_stages.contains(required), "missing {required}");
         }
     }
@@ -395,7 +416,11 @@ mod tests {
         let w = by_name("RequirementsManufacturing").unwrap();
         assert_eq!(
             w.required_stages,
-            &["requirement_proposed", "ctq_admitted", "work_order_admitted"]
+            &[
+                "requirement_proposed",
+                "ctq_admitted",
+                "work_order_admitted"
+            ]
         );
     }
 }

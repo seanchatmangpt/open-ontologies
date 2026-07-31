@@ -35,7 +35,7 @@
 //! the server stays the *validator*. This module is exactly that primitive —
 //! it does not solve, it judges.
 
-use crate::dynamics::{lookup, ActionSchema};
+use crate::dynamics::{ActionSchema, lookup};
 use crate::graph::GraphStore;
 use crate::state::StateDb;
 use serde::{Deserialize, Serialize};
@@ -199,7 +199,7 @@ pub fn validate_plan(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::dynamics::{register, ActionSchema, EffectSpec, Parameter};
+    use crate::dynamics::{ActionSchema, EffectSpec, Parameter, register};
 
     fn test_db() -> StateDb {
         let tmp = tempfile::NamedTempFile::new().unwrap();
@@ -233,9 +233,14 @@ mod tests {
     fn add_class_schema() -> ActionSchema {
         ActionSchema {
             name: "add_class".to_string(),
-            parameters: vec![Parameter { name: "iri".to_string(), type_iri: None }],
+            parameters: vec![Parameter {
+                name: "iri".to_string(),
+                type_iri: None,
+            }],
             preconditions: vec![],
-            effects: vec![EffectSpec::AddClass { iri: "{iri}".to_string() }],
+            effects: vec![EffectSpec::AddClass {
+                iri: "{iri}".to_string(),
+            }],
             reversible: true,
             description: None,
             outcomes: vec![],
@@ -322,7 +327,10 @@ mod tests {
         let mut bindings = BTreeMap::new();
         bindings.insert("child".to_string(), "http://ex.org/Cat".to_string());
         // parent is NOT declared as owl:Class in the seed graph.
-        bindings.insert("parent".to_string(), "http://ex.org/UnknownThing".to_string());
+        bindings.insert(
+            "parent".to_string(),
+            "http://ex.org/UnknownThing".to_string(),
+        );
 
         let steps = vec![PlanStep {
             action_name: "add_subclass_edge".to_string(),
@@ -331,11 +339,13 @@ mod tests {
         let result = validate_plan(&db, &graph, &steps, &[]).unwrap();
         assert!(!result.valid);
         assert_eq!(result.failed_at_step, Some(0));
-        assert!(result
-            .failure_reason
-            .as_ref()
-            .unwrap()
-            .contains("preconditions not satisfied"));
+        assert!(
+            result
+                .failure_reason
+                .as_ref()
+                .unwrap()
+                .contains("preconditions not satisfied")
+        );
     }
 
     #[test]
@@ -355,8 +365,14 @@ mod tests {
         s2.insert("parent".to_string(), "http://ex.org/Feline".to_string());
 
         let steps = vec![
-            PlanStep { action_name: "add_class".to_string(), bindings: s1 },
-            PlanStep { action_name: "add_subclass_edge".to_string(), bindings: s2 },
+            PlanStep {
+                action_name: "add_class".to_string(),
+                bindings: s1,
+            },
+            PlanStep {
+                action_name: "add_subclass_edge".to_string(),
+                bindings: s2,
+            },
         ];
         let result = validate_plan(&db, &graph, &steps, &[]).unwrap();
         assert!(

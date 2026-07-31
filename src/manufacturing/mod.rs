@@ -295,13 +295,17 @@ pub fn manufacture(spec: &SolutionSpec) -> Result<SolutionBundle, crate::defects
     let mut files = Vec::new();
     let iac_files = iac::generate(spec);
     if iac_files.is_empty() {
-        return Err(DefectClass::GeneratorEmpty { target: "iac".into() });
+        return Err(DefectClass::GeneratorEmpty {
+            target: "iac".into(),
+        });
     }
     files.extend(iac_files);
 
     let rust_files = rust_target::generate(spec);
     if rust_files.is_empty() {
-        return Err(DefectClass::GeneratorEmpty { target: "rust".into() });
+        return Err(DefectClass::GeneratorEmpty {
+            target: "rust".into(),
+        });
     }
     files.extend(rust_files);
 
@@ -352,7 +356,9 @@ pub fn manufacture_with_override(
         iac::generate(spec)
     };
     if iac_files.is_empty() {
-        return Err(DefectClass::GeneratorEmpty { target: "iac".into() });
+        return Err(DefectClass::GeneratorEmpty {
+            target: "iac".into(),
+        });
     }
     files.extend(iac_files);
 
@@ -362,7 +368,9 @@ pub fn manufacture_with_override(
         rust_target::generate(spec)
     };
     if rust_files.is_empty() {
-        return Err(DefectClass::GeneratorEmpty { target: "rust".into() });
+        return Err(DefectClass::GeneratorEmpty {
+            target: "rust".into(),
+        });
     }
     files.extend(rust_files);
 
@@ -535,10 +543,10 @@ mod tests {
             .expect("iac sidecar receipt must exist");
         let sidecar_v: serde_json::Value =
             serde_json::from_str(&sidecar.contents).expect("sidecar parses");
-        assert!(sidecar_v
-            .get("work_order_receipt")
-            .and_then(|v| v.as_str())
-            == Some(bundle.spec.work_order_receipt_hash.as_str()));
+        assert!(
+            sidecar_v.get("work_order_receipt").and_then(|v| v.as_str())
+                == Some(bundle.spec.work_order_receipt_hash.as_str())
+        );
         for f in &bundle.files {
             if f.path == "iac/.ontostar-receipt.json" {
                 continue;

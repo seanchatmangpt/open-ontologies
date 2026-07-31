@@ -30,7 +30,7 @@
 //! and other databases — all of which then flow into RDF through the same
 //! mapping layer used for CSV/Parquet/XLSX inputs today.
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use std::collections::HashMap;
 
 use crate::schema::TableInfo;
@@ -321,10 +321,10 @@ pub async fn introspect_tables(connection: &str) -> Result<Vec<TableInfo>> {
 
 #[cfg(feature = "postgres")]
 async fn query_postgres(connection: &str, sql: &str) -> Result<Vec<HashMap<String, String>>> {
-    use sqlx::postgres::PgPoolOptions;
     use sqlx::Column;
     use sqlx::Row;
     use sqlx::TypeInfo;
+    use sqlx::postgres::PgPoolOptions;
 
     let pool = PgPoolOptions::new()
         .max_connections(1)
@@ -404,8 +404,8 @@ async fn query_duckdb(connection: &str, sql: &str) -> Result<Vec<HashMap<String,
 
 #[cfg(feature = "duckdb")]
 fn query_duckdb_blocking(target: &str, sql: &str) -> Result<Vec<HashMap<String, String>>> {
-    use duckdb::types::ValueRef;
     use duckdb::Connection;
+    use duckdb::types::ValueRef;
 
     let conn = if target == ":memory:" {
         Connection::open_in_memory()?
@@ -474,17 +474,35 @@ mod tests {
 
     #[test]
     fn detect_driver_postgres() {
-        assert_eq!(detect_driver("postgres://u:p@h/d").unwrap(), SqlDriver::Postgres);
-        assert_eq!(detect_driver("postgresql://u@h/d").unwrap(), SqlDriver::Postgres);
-        assert_eq!(detect_driver("POSTGRES://U@H/D").unwrap(), SqlDriver::Postgres);
+        assert_eq!(
+            detect_driver("postgres://u:p@h/d").unwrap(),
+            SqlDriver::Postgres
+        );
+        assert_eq!(
+            detect_driver("postgresql://u@h/d").unwrap(),
+            SqlDriver::Postgres
+        );
+        assert_eq!(
+            detect_driver("POSTGRES://U@H/D").unwrap(),
+            SqlDriver::Postgres
+        );
     }
 
     #[test]
     fn detect_driver_duckdb() {
-        assert_eq!(detect_driver("duckdb:///tmp/x.db").unwrap(), SqlDriver::DuckDb);
-        assert_eq!(detect_driver("duckdb:/tmp/x.db").unwrap(), SqlDriver::DuckDb);
+        assert_eq!(
+            detect_driver("duckdb:///tmp/x.db").unwrap(),
+            SqlDriver::DuckDb
+        );
+        assert_eq!(
+            detect_driver("duckdb:/tmp/x.db").unwrap(),
+            SqlDriver::DuckDb
+        );
         assert_eq!(detect_driver(":memory:").unwrap(), SqlDriver::DuckDb);
-        assert_eq!(detect_driver("/data/warehouse.duckdb").unwrap(), SqlDriver::DuckDb);
+        assert_eq!(
+            detect_driver("/data/warehouse.duckdb").unwrap(),
+            SqlDriver::DuckDb
+        );
         assert_eq!(detect_driver("./shop.ddb").unwrap(), SqlDriver::DuckDb);
     }
 
@@ -502,6 +520,9 @@ mod tests {
         assert_eq!(duckdb_target("duckdb://"), ":memory:");
         assert_eq!(duckdb_target("duckdb:"), ":memory:");
         assert_eq!(duckdb_target(":memory:"), ":memory:");
-        assert_eq!(duckdb_target("/data/warehouse.duckdb"), "/data/warehouse.duckdb");
+        assert_eq!(
+            duckdb_target("/data/warehouse.duckdb"),
+            "/data/warehouse.duckdb"
+        );
     }
 }

@@ -1,0 +1,12 @@
+# =============================================================================
+# extract-expo-tsconfig.rq — TS path aliases for the Expo shell
+# =============================================================================
+
+PREFIX ggen: <https://open-ontologies.org/ggen#>
+
+SELECT
+  (GROUP_CONCAT(?_alias; SEPARATOR="|") AS ?pathAliases)
+WHERE {
+  ?manifest a ggen:ExpoAppManifest .
+  OPTIONAL { ?manifest ggen:hasTsPathAlias ?_alias }
+}

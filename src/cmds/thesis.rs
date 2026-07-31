@@ -200,7 +200,8 @@ fn make_packet_id(hash: &str) -> String {
 /// Emit SourcePacket JSON with blake3 checksum.
 #[verb]
 fn ingest(path: String, data_dir: Option<String>) -> NounVerbResult<IngestOutput> {
-    let (_db, graph) = setup(data_dir.as_deref().unwrap_or(DEFAULT_DATA_DIR)).map_err(to_verb_err)?;
+    let (_db, graph) =
+        setup(data_dir.as_deref().unwrap_or(DEFAULT_DATA_DIR)).map_err(to_verb_err)?;
 
     let file_path = std::path::Path::new(&path);
     if !file_path.exists() {
@@ -234,7 +235,10 @@ fn ingest(path: String, data_dir: Option<String>) -> NounVerbResult<IngestOutput
     Ok(IngestOutput {
         ok: true,
         packets: vec![packet],
-        message: format!("Ingested {} ({} bytes, {})", path, byte_count, classification),
+        message: format!(
+            "Ingested {} ({} bytes, {})",
+            path, byte_count, classification
+        ),
     })
 }
 
@@ -243,7 +247,8 @@ fn ingest(path: String, data_dir: Option<String>) -> NounVerbResult<IngestOutput
 /// Create CandidateClaimPacket and CandidateEvidencePacket RDF.
 #[verb]
 fn extract(source_id: Option<String>, data_dir: Option<String>) -> NounVerbResult<ExtractOutput> {
-    let (_db, _graph) = setup(data_dir.as_deref().unwrap_or(DEFAULT_DATA_DIR)).map_err(to_verb_err)?;
+    let (_db, _graph) =
+        setup(data_dir.as_deref().unwrap_or(DEFAULT_DATA_DIR)).map_err(to_verb_err)?;
 
     let source_id = source_id.unwrap_or_else(|| "source-001".to_string());
 
@@ -258,15 +263,23 @@ fn extract(source_id: Option<String>, data_dir: Option<String>) -> NounVerbResul
         ok: true,
         claim_packets: vec![],
         evidence_packets: vec![],
-        message: format!("Extraction stub for source_id={} — real LLM call TBD", source_id),
+        message: format!(
+            "Extraction stub for source_id={} — real LLM call TBD",
+            source_id
+        ),
     })
 }
 
 /// Link claim_id + evidence_id, update support status.
 /// Write RDF triple: claim tm:evidenceLink evidence.
 #[verb]
-fn bind(claim_id: String, evidence_id: String, data_dir: Option<String>) -> NounVerbResult<BindOutput> {
-    let (_db, graph) = setup(data_dir.as_deref().unwrap_or(DEFAULT_DATA_DIR)).map_err(to_verb_err)?;
+fn bind(
+    claim_id: String,
+    evidence_id: String,
+    data_dir: Option<String>,
+) -> NounVerbResult<BindOutput> {
+    let (_db, graph) =
+        setup(data_dir.as_deref().unwrap_or(DEFAULT_DATA_DIR)).map_err(to_verb_err)?;
 
     // Create the evidence link triple
     let rdf_triples = format!(
@@ -288,7 +301,8 @@ fn bind(claim_id: String, evidence_id: String, data_dir: Option<String>) -> Noun
 /// Emit DefectPacket for each violation (map SHACL violations to DefectClass).
 #[verb]
 fn audit(data_dir: Option<String>) -> NounVerbResult<AuditOutput> {
-    let (_db, graph) = setup(data_dir.as_deref().unwrap_or(DEFAULT_DATA_DIR)).map_err(to_verb_err)?;
+    let (_db, graph) =
+        setup(data_dir.as_deref().unwrap_or(DEFAULT_DATA_DIR)).map_err(to_verb_err)?;
 
     // Stub: run lightweight validation check
     // Real implementation would:
@@ -312,7 +326,8 @@ fn audit(data_dir: Option<String>) -> NounVerbResult<AuditOutput> {
 /// Update tm:Chapter instances with dcat:hasPart references.
 #[verb]
 fn route(data_dir: Option<String>) -> NounVerbResult<RouteOutput> {
-    let (_db, graph) = setup(data_dir.as_deref().unwrap_or(DEFAULT_DATA_DIR)).map_err(to_verb_err)?;
+    let (_db, graph) =
+        setup(data_dir.as_deref().unwrap_or(DEFAULT_DATA_DIR)).map_err(to_verb_err)?;
 
     // Stub: run chapter routing SPARQL CONSTRUCT
     // Real implementation would:
@@ -335,7 +350,8 @@ fn route(data_dir: Option<String>) -> NounVerbResult<RouteOutput> {
 /// Flag unsupported claims with <!-- UNSUPPORTED: claim-id --> markers.
 #[verb]
 fn project(output: Option<String>, data_dir: Option<String>) -> NounVerbResult<ProjectOutput> {
-    let (_db, _graph) = setup(data_dir.as_deref().unwrap_or(DEFAULT_DATA_DIR)).map_err(to_verb_err)?;
+    let (_db, _graph) =
+        setup(data_dir.as_deref().unwrap_or(DEFAULT_DATA_DIR)).map_err(to_verb_err)?;
 
     let output_path = output.unwrap_or_else(|| "thesis.md".to_string());
 
@@ -365,7 +381,8 @@ fn project(output: Option<String>, data_dir: Option<String>) -> NounVerbResult<P
 /// Check: 0 earl:failed outcomes required for certification.
 #[verb]
 fn certify(data_dir: Option<String>) -> NounVerbResult<CertifyOutput> {
-    let (_db, _graph) = setup(data_dir.as_deref().unwrap_or(DEFAULT_DATA_DIR)).map_err(to_verb_err)?;
+    let (_db, _graph) =
+        setup(data_dir.as_deref().unwrap_or(DEFAULT_DATA_DIR)).map_err(to_verb_err)?;
 
     // Stub: run full pipeline
     // Real implementation would:
@@ -395,38 +412,10 @@ fn certify(data_dir: Option<String>) -> NounVerbResult<CertifyOutput> {
 /// Check RDF store, verify shapefile, confirm Gemini connectivity.
 #[verb]
 fn doctor(data_dir: Option<String>) -> NounVerbResult<DoctorOutput> {
-    let (_db, graph) = setup(data_dir.as_deref().unwrap_or(DEFAULT_DATA_DIR)).map_err(to_verb_err)?;
+    let (_db, graph) =
+        setup(data_dir.as_deref().unwrap_or(DEFAULT_DATA_DIR)).map_err(to_verb_err)?;
 
-    let mut checks = vec![];
-
-    // Check 1: RDF store connectivity
-    let store_ok = graph
-        .sparql_select("SELECT (COUNT(*) AS ?count) WHERE { ?s ?p ?o }")
-        .is_ok();
-    checks.push((
-        "RDF Store".to_string(),
-        store_ok,
-        if store_ok {
-            "RDF store accessible".to_string()
-        } else {
-            "RDF store unreachable".to_string()
-        },
-    ));
-
-    // Check 2: Thesis shapes file (stub: always pass)
-    checks.push((
-        "Thesis Shapes".to_string(),
-        true,
-        "ontology/thesis-shapes.ttl located".to_string(),
-    ));
-
-    // Check 3: Gemini connectivity (stub: assume pass)
-    checks.push((
-        "Gemini Connectivity".to_string(),
-        true,
-        "Gemini 3.1 Flash reachable (stub)".to_string(),
-    ));
-
+    let checks = open_ontologies::thesis_doctor::run_doctor_checks(&graph);
     let all_ok = checks.iter().all(|(_, ok, _)| *ok);
 
     Ok(DoctorOutput {
@@ -457,7 +446,8 @@ fn wizard(data_dir: Option<String>) -> NounVerbResult<serde_json::Value> {
 /// Print full lineage of a packet: inbound links, outbound links, support score.
 #[verb]
 fn explain(packet_id: String, data_dir: Option<String>) -> NounVerbResult<ExplainOutput> {
-    let (_db, graph) = setup(data_dir.as_deref().unwrap_or(DEFAULT_DATA_DIR)).map_err(to_verb_err)?;
+    let (_db, graph) =
+        setup(data_dir.as_deref().unwrap_or(DEFAULT_DATA_DIR)).map_err(to_verb_err)?;
 
     // Stub: trace provenance
     // Real implementation would:
@@ -469,10 +459,7 @@ fn explain(packet_id: String, data_dir: Option<String>) -> NounVerbResult<Explai
     let _packet_iri = format!("<{}>", packet_id);
 
     // Simple query to check if packet exists
-    let _result = graph.sparql_select(&format!(
-        "SELECT ?type WHERE {{ <{}> a ?type }}",
-        packet_id
-    ));
+    let _result = graph.sparql_select(&format!("SELECT ?type WHERE {{ <{}> a ?type }}", packet_id));
 
     Ok(ExplainOutput {
         ok: true,

@@ -106,12 +106,12 @@ impl RetentionWorker {
     /// bootstrap in `src/cmds/server.rs`) can hand the same Arc to the
     /// MCP server, letting `onto_retention_pause` / `onto_retention_resume`
     /// drive the worker without an explicit channel.
-    pub fn new_with_pause(
-        db: StateDb,
-        cfg: RetentionConfig,
-        paused_until: Arc<AtomicI64>,
-    ) -> Self {
-        Self { db, cfg, paused_until }
+    pub fn new_with_pause(db: StateDb, cfg: RetentionConfig, paused_until: Arc<AtomicI64>) -> Self {
+        Self {
+            db,
+            cfg,
+            paused_until,
+        }
     }
 
     /// Spawn the loop. Returns a detached `JoinHandle`. Mirrors
@@ -148,10 +148,7 @@ impl RetentionWorker {
                 match worker.tick() {
                     Ok(report) => {
                         if report_has_pruning(&report) {
-                            tracing::info!(
-                                "retention worker tick: {:?}",
-                                report
-                            );
+                            tracing::info!("retention worker tick: {:?}", report);
                         }
                     }
                     Err(e) => {

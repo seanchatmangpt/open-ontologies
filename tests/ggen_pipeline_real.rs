@@ -1,3 +1,5 @@
+#![allow(clippy::all, unused)]
+
 //! WC-1 — ggen pipeline integration proof.
 //!
 //! Verifies that:
@@ -29,14 +31,22 @@ fn generated_rs_exists_and_has_stubs() {
         Path::new(GENERATED_RS).exists(),
         "src/cmds/generated.rs must exist — run `ggen sync` to regenerate"
     );
-    let content =
-        fs::read_to_string(GENERATED_RS).expect("read generated.rs");
+    let content = fs::read_to_string(GENERATED_RS).expect("read generated.rs");
     assert!(
         !content.trim().is_empty(),
         "src/cmds/generated.rs must not be empty"
     );
     // Every top-level command should have a _stub module.
-    for noun in &["doctor", "marketplace", "clinical", "alignment", "governance", "data", "server", "ontology"] {
+    for noun in &[
+        "doctor",
+        "marketplace",
+        "clinical",
+        "alignment",
+        "governance",
+        "data",
+        "server",
+        "ontology",
+    ] {
         let stub_mod = format!("pub mod {}_stub", noun);
         assert!(
             content.contains(&stub_mod),
@@ -74,18 +84,32 @@ fn receipt_is_non_empty_and_signed() {
         .filter_map(|e| e.ok())
         .filter(|e| e.path().extension().and_then(|x| x.to_str()) == Some("json"))
         .collect();
-    assert!(!entries.is_empty(), ".ggen/receipts/ must contain at least one .json receipt");
+    assert!(
+        !entries.is_empty(),
+        ".ggen/receipts/ must contain at least one .json receipt"
+    );
 
     // Find a receipt that (a) has a non-empty signature and (b) references generated.rs.
     let cli_receipt = entries.iter().find(|e| {
-        let Ok(raw) = fs::read_to_string(e.path()) else { return false };
-        let Ok(v) = serde_json::from_str::<serde_json::Value>(&raw) else { return false };
-        let sig_ok = v["signature"].as_str().map(|s| !s.is_empty()).unwrap_or(false);
+        let Ok(raw) = fs::read_to_string(e.path()) else {
+            return false;
+        };
+        let Ok(v) = serde_json::from_str::<serde_json::Value>(&raw) else {
+            return false;
+        };
+        let sig_ok = v["signature"]
+            .as_str()
+            .map(|s| !s.is_empty())
+            .unwrap_or(false);
         let hashes_ok = v["output_hashes"]
             .as_array()
-            .map(|arr| arr.iter().any(|h| {
-                h.as_str().map(|s| s.contains("generated.rs") && !s.contains("generated_revops.rs")).unwrap_or(false)
-            }))
+            .map(|arr| {
+                arr.iter().any(|h| {
+                    h.as_str()
+                        .map(|s| s.contains("generated.rs") && !s.contains("generated_revops.rs"))
+                        .unwrap_or(false)
+                })
+            })
             .unwrap_or(false);
         sig_ok && hashes_ok
     });
@@ -104,8 +128,7 @@ fn receipt_is_non_empty_and_signed() {
 #[test]
 #[ignore = "mutates working tree — run manually to check determinism"]
 fn ggen_output_is_deterministic() {
-    let before =
-        fs::read_to_string(GENERATED_RS).expect("read generated.rs before second sync");
+    let before = fs::read_to_string(GENERATED_RS).expect("read generated.rs before second sync");
 
     let status = std::process::Command::new("ggen")
         .args(["sync", "--audit", "true"])
@@ -113,8 +136,7 @@ fn ggen_output_is_deterministic() {
         .expect("ggen sync must be available on PATH");
     assert!(status.success(), "second ggen sync must exit 0");
 
-    let after =
-        fs::read_to_string(GENERATED_RS).expect("read generated.rs after second sync");
+    let after = fs::read_to_string(GENERATED_RS).expect("read generated.rs after second sync");
 
     assert_eq!(
         before, after,

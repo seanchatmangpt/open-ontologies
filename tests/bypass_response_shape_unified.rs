@@ -1,3 +1,5 @@
+#![allow(clippy::all, unused)]
+
 //! R5 WC-1 — §22 success-shaped denial closure.
 //!
 //! Counterfactual: when a caller invokes a mutating handler with
@@ -74,9 +76,8 @@ async fn bypass_response_is_unified_denial_shape() {
         }))
         .await;
 
-    let parsed: serde_json::Value = serde_json::from_str(&response).unwrap_or_else(|e| {
-        panic!("response is not valid JSON: {}\nresponse: {}", e, &response)
-    });
+    let parsed: serde_json::Value = serde_json::from_str(&response)
+        .unwrap_or_else(|e| panic!("response is not valid JSON: {}\nresponse: {}", e, &response));
 
     // 1. `ok` is FALSE — the previous shape claimed `ok: true` while the
     //    internal state was a denial. This is the load-bearing flip.

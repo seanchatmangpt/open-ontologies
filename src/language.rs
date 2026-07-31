@@ -27,7 +27,9 @@ impl Label {
     pub fn new(text: impl Into<String>, lang: Option<String>) -> Self {
         Self {
             text: text.into(),
-            lang: lang.map(|l| l.trim().to_lowercase()).filter(|l| !l.is_empty()),
+            lang: lang
+                .map(|l| l.trim().to_lowercase())
+                .filter(|l| !l.is_empty()),
         }
     }
 
@@ -177,7 +179,10 @@ mod tests {
 
     #[test]
     fn policy_empty_keeps_all() {
-        assert!(label_matches_policy(&Label::new("Chien", Some("fr".into())), &[]));
+        assert!(label_matches_policy(
+            &Label::new("Chien", Some("fr".into())),
+            &[]
+        ));
         assert!(label_matches_policy(&Label::new("Dog", None), &[]));
     }
 
@@ -190,14 +195,26 @@ mod tests {
     #[test]
     fn policy_filters_by_preferred() {
         let pref = vec!["en".to_string(), "cy".to_string()];
-        assert!(label_matches_policy(&Label::new("Dog", Some("en".into())), &pref));
-        assert!(label_matches_policy(&Label::new("Ci", Some("cy".into())), &pref));
-        assert!(!label_matches_policy(&Label::new("Chien", Some("fr".into())), &pref));
+        assert!(label_matches_policy(
+            &Label::new("Dog", Some("en".into())),
+            &pref
+        ));
+        assert!(label_matches_policy(
+            &Label::new("Ci", Some("cy".into())),
+            &pref
+        ));
+        assert!(!label_matches_policy(
+            &Label::new("Chien", Some("fr".into())),
+            &pref
+        ));
     }
 
     #[test]
     fn policy_region_subtag_matches_base() {
         let pref = vec!["en".to_string()];
-        assert!(label_matches_policy(&Label::new("Colour", Some("en-gb".into())), &pref));
+        assert!(label_matches_policy(
+            &Label::new("Colour", Some("en-gb".into())),
+            &pref
+        ));
     }
 }

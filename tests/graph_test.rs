@@ -69,10 +69,14 @@ fn test_convert_turtle_to_ntriples() {
 fn test_load_from_file() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("test.ttl");
-    std::fs::write(&path, r#"
+    std::fs::write(
+        &path,
+        r#"
         @prefix ex: <http://example.org/> .
         ex:Alice a ex:Person .
-    "#).unwrap();
+    "#,
+    )
+    .unwrap();
 
     let store = GraphStore::new();
     let result = store.load_file(path.to_str().unwrap());

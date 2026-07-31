@@ -1,0 +1,26 @@
+{%- set repo_list = names | split(pat="|") -%}
+{%- set main_repo = repo_list[0] | trim -%}
+name: Receipt Verification ({{ main_repo }})
+
+on:
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Verify Cryptographic Receipt
+        run: |
+          echo "Verifying receipt for {{ main_repo }}..."
+          # R ⊢ A = μ(O*)
+          # Ensure ggen is available or use the project CLI
+          if [ -f "Cargo.toml" ]; then
+            cargo run -- audit verify --pr-mode
+          else
+            echo "No audit tool found, skipping physical verification."
+            exit 1
+          fi

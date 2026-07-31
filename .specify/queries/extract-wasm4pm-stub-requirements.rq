@@ -1,0 +1,410 @@
+# =============================================================================
+# extract-wasm4pm-stub-requirements.rq
+# =============================================================================
+#
+# Extracts what the codebase actually expects from wasm4pm modules:
+# types, methods, fields, and their usage context.
+#
+# Scans the ontology for wasm4pm integration declarations and materializes
+# stub requirement specifications that can drive code generation.
+#
+# Returns ONE aggregated row with pipe-delimited values for:
+#   ?stubModules       — module paths (pipe-delimited)
+#   ?itemTypes         — item type kinds (pipe-delimited)
+#   ?itemNames         — item names (pipe-delimited)
+#   ?descriptions      — item descriptions (pipe-delimited)
+#   ?cardinalities     — cardinality requirements (pipe-delimited)
+#   ?fieldNames        — field names (pipe-delimited)
+#   ?fieldTypes        — field types (pipe-delimited)
+#   ?methodSignatures  — method signatures (pipe-delimited)
+#   ?returnTypes       — return types (pipe-delimited)
+#   ?usagePatterns     — usage patterns (pipe-delimited)
+#   ?stageNames        — pipeline stages (pipe-delimited)
+#   ?priorities        — priority levels (pipe-delimited)
+#   ?otelSpanNames     — OTEL span names (pipe-delimited)
+#
+# =============================================================================
+
+PREFIX wasm4pm:  <urn:wasm4pm:requirements:>
+PREFIX w4pmstub: <https://ggen.io/onto/wasm4pm/stub/>
+PREFIX ggen:     <https://ggen.io/onto/ggen/>
+PREFIX rdfs:     <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX rdf:      <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX xsd:      <http://www.w3.org/2001/XMLSchema#>
+
+SELECT
+  (GROUP_CONCAT(?stubModule; SEPARATOR="|") AS ?stubModules)
+  (GROUP_CONCAT(?itemType; SEPARATOR="|") AS ?itemTypes)
+  (GROUP_CONCAT(?itemName; SEPARATOR="|") AS ?itemNames)
+  (GROUP_CONCAT(?description; SEPARATOR="|") AS ?descriptions)
+  (GROUP_CONCAT(?cardinality; SEPARATOR="|") AS ?cardinalities)
+  (GROUP_CONCAT(?fieldName; SEPARATOR="|") AS ?fieldNames)
+  (GROUP_CONCAT(?fieldType; SEPARATOR="|") AS ?fieldTypes)
+  (GROUP_CONCAT(?methodSignature; SEPARATOR="|") AS ?methodSignatures)
+  (GROUP_CONCAT(?returnType; SEPARATOR="|") AS ?returnTypes)
+  (GROUP_CONCAT(?usagePattern; SEPARATOR="|") AS ?usagePatterns)
+  (GROUP_CONCAT(?stageName; SEPARATOR="|") AS ?stageNames)
+  (GROUP_CONCAT(?priority; SEPARATOR="|") AS ?priorities)
+  (GROUP_CONCAT(?otelSpanName; SEPARATOR="|") AS ?otelSpanNames)
+WHERE {
+  # Bind optional variables to empty strings to avoid NULL aggregation failures
+  BIND("" AS ?fieldName)
+  BIND("" AS ?fieldType)
+  BIND("" AS ?methodSignature)
+  BIND("" AS ?returnType)
+  # Then union all requirement definitions
+  # =========================================================================
+  # 1. POWL Arena & Parser
+  # =========================================================================
+  {
+    BIND("wasm4pm::powl_arena" AS ?stubModule)
+    BIND("Type" AS ?itemType)
+    BIND("PowlArena" AS ?itemName)
+    BIND("PowlBridge" AS ?requiredBy)
+    BIND("REQUIRED" AS ?cardinality)
+    BIND("Arena for in-memory POWL model storage" AS ?description)
+    BIND("PARSE" AS ?usagePattern)
+    BIND("parse" AS ?stageName)
+    BIND("CRITICAL" AS ?priority)
+    BIND(true AS ?testRequired)
+    BIND("powl.arena.load" AS ?otelSpanName)
+    BIND(IRI(CONCAT("urn:wasm4pm:req:", "PowlArena")) AS ?req)
+  }
+  UNION
+  {
+    BIND("wasm4pm::powl_parser" AS ?stubModule)
+    BIND("Function" AS ?itemType)
+    BIND("parse_powl_model_string" AS ?itemName)
+    BIND("PowlBridge" AS ?requiredBy)
+    BIND("REQUIRED" AS ?cardinality)
+    BIND("Parse a POWL grammar string into an arena, returning root index" AS ?description)
+    BIND("PARSE" AS ?usagePattern)
+    BIND("parse" AS ?stageName)
+    BIND("CRITICAL" AS ?priority)
+    BIND(true AS ?testRequired)
+    BIND("powl.parser.parse" AS ?otelSpanName)
+    BIND(IRI(CONCAT("urn:wasm4pm:req:", "parse_powl_model_string")) AS ?req)
+    BIND("(&str, &mut PowlArena) -> Result<u32, String>" AS ?methodSignature)
+    BIND("Result<u32, String>" AS ?returnType)
+    BIND(2 AS ?arity)
+    BIND(false AS ?pure)
+  }
+
+  # =========================================================================
+  # 2. POWL Models & Conversions
+  # =========================================================================
+  UNION
+  {
+    BIND("wasm4pm::powl_models" AS ?stubModule)
+    BIND("Type" AS ?itemType)
+    BIND("PowlPetriNet" AS ?itemName)
+    BIND("PowlBridge" AS ?requiredBy)
+    BIND("REQUIRED" AS ?cardinality)
+    BIND("Converted Petri-net representation of parsed POWL" AS ?description)
+    BIND("CONVERT" AS ?usagePattern)
+    BIND("convert" AS ?stageName)
+    BIND("CRITICAL" AS ?priority)
+    BIND(true AS ?testRequired)
+    BIND("powl.models.petri_net" AS ?otelSpanName)
+    BIND(IRI(CONCAT("urn:wasm4pm:req:", "PowlPetriNet")) AS ?req)
+  }
+  UNION
+  {
+    BIND("wasm4pm::powl_models" AS ?stubModule)
+    BIND("Type" AS ?itemType)
+    BIND("PowlMarking" AS ?itemName)
+    BIND("PowlBridge" AS ?requiredBy)
+    BIND("REQUIRED" AS ?cardinality)
+    BIND("Initial and final marking states for Petri-net" AS ?description)
+    BIND("CONVERT" AS ?usagePattern)
+    BIND("convert" AS ?stageName)
+    BIND("CRITICAL" AS ?priority)
+    BIND(true AS ?testRequired)
+    BIND("powl.models.marking" AS ?otelSpanName)
+    BIND(IRI(CONCAT("urn:wasm4pm:req:", "PowlMarking")) AS ?req)
+  }
+  UNION
+  {
+    BIND("wasm4pm::powl::conversion::to_petri_net" AS ?stubModule)
+    BIND("Function" AS ?itemType)
+    BIND("apply" AS ?itemName)
+    BIND("PowlBridge" AS ?requiredBy)
+    BIND("REQUIRED" AS ?cardinality)
+    BIND("Convert parsed POWL (arena + root) to Petri-net with markings" AS ?description)
+    BIND("CONVERT" AS ?usagePattern)
+    BIND("convert" AS ?stageName)
+    BIND("CRITICAL" AS ?priority)
+    BIND(true AS ?testRequired)
+    BIND("powl.convert.apply" AS ?otelSpanName)
+    BIND(IRI(CONCAT("urn:wasm4pm:req:", "to_petri_net_apply")) AS ?req)
+    BIND("(&PowlArena, u32) -> PowlPetriNetResult" AS ?methodSignature)
+    BIND("PowlPetriNetResult" AS ?returnType)
+    BIND(2 AS ?arity)
+    BIND(true AS ?pure)
+  }
+
+  # =========================================================================
+  # 3. Event Log & Traces
+  # =========================================================================
+  UNION
+  {
+    BIND("wasm4pm::powl_event_log" AS ?stubModule)
+    BIND("Type" AS ?itemType)
+    BIND("Event" AS ?itemName)
+    BIND("PowlBridge, LineageStore" AS ?requiredBy)
+    BIND("REQUIRED" AS ?cardinality)
+    BIND("Single event in trace with activity name, timestamp, attributes" AS ?description)
+    BIND("QUERY" AS ?usagePattern)
+    BIND("ingest" AS ?stageName)
+    BIND("CRITICAL" AS ?priority)
+    BIND(true AS ?testRequired)
+    BIND("powl.eventlog.event" AS ?otelSpanName)
+    BIND(IRI(CONCAT("urn:wasm4pm:req:", "Event")) AS ?req)
+  }
+  UNION
+  {
+    BIND("wasm4pm::powl_event_log" AS ?stubModule)
+    BIND("Type" AS ?itemType)
+    BIND("Trace" AS ?itemName)
+    BIND("PowlBridge, LineageStore" AS ?requiredBy)
+    BIND("REQUIRED" AS ?cardinality)
+    BIND("Sequence of events for a single case/instance" AS ?description)
+    BIND("QUERY" AS ?usagePattern)
+    BIND("ingest" AS ?stageName)
+    BIND("CRITICAL" AS ?priority)
+    BIND(true AS ?testRequired)
+    BIND("powl.eventlog.trace" AS ?otelSpanName)
+    BIND(IRI(CONCAT("urn:wasm4pm:req:", "Trace")) AS ?req)
+  }
+  UNION
+  {
+    BIND("wasm4pm::powl_event_log" AS ?stubModule)
+    BIND("Type" AS ?itemType)
+    BIND("EventLog" AS ?itemName)
+    BIND("PowlBridge, LineageStore" AS ?requiredBy)
+    BIND("REQUIRED" AS ?cardinality)
+    BIND("Collection of traces (event log)" AS ?description)
+    BIND("QUERY" AS ?usagePattern)
+    BIND("ingest" AS ?stageName)
+    BIND("CRITICAL" AS ?priority)
+    BIND(true AS ?testRequired)
+    BIND("powl.eventlog.log" AS ?otelSpanName)
+    BIND(IRI(CONCAT("urn:wasm4pm:req:", "EventLog")) AS ?req)
+  }
+
+  # =========================================================================
+  # 4. Token Replay & Conformance
+  # =========================================================================
+  UNION
+  {
+    BIND("wasm4pm::powl::conformance::token_replay" AS ?stubModule)
+    BIND("Type" AS ?itemType)
+    BIND("TraceReplayResult" AS ?itemName)
+    BIND("PowlBridge, ConformanceValidator" AS ?requiredBy)
+    BIND("REQUIRED" AS ?cardinality)
+    BIND("Result of replaying single trace: fitness, produced/consumed/missing/remaining tokens" AS ?description)
+    BIND("REPLAY" AS ?usagePattern)
+    BIND("validate" AS ?stageName)
+    BIND("CRITICAL" AS ?priority)
+    BIND(true AS ?testRequired)
+    BIND("powl.replay.result" AS ?otelSpanName)
+    BIND(IRI(CONCAT("urn:wasm4pm:req:", "TraceReplayResult")) AS ?req)
+  }
+  UNION
+  {
+    BIND("wasm4pm::powl::conformance::token_replay" AS ?stubModule)
+    BIND("Type" AS ?itemType)
+    BIND("FitnessResult" AS ?itemName)
+    BIND("PowlBridge, ConformanceValidator" AS ?requiredBy)
+    BIND("REQUIRED" AS ?cardinality)
+    BIND("Aggregate fitness score over entire event log" AS ?description)
+    BIND("FITNESS" AS ?usagePattern)
+    BIND("validate" AS ?stageName)
+    BIND("CRITICAL" AS ?priority)
+    BIND(true AS ?testRequired)
+    BIND("powl.fitness.result" AS ?otelSpanName)
+    BIND(IRI(CONCAT("urn:wasm4pm:req:", "FitnessResult")) AS ?req)
+  }
+  UNION
+  {
+    BIND("wasm4pm::powl::conformance::token_replay" AS ?stubModule)
+    BIND("Function" AS ?itemType)
+    BIND("replay_trace" AS ?itemName)
+    BIND("PowlBridge" AS ?requiredBy)
+    BIND("REQUIRED" AS ?cardinality)
+    BIND("Replay single trace against Petri-net, report token flow" AS ?description)
+    BIND("REPLAY" AS ?usagePattern)
+    BIND("validate" AS ?stageName)
+    BIND("CRITICAL" AS ?priority)
+    BIND(true AS ?testRequired)
+    BIND("powl.replay.execute" AS ?otelSpanName)
+    BIND(IRI(CONCAT("urn:wasm4pm:req:", "replay_trace")) AS ?req)
+    BIND("(&PowlPetriNet, &PowlMarking, &PowlMarking, &Trace) -> TraceReplayResult" AS ?methodSignature)
+    BIND("TraceReplayResult" AS ?returnType)
+    BIND(4 AS ?arity)
+    BIND(true AS ?pure)
+  }
+  UNION
+  {
+    BIND("wasm4pm::powl::conformance::token_replay" AS ?stubModule)
+    BIND("Function" AS ?itemType)
+    BIND("compute_fitness" AS ?itemName)
+    BIND("PowlBridge" AS ?requiredBy)
+    BIND("REQUIRED" AS ?cardinality)
+    BIND("Aggregate fitness over entire event log (re-replays all traces)" AS ?description)
+    BIND("FITNESS" AS ?usagePattern)
+    BIND("validate" AS ?stageName)
+    BIND("CRITICAL" AS ?priority)
+    BIND(true AS ?testRequired)
+    BIND("powl.fitness.compute" AS ?otelSpanName)
+    BIND(IRI(CONCAT("urn:wasm4pm:req:", "compute_fitness")) AS ?req)
+    BIND("(&PowlPetriNet, &PowlMarking, &PowlMarking, &EventLog) -> FitnessResult" AS ?methodSignature)
+    BIND("FitnessResult" AS ?returnType)
+    BIND(4 AS ?arity)
+    BIND(true AS ?pure)
+  }
+
+  # =========================================================================
+  # 5. OCEL Support (wasm4pm_types)
+  # =========================================================================
+  UNION
+  {
+    BIND("wasm4pm_types::ocel" AS ?stubModule)
+    BIND("Type" AS ?itemType)
+    BIND("OCEL" AS ?itemName)
+    BIND("OcelStore" AS ?requiredBy)
+    BIND("REQUIRED" AS ?cardinality)
+    BIND("Object-centric event log model" AS ?description)
+    BIND("QUERY" AS ?usagePattern)
+    BIND("ingest" AS ?stageName)
+    BIND("CRITICAL" AS ?priority)
+    BIND(true AS ?testRequired)
+    BIND("ocel.model" AS ?otelSpanName)
+    BIND(IRI(CONCAT("urn:wasm4pm:req:", "OCEL")) AS ?req)
+  }
+  UNION
+  {
+    BIND("wasm4pm_types::ocel" AS ?stubModule)
+    BIND("Type" AS ?itemType)
+    BIND("OCELEvent" AS ?itemName)
+    BIND("OcelStore" AS ?requiredBy)
+    BIND("MANY" AS ?cardinality)
+    BIND("Single event in OCEL log with event type, timestamp, attributes" AS ?description)
+    BIND("QUERY" AS ?usagePattern)
+    BIND("ingest" AS ?stageName)
+    BIND("CRITICAL" AS ?priority)
+    BIND(true AS ?testRequired)
+    BIND("ocel.event" AS ?otelSpanName)
+    BIND(IRI(CONCAT("urn:wasm4pm:req:", "OCELEvent")) AS ?req)
+  }
+  UNION
+  {
+    BIND("wasm4pm_types::ocel" AS ?stubModule)
+    BIND("Type" AS ?itemType)
+    BIND("OCELObject" AS ?itemName)
+    BIND("OcelStore" AS ?requiredBy)
+    BIND("MANY" AS ?cardinality)
+    BIND("Business object in OCEL with object type, attributes, relationships" AS ?description)
+    BIND("QUERY" AS ?usagePattern)
+    BIND("ingest" AS ?stageName)
+    BIND("CRITICAL" AS ?priority)
+    BIND(true AS ?testRequired)
+    BIND("ocel.object" AS ?otelSpanName)
+    BIND(IRI(CONCAT("urn:wasm4pm:req:", "OCELObject")) AS ?req)
+  }
+
+  # =========================================================================
+  # 6. Cognition & Breeds (wasm4pm_cognition)
+  # =========================================================================
+  UNION
+  {
+    BIND("wasm4pm_cognition::breeds" AS ?stubModule)
+    BIND("Type" AS ?itemType)
+    BIND("BreedId" AS ?itemName)
+    BIND("Swarm" AS ?requiredBy)
+    BIND("REQUIRED" AS ?cardinality)
+    BIND("Enumeration of 9 classical AI breed names" AS ?description)
+    BIND("QUERY" AS ?usagePattern)
+    BIND("manufacture" AS ?stageName)
+    BIND("HIGH" AS ?priority)
+    BIND(true AS ?testRequired)
+    BIND("breeds.id" AS ?otelSpanName)
+    BIND(IRI(CONCAT("urn:wasm4pm:req:", "BreedId")) AS ?req)
+  }
+  UNION
+  {
+    BIND("wasm4pm_cognition::breeds" AS ?stubModule)
+    BIND("Const" AS ?itemType)
+    BIND("Eliza" AS ?constName)
+    BIND("Swarm" AS ?requiredBy)
+    BIND("REQUIRED" AS ?cardinality)
+    BIND("Natural language interface breed variant" AS ?description)
+    BIND("QUERY" AS ?usagePattern)
+    BIND("manufacture" AS ?stageName)
+    BIND("NORMAL" AS ?priority)
+    BIND(false AS ?testRequired)
+    BIND("breeds.eliza" AS ?otelSpanName)
+    BIND(IRI(CONCAT("urn:wasm4pm:req:", "BreedId_Eliza")) AS ?req)
+    BIND("BreedId::Eliza" AS ?constValue)
+    BIND("BreedId" AS ?constType)
+  }
+  UNION
+  {
+    BIND("wasm4pm_cognition::breeds" AS ?stubModule)
+    BIND("Function" AS ?itemType)
+    BIND("dispatch_breed_test" AS ?itemName)
+    BIND("Swarm" AS ?requiredBy)
+    BIND("REQUIRED" AS ?cardinality)
+    BIND("Dispatch test scenario to appropriate breed (Eliza/CBR/Strips/etc.)" AS ?description)
+    BIND("QUERY" AS ?usagePattern)
+    BIND("manufacture" AS ?stageName)
+    BIND("HIGH" AS ?priority)
+    BIND(true AS ?testRequired)
+    BIND("breeds.dispatch" AS ?otelSpanName)
+    BIND(IRI(CONCAT("urn:wasm4pm:req:", "dispatch_breed_test")) AS ?req)
+    BIND("(BreedInput) -> Result<BreedOutput, String>" AS ?methodSignature)
+    BIND("Result<BreedOutput, String>" AS ?returnType)
+    BIND(1 AS ?arity)
+    BIND(true AS ?pure)
+  }
+  UNION
+  {
+    BIND("wasm4pm_cognition::breeds" AS ?stubModule)
+    BIND("Type" AS ?itemType)
+    BIND("BreedInput" AS ?itemName)
+    BIND("Swarm" AS ?requiredBy)
+    BIND("REQUIRED" AS ?cardinality)
+    BIND("Input scenario for breed dispatch" AS ?description)
+    BIND("QUERY" AS ?usagePattern)
+    BIND("manufacture" AS ?stageName)
+    BIND("HIGH" AS ?priority)
+    BIND(true AS ?testRequired)
+    BIND("breeds.input" AS ?otelSpanName)
+    BIND(IRI(CONCAT("urn:wasm4pm:req:", "BreedInput")) AS ?req)
+  }
+
+  # =========================================================================
+  # 7. Conformance Algorithms (wasm4pm_algos)
+  # =========================================================================
+  UNION
+  {
+    BIND("wasm4pm_algos::conformance" AS ?stubModule)
+    BIND("Function" AS ?itemType)
+    BIND("check_conformance_alignment" AS ?itemName)
+    BIND("ConformanceValidator" AS ?requiredBy)
+    BIND("OPTIONAL" AS ?cardinality)
+    BIND("Check if trace fitness aligns with event-log patterns" AS ?description)
+    BIND("FITNESS" AS ?usagePattern)
+    BIND("validate" AS ?stageName)
+    BIND("NORMAL" AS ?priority)
+    BIND(false AS ?testRequired)
+    BIND("algos.conformance.align" AS ?otelSpanName)
+    BIND(IRI(CONCAT("urn:wasm4pm:req:", "check_conformance_alignment")) AS ?req)
+    BIND("(&EventLog, &Trace, f64) -> Result<bool, String>" AS ?methodSignature)
+    BIND("Result<bool, String>" AS ?returnType)
+    BIND(3 AS ?arity)
+    BIND(true AS ?pure)
+  }
+
+}
+ORDER BY ?stageName ?priority ?itemName

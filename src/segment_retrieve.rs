@@ -184,24 +184,32 @@ mod tests {
         let g = graph_with_hierarchy();
         let r = retrieve_segment(&g, &["http://ex.org/Cat".to_string()], 2, false).unwrap();
         assert!(r.turtle.contains("ex.org/Animal"));
-        assert!(r.turtle.contains("ex.org/LivingThing"),
-            "two-hop walk should reach LivingThing; got:\n{}", r.turtle);
+        assert!(
+            r.turtle.contains("ex.org/LivingThing"),
+            "two-hop walk should reach LivingThing; got:\n{}",
+            r.turtle
+        );
     }
 
     #[test]
     fn retrieve_excludes_abox_by_default() {
         let g = graph_with_hierarchy();
         let r = retrieve_segment(&g, &["http://ex.org/Cat".to_string()], 1, false).unwrap();
-        assert!(!r.turtle.contains("ex.org/tigger"),
-            "instance triples must NOT appear when include_abox=false");
+        assert!(
+            !r.turtle.contains("ex.org/tigger"),
+            "instance triples must NOT appear when include_abox=false"
+        );
     }
 
     #[test]
     fn retrieve_includes_abox_when_requested() {
         let g = graph_with_hierarchy();
         let r = retrieve_segment(&g, &["http://ex.org/Cat".to_string()], 1, true).unwrap();
-        assert!(r.turtle.contains("ex.org/tigger"),
-            "instance triples must appear when include_abox=true; got:\n{}", r.turtle);
+        assert!(
+            r.turtle.contains("ex.org/tigger"),
+            "instance triples must appear when include_abox=true; got:\n{}",
+            r.turtle
+        );
     }
 
     #[test]

@@ -59,7 +59,11 @@ async fn push_sparql_graph_forwards_ostar_receipt_headers() {
         "unexpected body: {}",
         req.body
     );
-    assert!(!req.body.contains("GRAPH <"), "unexpected named graph in body: {}", req.body);
+    assert!(
+        !req.body.contains("GRAPH <"),
+        "unexpected named graph in body: {}",
+        req.body
+    );
 }
 
 #[tokio::test]

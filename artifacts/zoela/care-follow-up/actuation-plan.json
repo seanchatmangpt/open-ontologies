@@ -1,0 +1,9 @@
+{
+  "action_id": "ZOELA-CFUP-CORE-HARNESS-001",
+  "emitted_by": "open-ontologies",
+  "policy_id": "core_execution_harness",
+  "allowed": "true",
+  "working_directory": "/Users/sac/open-ontologies",
+  "command": "pnpm --filter mobile test",
+  "actor_basis8": "Gemini_Agent"
+}

@@ -1,0 +1,20 @@
+PREFIX truex: <https://open-ontologies.org/profile/truex#>
+PREFIX rdf:   <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX rdfs:  <http://www.w3.org/2000/01/rdf-schema#>
+
+SELECT ?obligation ?label ?required_artifact ?discharger ?state WHERE {
+  truex:TruexEcosystemClosed truex:requiresObligation ?obligation .
+  ?obligation rdfs:label ?label .
+  
+  OPTIONAL {
+    ?obligation truex:requiresArtifact ?art .
+    ?art rdfs:label ?required_artifact .
+  }
+  
+  OPTIONAL {
+    ?discharger truex:discharges ?obligation .
+  }
+  
+  BIND(IF(BOUND(?discharger), "Discharged", "Undischarged") AS ?state)
+}
+ORDER BY ?label

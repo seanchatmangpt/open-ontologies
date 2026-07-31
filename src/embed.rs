@@ -188,16 +188,13 @@ impl TextEmbedder {
             .iter()
             .map(|&m| m as i64)
             .collect();
-        let token_type_ids: Vec<i64> =
-            encoding.get_type_ids().iter().map(|&t| t as i64).collect();
+        let token_type_ids: Vec<i64> = encoding.get_type_ids().iter().map(|&t| t as i64).collect();
         let seq_len = input_ids.len();
 
-        let input_ids_tensor =
-            tract_ndarray::Array2::from_shape_vec((1, seq_len), input_ids)?;
+        let input_ids_tensor = tract_ndarray::Array2::from_shape_vec((1, seq_len), input_ids)?;
         let attention_tensor =
             tract_ndarray::Array2::from_shape_vec((1, seq_len), attention_mask.clone())?;
-        let type_ids_tensor =
-            tract_ndarray::Array2::from_shape_vec((1, seq_len), token_type_ids)?;
+        let type_ids_tensor = tract_ndarray::Array2::from_shape_vec((1, seq_len), token_type_ids)?;
 
         let outputs = self.model.run(tvec![
             input_ids_tensor.into_tensor().into(),
@@ -321,9 +318,8 @@ impl TextEmbedderProvider {
                 let api_base = crate::config::resolve_embeddings_api_base(cfg);
                 let api_key = crate::config::resolve_embeddings_api_key(cfg);
                 let model = crate::config::resolve_embeddings_model(cfg);
-                let timeout = std::time::Duration::from_secs(
-                    cfg.request_timeout_secs.unwrap_or(30).max(1),
-                );
+                let timeout =
+                    std::time::Duration::from_secs(cfg.request_timeout_secs.unwrap_or(30).max(1));
                 let embedder = crate::embed_remote::OpenAIEmbedder::new(
                     &api_base,
                     api_key,
@@ -334,8 +330,7 @@ impl TextEmbedderProvider {
                 Ok(Some(Self::OpenAI(embedder)))
             }
             "local" | "" | "onnx" => {
-                let default_model_dir =
-                    dirs::home_dir().map(|h| h.join(".open-ontologies/models"));
+                let default_model_dir = dirs::home_dir().map(|h| h.join(".open-ontologies/models"));
 
                 let model_path = cfg
                     .model_path
@@ -359,11 +354,7 @@ impl TextEmbedderProvider {
                     .tokenizer_path
                     .clone()
                     .map(|p| std::path::PathBuf::from(crate::config::expand_tilde(&p)))
-                    .or_else(|| {
-                        default_model_dir
-                            .as_ref()
-                            .map(|d| d.join("tokenizer.json"))
-                    });
+                    .or_else(|| default_model_dir.as_ref().map(|d| d.join("tokenizer.json")));
 
                 match (model_path, tokenizer_path) {
                     (Some(m), Some(t)) if m.exists() && t.exists() => {

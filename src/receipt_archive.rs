@@ -32,7 +32,7 @@
 //! is cleaned up automatically when the guard drops.
 
 use crate::state::StateDb;
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use rusqlite::Connection;
 use std::path::Path;
 
@@ -203,8 +203,7 @@ pub fn archive_receipts(
     std::fs::create_dir_all(archive_dir)
         .with_context(|| format!("create archive_dir {}", archive_dir.display()))?;
 
-    let cutoff = (chrono::Utc::now() - chrono::Duration::days(older_than_days as i64))
-        .to_rfc3339();
+    let cutoff = (chrono::Utc::now() - chrono::Duration::days(older_than_days as i64)).to_rfc3339();
 
     // Read every eligible row in a single query. We do not stream because
     // monthly receipt counts in the hot table are bounded (the worker
@@ -244,11 +243,7 @@ pub fn archive_receipts(
                 "INSERT OR IGNORE INTO archive_index
                     (receipt_hash, shard_file, archived_at)
                  VALUES (?1, ?2, ?3)",
-                rusqlite::params![
-                    r.receipt_hash,
-                    shard_name,
-                    chrono::Utc::now().to_rfc3339()
-                ],
+                rusqlite::params![r.receipt_hash, shard_name, chrono::Utc::now().to_rfc3339()],
             )?;
             stats.rows_archived += 1;
         }
@@ -317,10 +312,7 @@ pub fn archive_receipts(
 /// assert_eq!(archived.tenant_id, "default");
 /// assert_eq!(archived.sequence, 1);
 /// ```
-pub fn lookup_archived(
-    archive_dir: &Path,
-    receipt_hash: &str,
-) -> Result<Option<ArchivedReceipt>> {
+pub fn lookup_archived(archive_dir: &Path, receipt_hash: &str) -> Result<Option<ArchivedReceipt>> {
     let index_path = archive_dir.join("archive_index.db");
     if !index_path.exists() {
         return Ok(None);
@@ -341,7 +333,9 @@ pub fn lookup_archived(
     };
     let shard_path = archive_dir.join(&shard_file);
     let receipts = read_parquet_shard(&shard_path)?;
-    let found = receipts.into_iter().find(|r| r.receipt_hash == receipt_hash);
+    let found = receipts
+        .into_iter()
+        .find(|r| r.receipt_hash == receipt_hash);
     if let Some(mut r) = found {
         r.shard_file = shard_file;
         Ok(Some(r))
@@ -364,8 +358,8 @@ CREATE INDEX IF NOT EXISTS idx_archive_index_shard
 ";
 
 fn open_index(path: &Path) -> Result<Connection> {
-    let conn = Connection::open(path)
-        .with_context(|| format!("open archive index {}", path.display()))?;
+    let conn =
+        Connection::open(path).with_context(|| format!("open archive index {}", path.display()))?;
     conn.execute_batch(ARCHIVE_INDEX_SCHEMA)?;
     Ok(conn)
 }
@@ -409,10 +403,7 @@ fn month_key_of(rfc3339: &str) -> String {
     // is malformed we fall back to "unknown" so the row is not lost.
     if rfc3339.len() >= 7 {
         let head = &rfc3339[..7];
-        if head
-            .chars()
-            .all(|c| c.is_ascii_digit() || c == '-')
-        {
+        if head.chars().all(|c| c.is_ascii_digit() || c == '-') {
             return head.to_string();
         }
     }
@@ -513,10 +504,9 @@ fn write_parquet_shard(path: &Path, rows: &[ArchivedReceipt]) -> Result<()> {
     )
     .map_err(|e| anyhow!("build RecordBatch: {e}"))?;
 
-    let file = File::create(path)
-        .with_context(|| format!("create shard {}", path.display()))?;
-    let mut writer = ArrowWriter::try_new(file, schema, None)
-        .map_err(|e| anyhow!("open ArrowWriter: {e}"))?;
+    let file = File::create(path).with_context(|| format!("create shard {}", path.display()))?;
+    let mut writer =
+        ArrowWriter::try_new(file, schema, None).map_err(|e| anyhow!("open ArrowWriter: {e}"))?;
     writer
         .write(&batch)
         .map_err(|e| anyhow!("write batch: {e}"))?;
@@ -525,8 +515,7 @@ fn write_parquet_shard(path: &Path, rows: &[ArchivedReceipt]) -> Result<()> {
 }
 
 fn read_parquet_shard(path: &Path) -> Result<Vec<ArchivedReceipt>> {
-    let file = File::open(path)
-        .with_context(|| format!("open shard {}", path.display()))?;
+    let file = File::open(path).with_context(|| format!("open shard {}", path.display()))?;
     let builder = ParquetRecordBatchReaderBuilder::try_new(file)
         .map_err(|e| anyhow!("open ParquetReader: {e}"))?;
     let reader = builder

@@ -1,3 +1,5 @@
+#![allow(clippy::all, unused)]
+
 //! Full Adversarial Acceptance Tests (AAT) for all 87 open-ontologies MCP tools.
 //!
 //! Armstrong principle: every impossible state must fail LOUDLY.
@@ -60,11 +62,23 @@ fn is_json(response: &str) -> bool {
 // in list_tool_definitions(). Drift between docs and registration is a defect.
 
 const EXPECTED_TOOLS: &[&str] = &[
+    "borderline_partition",
+    "borderline_record_verdict",
+    "eval_rag",
+    "eval_rag_mmrag",
+    "graph_projection_lossy_check",
+    "onto_action_applicable",
+    "onto_action_apply",
+    "onto_action_apply_concurrent",
+    "onto_action_list",
+    "onto_action_register",
     "onto_admission_check",
     "onto_admit_ctq",
     "onto_admit_work_order",
     "onto_align",
     "onto_align_feedback",
+    "onto_align_flora",
+    "onto_align_fuzzy",
     "onto_alphastar_solve",
     "onto_apply",
     "onto_attestation_rotate_keys",
@@ -72,14 +86,22 @@ const EXPECTED_TOOLS: &[&str] = &[
     "onto_cache_list",
     "onto_cache_remove",
     "onto_cache_status",
+    "onto_cell8_attest",
+    "onto_certify_action",
+    "onto_classify_el",
     "onto_clear",
     "onto_close_workflow",
     "onto_codegen",
+    "onto_coevolve_dependency_graph",
     "onto_conformance_check",
     "onto_convert",
     "onto_counterfactual",
+    "onto_cq_run",
+    "onto_cq_verdicts_list",
     "onto_crosswalk",
     "onto_declare_workflow",
+    "onto_default_apply",
+    "onto_default_register",
     "onto_diff",
     "onto_dl_check",
     "onto_dl_explain",
@@ -88,16 +110,24 @@ const EXPECTED_TOOLS: &[&str] = &[
     "onto_enforce",
     "onto_enforce_feedback",
     "onto_enrich",
+    "onto_eval_alignment",
     "onto_executive_projection",
     "onto_exemplar_seed",
     "onto_extend",
+    "onto_extract_scaffold",
+    "onto_extract_validate",
     "onto_gemini_status",
     "onto_groq_status",
     "onto_guide",
     "onto_history",
+    "onto_hnsw_build",
     "onto_import",
     "onto_import_schema",
     "onto_ingest",
+    "onto_invariant_check",
+    "onto_invariant_list",
+    "onto_invariant_register",
+    "onto_invariant_remove",
     "onto_lineage",
     "onto_lint",
     "onto_lint_feedback",
@@ -111,9 +141,17 @@ const EXPECTED_TOOLS: &[&str] = &[
     "onto_mustar_solve",
     "onto_old_ai_station",
     "onto_ontostar_attest",
+    "onto_owl_shacl_coevolve_check",
+    "onto_owl_shacl_coevolve_incremental",
     "onto_plan",
+    "onto_plan_classical",
+    "onto_plan_compile_pddl",
+    "onto_plan_validate",
     "onto_plan_workflow",
     "onto_planner_demos",
+    "onto_policy_check",
+    "onto_policy_list",
+    "onto_policy_register",
     "onto_process_check_soundness",
     "onto_process_validate_claim",
     "onto_propose_requirement",
@@ -131,12 +169,18 @@ const EXPECTED_TOOLS: &[&str] = &[
     "onto_rollback",
     "onto_save",
     "onto_search",
+    "onto_segment_retrieve",
     "onto_session_reset",
     "onto_session_revoke_by_principal",
     "onto_shacl",
+    "onto_shacl_check",
+    "onto_shape_combinatorics",
+    "onto_shape_induce",
     "onto_similarity",
     "onto_sql_ingest",
-    "onto_cell8_attest",
+    "onto_sql_sync_reset",
+    "onto_sql_sync_state",
+    "onto_sql_sync_states_list",
     "onto_stats",
     "onto_status",
     "onto_threshold_status",
@@ -145,6 +189,7 @@ const EXPECTED_TOOLS: &[&str] = &[
     "onto_unload",
     "onto_validate",
     "onto_validate_clinical",
+    "onto_verify_cq",
     "onto_version",
     "onto_workflow_discover",
     "onto_workflow_feedback",
@@ -228,7 +273,10 @@ async fn a1_load_nonexistent_file_returns_ok_false() {
         }))
         .await;
     assert!(is_json(&resp), "response is not JSON: {resp}");
-    assert!(!ok(&resp), "THEATER: load on nonexistent file returned ok:true\n{resp}");
+    assert!(
+        !ok(&resp),
+        "THEATER: load on nonexistent file returned ok:true\n{resp}"
+    );
 }
 
 #[tokio::test]
@@ -244,7 +292,10 @@ async fn a2_load_neither_path_nor_turtle_returns_ok_false() {
         }))
         .await;
     assert!(is_json(&resp), "response is not JSON: {resp}");
-    assert!(!ok(&resp), "THEATER: load with no path and no turtle returned ok:true\n{resp}");
+    assert!(
+        !ok(&resp),
+        "THEATER: load with no path and no turtle returned ok:true\n{resp}"
+    );
 }
 
 #[tokio::test]
@@ -260,7 +311,10 @@ async fn a3_load_garbage_turtle_inline_returns_ok_false() {
         }))
         .await;
     assert!(is_json(&resp), "response is not JSON: {resp}");
-    assert!(!ok(&resp), "THEATER: load of garbage Turtle returned ok:true\n{resp}");
+    assert!(
+        !ok(&resp),
+        "THEATER: load of garbage Turtle returned ok:true\n{resp}"
+    );
 }
 
 #[tokio::test]
@@ -276,7 +330,10 @@ async fn a4_save_nonexistent_directory_returns_ok_false() {
         }))
         .await;
     assert!(is_json(&resp), "response is not JSON: {resp}");
-    assert!(!ok(&resp), "THEATER: save to nonexistent directory returned ok:true\n{resp}");
+    assert!(
+        !ok(&resp),
+        "THEATER: save to nonexistent directory returned ok:true\n{resp}"
+    );
 }
 
 #[tokio::test]
@@ -303,7 +360,10 @@ async fn a5_save_invalid_format_enum_returns_ok_false() {
         }))
         .await;
     assert!(is_json(&resp), "response is not JSON: {resp}");
-    assert!(!ok(&resp), "THEATER: save with invalid format returned ok:true\n{resp}");
+    assert!(
+        !ok(&resp),
+        "THEATER: save with invalid format returned ok:true\n{resp}"
+    );
 }
 
 #[tokio::test]
@@ -345,7 +405,10 @@ async fn a7_ontostar_attest_bad_signature_returns_ok_false() {
         key_fpr: "0000000000000000".to_string(),
     }));
     assert!(is_json(&resp), "response is not JSON: {resp}");
-    assert!(!ok(&resp), "THEATER: bogus signature returned ok:true\n{resp}");
+    assert!(
+        !ok(&resp),
+        "THEATER: bogus signature returned ok:true\n{resp}"
+    );
 }
 
 #[tokio::test]
@@ -355,22 +418,34 @@ async fn a8_conformance_check_nonexistent_artifact_returns_ok_false() {
         scope_token: "nonexistent-aat-scope-a8".to_string(),
     }));
     assert!(is_json(&resp), "response is not JSON: {resp}");
-    assert!(!ok(&resp), "THEATER: conformance check on nonexistent artifact returned ok:true\n{resp}");
+    assert!(
+        !ok(&resp),
+        "THEATER: conformance check on nonexistent artifact returned ok:true\n{resp}"
+    );
 }
 
 #[tokio::test]
 async fn a9_threshold_status_returns_ok_true_and_is_json() {
     let (_tmp, _db, server) = build_server();
     let resp = server.onto_threshold_status().await;
-    assert!(is_json(&resp), "onto_threshold_status returned invalid JSON: {resp}");
-    assert!(ok(&resp), "onto_threshold_status returned ok:false on healthy server\n{resp}");
+    assert!(
+        is_json(&resp),
+        "onto_threshold_status returned invalid JSON: {resp}"
+    );
+    assert!(
+        ok(&resp),
+        "onto_threshold_status returned ok:false on healthy server\n{resp}"
+    );
 }
 
 #[tokio::test]
 async fn a10_threshold_sweep_returns_ok_true_and_is_json() {
     let (_tmp, _db, server) = build_server();
     let resp = server.onto_threshold_sweep().await;
-    assert!(is_json(&resp), "onto_threshold_sweep returned invalid JSON: {resp}");
+    assert!(
+        is_json(&resp),
+        "onto_threshold_sweep returned invalid JSON: {resp}"
+    );
     assert!(ok(&resp), "onto_threshold_sweep returned ok:false\n{resp}");
 }
 
@@ -378,7 +453,10 @@ async fn a10_threshold_sweep_returns_ok_true_and_is_json() {
 fn a11_retention_resume_without_admin_returns_ok_false() {
     let (_tmp, _db, server) = build_server();
     let resp = server.onto_retention_resume();
-    assert!(is_json(&resp), "onto_retention_resume returned invalid JSON: {resp}");
+    assert!(
+        is_json(&resp),
+        "onto_retention_resume returned invalid JSON: {resp}"
+    );
     // build_server() configures no admin principal — admin guard must fire
     assert!(
         !ok(&resp),
@@ -390,7 +468,10 @@ fn a11_retention_resume_without_admin_returns_ok_false() {
 async fn a12_bootstrap_unlock_returns_valid_json() {
     let (_tmp, _db, server) = build_server();
     let resp = server.onto_bootstrap_unlock();
-    assert!(is_json(&resp), "onto_bootstrap_unlock returned invalid JSON: {resp}");
+    assert!(
+        is_json(&resp),
+        "onto_bootstrap_unlock returned invalid JSON: {resp}"
+    );
 }
 
 #[tokio::test]
@@ -400,7 +481,10 @@ async fn a13_receipts_revoke_batch_empty_ids_returns_valid_json() {
         scope_token_pattern: "nonexistent-aat-*".to_string(),
         reason: "aat-a13".to_string(),
     }));
-    assert!(is_json(&resp), "onto_receipts_revoke_batch returned invalid JSON: {resp}");
+    assert!(
+        is_json(&resp),
+        "onto_receipts_revoke_batch returned invalid JSON: {resp}"
+    );
 }
 
 #[test]
@@ -429,7 +513,10 @@ fn a15_guide_unknown_intent_returns_known_intents_list() {
     let v: serde_json::Value = serde_json::from_str(&resp).expect("onto_guide returned non-JSON");
     assert_eq!(v["ok"], true);
     assert!(
-        v["known_intents"].as_array().map(|a| !a.is_empty()).unwrap_or(false),
+        v["known_intents"]
+            .as_array()
+            .map(|a| !a.is_empty())
+            .unwrap_or(false),
         "unknown intent must return known_intents list\nresponse: {resp}"
     );
     assert!(
@@ -446,14 +533,20 @@ async fn a16_align_garbage_source_turtle_returns_ok_false() {
             source: "@@@### NOT VALID TURTLE {{{".to_string(),
             target: None,
             min_confidence: None,
+            high_threshold: None,
+            low_threshold: None,
             dry_run: Some(true),
             scope_token: None,
             bypass_admission: None,
             bypass_reason: None,
+            fusion: None,
         }))
         .await;
     assert!(is_json(&resp), "response is not JSON: {resp}");
-    assert!(!ok(&resp), "THEATER: align with garbage source Turtle returned ok:true\n{resp}");
+    assert!(
+        !ok(&resp),
+        "THEATER: align with garbage source Turtle returned ok:true\n{resp}"
+    );
 }
 
 // ─── Module C: CLI subprocess adversarial tests ───────────────────────────────
@@ -475,7 +568,10 @@ struct Iso {
 
 impl Iso {
     fn new(tmp: &TempDir) -> Self {
-        Self { dir: tmp.path().to_path_buf(), args: Vec::new() }
+        Self {
+            dir: tmp.path().to_path_buf(),
+            args: Vec::new(),
+        }
     }
 
     fn args<I, S>(mut self, parts: I) -> Self
@@ -483,7 +579,9 @@ impl Iso {
         I: IntoIterator<Item = S>,
         S: AsRef<std::ffi::OsStr>,
     {
-        for p in parts { self.args.push(p.as_ref().to_owned()); }
+        for p in parts {
+            self.args.push(p.as_ref().to_owned());
+        }
         self
     }
 
@@ -499,7 +597,12 @@ impl Iso {
 fn c1_load_nonexistent_file_exits_nonzero() {
     let tmp = TempDir::new().unwrap();
     let out = Iso::new(&tmp)
-        .args(["ontology", "load", "--path", "/nonexistent/does-not-exist.ttl"])
+        .args([
+            "ontology",
+            "load",
+            "--path",
+            "/nonexistent/does-not-exist.ttl",
+        ])
         .run();
     assert!(
         !out.status.success(),
@@ -538,8 +641,10 @@ fn c3_query_before_load_returns_no_results() {
     let tmp = TempDir::new().unwrap();
     let out = Iso::new(&tmp)
         .args([
-            "ontology", "sparql",
-            "--sparql_query", "SELECT ?s WHERE { ?s a <http://aat.test/Nonexistent> }",
+            "ontology",
+            "sparql",
+            "--sparql_query",
+            "SELECT ?s WHERE { ?s a <http://aat.test/Nonexistent> }",
         ])
         .run();
     assert!(
@@ -580,9 +685,12 @@ fn c5_ingest_format_mismatch_must_fail_or_reject() {
 
     let out = Iso::new(&tmp)
         .args([
-            "data", "ingest",
-            "--path", csv_path.to_str().unwrap(),
-            "--format", "turtle",
+            "data",
+            "ingest",
+            "--path",
+            csv_path.to_str().unwrap(),
+            "--format",
+            "turtle",
         ])
         .run();
     // format=turtle on a CSV: must either reject or auto-detect and succeed.
@@ -606,7 +714,8 @@ fn c6_serial_load_then_query_proves_load_was_real() {
     std::fs::write(
         &ttl,
         "@prefix ex: <http://aat.serial/> . ex:Alice a ex:Person .",
-    ).unwrap();
+    )
+    .unwrap();
 
     // Step 1: load
     let load = Iso::new(&tmp)
@@ -621,7 +730,8 @@ fn c6_serial_load_then_query_proves_load_was_real() {
     // Step 2: query — must find Alice
     let query = Iso::new(&tmp)
         .args([
-            "ontology", "sparql",
+            "ontology",
+            "sparql",
             "--sparql_query",
             "SELECT ?s WHERE { ?s a <http://aat.serial/Person> }",
         ])
@@ -643,7 +753,8 @@ fn c7_malformed_sparql_returns_error_response() {
     let tmp = TempDir::new().unwrap();
     let out = Iso::new(&tmp)
         .args([
-            "ontology", "sparql",
+            "ontology",
+            "sparql",
             "--sparql_query",
             "THIS IS NOT SPARQL @@@###",
         ])
@@ -664,9 +775,12 @@ fn c8_diff_nonexistent_files_exits_nonzero() {
     let tmp = TempDir::new().unwrap();
     let out = Iso::new(&tmp)
         .args([
-            "ontology", "diff",
-            "--old_path", "/nonexistent/old.ttl",
-            "--new_path", "/nonexistent/new.ttl",
+            "ontology",
+            "diff",
+            "--old_path",
+            "/nonexistent/old.ttl",
+            "--new_path",
+            "/nonexistent/new.ttl",
         ])
         .run();
     assert!(
@@ -686,10 +800,7 @@ fn d1_load_then_stats_proves_load_was_real() {
     let tmp = TempDir::new().unwrap();
 
     let ttl = tmp.path().join("d1.ttl");
-    std::fs::write(
-        &ttl,
-        "@prefix ex: <http://aat.d1/> . ex:Bob a ex:Entity .",
-    ).unwrap();
+    std::fs::write(&ttl, "@prefix ex: <http://aat.d1/> . ex:Bob a ex:Entity .").unwrap();
 
     let load = Iso::new(&tmp)
         .args(["ontology", "load", "--path", ttl.to_str().unwrap()])
@@ -726,7 +837,8 @@ fn d2_serial_load_stats_proves_triple_count_increased() {
     std::fs::write(
         &ttl,
         "@prefix ex: <http://aat.d2/> . ex:A a ex:B . ex:C a ex:D . ex:E a ex:F .",
-    ).unwrap();
+    )
+    .unwrap();
 
     let load_out = Iso::new(&tmp)
         .args(["ontology", "load", "--path", ttl.to_str().unwrap()])

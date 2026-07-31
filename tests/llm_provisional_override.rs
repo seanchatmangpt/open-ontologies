@@ -21,7 +21,7 @@
 //! flips `ParsedFields::llm_claimed_authority` and the OCEL emission
 //! is wired upstream of the `CandidateCtq` lift.
 
-use open_ontologies::signature_shape::{ctq_signature, FieldSpec, SignatureShape};
+use open_ontologies::signature_shape::{FieldSpec, SignatureShape, ctq_signature};
 
 fn ok_shape() -> SignatureShape {
     SignatureShape {
@@ -86,9 +86,7 @@ fn both_provisional_false_and_authoritative_true_flip_claim_flag() {
         "provisional": false,
         "authoritative": true
     }"#;
-    let parsed = ok_shape()
-        .parse_and_validate(raw)
-        .expect("admits + flags");
+    let parsed = ok_shape().parse_and_validate(raw).expect("admits + flags");
     assert!(parsed.llm_claimed_authority);
 }
 
@@ -98,9 +96,7 @@ fn missing_authority_signals_keeps_flag_false() {
     // neither `provisional` nor `authoritative`. Flag stays false —
     // no OCEL event should be emitted.
     let raw = r#"{"ctq": "this is fine", "kind": "operator"}"#;
-    let parsed = ok_shape()
-        .parse_and_validate(raw)
-        .expect("admits");
+    let parsed = ok_shape().parse_and_validate(raw).expect("admits");
     assert!(!parsed.llm_claimed_authority);
 }
 

@@ -1,0 +1,9 @@
+{
+  "action_id": "ghf_contribution_3",
+  "emitted_by": "open-ontologies",
+  "policy_id": "auto_receipt_batch",
+  "actor_basis8": "persona_developer",
+  "allowed": true,
+  "working_directory": "/Users/sac/open-ontologies",
+  "command": "echo '# GHF Weekly Proof' >> docs/weekly-ledger-template.md && git add docs/weekly-ledger-template.md"
+}

@@ -1,24 +1,26 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "module": "ESNext",
-    "moduleResolution": "bundler",
+    "module": "CommonJS",
+    "moduleResolution": "node",
     "strict": true,
-    "jsx": "react-native",
-    "noEmit": true,
+    "esModuleInterop": true,
     "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
     "baseUrl": ".",
     "paths": {
-      "@zoela/*": ["packages/*"]
+      "@truex/vkg": ["packages/truex/vkg/index.ts"],
+      "@truex/cli": ["packages/truex/cli/index.ts"],
+      "@truex/examples": ["packages/truex/examples/index.ts"],
+      "@truex/conformance": ["packages/truex/conformance/index.ts"],
+      "@truex/replay": ["packages/truex/replay/index.ts"],
+      "@truex/otel": ["packages/truex/otel/index.ts"],
+      "@truex/capture": ["packages/truex/capture/index.ts"],
+      "@truex/verifier": ["packages/truex/verifier/index.ts"],
+      "@truex/receipt": ["packages/truex/receipt/index.ts"],
+      "@truex/canonical": ["packages/truex/canonical/index.ts"],
+      "@truex/ocel2": ["packages/truex/ocel2/index.ts"],
+      "@truex/*": ["packages/truex/*/index.ts"]
     }
-  },
-  "include": [
-    "packages/**/*.ts",
-    "packages/**/*.tsx"
-  ],
-  "exclude": [
-    "node_modules",
-    "target",
-    "supabase/functions"
-  ]
+  }
 }

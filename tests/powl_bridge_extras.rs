@@ -2,8 +2,8 @@
 //! `ConformanceResult` (NOT `Result::Err`) whose `.defects` Vec carries
 //! `(DefectClass, Deviation)` pairs.
 
-use open_ontologies::powl_bridge::{classify_replay, PowlBridge};
 use open_ontologies::DefectClass;
+use open_ontologies::powl_bridge::{PowlBridge, classify_replay};
 
 const SEQ_AB: &str = "PO=(nodes={a, b}, order={a-->b})";
 
@@ -14,9 +14,10 @@ fn classify_replay_emits_extra_task() {
     let trace = vec!["a".to_string(), "b".to_string(), "extra_z".to_string()];
     let r = bridge.replay_trace(root, &trace).expect("replay");
     let cls = classify_replay(&bridge, root, &trace, &r);
-    let has_extra = cls.defects.iter().any(|(d, _)| {
-        matches!(d, DefectClass::ExtraTask { stage } if stage == "extra_z")
-    });
+    let has_extra = cls
+        .defects
+        .iter()
+        .any(|(d, _)| matches!(d, DefectClass::ExtraTask { stage } if stage == "extra_z"));
     assert!(
         has_extra,
         "expected ExtraTask{{stage='extra_z'}} in defects: {:?}",
@@ -40,7 +41,10 @@ fn classify_replay_emits_wrong_order_when_tokens_remain() {
     // wasm4pm's token bookkeeping for this corner, we may see only
     // ReplayFailed. Both are valid signal of out-of-order behavior; the
     // primary contract is "no false 'conform'".
-    assert!(!cls.is_conform(), "must not certify out-of-order trace as conform");
+    assert!(
+        !cls.is_conform(),
+        "must not certify out-of-order trace as conform"
+    );
     let has_wrong_order = cls
         .defects
         .iter()

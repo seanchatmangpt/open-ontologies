@@ -739,7 +739,9 @@ fn w3c_pizza_non_veg_unsatisfiable() {
     let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
     let unsat = parsed["unsatisfiable_classes"].as_array().unwrap();
     assert!(
-        unsat.iter().any(|v| v.as_str().unwrap().contains("MeatPizza")),
+        unsat
+            .iter()
+            .any(|v| v.as_str().unwrap().contains("MeatPizza")),
         "MeatPizza should be unsatisfiable"
     );
 }

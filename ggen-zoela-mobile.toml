@@ -119,9 +119,7 @@ output = "stderr"
 
 [vocabulary]
 allowed_namespaces = [
-    "urn:zoela:",
     "https://zoela.org/ontology/",
-    "https://zoela.org/onto/",
     "http://purl.org/dc/terms/",
     "https://schema.org/",
     "http://xmlns.com/foaf/0.1/",

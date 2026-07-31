@@ -27,7 +27,7 @@
 //! a verdict (`accept` / `borderline` / `reject`) which is converted to a
 //! crisp `AlignmentEntry` (only accept-verdict pairs land in the result).
 
-use crate::align_fuzzy::{adjudicate, FuzzySignals, TNorm};
+use crate::align_fuzzy::{FuzzySignals, TNorm, adjudicate};
 use crate::eval_alignment::AlignmentEntry;
 use crate::graph::GraphStore;
 use serde::Serialize;
@@ -343,7 +343,8 @@ mod tests {
                ex:Paper a owl:Class .
             "#,
             None,
-        ).unwrap();
+        )
+        .unwrap();
         g2.load_turtle(
             r#"@prefix owl: <http://www.w3.org/2002/07/owl#> .
                @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
@@ -355,16 +356,21 @@ mod tests {
                ex:Conference a owl:Class .
             "#,
             None,
-        ).unwrap();
+        )
+        .unwrap();
         let report = align_with_flora(&g1, &g2, 0.4, 0.65);
         assert_eq!(report.source_class_count, 4);
         assert_eq!(report.target_class_count, 5);
         // Author↔Author and Reviewer↔Reviewer have shared parent context.
-        let has_author = report.entries.iter().any(|e|
-            e.source.ends_with("Author") && e.target.ends_with("Author"));
-        assert!(has_author,
+        let has_author = report
+            .entries
+            .iter()
+            .any(|e| e.source.ends_with("Author") && e.target.ends_with("Author"));
+        assert!(
+            has_author,
             "Author↔Author should accept with parent context; got: {:?}",
-            report.entries);
+            report.entries
+        );
     }
 
     #[test]
@@ -383,12 +389,16 @@ mod tests {
         ).unwrap();
         let report = align_with_flora(&g1, &g2, 0.4, 0.65);
         // Zero accepts, ≥1 borderline.
-        assert_eq!(report.accepts, 0,
+        assert_eq!(
+            report.accepts, 0,
             "bare-class match should not accept; got entries: {:?}",
-            report.entries);
-        assert!(report.borderline >= 1,
+            report.entries
+        );
+        assert!(
+            report.borderline >= 1,
             "expected borderline for identical-label bare classes; got {:?}",
-            report);
+            report
+        );
     }
 
     #[test]

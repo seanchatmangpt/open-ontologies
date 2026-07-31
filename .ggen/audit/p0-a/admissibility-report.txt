@@ -1,0 +1,71 @@
+========================================================================
+P0-B.4d Materialization Admissibility Report
+========================================================================
+
+Total candidates (class × kind pairs): 41
+Unique classes: 17
+
+Status distribution:
+  admitted                         20
+  refused_duplicate_columns        3
+  refused_missing_policy           18
+
+Per-class admissibility:
+  ✓ Care Request
+      [refused_missing_policy] kind=OcelObjectMaterialization table=care_request
+      [admitted] kind=EvidenceEntityMaterialization table=care_request
+      [admitted] kind=ActionMaterialization table=care_request
+  ✗ Follow-Up Task
+      [refused_duplicate_columns] kind=ActionMaterialization table=follow_up_task
+      [refused_duplicate_columns] kind=EvidenceActivityMaterialization table=follow_up_task
+      [refused_duplicate_columns] kind=OcelEventMaterialization table=follow_up_task
+  ✓ Group Meeting
+      [admitted] kind=EventMaterialization table=group_meeting
+  ✗ Group Schedule
+      [refused_missing_policy] kind=TimeWindowMaterialization table=group_schedule
+  ✗ Group Season
+      [refused_missing_policy] kind=TimeWindowMaterialization table=group_season
+  ✓ Inventory Batch
+      [refused_missing_policy] kind=OcelObjectMaterialization table=inventory_batch
+      [admitted] kind=EvidenceEntityMaterialization table=inventory_batch
+  ✓ Partner Capacity
+      [refused_missing_policy] kind=OcelObjectMaterialization table=PART-CAP
+      [admitted] kind=EvidenceEntityMaterialization table=PART-CAP
+      [refused_missing_policy] kind=OcelObjectMaterialization table=PART-CAP
+      [admitted] kind=EvidenceEntityMaterialization table=PART-CAP
+  ✗ Partner Organization
+      [refused_missing_policy] kind=OrganizationMaterialization table=partner_organization
+      [refused_missing_policy] kind=OrganizationMaterialization table=partner_organization
+  ✓ Prayer Request
+      [admitted] kind=EvidenceEntityMaterialization table=prayer_request
+      [admitted] kind=ActionMaterialization table=prayer_request
+      [refused_missing_policy] kind=OcelObjectMaterialization table=prayer_request
+  ✓ Push Notification
+      [admitted] kind=ActionMaterialization table=push_notification
+  ✓ Referral
+      [refused_missing_policy] kind=OcelEventMaterialization table=referral
+      [admitted] kind=EvidenceActivityMaterialization table=referral
+      [admitted] kind=ActionMaterialization table=referral
+      [admitted] kind=EvidenceActivityMaterialization table=referral
+      [admitted] kind=ActionMaterialization table=referral
+      [refused_missing_policy] kind=OcelEventMaterialization table=referral
+  ✓ Resource Need Match
+      [admitted] kind=EvidenceActivityMaterialization table=resource_need_match
+      [refused_missing_policy] kind=OcelEventMaterialization table=resource_need_match
+  ✓ Route Outcome
+      [refused_missing_policy] kind=OcelObjectMaterialization table=route_outcome
+      [admitted] kind=EvidenceEntityMaterialization table=route_outcome
+      [refused_missing_policy] kind=OcelObjectMaterialization table=route_outcome
+      [admitted] kind=EvidenceEntityMaterialization table=route_outcome
+  ✓ Serve Team Assignment
+      [admitted] kind=EvidenceActivityMaterialization table=serve_team_assignment
+      [admitted] kind=ActionMaterialization table=serve_team_assignment
+      [refused_missing_policy] kind=OcelEventMaterialization table=serve_team_assignment
+  ✗ Spot Reservation
+      [refused_missing_policy] kind=ReservationMaterialization table=spot_reservation
+  ✓ Volunteer Assignment
+      [refused_missing_policy] kind=OcelEventMaterialization table=volunteer_assignment
+      [admitted] kind=EvidenceActivityMaterialization table=volunteer_assignment
+      [admitted] kind=ActionMaterialization table=volunteer_assignment
+  ✗ Waitlist Entry
+      [refused_missing_policy] kind=ReservationMaterialization table=waitlist_entry

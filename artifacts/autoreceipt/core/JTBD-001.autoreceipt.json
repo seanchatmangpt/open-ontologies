@@ -1,0 +1,38 @@
+{
+  "receipt_type": "OpenOntologyReceipt",
+  "receipt_schema": "oo.receipt.v1",
+  "version": "26.5.21",
+  "hash_algorithm": "BLAKE3",
+  "claim": {
+    "artifact_id": "JTBD-001",
+    "operator_id": "ggen",
+    "closure_id": "closure_JTBD-001",
+    "route_id": "autoreceipt_batch"
+  },
+  "expected_ocel": {
+    "schema": "oo.expected_ocel.v1",
+    "canonical_hash": "43bedfb490c5ff4fc837664be771233b2297d66d165561bdf2fb98a058cbacb3"
+  },
+  "observed_ocel": {
+    "schema": "oo.observed_ocel.v1",
+    "canonical_hash": "1ac18bfe8be6f8d9d7b64a4b243c1caafac7935dbb27ff1ad0274d8385e0ee85"
+  },
+  "alignment": {
+    "state": "Pass",
+    "missing_events": [],
+    "unexpected_events": [],
+    "refusal_state": null,
+    "verifier_derived": true
+  },
+  "boundary_evidence": {
+    "git_before": null,
+    "git_after": null,
+    "stdout_hash": null,
+    "stderr_hash": null,
+    "exit_code": null,
+    "files_changed_hash": null,
+    "raw_evidence_hash": "eb809c26c4b4642513cd0306a73f31991d3e40a3ce011bc2212c4927b09d76c6"
+  },
+  "previous_receipt_hash": null,
+  "receipt_hash": "6f9069572c2ae80d5aa6716d10bb2c74f21c00006135aff4b23d793ab7305f13"
+}

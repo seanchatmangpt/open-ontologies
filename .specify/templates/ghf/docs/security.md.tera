@@ -1,0 +1,24 @@
+# Security Policy
+
+## Supported Versions
+{{ supportedVersions | split(pat="|") | first }}
+
+## Reporting a Vulnerability
+{{ reportingMechanism | split(pat="|") | first }}
+
+## Responsible Disclosure
+{{ responsibleDisclosure | split(pat="|") | first }}
+
+## Receipt-Gated Security Changes
+Is receipt-gating required? **{{ receiptGatedChanges | split(pat="|") | first }}**
+
+## Out-of-Membrane Mutation Policy
+{{ outOfMembraneMutationPolicy | split(pat="|") | first }}
+
+## Verification Commands
+```bash
+{{ verificationCommands | split(pat="|") | first }}
+```
+
+## Contact / Disclosure Boundary
+{{ contactBoundary | split(pat="|") | first }}

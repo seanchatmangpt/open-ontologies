@@ -4,7 +4,7 @@
 //! `atomvm/Makefile` (drives the `atomvm-pico-tool` / `mkimage` build
 //! pipeline depending on `mcu_target`).
 
-use super::{with_header, ManufacturedFile, SolutionSpec};
+use super::{ManufacturedFile, SolutionSpec, with_header};
 
 /// Generate AtomVM files (`.erl` module + `Makefile`) for supported MCU targets.
 ///

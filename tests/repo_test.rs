@@ -5,7 +5,7 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use open_ontologies::config::{resolve_ontology_dirs, Config};
+use open_ontologies::config::{Config, resolve_ontology_dirs};
 use open_ontologies::graph::GraphStore;
 use open_ontologies::registry::{LoadOptions, OntologyRegistry};
 use open_ontologies::repo;
@@ -95,10 +95,15 @@ fn resolve_load_target_rejects_outside_path() {
     let outside = tempfile::tempdir().unwrap();
     let outside_file = outside.path().join("evil.ttl");
     std::fs::write(&outside_file, SAMPLE_TTL).unwrap();
-    let err = repo::resolve_load_target(outside_file.to_str().unwrap(), std::slice::from_ref(&repo))
-        .unwrap_err()
-        .to_string();
-    assert!(err.contains("outside") || err.contains("no file"), "got: {}", err);
+    let err =
+        repo::resolve_load_target(outside_file.to_str().unwrap(), std::slice::from_ref(&repo))
+            .unwrap_err()
+            .to_string();
+    assert!(
+        err.contains("outside") || err.contains("no file"),
+        "got: {}",
+        err
+    );
 }
 
 #[test]
@@ -128,7 +133,8 @@ fn resolve_within_repos_rejects_traversal() {
 #[test]
 fn resolve_within_repos_accepts_subdir() {
     let (_tmp, repo, _) = setup_repo();
-    let (resolved, repo_root) = repo::resolve_within_repos("sub", std::slice::from_ref(&repo)).unwrap();
+    let (resolved, repo_root) =
+        repo::resolve_within_repos("sub", std::slice::from_ref(&repo)).unwrap();
     assert!(resolved.ends_with("sub"));
     assert_eq!(
         std::fs::canonicalize(&repo_root).unwrap(),
@@ -197,8 +203,7 @@ fn resolve_ontology_dirs_dedupes_and_expands_tilde() {
     unsafe { std::env::remove_var("OPEN_ONTOLOGIES_ONTOLOGY_DIRS") };
     let tmp = tempfile::tempdir().unwrap();
     let p = tmp.path().to_string_lossy().into_owned();
-    let resolved =
-        resolve_ontology_dirs(&[p.clone(), p.clone(), "".to_string()]);
+    let resolved = resolve_ontology_dirs(&[p.clone(), p.clone(), "".to_string()]);
     assert_eq!(resolved.len(), 1, "duplicates should be removed");
     if let Some(v) = prev {
         unsafe { std::env::set_var("OPEN_ONTOLOGIES_ONTOLOGY_DIRS", v) };

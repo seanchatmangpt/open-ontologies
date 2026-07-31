@@ -9,7 +9,7 @@
 
 pub mod agent_card;
 pub mod handler;
-pub mod task_store;
 pub mod router;
+pub mod task_store;
 
 pub use router::build_a2a_router;

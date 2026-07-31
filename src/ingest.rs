@@ -395,12 +395,11 @@ impl DataIngester {
                 }
                 Ok(Event::Text(e)) => {
                     if depth == 3
-                        && let (Some(row), Some(field)) =
-                            (&mut current_row, &current_field)
-                        {
-                            let text = e.unescape().unwrap_or_default().to_string();
-                            row.insert(field.clone(), text);
-                        }
+                        && let (Some(row), Some(field)) = (&mut current_row, &current_field)
+                    {
+                        let text = e.unescape().unwrap_or_default().to_string();
+                        row.insert(field.clone(), text);
+                    }
                 }
                 Ok(Event::End(_)) => {
                     match depth {
@@ -436,10 +435,9 @@ impl DataIngester {
     /// assert!(!rows.is_empty());
     /// ```
     pub fn parse_xlsx_file(path: &str) -> Result<Vec<HashMap<String, String>>> {
-        use calamine::{open_workbook, Reader, Xlsx};
+        use calamine::{Reader, Xlsx, open_workbook};
 
-        let mut workbook: Xlsx<_> =
-            open_workbook(path).context("Failed to open XLSX workbook")?;
+        let mut workbook: Xlsx<_> = open_workbook(path).context("Failed to open XLSX workbook")?;
 
         let sheet_names = workbook.sheet_names().to_vec();
         let first_sheet = sheet_names

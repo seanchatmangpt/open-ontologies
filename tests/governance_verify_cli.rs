@@ -1,7 +1,4 @@
-//! T3-1 Governance verify CLI subprocess tests.
-//!
-//! Tests the `governance verify` CLI subcommand for artifact receipt chain verification.
-//! Uses the same subprocess spawn pattern as existing CLI tests.
+#![allow(clippy::needless_borrows_for_generic_args)]
 
 use std::process::Command;
 
@@ -16,7 +13,10 @@ fn governance_verify_with_help_flag() {
         .output()
         .expect("spawn governance verify --help");
 
-    assert!(output.status.success(), "governance verify --help should succeed");
+    assert!(
+        output.status.success(),
+        "governance verify --help should succeed"
+    );
 
     let help_text = String::from_utf8_lossy(&output.stdout);
     assert!(
@@ -28,7 +28,12 @@ fn governance_verify_with_help_flag() {
 #[test]
 fn governance_verify_rejects_nonexistent_path() {
     let output = oo()
-        .args(&["governance", "verify", "--path", "/tmp/nonexistent_artifact_xyz.bin"])
+        .args(&[
+            "governance",
+            "verify",
+            "--path",
+            "/tmp/nonexistent_artifact_xyz.bin",
+        ])
         .output()
         .expect("spawn governance verify with nonexistent path");
 

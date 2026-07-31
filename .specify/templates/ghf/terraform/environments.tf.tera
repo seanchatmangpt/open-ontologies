@@ -1,0 +1,10 @@
+# GitHub Environments
+{% set repo_names_list = repoNames | split(pat="|") %}
+{% set env_names_list = envNames | split(pat="|") %}
+
+{% for env_name in env_names_list %}
+resource "github_repository_environment" "{{ repo_names_list[loop.index0] | replace(from="-", to="_") }}_{{ env_name }}" {
+  repository  = github_repository.{{ repo_names_list[loop.index0] | replace(from="-", to="_") }}.name
+  environment = "{{ env_name }}"
+}
+{% endfor %}

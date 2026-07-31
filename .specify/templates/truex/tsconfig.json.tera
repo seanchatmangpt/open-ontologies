@@ -1,0 +1,20 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "CommonJS",
+    "moduleResolution": "node",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "baseUrl": ".",
+    "paths": {
+      {%- set pkg_list = packages | split(pat="|||") %}
+      {%- for pkg in pkg_list %}
+      {%- set name = pkg | split(pat="@@@") | first %}
+      "{{ name }}": ["packages/truex/{{ name | replace(from='@truex/', to='') }}/index.ts"],
+      {%- endfor %}
+      "@truex/*": ["packages/truex/*/index.ts"]
+    }
+  }
+}

@@ -1,0 +1,10 @@
+     Running tests/zoela_route_conformance.rs (target/debug/deps/zoela_route_conformance-b167d39bd734c81f)
+
+running 4 tests
+test zoela_route_conformance::connect_group_stages_are_valid_ocel_event_types ... ok
+test zoela_route_conformance::food_route_powl_dag_is_acyclic ... ok
+test zoela_route_conformance::ocel_event_types_match_route_stage_names ... ok
+test zoela_route_conformance::food_route_stages_declared_in_powl_order ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

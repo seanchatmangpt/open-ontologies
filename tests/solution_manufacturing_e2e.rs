@@ -21,11 +21,11 @@ use open_ontologies::admission::{
 };
 use open_ontologies::defects::DefectClass;
 use open_ontologies::manufacturing::{
-    self, validators, ManufacturedFile, SolutionBundle, SolutionSpec,
+    self, ManufacturedFile, SolutionBundle, SolutionSpec, validators,
 };
 use open_ontologies::ocel_store::OcelStore;
 use open_ontologies::state::StateDb;
-use open_ontologies::workflows::{by_name, WorkflowScope};
+use open_ontologies::workflows::{WorkflowScope, by_name};
 use tempfile::tempdir;
 
 const WORKFLOW: &str = "SolutionManufacturing";
@@ -167,8 +167,7 @@ fn solution_manufacturing_e2e_admits_full_stack() {
     for f in &bundle.files {
         if f.path.ends_with(".tf.json") {
             // Bound via sidecar — assert clean Terraform JSON shape.
-            let v: serde_json::Value =
-                serde_json::from_str(&f.contents).expect("tf.json parses");
+            let v: serde_json::Value = serde_json::from_str(&f.contents).expect("tf.json parses");
             let obj = v.as_object().expect("tf.json is an object");
             assert!(
                 !obj.contains_key("_ontostar_receipt"),
@@ -269,10 +268,20 @@ fn iac_bundle_has_clean_terraform_json_and_a_sidecar_receipt() {
             // Top-level keys must be in Terraform's allowed set.
             for k in obj.keys() {
                 assert!(
-                    matches!(k.as_str(),
-                        "terraform" | "provider" | "resource" | "variable"
-                        | "output" | "data" | "module" | "locals"),
-                    "{} contains non-Terraform top-level key `{}`", f.path, k
+                    matches!(
+                        k.as_str(),
+                        "terraform"
+                            | "provider"
+                            | "resource"
+                            | "variable"
+                            | "output"
+                            | "data"
+                            | "module"
+                            | "locals"
+                    ),
+                    "{} contains non-Terraform top-level key `{}`",
+                    f.path,
+                    k
                 );
             }
         }

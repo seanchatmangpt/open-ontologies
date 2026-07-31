@@ -1,0 +1,16 @@
+# GitHub Repositories
+{% set names_list = names | split(pat="|") %}
+{% set descriptions_list = descriptions | split(pat="|") %}
+{% set visibilities_list = visibilities | split(pat="|") %}
+
+{% for name in names_list %}
+resource "github_repository" "{{ name | replace(from="-", to="_") }}" {
+  name        = "{{ name }}"
+  description = "{{ descriptions_list[loop.index0] }}"
+  visibility  = "{{ visibilities_list[loop.index0] }}"
+
+  has_issues = true
+  has_wiki   = false
+  auto_init  = true
+}
+{% endfor %}

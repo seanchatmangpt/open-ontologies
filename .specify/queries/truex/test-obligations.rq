@@ -1,0 +1,8 @@
+PREFIX truex: <https://open-ontologies.org/profile/truex#>
+PREFIX rdfs:  <http://www.w3.org/2000/01/rdf-schema#>
+
+SELECT (GROUP_CONCAT(?label; SEPARATOR="|") AS ?obligations)
+WHERE {
+  ?ob a truex:Obligation .
+  ?ob rdfs:label ?label .
+}

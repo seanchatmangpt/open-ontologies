@@ -38,5 +38,5 @@
 pub mod builtin;
 pub mod scope;
 
-pub use builtin::{by_name, BuiltinWorkflow, BUILTIN_WORKFLOWS};
+pub use builtin::{BUILTIN_WORKFLOWS, BuiltinWorkflow, by_name};
 pub use scope::WorkflowScope;

@@ -5,6 +5,73 @@ use std::cell::RefCell;
 use std::collections::HashSet;
 use std::sync::Arc;
 
+pub mod autoreceipt {
+    use crate::autoreceipt_law::{ArchitecturalReceiptParsed, AutoReceiptPipeline as Law};
+
+    /// Theorem Stage 1: Admission of intent.
+    pub struct Admit;
+    /// Theorem Stage 2: Receipt generation and verification.
+    pub struct Receipt;
+    /// Theorem Stage 3: Exit and cleanup.
+    pub struct Exit;
+    /// Theorem Stage 4: Replay for audit.
+    pub struct Replay;
+
+    /// The AutoReceiptPipeline kernel enforcing the theorem: Admit -> Receipt -> Exit -> Replay.
+    pub struct AutoReceiptPipeline<P> {
+        #[allow(dead_code)]
+        pub(crate) law: Law<ArchitecturalReceiptParsed>,
+        #[allow(dead_code)]
+        phase: P,
+    }
+
+    impl Default for AutoReceiptPipeline<Admit> {
+        fn default() -> Self {
+            Self {
+                law: Law::new(),
+                phase: Admit,
+            }
+        }
+    }
+
+    impl AutoReceiptPipeline<Admit> {
+        pub fn new() -> Self {
+            Self::default()
+        }
+
+        pub fn admit(self) -> AutoReceiptPipeline<Receipt> {
+            AutoReceiptPipeline {
+                law: self.law,
+                phase: Receipt,
+            }
+        }
+    }
+
+    impl AutoReceiptPipeline<Receipt> {
+        pub fn receipt(self) -> AutoReceiptPipeline<Exit> {
+            AutoReceiptPipeline {
+                law: self.law,
+                phase: Exit,
+            }
+        }
+    }
+
+    impl AutoReceiptPipeline<Exit> {
+        pub fn exit(self) -> AutoReceiptPipeline<Replay> {
+            AutoReceiptPipeline {
+                law: self.law,
+                phase: Replay,
+            }
+        }
+    }
+
+    impl<P> AutoReceiptPipeline<P> {
+        pub fn law(&self) -> &Law<ArchitecturalReceiptParsed> {
+            &self.law
+        }
+    }
+}
+
 /// Terraform-style plan/apply/migrate for ontology changes.
 pub struct Planner {
     db: StateDb,
@@ -23,6 +90,30 @@ struct PlanState {
 }
 
 impl Planner {
+    /// Parse architectural intent from C4_ARCHITECTURE.md (Level 1-3).
+    pub fn plan_architecture(&self, c4_markdown: &str) -> anyhow::Result<serde_json::Value> {
+        let mut containers = Vec::new();
+        let mut components = Vec::new();
+
+        for line in c4_markdown.lines() {
+            let line = line.trim();
+            if line.contains("Container(") {
+                if let Some(name) = line.split('"').nth(1) {
+                    containers.push(serde_json::json!({ "name": name }));
+                }
+            } else if line.contains("Component(")
+                && let Some(name) = line.split('"').nth(1)
+            {
+                components.push(serde_json::json!({ "name": name }));
+            }
+        }
+
+        Ok(serde_json::json!({
+            "containers": containers,
+            "components": components,
+        }))
+    }
+
     /// Create a new `Planner` backed by the given state database and graph store.
     ///
     /// # Examples
@@ -89,10 +180,18 @@ impl Planner {
         let new_classes = self.extract_classes_from_store(&temp_store);
         let new_properties = self.extract_properties_from_store(&temp_store);
 
-        let added_classes: Vec<String> = new_classes.difference(&current_classes).cloned().collect();
-        let removed_classes: Vec<String> = current_classes.difference(&new_classes).cloned().collect();
-        let added_properties: Vec<String> = new_properties.difference(&current_properties).cloned().collect();
-        let removed_properties: Vec<String> = current_properties.difference(&new_properties).cloned().collect();
+        let added_classes: Vec<String> =
+            new_classes.difference(&current_classes).cloned().collect();
+        let removed_classes: Vec<String> =
+            current_classes.difference(&new_classes).cloned().collect();
+        let added_properties: Vec<String> = new_properties
+            .difference(&current_properties)
+            .cloned()
+            .collect();
+        let removed_properties: Vec<String> = current_properties
+            .difference(&new_properties)
+            .cloned()
+            .collect();
 
         // Blast radius: count triples referencing removed IRIs
         let mut triples_affected: u64 = 0;
@@ -287,7 +386,8 @@ impl Planner {
             "triples_loaded": count,
             "added_classes": plan.added_classes.len(),
             "removed_classes": plan.removed_classes.len(),
-        }).to_string())
+        })
+        .to_string())
     }
 
     fn apply_migrate(&self, plan: &PlanState) -> anyhow::Result<String> {
@@ -333,7 +433,8 @@ impl Planner {
             "triples_loaded": count,
             "migration_triples": migration_triples,
             "bridges_created": plan.removed_classes.len() + plan.removed_properties.len(),
-        }).to_string())
+        })
+        .to_string())
     }
 
     /// Lock an IRI to prevent removal during `apply`.
@@ -429,14 +530,15 @@ impl Planner {
         let mut set = HashSet::new();
         if let Ok(json) = store.sparql_select(query)
             && let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&json)
-                && let Some(results) = parsed["results"].as_array() {
-                    for row in results {
-                        if let Some(iri) = row[var].as_str() {
-                            let iri = iri.trim_matches(|c| c == '<' || c == '>');
-                            set.insert(iri.to_string());
-                        }
-                    }
+            && let Some(results) = parsed["results"].as_array()
+        {
+            for row in results {
+                if let Some(iri) = row[var].as_str() {
+                    let iri = iri.trim_matches(|c| c == '<' || c == '>');
+                    set.insert(iri.to_string());
                 }
+            }
+        }
         set
     }
 
@@ -448,17 +550,18 @@ impl Planner {
         );
         if let Ok(json) = self.graph.sparql_select(&query)
             && let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&json)
-                && let Some(results) = parsed["results"].as_array()
-                    && let Some(first) = results.first()
-                        && let Some(count_str) = first["count"].as_str() {
-                            let cleaned = count_str
-                                .trim_matches('"')
-                                .split("^^")
-                                .next()
-                                .unwrap_or("0")
-                                .trim_matches('"');
-                            return cleaned.parse().unwrap_or(0);
-                        }
+            && let Some(results) = parsed["results"].as_array()
+            && let Some(first) = results.first()
+            && let Some(count_str) = first["count"].as_str()
+        {
+            let cleaned = count_str
+                .trim_matches('"')
+                .split("^^")
+                .next()
+                .unwrap_or("0")
+                .trim_matches('"');
+            return cleaned.parse().unwrap_or(0);
+        }
         0
     }
 }

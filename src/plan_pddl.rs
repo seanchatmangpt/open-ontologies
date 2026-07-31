@@ -69,7 +69,11 @@ fn try_extract_ask_triple(precond: &str) -> Option<(String, String, String)> {
     if parts.len() != 3 {
         return None;
     }
-    Some((parts[0].to_string(), parts[1].to_string(), parts[2].to_string()))
+    Some((
+        parts[0].to_string(),
+        parts[1].to_string(),
+        parts[2].to_string(),
+    ))
 }
 
 /// Translate a triple position (placeholder `<{x}>`, full IRI `<...>`, or bare
@@ -94,20 +98,49 @@ fn position_to_pddl_term(pos: &str, notes: &mut Vec<String>) -> String {
 fn effect_to_pddl(effect: &EffectSpec, notes: &mut Vec<String>) -> (bool, String) {
     // Returns (positive?, pddl_atom).
     match effect {
-        EffectSpec::AddTriple { subject, predicate, object } => {
-            let s = position_to_pddl_term(&format!("<{}>", subject.trim_matches(|c| c == '<' || c == '>')), notes);
-            let p = position_to_pddl_term(&format!("<{}>", predicate.trim_matches(|c| c == '<' || c == '>')), notes);
-            let o = position_to_pddl_term(&format!("<{}>", object.trim_matches(|c| c == '<' || c == '>')), notes);
+        EffectSpec::AddTriple {
+            subject,
+            predicate,
+            object,
+        } => {
+            let s = position_to_pddl_term(
+                &format!("<{}>", subject.trim_matches(|c| c == '<' || c == '>')),
+                notes,
+            );
+            let p = position_to_pddl_term(
+                &format!("<{}>", predicate.trim_matches(|c| c == '<' || c == '>')),
+                notes,
+            );
+            let o = position_to_pddl_term(
+                &format!("<{}>", object.trim_matches(|c| c == '<' || c == '>')),
+                notes,
+            );
             (true, format!("(triple {} {} {})", s, p, o))
         }
-        EffectSpec::RemoveTriple { subject, predicate, object } => {
-            let s = position_to_pddl_term(&format!("<{}>", subject.trim_matches(|c| c == '<' || c == '>')), notes);
-            let p = position_to_pddl_term(&format!("<{}>", predicate.trim_matches(|c| c == '<' || c == '>')), notes);
-            let o = position_to_pddl_term(&format!("<{}>", object.trim_matches(|c| c == '<' || c == '>')), notes);
+        EffectSpec::RemoveTriple {
+            subject,
+            predicate,
+            object,
+        } => {
+            let s = position_to_pddl_term(
+                &format!("<{}>", subject.trim_matches(|c| c == '<' || c == '>')),
+                notes,
+            );
+            let p = position_to_pddl_term(
+                &format!("<{}>", predicate.trim_matches(|c| c == '<' || c == '>')),
+                notes,
+            );
+            let o = position_to_pddl_term(
+                &format!("<{}>", object.trim_matches(|c| c == '<' || c == '>')),
+                notes,
+            );
             (false, format!("(triple {} {} {})", s, p, o))
         }
         EffectSpec::AddClass { iri } => {
-            let s = position_to_pddl_term(&format!("<{}>", iri.trim_matches(|c| c == '<' || c == '>')), notes);
+            let s = position_to_pddl_term(
+                &format!("<{}>", iri.trim_matches(|c| c == '<' || c == '>')),
+                notes,
+            );
             let p = sanitise("http://www.w3.org/1999/02/22-rdf-syntax-ns#type");
             let o = sanitise("http://www.w3.org/2002/07/owl#Class");
             (true, format!("(triple {} {} {})", s, p, o))
@@ -197,7 +230,11 @@ pub fn compile_domain(domain_name: &str, schemas: &[ActionSchema]) -> CompiledPd
     // loaded graph and goal from Turtle.
     let problem = String::new();
 
-    CompiledPddl { domain, problem, translation_notes: notes }
+    CompiledPddl {
+        domain,
+        problem,
+        translation_notes: notes,
+    }
 }
 
 /// Compile a PDDL problem instance. `init_facts` is the set of `(s, p, o)`
@@ -319,10 +356,14 @@ mod tests {
     #[test]
     fn unparseable_precondition_is_recorded_in_notes() {
         let mut s = rename_schema();
-        s.preconditions.push("SELECT ?x WHERE { ?x ?p ?o }".to_string());
+        s.preconditions
+            .push("SELECT ?x WHERE { ?x ?p ?o }".to_string());
         let compiled = compile_domain("d", &[s]);
         assert!(
-            compiled.translation_notes.iter().any(|n| n.contains("untranslated precondition")),
+            compiled
+                .translation_notes
+                .iter()
+                .any(|n| n.contains("untranslated precondition")),
             "expected a translation note for SELECT-shaped precondition; got: {:?}",
             compiled.translation_notes
         );

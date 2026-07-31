@@ -299,11 +299,9 @@ pub fn parse_mmrag_dataset(json: &str) -> anyhow::Result<Vec<RagQa>> {
     let records: Vec<MmRagRecord> = serde_json::from_str(json)?;
     let mut out: Vec<RagQa> = Vec::with_capacity(records.len());
     for r in records {
-        let gold = r
-            .gold_iris
-            .first()
-            .cloned()
-            .ok_or_else(|| anyhow::anyhow!("mmRAG record `{}` has empty gold_iris", r.question_id))?;
+        let gold = r.gold_iris.first().cloned().ok_or_else(|| {
+            anyhow::anyhow!("mmRAG record `{}` has empty gold_iris", r.question_id)
+        })?;
         out.push(RagQa {
             question_id: r.question_id,
             gold_iri: gold,
@@ -351,10 +349,7 @@ mod tests {
 
     #[test]
     fn perfect_top_1_gives_exact_match_1() {
-        let qas = vec![
-            qa("q1", "A", &["A", "B", "C"]),
-            qa("q2", "X", &["X", "Y"]),
-        ];
+        let qas = vec![qa("q1", "A", &["A", "B", "C"]), qa("q2", "X", &["X", "Y"])];
         let r = evaluate(&qas);
         assert_eq!(r.exact_match_at_1, 1.0);
         assert_eq!(r.mrr, 1.0);
@@ -409,7 +404,10 @@ mod tests {
 
     #[test]
     fn faithfulness_full_when_every_token_supported() {
-        let f = faithfulness("the cat sat on the mat", "The cat sat on the mat in the room.");
+        let f = faithfulness(
+            "the cat sat on the mat",
+            "The cat sat on the mat in the room.",
+        );
         assert!((f - 1.0).abs() < 1e-9, "got {}", f);
     }
 
@@ -473,13 +471,18 @@ mod tests {
             "Cats are mammals and purr loudly when content.",
         )];
         let r = evaluate(&qas);
-        assert!(r.mean_faithfulness.unwrap() > 0.9,
+        assert!(
+            r.mean_faithfulness.unwrap() > 0.9,
             "all 3 generated tokens are supported; got {:?}",
-            r.mean_faithfulness);
+            r.mean_faithfulness
+        );
         // gold tokens: {cats, are, mammals, that, purr}; generated: {cats, are, mammals}
         // jaccard = 3/5 = 0.6
-        assert!((r.mean_answer_jaccard.unwrap() - 0.6).abs() < 1e-6,
-            "got {:?}", r.mean_answer_jaccard);
+        assert!(
+            (r.mean_answer_jaccard.unwrap() - 0.6).abs() < 1e-6,
+            "got {:?}",
+            r.mean_answer_jaccard
+        );
         let pq = &r.per_question_scores[0];
         assert_eq!(pq.question_id, "q1");
         assert_eq!(pq.rank, 1);

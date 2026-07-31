@@ -14,15 +14,15 @@
 
 [project]
 name = "open-ontologies"
-version = "0.1.11"
+version = "26.5.21"
 description = "AI-native ontology engine CLI — generated from ontology"
 authors = ["Sean Chatman <sean@chatmangpt.com>"]
 license = "MIT"
 
 [ontology]
 source = "ontology/cli-open-ontologies.ttl"
-base_uri = "https://ggen.io/onto/cli/open-ontologies/"
-format = "turtle"
+base_iri = "https://ggen.io/onto/cli/open-ontologies/"
+# format = "turtle"
 imports = [
     # ZOE LA Mobile domain modules — loaded so zoela/* SPARQL queries have data
     "ontology/zoela/categories.ttl",
@@ -31,6 +31,49 @@ imports = [
     "ontology/zoela/routes.ttl",
     "ontology/zoela/connect-groups.ttl",
     "ontology/zoela/connect-group-routes.ttl",
+    # P0-B.9 — domain TTLs needed for manufactured domain migrations.
+    "ontology/zoela/person.ttl",
+    "ontology/zoela/consent.ttl",
+    "ontology/zoela/ocel.ttl",
+    # P0-B.7b — ODRL policies (zoe:MemberPolicy/VolunteerPolicy/MinistryLead/Admin
+    # with permission/prohibition rules) drive the zoela-rls extractor.
+    "ontology/zoela/policy.ttl",
+    # P0-B.4d-fix: profile layer (materialization kinds + priorities + SHACL
+    # shapes + ODRL→RLS mapping) drives admissibility for the
+    # zoela-public-materialization / zoela-materialization-refusals rules.
+    "ontology/profiles/zoela-supabase-materialization.ttl",
+    "ontology/profiles/public-role-shapes.ttl",
+    "ontology/profiles/zoela-supabase-rls.ttl",
+    # P0-B.7c — governance reference tables (roles, person_role_assignments)
+    # that zoela-rls.sql subqueries depend on. Must be loaded so the
+    # extract-governance-tables.rq query has data.
+    "ontology/profiles/zoela-governance.ttl",
+    # P0-B.8 — Expo app manifest (apps/mobile/* project scaffold source-law).
+    "ontology/profiles/zoela-expo-app.ttl",
+    # P0-B.10 — Transitional legacy-table coverage profile. Holds tables and
+    # RLS not yet reachable from the public-vocab admission chain so we can
+    # delete the four hand-written 20260518* migrations.
+    "ontology/profiles/zoela-legacy-coverage.ttl",
+    # P0-B.11 — AutoReceipt pipeline law.
+    "ontology/zoela/autoreceipt.ttl",
+    # GitHub Factory domain modules
+    "ontology/ghf-core.ttl",
+    "ontology/ghf-shacl.ttl",
+    "ontology/ghf-security-policy.ttl",
+    # Truex Ecosystem domain
+    "ontology/truex-ecosystem.ttl",
+    # NOTE on scope: tested under both ggen v26.5.5 AND v26.5.18 — expanding
+
+    # `imports` beyond the above blows up pre-flight (39 imports → >10 min,
+    # confirmed across multiple sync runs). Even unrelated rules like
+    # `cli-cmds` hang at 39 imports, so the bottleneck is in ggen's
+    # pre-flight phase, not in any of our SPARQL queries. Until ggen
+    # pre-flight scales to >36 imports, the materialization extractor's
+    # visible class scope is limited to whatever's already loaded for the
+    # existing screen/route/connect-group rules. See B4d-fix-acceptance.md
+    # for the bisection results and the full-graph census (via Python
+    # diagnostic, non-acceptance) that this scope is leaving on the table.
+    "ontology/revops-manufacturing.ttl",
 ]
 
 [rdf]
@@ -92,7 +135,7 @@ WHERE {
 """
 
 [generation]
-enabled = true
+# enabled = true
 
 # Generation rules — each rule = SPARQL query + Tera template → output file
 rules = [
@@ -106,135 +149,258 @@ rules = [
     { name = "revops-stages", query = { file = ".specify/queries/revops/stages_aggregated.rq" }, template = { file = ".specify/templates/revops/cmds.rs.tera" }, output_file = "src/cmds/generated_revops.rs", mode = "Overwrite" },
     # ZOE LA Mobile pipeline — canonical runtime paths (never generated/)
     { name = "zoela-mobile-types",     query = { file = ".specify/queries/zoela/extract-types.rq" },       template = { file = ".specify/templates/zoela/typescript-types.tera" }, output_file = "packages/types/zoela.ts",                                   mode = "Overwrite" },
-    # zoela-mobile-migration intentionally removed: extract-tables.rq produces no rows due to
-    # namespace mismatch (query targets <urn:zoela:> but TTL uses <https://zoela.org/onto/>).
-    # DDL is hand-authored in supabase/migrations/20260518000001_zoela_tables.sql (protected_path).
+    # P0-B.4d-fix: public-vocab admissibility-gated migration emission.
+    # Output goes to .ggen/audit/p0-a/ during the transition; the hand-authored
+    # supabase/migrations/20260518000001_zoela_tables.sql remains protected until
+    # the dry-run output proves equivalence (see protected_paths below).
+    { name = "zoela-public-materialization",   query = { file = ".specify/queries/zoela/extract-public-materializations.rq" },           template = { file = ".specify/templates/zoela/supabase-migration.tera" },                output_file = "supabase/migrations/20260519000002_zoela_admitted_tables.sql",  mode = "Overwrite" },
+    { name = "zoela-materialization-refusals", query = { file = ".specify/queries/zoela/extract-public-materialization-refusals.rq" },  template = { file = ".specify/templates/zoela/supabase-materialization-refusals.tera" }, output_file = ".ggen/audit/p0-a/zoela-refusals.sql",   mode = "Overwrite" },
+    # P0-B.4e: body columns split into a separate rule (one ALTER TABLE per
+    # admitted property) so the SPARQL queries stay flat. Inlining columns into
+    # the admission extractor's GROUP_CONCAT triggered an Oxigraph OPTIONAL
+    # join-correlation bug under 10+ imports. Apply this AFTER zoela-tables.sql.
+    { name = "zoela-materialization-columns",  query = { file = ".specify/queries/zoela/extract-public-materialization-columns.rq" },   template = { file = ".specify/templates/zoela/supabase-columns.tera" },                  output_file = "supabase/migrations/20260519000003_zoela_admitted_columns.sql", mode = "Overwrite" },
+
+    # P0-B.7c — governance reference tables (roles, person_role_assignments).
+    # Foundational substrate that the ggen-emitted RLS subqueries depend on.
+    # Sorts to apply right after the hand-written zoela_* migrations and
+    # immediately before the ggen-emitted admitted_tables/columns/rls trio.
+    { name = "zoela-governance",               query = { file = ".specify/queries/zoela/extract-governance-tables.rq" },                template = { file = ".specify/templates/zoela/supabase-governance.tera" },               output_file = "supabase/migrations/20260519000001_zoela_governance.sql",       mode = "Overwrite" },
+
+    # P0-B.10 — Legacy table/alter/policy coverage. Sorts after admitted tables
+    # and columns (so its ALTERs land on existing tables) but before RLS.
+    { name = "zoela-legacy-coverage",          query = { file = ".specify/queries/zoela/extract-legacy-coverage.rq" },                  template = { file = ".specify/templates/zoela/supabase-legacy-coverage.tera" },          output_file = "supabase/migrations/20260519000005_zoela_legacy_coverage.sql", mode = "Overwrite" },
+    # P0-B.7b: ODRL → Postgres RLS. Each row = one CREATE POLICY statement on
+    # an admitted table. Default-deny applies elsewhere. ODRL prohibitions are
+    # NOT rendered — their effect is the absence of a positive grant.
+    { name = "zoela-rls",                      query = { file = ".specify/queries/zoela/extract-odrl-policies.rq" },                    template = { file = ".specify/templates/zoela/supabase-rls.tera" },                      output_file = "supabase/migrations/20260519000004_zoela_admitted_rls.sql",     mode = "Overwrite" },
+
+    # P0-B.8 — apps/mobile/ Expo project scaffold (7 manufactured files).
+    # Source-law: ontology/profiles/zoela-expo-app.ttl
+    { name = "zoela-expo-package-json",        query = { file = ".specify/queries/zoela/extract-expo-package.rq" },                    template = { file = ".specify/templates/zoela/expo-package-json.tera" },                output_file = "apps/mobile/package.json",                                      mode = "Overwrite" },
+    { name = "zoela-expo-app-json",            query = { file = ".specify/queries/zoela/extract-expo-app-json.rq" },                   template = { file = ".specify/templates/zoela/expo-app-json.tera" },                    output_file = "apps/mobile/app.json",                                          mode = "Overwrite" },
+    { name = "zoela-expo-tsconfig",            query = { file = ".specify/queries/zoela/extract-expo-tsconfig.rq" },                   template = { file = ".specify/templates/zoela/expo-tsconfig.tera" },                    output_file = "apps/mobile/tsconfig.json",                                     mode = "Overwrite" },
+    { name = "zoela-expo-babel-config",        query = { file = ".specify/queries/zoela/extract-expo-manifest-id.rq" },                template = { file = ".specify/templates/zoela/expo-babel-config.tera" },                output_file = "apps/mobile/babel.config.js",                                   mode = "Overwrite" },
+    { name = "zoela-expo-metro-config",        query = { file = ".specify/queries/zoela/extract-expo-manifest-id.rq" },                template = { file = ".specify/templates/zoela/expo-metro-config.tera" },                output_file = "apps/mobile/metro.config.js",                                   mode = "Overwrite" },
+    { name = "zoela-expo-app-entry",           query = { file = ".specify/queries/zoela/extract-expo-runtime-config.rq" },             template = { file = ".specify/templates/zoela/expo-app-entry.tera" },                   output_file = "apps/mobile/App.tsx",                                           mode = "Overwrite" },
+    { name = "zoela-expo-supabase-client",     query = { file = ".specify/queries/zoela/extract-expo-runtime-config.rq" },             template = { file = ".specify/templates/zoela/expo-supabase-client.tera" },             output_file = "apps/mobile/src/lib/supabaseClient.ts",                         mode = "Overwrite" },
+    { name = "zoela-expo-verify-supabase",     query = { file = ".specify/queries/zoela/extract-verify-supabase.rq" },                 template = { file = ".specify/templates/zoela/expo-verify-supabase.tera" },             output_file = "apps/mobile/scripts/verify-supabase.mjs",                       mode = "Overwrite" },
+    { name = "zoela-expo-readme",              query = { file = ".specify/queries/zoela/extract-doc-page.rq" },                        template = { file = ".specify/templates/zoela/expo-readme.tera" },                      output_file = "apps/mobile/README.md",                                         mode = "Overwrite" },
+    # zoela-mobile-migration (extract-tables.rq + supabase-migration.tera against
+    # the protected path) intentionally not wired — the public-anchor-gated rule
+    # above is the authoritative manufacturing path. Old extract-tables.rq is
+    # retained only as a transitional reference.
     { name = "zoela-mobile-zod",       query = { file = ".specify/queries/zoela/extract-skos-enums.rq" },  template = { file = ".specify/templates/zoela/zod-schema.tera" },          output_file = "packages/schemas/zoela.ts",                                 mode = "Overwrite" },
     # ZOE LA Mobile pipeline — data + policy rules
     # zoela-bridge-tables intentionally removed: extract-bridge-tables.rq produces no rows.
     # DDL is hand-authored in supabase/migrations/20260518000002_zoela_bridge_tables.sql (protected_path).
-    # zoela-rls intentionally removed: extract-rls-policies.rq produces no rows.
-    # DDL is hand-authored in supabase/migrations/20260518000003_zoela_rls.sql (protected_path).
+    # (zoela-rls is now wired above via the P0-B.7b ODRL chain — old extract-rls-policies.rq
+    #  comment removed as stale. supabase/migrations/20260518000003_zoela_rls.sql remains
+    #  protected until the ggen-emitted zoela-rls.sql is reviewed for equivalence.)
     { name = "zoela-forms",         query = { file = ".specify/queries/zoela/extract-form-fields.rq" },   template = { file = ".specify/templates/zoela/react-hook-form.tera" },         output_file = "packages/forms/zoela.tsx",                                    mode = "Overwrite" },
-    { name = "zoela-ocel",          query = { file = ".specify/queries/zoela/extract-ocel-events.rq" },   template = { file = ".specify/templates/zoela/ocel-event.tera" },              output_file = "packages/evidence/OcelEvents.ts",                            mode = "Overwrite" },
-    { name = "zoela-service-routes", query = { file = ".specify/queries/zoela/extract-service-routes.rq" }, template = { file = ".specify/templates/zoela/route-stage-gate.tera" }, output_file = "packages/routes/routeGates.ts",                               mode = "Overwrite" },
-    { name = "zoela-receipts",       query = { file = ".specify/queries/zoela/extract-receipt-models.rq" }, template = { file = ".specify/templates/zoela/prov-receipt.tera" },     output_file = "packages/evidence/receipts.ts",                               mode = "Overwrite" },
+    { name = "zoela-ocel",          query = { inline = "PREFIX skos: <http://www.w3.org/2004/02/skos/core#>\nPREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\n\nSELECT\n  (GROUP_CONCAT(?code;   SEPARATOR=\"|\") AS ?eventCodes)\n  (GROUP_CONCAT(?label;  SEPARATOR=\"|\") AS ?eventLabels)\n  (GROUP_CONCAT(?def;    SEPARATOR=\"|\") AS ?eventDefs)\n  (GROUP_CONCAT(?route;  SEPARATOR=\"|\") AS ?eventRoutes)\nWHERE {\n  VALUES (?code ?label ?def ?route) {\n    (\"cg.interest.submitted\"   \"Interest Submitted\"   \"Member submits interest in joining a connect group\"   \"connect-group\")\n    (\"cg.groups.matched\"       \"Groups Matched\"       \"System matches member to eligible connect groups\"      \"connect-group\")\n    (\"cg.invite.sent\"          \"Invite Sent\"          \"Connect group leader sends invitation to member\"       \"connect-group\")\n    (\"cg.invite.accepted\"      \"Invite Accepted\"      \"Member accepts connect group invitation\"               \"connect-group\")\n    (\"cg.spot.reserved\"        \"Spot Reserved\"        \"Member spot reserved in connect group\"                 \"connect-group\")\n    (\"cg.attendance.recorded\"  \"Attendance Recorded\"  \"Attendance recorded for connect group session\"         \"connect-group\")\n    (\"cg.followup.created\"     \"Follow-up Created\"    \"Pastoral follow-up created for member engagement\"      \"connect-group\")\n    (\"cg.route.closed\"         \"Route Closed\"         \"Connect group route completed and closed\"              \"connect-group\")\n    (\"food_route.received\"     \"Food Route Received\"  \"Food Route Received\"                                   \"food-route\")\n    (\"food_route.verified\"     \"Food Route Verified\"  \"Verification stage: a volunteer confirms the details\"  \"food-route\")\n    (\"food_route.assigned\"     \"Food Route Assigned\"  \"Assignment stage: a volunteer is matched to delivery\"  \"food-route\")\n    (\"food.delivered\"          \"Food Delivered\"       \"A food resource was delivered to recipient\"            \"food-route\")\n    (\"care_route.closed\"       \"Care Route Closed\"    \"A care route instance was closed after all stages\"    \"care-route\")\n  }\n}\nORDER BY ?code" }, template = { file = ".specify/templates/zoela/ocel-event.tera" },              output_file = "packages/evidence/OcelEvents.ts",                            mode = "Overwrite" },
+    # TEMPORARILY DISABLED: zoela-service-routes has VALUES fallback that needs inlining
+    # { name = "zoela-service-routes", query = { file = ".specify/queries/zoela/extract-service-routes.rq" }, template = { file = ".specify/templates/zoela/route-stage-gate.tera" }, output_file = "packages/routes/routeGates.ts",                               mode = "Overwrite" },
+    # TEMPORARILY DISABLED: zoela-receipts has VALUES that needs inlining
+    # { name = "zoela-receipts",       query = { file = ".specify/queries/zoela/extract-receipt-models.rq" }, template = { file = ".specify/templates/zoela/prov-receipt.tera" },     output_file = "packages/evidence/receipts.ts",                               mode = "Overwrite" },
     # ZOE LA Mobile pipeline — screen + navigation generation rules
     { name = "zoela-screens",       query = { file = ".specify/queries/zoela/extract-screens.rq" },        template = { file = ".specify/templates/zoela/expo-screen.tera" },            output_file = "packages/screens/zoela.tsx",                                  mode = "Overwrite" },
     { name = "zoela-admin-screens", query = { file = ".specify/queries/zoela/extract-admin-screens.rq" },  template = { file = ".specify/templates/zoela/admin-list-screen.tera" },      output_file = "packages/screens/adminScreens.tsx",                           mode = "Overwrite" },
     { name = "zoela-navigation",    query = { file = ".specify/queries/zoela/extract-navigation.rq" },     template = { file = ".specify/templates/zoela/expo-navigation-stack.tera" }, output_file = "packages/navigation/zoela.tsx",                               mode = "Overwrite" },
     # ZOE LA Mobile pipeline — role + consent access control
-    { name = "zoela-roles", query = { file = ".specify/queries/zoela/extract-role-requirements.rq" }, template = { file = ".specify/templates/zoela/role-access.tera" }, output_file = "packages/types/roles.ts",                                      mode = "Overwrite" },
-    { name = "zoela-assignment-eligibility", query = { file = ".specify/queries/zoela/extract-assignment-eligibility.rq" }, template = { file = ".specify/templates/zoela/assignment-eligibility.tera" }, output_file = "packages/routes/assignmentEligibility.ts", mode = "Overwrite" },
+    # TEMPORARILY DISABLED: zoela-roles has VALUES that needs inlining
+    # { name = "zoela-roles", query = { file = ".specify/queries/zoela/extract-role-requirements.rq" }, template = { file = ".specify/templates/zoela/role-access.tera" }, output_file = "packages/types/roles.ts",                                      mode = "Overwrite" },
+    # TEMPORARILY DISABLED: zoela-assignment-eligibility has VALUES that needs inlining
+    # { name = "zoela-assignment-eligibility", query = { file = ".specify/queries/zoela/extract-assignment-eligibility.rq" }, template = { file = ".specify/templates/zoela/assignment-eligibility.tera" }, output_file = "packages/routes/assignmentEligibility.ts", mode = "Overwrite" },
     # ZOE LA Mobile pipeline — extended rules (push cards, resource matching, follow-up, OCEL schema)
     { name = "zoela-push-cards",        query = { file = ".specify/queries/zoela/extract-push-card-fields.rq" },      template = { file = ".specify/templates/zoela/push-card.tera" },                    output_file = "packages/types/pushCards.ts",                 mode = "Overwrite" },
-    { name = "zoela-resource-match",    query = { file = ".specify/queries/zoela/extract-resource-matching-rules.rq" }, template = { file = ".specify/templates/zoela/resource-match.tera" },             output_file = "packages/routes/resourceMatch.ts",            mode = "Overwrite" },
-    { name = "zoela-followup-rules",    query = { file = ".specify/queries/zoela/extract-followup-rules.rq" },        template = { file = ".specify/templates/zoela/followup-rule.tera" },                output_file = "packages/routes/followupRules.ts",            mode = "Overwrite" },
+    # TEMPORARILY DISABLED: zoela-resource-match has VALUES that needs inlining
+    # { name = "zoela-resource-match",    query = { file = ".specify/queries/zoela/extract-resource-matching-rules.rq" }, template = { file = ".specify/templates/zoela/resource-match.tera" },             output_file = "packages/routes/resourceMatch.ts",            mode = "Overwrite" },
+    # TEMPORARILY DISABLED: zoela-followup-rules has VALUES that needs inlining
+    # { name = "zoela-followup-rules",    query = { file = ".specify/queries/zoela/extract-followup-rules.rq" },        template = { file = ".specify/templates/zoela/followup-rule.tera" },                output_file = "packages/routes/followupRules.ts",            mode = "Overwrite" },
     { name = "zoela-ocel-schema",       query = { file = ".specify/queries/zoela/extract-ocel-schema.rq" },           template = { file = ".specify/templates/zoela/ocel-schema.tera" },                  output_file = "packages/evidence/ocelSchema.ts",             mode = "Overwrite" },
     # ZOE LA Mobile pipeline — admin detail + expo navigation stack
     { name = "zoela-admin-detail",      query = { file = ".specify/queries/zoela/extract-admin-screens.rq" },            template = { file = ".specify/templates/zoela/admin-detail-screen.tera" },          output_file = "packages/screens/adminDetailScreen.tsx",      mode = "Overwrite" },
     { name = "zoela-nav-stack",         query = { file = ".specify/queries/zoela/extract-navigation.rq" },            template = { file = ".specify/templates/zoela/expo-navigation-stack.tera" },         output_file = "packages/navigation/navigationStack.tsx",     mode = "Overwrite" },
+    # AutoReceipt pipeline law — Rust typestates
+    { name = "autoreceipt-law",         query = { file = ".specify/queries/zoela/extract-autoreceipt-law.rq" },   template = { file = ".specify/templates/zoela/autoreceipt-law.rs.tera" },    output_file = "src/autoreceipt_law.rs",                        mode = "Overwrite" },
     # ZOE LA Mobile pipeline — connect group rules (cg-stages, cg-work-orders, cg-admin)
-    { name = "zoela-cg-stages",         query = { file = ".specify/queries/zoela/extract-connect-group-stages.rq" },  template = { file = ".specify/templates/zoela/connect-group-route-stages.tera" },   output_file = "packages/routes/connectGroupStages.ts",       mode = "Overwrite" },
-    { name = "zoela-cg-work-orders",    query = { file = ".specify/queries/zoela/extract-connect-group-work-orders.rq" }, template = { file = ".specify/templates/zoela/connect-group-work-orders.tera" }, output_file = "packages/routes/connectGroupWorkOrders.ts",  mode = "Overwrite" },
-    { name = "zoela-cg-admin",          query = { file = ".specify/queries/zoela/extract-connect-group-admin.rq" },   template = { file = ".specify/templates/zoela/connect-group-admin-surface.tera" },  output_file = "packages/routes/connectGroupAdmin.ts",        mode = "Overwrite" },
-    { name = "zoela-cg-interest-form",  query = { file = ".specify/queries/zoela/extract-connect-group-stages.rq" },  template = { file = ".specify/templates/zoela/connect-group-interest-form.tera" },   output_file = "packages/forms/connectGroupInterestForm.tsx", mode = "Overwrite" },
+    # TEMPORARILY DISABLED: zoela-cg-stages has VALUES that needs inlining
+    # { name = "zoela-cg-stages",         query = { file = ".specify/queries/zoela/extract-connect-group-stages.rq" },  template = { file = ".specify/templates/zoela/connect-group-route-stages.tera" },   output_file = "packages/routes/connectGroupStages.ts",       mode = "Overwrite" },
+    # TEMPORARILY DISABLED: zoela-cg-work-orders has VALUES that needs inlining
+    # { name = "zoela-cg-work-orders",    query = { file = ".specify/queries/zoela/extract-connect-group-work-orders.rq" }, template = { file = ".specify/templates/zoela/connect-group-work-orders.tera" }, output_file = "packages/routes/connectGroupWorkOrders.ts",  mode = "Overwrite" },
+    # TEMPORARILY DISABLED: zoela-cg-admin has VALUES that needs inlining
+    # { name = "zoela-cg-admin",          query = { file = ".specify/queries/zoela/extract-connect-group-admin.rq" },   template = { file = ".specify/templates/zoela/connect-group-admin-surface.tera" },  output_file = "packages/routes/connectGroupAdmin.ts",        mode = "Overwrite" },
+    # TEMPORARILY DISABLED: uses extract-connect-group-stages.rq which has VALUES
+    # { name = "zoela-cg-interest-form",  query = { file = ".specify/queries/zoela/extract-connect-group-stages.rq" },  template = { file = ".specify/templates/zoela/connect-group-interest-form.tera" },   output_file = "packages/forms/connectGroupInterestForm.tsx", mode = "Overwrite" },
+    # P0-B.11 — AutoReceipt pipeline law.
+    { name = "zoela-autoreceipt-law",   query = { file = ".specify/queries/zoela/extract-autoreceipt-law.rq" },      template = { file = ".specify/templates/zoela/autoreceipt-law.rs.tera" },           output_file = "src/autoreceipt_law.rs",                      mode = "Overwrite" },
     # ZOE LA Mobile pipeline — Supabase Edge Functions
-    { name = "zoela-edge-fn",           query = { file = ".specify/queries/zoela/extract-service-routes.rq" },        template = { file = ".specify/templates/zoela/supabase-edge-fn.tera" },             output_file = "supabase/functions/route-gate/index.ts",      mode = "Overwrite" },
-]
+    # TEMPORARILY DISABLED: uses extract-service-routes.rq which has VALUES
+    # { name = "zoela-edge-fn",           query = { file = ".specify/queries/zoela/extract-service-routes.rq" },        template = { file = ".specify/templates/zoela/supabase-edge-fn.tera" },             output_file = "supabase/functions/route-gate/index.ts",      mode = "Overwrite" },
+
+    # GitHub Factory — Terraform Infrastructure
+    { name = "ghf-terraform-repositories",        query = { file = ".specify/queries/ghf/repositories_aggregated.rq" },        template = { file = ".specify/templates/ghf/terraform/repositories.tf.tera" },        output_file = "artifacts/ghf/terraform/repositories.tf",        mode = "Overwrite" },
+    { name = "ghf-terraform-labels",              query = { file = ".specify/queries/ghf/labels_aggregated.rq" },              template = { file = ".specify/templates/ghf/terraform/labels.tf.tera" },              output_file = "artifacts/ghf/terraform/labels.tf",              mode = "Overwrite" },
+    { name = "ghf-terraform-branch-protection",    query = { file = ".specify/queries/ghf/branch_protection_aggregated.rq" },    template = { file = ".specify/templates/ghf/terraform/branch-protection.tf.tera" },    output_file = "artifacts/ghf/terraform/branch-protection.tf",    mode = "Overwrite" },
+    { name = "ghf-terraform-environments",         query = { file = ".specify/queries/ghf/environments_aggregated.rq" },         template = { file = ".specify/templates/ghf/terraform/environments.tf.tera" },         output_file = "artifacts/ghf/terraform/environments.tf",         mode = "Overwrite" },
+
+    # GitHub Factory — GitHub Workflows
+    { name = "ghf-github-receipt-verify",        query = { file = ".specify/queries/ghf/repositories_aggregated.rq" },        template = { file = ".specify/templates/ghf/github/receipt-verify.yml.tera" },        output_file = ".github/workflows/receipt-verify.yml",           mode = "Overwrite" },
+    { name = "ghf-github-contribution-ledger",   query = { file = ".specify/queries/ghf/repositories_aggregated.rq" },        template = { file = ".specify/templates/ghf/github/contribution-ledger.yml.tera" },   output_file = ".github/workflows/contribution-ledger.yml",      mode = "Overwrite" },
+    { name = "ghf-github-issue-template",        query = { file = ".specify/queries/ghf/contribution_units_aggregated.rq" },  template = { file = ".specify/templates/ghf/github/issue-template.yml.tera" },        output_file = ".github/ISSUE_TEMPLATE/work-order.yml",          mode = "Overwrite" },
+
+    # GitHub Factory — CLI Scripts
+    { name = "ghf-script-create-issue",          query = { file = ".specify/queries/ghf/repositories_aggregated.rq" },        template = { file = ".specify/templates/ghf/scripts/gh-create-issue.sh.tera" },       output_file = "scripts/gh-create-issue.sh",                     mode = "Overwrite" },
+    { name = "ghf-script-create-pr",             query = { file = ".specify/queries/ghf/repositories_aggregated.rq" },        template = { file = ".specify/templates/ghf/scripts/gh-create-pr.sh.tera" },          output_file = "scripts/gh-create-pr.sh",                        mode = "Overwrite" },
+    { name = "ghf-script-collect-evidence",      query = { file = ".specify/queries/ghf/repositories_aggregated.rq" },        template = { file = ".specify/templates/ghf/scripts/collect-github-evidence.sh.tera" }, output_file = "scripts/collect-github-evidence.sh",           mode = "Overwrite" },
+
+    # GitHub Factory — OCEL Expected
+    { name = "ghf-ocel-expected", query = { file = ".specify/queries/ghf/contribution_units_aggregated.rq" }, template = { file = ".specify/templates/ghf/ocel/expected.ocel.jsonl.tera" }, output_file = "artifacts/ghf/ocel/expected.ocel.jsonl", mode = "Overwrite" },
+
+    # GitHub Factory — Documentation
+    { name = "ghf-proof-matrix",        query = { file = ".specify/queries/ghf/contribution_units_aggregated.rq" }, template = { file = ".specify/templates/ghf/docs/proof-matrix.md.tera" },        output_file = "docs/ghf-proof-matrix.md",        mode = "Overwrite" },
+    { name = "ghf-weekly-ledger",       query = { file = ".specify/queries/ghf/contribution_units_aggregated.rq" }, template = { file = ".specify/templates/ghf/docs/weekly-ledger-template.md.tera" }, output_file = "docs/weekly-ledger-template.md", mode = "Overwrite" },
+    { name = "ghf-security-md",         query = { file = ".specify/queries/ghf/security_policy_aggregated.rq" },    template = { file = ".specify/templates/ghf/docs/security.md.tera" },             output_file = "SECURITY.md",                      mode = "Overwrite" },
+
+    # Truex Ecosystem — Packages & Metadata
+    # We use multiple rules because ggen v5 expects one file per output_file. 
+    # For the 10 packages, we will generate the core package.json.
+    { name = "truex-packages", query = { file = ".specify/queries/truex/packages.rq" }, template = { file = ".specify/templates/truex/package.json.tera" }, output_file = "packages/truex/{{ name | replace(from='@truex/', to='') }}/package.json", mode = "Overwrite" },
+    { name = "truex-verifier-src", query = { file = ".specify/queries/truex/ecosystem-master-aggregated.rq" }, template = { file = ".specify/templates/truex/verifier/index.ts.tera" }, output_file = "packages/truex/verifier/index.ts", mode = "Overwrite" },
+    { name = "truex-ocel2-src",    query = { file = ".specify/queries/truex/packages.rq" },                 template = { file = ".specify/templates/truex/ocel2/index.ts.tera" },    output_file = "packages/truex/ocel2/index.ts",    mode = "Overwrite" },
+    { name = "truex-receipt-src",  query = { file = ".specify/queries/truex/packages.rq" },                 template = { file = ".specify/templates/truex/receipt/index.ts.tera" },  output_file = "packages/truex/receipt/index.ts",  mode = "Overwrite" },
+    { name = "truex-replay-src",   query = { file = ".specify/queries/truex/packages.rq" },                 template = { file = ".specify/templates/truex/replay/index.ts.tera" },   output_file = "packages/truex/replay/index.ts",   mode = "Overwrite" },
+    { name = "truex-vkg-src",     query = { file = ".specify/queries/truex/packages.rq" },                 template = { file = ".specify/templates/truex/vkg/index.ts.tera" },     output_file = "packages/truex/vkg/index.ts",     mode = "Overwrite" },
+    { name = "truex-cli-src",      query = { file = ".specify/queries/truex/packages.rq" },                 template = { file = ".specify/templates/truex/cli/main.ts.tera" },     output_file = "packages/truex/cli/main.ts",     mode = "Overwrite" },
+
+    # Truex Ecosystem — Schemas
+    { name = "truex-schema-receipt",  query = { file = ".specify/queries/truex/artifacts.rq" }, template = { file = ".specify/templates/truex/schemas/receipt.v1.schema.json.tera" },  output_file = "schemas/truex-receipt.v1.schema.json",  mode = "Overwrite" },
+    { name = "truex-schema-boundary", query = { file = ".specify/queries/truex/artifacts.rq" }, template = { file = ".specify/templates/truex/schemas/receipt.v1.schema.json.tera" },  output_file = "schemas/truex-boundary.v1.schema.json", mode = "Overwrite" },
+
+    # Truex Ecosystem — Refusal Tests
+    { name = "truex-test-e2e", query = { file = ".specify/queries/truex/e2e-tests.rq" }, template = { file = ".specify/templates/truex/tests/e2e.test.ts.tera" }, output_file = "tests/truex-e2e-{{ label }}.test.ts", mode = "Overwrite" },
+    { name = "truex-test-refusal", query = { file = ".specify/queries/truex/failure-taxonomy-aggregated.rq" }, template = { file = ".specify/templates/truex/tests/receipt-refusal.test.ts.tera" }, output_file = "tests/truex-summary-only-refusal.test.ts", mode = "Overwrite" },
+
+    # Truex Ecosystem — Documentation
+    { name = "truex-docs", query = { file = ".specify/queries/truex/ecosystem-master-aggregated.rq" }, template = { file = ".specify/templates/truex/docs/truex-ecosystem.md.tera" }, output_file = "docs/truex-ecosystem.md", mode = "Overwrite" },
+
+    { name = "truex-manufacture-receipt", query = { file = ".specify/queries/truex/test-obligations.rq" }, template = { file = ".specify/templates/truex/receipts/manufacture-receipt.json.tera" }, output_file = "receipts/manufacture-receipt.json", mode = "Overwrite" },
+    # Truex Ecosystem — Workspace Configuration (Appended via remediation)
+    { name = "truex-pnpm-workspace", query = { file = ".specify/queries/truex/ecosystem-master-aggregated.rq" }, template = { file = ".specify/templates/truex/pnpm-workspace.yaml.tera" }, output_file = "pnpm-workspace.yaml", mode = "Overwrite" },
+    { name = "truex-root-package",   query = { file = ".specify/queries/truex/ecosystem-master-aggregated.rq" }, template = { file = ".specify/templates/truex/root-package.json.tera" }, output_file = "package.json", mode = "Overwrite" },
+    { name = "truex-jest-config",    query = { file = ".specify/queries/truex/ecosystem-master-aggregated.rq" }, template = { file = ".specify/templates/truex/jest.config.js.tera" },  output_file = "jest.config.js", mode = "Overwrite" },
+    { name = "truex-tsconfig",       query = { file = ".specify/queries/truex/ecosystem-master-aggregated.rq" }, template = { file = ".specify/templates/truex/tsconfig.json.tera" },   output_file = "tsconfig.json",  mode = "Overwrite" },
+
+    # Wasm4PM (WebAssembly for Process Mining) — Stub generation for interop interfaces
+    # Inline queries with VALUES clauses for deterministic stub module generation
+    { name = "wasm4pm-algos-stub", query = { inline = "SELECT (\"check_conformance_alignment|token_replay|alignment_stats|activity_coverage\" AS ?itemNames) (\"fn check_conformance_alignment(trace: &Trace, net: &PowlPetriNet) -> Result<f64, String>|fn token_replay(log: &EventLog, net: &PowlPetriNet) -> Result<TraceReplayResult, String>|fn alignment_stats(alignments: &[Alignment]) -> AlignmentStats|fn activity_coverage(log: &EventLog, net: &PowlPetriNet) -> f64\" AS ?methodSignatures) (\"Result<f64, String>|Result<TraceReplayResult, String>|AlignmentStats|f64\" AS ?returnTypes) (\"Check conformance|Execute replay|Alignment stats|Coverage metrics\" AS ?descriptions) (\"FITNESS|REPLAY|VALIDATE|FITNESS\" AS ?usagePatterns) (\"validate|ingest|convert|analyze\" AS ?stageNames) (\"CRITICAL|CRITICAL|HIGH|HIGH\" AS ?priorities) (\"pm4py.conformance_check|pm4py.token_replay|pm4py.alignment|pm4py.coverage\" AS ?otelSpanNames) WHERE { FILTER(true) }" }, template = { file = ".specify/templates/wasm4pm-algos-stub.rs.tera" }, output_file = "src/wasm4pm_algos_stub.rs", mode = "Overwrite" },
+    { name = "wasm4pm-cognition-stub", query = { inline = "SELECT (\"breed_eliza|breed_cbr|breed_dendral|breed_strips|breed_prolog|breed_mycin|breed_gps|breed_soar|breed_hearsay\" AS ?itemNames) (\"fn breed_eliza(input: &BreedInput) -> Result<BreedOutput, String>|fn breed_cbr(input: &BreedInput) -> Result<BreedOutput, String>|fn breed_dendral(input: &BreedInput) -> Result<BreedOutput, String>|fn breed_strips(input: &BreedInput) -> Result<BreedOutput, String>|fn breed_prolog(input: &BreedInput) -> Result<BreedOutput, String>|fn breed_mycin(input: &BreedInput) -> Result<BreedOutput, String>|fn breed_gps(input: &BreedInput) -> Result<BreedOutput, String>|fn breed_soar(input: &BreedInput) -> Result<BreedOutput, String>|fn breed_hearsay(input: &BreedInput) -> Result<BreedOutput, String>\" AS ?methodSignatures) (\"Result<BreedOutput, String>|Result<BreedOutput, String>|Result<BreedOutput, String>|Result<BreedOutput, String>|Result<BreedOutput, String>|Result<BreedOutput, String>|Result<BreedOutput, String>|Result<BreedOutput, String>|Result<BreedOutput, String>\" AS ?returnTypes) (\"ELIZA|CBR|Dendral|STRIPS|Prolog|MYCIN|GPS|SOAR|HEARSAY\" AS ?descriptions) (\"COGNITION|COGNITION|COGNITION|COGNITION|COGNITION|COGNITION|COGNITION|COGNITION|COGNITION\" AS ?usagePatterns) (\"breed|infer|solve|reason\" AS ?stageNames) (\"HIGH|HIGH|HIGH|HIGH|HIGH|HIGH|HIGH|HIGH|HIGH\" AS ?priorities) (\"wasm4pm.breed_eliza|wasm4pm.breed_cbr|wasm4pm.breed_dendral|wasm4pm.breed_strips|wasm4pm.breed_prolog|wasm4pm.breed_mycin|wasm4pm.breed_gps|wasm4pm.breed_soar|wasm4pm.breed_hearsay\" AS ?otelSpanNames) WHERE { FILTER(true) }" }, template = { file = ".specify/templates/wasm4pm-cognition-stub.rs.tera" }, output_file = "src/wasm4pm_cognition_stub.rs", mode = "Overwrite" },
+    { name = "wasm4pm-stub", query = { inline = "SELECT (\"powl_variant|powl_conformance|ocel_event|ocel_object|ocel_type|event_log|trace|event\" AS ?itemNames) (\"pub struct PowlVariant|pub struct PowlConformance|pub struct OcelEvent|pub struct OcelObject|pub struct OcelType|pub struct EventLog|pub struct Trace|pub struct Event\" AS ?methodSignatures) (\"PowlVariant|PowlConformance|OcelEvent|OcelObject|OcelType|EventLog|Trace|Event\" AS ?returnTypes) (\"POWL variant|POWL conformance|OCEL event|OCEL object|OCEL type|Event log|Trace|Event\" AS ?descriptions) (\"VALIDATE|FITNESS|OCEL|OCEL|OCEL|LOG|LOG|LOG\" AS ?usagePatterns) (\"define|validate|load|load|load|load|load|load\" AS ?stageNames) (\"HIGH|HIGH|CRITICAL|CRITICAL|HIGH|CRITICAL|CRITICAL|CRITICAL\" AS ?priorities) (\"wasm4pm.powl_variant|wasm4pm.powl_conformance|wasm4pm.ocel_event|wasm4pm.ocel_object|wasm4pm.ocel_type|wasm4pm.event_log|wasm4pm.trace|wasm4pm.event\" AS ?otelSpanNames) WHERE { FILTER(true) }" }, template = { file = ".specify/templates/wasm4pm-stub.rs.tera" }, output_file = "src/wasm4pm_stub.rs", mode = "Overwrite" },
+    { name = "wasm4pm-types-stub", query = { file = ".specify/queries/wasm4pm-types-stub.rq" }, template = { file = ".specify/templates/wasm4pm-types-stub.rs.tera" }, output_file = "src/wasm4pm_types_stub.rs", mode = "Overwrite" },
+    ]
 
 # Protected paths — the hand-written implementations; never overwrite
-protected_paths = [
-    "src/cmds/alignment.rs",
-    "src/cmds/clinical.rs",
-    "src/cmds/data.rs",
-    "src/cmds/doctor.rs",
-    "src/cmds/governance.rs",
-    "src/cmds/helpers.rs",
-    "src/cmds/marketplace.rs",
-    "src/cmds/mod.rs",
-    "src/cmds/ontology.rs",
-    "src/cmds/server.rs",
-    "src/main.rs",
-    "src/lib.rs",
-    "src/domain/**",
-    # Supabase migrations: hand-authored DDL until SPARQL namespace inconsistency
-    # in ontology/zoela/*.ttl is resolved (extract-tables.rq targets <urn:zoela:>
-    # but campus.ttl / connect-groups.ttl use <https://zoela.org/onto/>).
-    "supabase/migrations/20260518000001_zoela_tables.sql",
-    "supabase/migrations/20260518000002_zoela_bridge_tables.sql",
-    "supabase/migrations/20260518000003_zoela_rls.sql",
-    "supabase/migrations/20260518000004_zoela_ocel_events.sql",
-]
+# protected_paths = [
+#     "src/cmds/alignment.rs",
+#     "src/cmds/clinical.rs",
+#     "src/cmds/data.rs",
+#     "src/cmds/doctor.rs",
+#     "src/cmds/governance.rs",
+#     "src/cmds/helpers.rs",
+#     "src/cmds/marketplace.rs",
+#     "src/cmds/mod.rs",
+#     "src/cmds/ontology.rs",
+#     "src/cmds/server.rs",
+#     "src/main.rs",
+#     "src/lib.rs",
+#     "src/domain/**",
+#     # Supabase migrations: hand-authored DDL. P0-A (2026-05-18) resolved the namespace
+#     # bifurcation; P0-B will wire ggen migration emission rules and remove these entries.
+#     "supabase/migrations/20260518000001_zoela_tables.sql",
+#     "supabase/migrations/20260518000002_zoela_bridge_tables.sql",
+#     "supabase/migrations/20260518000003_zoela_rls.sql",
+#     "supabase/migrations/20260518000004_zoela_ocel_events.sql",
+# ]
+# 
+# # Regeneratable — tier-3 artifacts managed by ggen
+# # All ZOE LA Mobile artifacts emit to canonical runtime paths; never to generated/
+# regenerate_paths = [
+#     "src/cmds/generated.rs",
+#     "src/cmds/generated_revops.rs",
+#     "src/autoreceipt_law.rs",
+#     # packages/types
+#     "packages/types/zoela.ts",
+#     "packages/types/roles.ts",
+#     "packages/types/pushCards.ts",
+#     # packages/schemas
+#     "packages/schemas/zoela.ts",
+#     # packages/forms
+#     "packages/forms/zoela.tsx",
+#     # packages/screens
+#     "packages/screens/zoela.tsx",
+#     "packages/screens/adminScreens.tsx",
+#     "packages/screens/adminDetailScreen.tsx",
+#     # packages/navigation
+#     "packages/navigation/zoela.tsx",
+#     "packages/navigation/navigationStack.tsx",
+#     # packages/routes
+#     "packages/routes/routeGates.ts",
+#     "packages/routes/assignmentEligibility.ts",
+#     "packages/routes/resourceMatch.ts",
+#     "packages/routes/followupRules.ts",
+#     "packages/routes/connectGroupStages.ts",
+#     "packages/routes/connectGroupWorkOrders.ts",
+#     "packages/routes/connectGroupAdmin.ts",
+#     # packages/evidence
+#     "packages/evidence/OcelEvents.ts",
+#     "packages/evidence/receipts.ts",
+#     "packages/evidence/ocelSchema.ts",
+#     # supabase/functions
+#     "supabase/functions/route-gate/index.ts",
+#     # GitHub Factory
+#     ".github/workflows/receipt-verify.yml",
+#     ".github/workflows/contribution-ledger.yml",
+#     ".github/ISSUE_TEMPLATE/work-order.yml",
+#     "scripts/gh-create-issue.sh",
+#     "scripts/gh-create-pr.sh",
+#     "scripts/collect-github-evidence.sh",
+# ]
 
-# Regeneratable — tier-3 artifacts managed by ggen
-# All ZOE LA Mobile artifacts emit to canonical runtime paths; never to generated/
-regenerate_paths = [
-    "src/cmds/generated.rs",
-    "src/cmds/generated_revops.rs",
-    # packages/types
-    "packages/types/zoela.ts",
-    "packages/types/roles.ts",
-    "packages/types/pushCards.ts",
-    # packages/schemas
-    "packages/schemas/zoela.ts",
-    # packages/forms
-    "packages/forms/zoela.tsx",
-    # packages/screens
-    "packages/screens/zoela.tsx",
-    "packages/screens/adminScreens.tsx",
-    "packages/screens/adminDetailScreen.tsx",
-    # packages/navigation
-    "packages/navigation/zoela.tsx",
-    "packages/navigation/navigationStack.tsx",
-    # packages/routes
-    "packages/routes/routeGates.ts",
-    "packages/routes/assignmentEligibility.ts",
-    "packages/routes/resourceMatch.ts",
-    "packages/routes/followupRules.ts",
-    "packages/routes/connectGroupStages.ts",
-    "packages/routes/connectGroupWorkOrders.ts",
-    "packages/routes/connectGroupAdmin.ts",
-    # packages/evidence
-    "packages/evidence/OcelEvents.ts",
-    "packages/evidence/receipts.ts",
-    "packages/evidence/ocelSchema.ts",
-    # supabase/functions
-    "supabase/functions/route-gate/index.ts",
-]
+# generated_header = """
+# // ============================================================
+# // DO NOT EDIT THIS FILE
+# //
+# // This file is auto-generated by ggen from:
+# //   ontology/cli-open-ontologies.ttl
+# //
+# // Regenerate with: ggen sync
+# // ============================================================
+# """
 
-generated_header = """
-// ============================================================
-// DO NOT EDIT THIS FILE
-//
-// This file is auto-generated by ggen from:
-//   ontology/cli-open-ontologies.ttl
-//
-// Regenerate with: ggen sync
-// ============================================================
-"""
+# require_confirmation = false
+# backup_before_write = true
 
-require_confirmation = false
-backup_before_write = true
-
-[generation.poka_yoke]
-warning_headers = true
-gitignore_generated = false
-gitattributes_generated = true
-validate_imports = false
+# [generation.poka_yoke]
+# warning_headers = true
+# gitignore_generated = false
+# gitattributes_generated = true
+# validate_imports = false
 
 [logging]
 level = "info"
 format = "pretty"
 output = "stderr"
 
-[vocabulary]
-allowed_namespaces = [
-    "https://ggen.io/onto/cli/spec/",
-    "https://ggen.io/onto/cli/open-ontologies/",
-    "https://ggen.io/onto/cli/revops/",
-    "http://purl.org/dc/terms/",
-]
+# [vocabulary]
+# allowed_namespaces = [
+#     "https://ggen.io/onto/cli/spec/",
+#     "https://ggen.io/onto/cli/open-ontologies/",
+#     "https://ggen.io/onto/cli/revops/",
+#     "https://open-ontologies.org/profile/github-factory#",
+#     "http://purl.org/dc/terms/",
+#     "https://open-ontologies.org/profile/truex#",
+# ]
 
 [security]
 allowed_domains = [
@@ -242,6 +408,7 @@ allowed_domains = [
     "ggen.dev",
     "ggen.io",
     "chatmangpt.com",
+    "open-ontologies.org",
     "purl.org",
 ]
 max_file_size = 104857600

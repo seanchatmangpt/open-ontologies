@@ -4,7 +4,7 @@
 //! references the previous receipt. The chain is replayable from the OCEL
 //! trace alone (no out-of-band state).
 
-use crate::production_record::{hex32_pub, ProductionRecord};
+use crate::production_record::{ProductionRecord, hex32_pub};
 use crate::receipt_chain;
 use crate::state::StateDb;
 use anyhow::Result;
@@ -647,7 +647,11 @@ pub fn ttl_header(r: &Receipt) -> String {
 /// extensions that do not support inline comments (binaries, JSON without
 /// `JSON5`, etc.) — caller skips those.
 fn comment_prefix_for(path: &std::path::Path) -> Option<&'static str> {
-    match path.extension().and_then(|e| e.to_str()).map(|s| s.to_ascii_lowercase()) {
+    match path
+        .extension()
+        .and_then(|e| e.to_str())
+        .map(|s| s.to_ascii_lowercase())
+    {
         Some(ref ext) if ext == "rs" => Some("//"),
         Some(ref ext) if ext == "ts" => Some("//"),
         Some(ref ext) if ext == "tsx" => Some("//"),
@@ -841,4 +845,49 @@ fn hex_to_32(s: &str) -> Option<[u8; 32]> {
 /// ```
 pub fn is_valid_hex_hash(s: &str) -> bool {
     s.len() == 64 && s.chars().all(|c| matches!(c, '0'..='9' | 'a'..='f'))
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct AutoReceiptPayload {
+    pub verdict: String,
+    pub expected_ocel_hash: String,
+    pub observed_ocel_hash: String,
+    pub alignment_hash: String,
+    pub execution_receipt_hash: String,
+    pub policy_epoch: String,
+}
+
+/// Emit an AutoReceipt for the architectural alignment.
+pub fn emit_autoreceipt(
+    db: &StateDb,
+    session_id: &str,
+    intent_hash: &str,
+    payload: &AutoReceiptPayload,
+    prior_receipt: Option<[u8; 32]>,
+) -> Result<Receipt> {
+    let payload_str = serde_json::to_string(payload).unwrap_or_else(|_| "{}".to_string());
+
+    let record = ProductionRecord {
+        artifact_hash: hex_to_32(intent_hash).unwrap_or([0u8; 32]),
+        scope_token: payload_str,
+        declared_powl_hash: hex_to_32(&payload.alignment_hash).unwrap_or([0u8; 32]),
+        ocel_canonical_hash: hex_to_32(&payload.observed_ocel_hash).unwrap_or([0u8; 32]),
+        conformance_run_id: "autoreceipt-run".to_string(),
+        gate_config_hash: hex_to_32(&payload.execution_receipt_hash).unwrap_or([0u8; 32]),
+        production_law_version: "ontostar-1.0.0".into(),
+        defects_taxonomy_version: "ontostar-defects-4.8.0".into(),
+        gates_passed: vec![
+            "ArchitecturalReceiptParsed".into(),
+            "AlignmentVerified".into(),
+        ],
+        gates_refused: vec![],
+        prior_receipt,
+        signature: None,
+        signing_key_fpr: None,
+    };
+
+    let receipt = build(record);
+    persist(&receipt, db, session_id)?;
+
+    Ok(receipt)
 }

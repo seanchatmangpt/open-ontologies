@@ -6,6 +6,7 @@
 @prefix rdfs:    <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix xsd:     <http://www.w3.org/2001/XMLSchema#> .
 @prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix odrl:     <http://www.w3.org/ns/odrl/2/> .
 
 # ============================================================================
 # ZOE LA Mobile — Consent Ontology
@@ -140,7 +141,8 @@ zoe:Consent a owl:Class ;
 zoe:ConsentRequirement a owl:Class ;
     rdfs:label      "Consent Requirement"@en ;
     rdfs:comment    "A gate condition that blocks a named route stage until an active Consent of the required type exists for the target person."@en ;
-    rdfs:subClassOf owl:Thing .
+    rdfs:subClassOf owl:Thing ;
+    rdfs:subClassOf odrl:Duty .
 
 # ============================================================================
 # SKOS ConceptScheme — Consent Types

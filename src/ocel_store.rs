@@ -1,8 +1,8 @@
 use crate::state::StateDb;
 use anyhow::Result;
 use chrono::FixedOffset;
-use wasm4pm_types::{OCELObject, OCEL};
 use std::collections::BTreeSet;
+use wasm4pm_types::ocel::{OCEL, OCELObject};
 
 pub struct OcelStore {
     db: StateDb,
@@ -27,8 +27,7 @@ pub struct OcelStore {
 //   inside the closure they install.
 #[cfg(debug_assertions)]
 #[doc(hidden)]
-pub type EmitFailureInjectionFn =
-    Box<dyn Fn(&str) -> Option<anyhow::Error> + Send + 'static>;
+pub type EmitFailureInjectionFn = Box<dyn Fn(&str) -> Option<anyhow::Error> + Send + 'static>;
 
 #[cfg(debug_assertions)]
 thread_local! {
@@ -173,9 +172,8 @@ fn emit_event_rows(
     // R5 WB-2 — emit-failure injection for counterfactual tests.
     #[cfg(debug_assertions)]
     {
-        let injected: Option<anyhow::Error> = EMIT_FAILURE_INJECTION_HOOK.with(|h| {
-            h.borrow().as_ref().and_then(|hook| hook(event_type))
-        });
+        let injected: Option<anyhow::Error> = EMIT_FAILURE_INJECTION_HOOK
+            .with(|h| h.borrow().as_ref().and_then(|hook| hook(event_type)));
         if let Some(e) = injected {
             return Err(e);
         }
@@ -318,22 +316,19 @@ impl OcelStore {
              LIMIT ?3",
         )?;
         let rows = stmt
-            .query_map(
-                rusqlite::params![domain, min_fitness, limit as i64],
-                |r| {
-                    Ok(Exemplar {
-                        id: r.get(0)?,
-                        domain: r.get(1)?,
-                        problem_context: r.get(2)?,
-                        powl_string: r.get(3)?,
-                        build_order: r.get(4)?,
-                        fitness: r.get(5)?,
-                        source_session: r.get(6)?,
-                        receipt_hash: r.get(7)?,
-                        mined_at: r.get(8)?,
-                    })
-                },
-            )?
+            .query_map(rusqlite::params![domain, min_fitness, limit as i64], |r| {
+                Ok(Exemplar {
+                    id: r.get(0)?,
+                    domain: r.get(1)?,
+                    problem_context: r.get(2)?,
+                    powl_string: r.get(3)?,
+                    build_order: r.get(4)?,
+                    fitness: r.get(5)?,
+                    source_session: r.get(6)?,
+                    receipt_hash: r.get(7)?,
+                    mined_at: r.get(8)?,
+                })
+            })?
             .collect::<std::result::Result<Vec<_>, _>>()?;
         Ok(rows)
     }
@@ -360,11 +355,13 @@ impl OcelStore {
     pub fn has_declared_workflow(&self, scope_token: &str) -> Result<bool> {
         let conn = self.db.conn();
         let _ = conn.execute_batch(crate::receipts::STREAM3_STUB_MIGRATION);
-        let n: i64 = conn.query_row(
-            "SELECT COUNT(*) FROM declared_workflows WHERE scope_token = ?1",
-            rusqlite::params![scope_token],
-            |r| r.get(0),
-        ).unwrap_or(0);
+        let n: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM declared_workflows WHERE scope_token = ?1",
+                rusqlite::params![scope_token],
+                |r| r.get(0),
+            )
+            .unwrap_or(0);
         Ok(n > 0)
     }
 
@@ -390,11 +387,13 @@ impl OcelStore {
     pub fn is_scope_closed(&self, scope_token: &str) -> Result<bool> {
         let conn = self.db.conn();
         let _ = conn.execute_batch(crate::receipts::STREAM3_STUB_MIGRATION);
-        let closed: Option<String> = conn.query_row(
-            "SELECT closed_at FROM declared_workflows WHERE scope_token = ?1",
-            rusqlite::params![scope_token],
-            |r| r.get(0),
-        ).unwrap_or(None);
+        let closed: Option<String> = conn
+            .query_row(
+                "SELECT closed_at FROM declared_workflows WHERE scope_token = ?1",
+                rusqlite::params![scope_token],
+                |r| r.get(0),
+            )
+            .unwrap_or(None);
         Ok(closed.is_some())
     }
 
@@ -482,12 +481,14 @@ impl OcelStore {
 
         // Project event_type values for scope_token in time order.
         let trace: Vec<String> = {
-            let mut stmt = conn.prepare(
-                &format!("SELECT event_type FROM {OCEL_EVENTS_TABLE}
+            let mut stmt = conn.prepare(&format!(
+                "SELECT event_type FROM {OCEL_EVENTS_TABLE}
                  WHERE scope_token = ?1 AND tenant_id = ?2
-                 ORDER BY time ASC, event_id ASC"),
-            )?;
-            let rows = stmt.query_map(rusqlite::params![scope_token, tenant_id], |r| r.get::<_, String>(0))?;
+                 ORDER BY time ASC, event_id ASC"
+            ))?;
+            let rows = stmt.query_map(rusqlite::params![scope_token, tenant_id], |r| {
+                r.get::<_, String>(0)
+            })?;
             let mut out = Vec::new();
             for r in rows {
                 out.push(r?);
@@ -502,14 +503,9 @@ impl OcelStore {
         let result = crate::powl_bridge::classify_replay(bridge, root, &trace, &replay);
 
         // Persist conformance_runs row.
-        let defects_json = serde_json::to_string(
-            &result
-                .defects
-                .iter()
-                .map(|(d, _)| d)
-                .collect::<Vec<_>>(),
-        )
-        .unwrap_or_else(|_| "[]".to_string());
+        let defects_json =
+            serde_json::to_string(&result.defects.iter().map(|(d, _)| d).collect::<Vec<_>>())
+                .unwrap_or_else(|_| "[]".to_string());
         let _ = conn.execute(
             "INSERT OR REPLACE INTO conformance_runs (
                 run_id, scope_token, fitness, precision, generalization, simplicity,
@@ -552,26 +548,32 @@ impl OcelStore {
             let conn = self.db.conn();
             let anchor_event_id: String = conn
                 .query_row(
-                    &format!("SELECT event_id FROM {OCEL_EVENTS_TABLE}
+                    &format!(
+                        "SELECT event_id FROM {OCEL_EVENTS_TABLE}
                      WHERE scope_token = ?1 AND event_type = 'workflow_declared'
-                     ORDER BY time ASC LIMIT 1"),
+                     ORDER BY time ASC LIMIT 1"
+                    ),
                     rusqlite::params![scope_token],
                     |r| r.get(0),
                 )
-                .map_err(|_| anyhow::anyhow!(
-                    "no workflow_declared anchor event for scope {}",
-                    scope_token
-                ))?;
+                .map_err(|_| {
+                    anyhow::anyhow!(
+                        "no workflow_declared anchor event for scope {}",
+                        scope_token
+                    )
+                })?;
             conn.query_row(
                 "SELECT value FROM ocel_event_attrs
                  WHERE event_id = ?1 AND name = 'powl_string'",
                 rusqlite::params![anchor_event_id],
                 |r| r.get(0),
             )
-            .map_err(|_| anyhow::anyhow!(
-                "anchor event {} missing powl_string attribute",
-                anchor_event_id
-            ))?
+            .map_err(|_| {
+                anyhow::anyhow!(
+                    "anchor event {} missing powl_string attribute",
+                    anchor_event_id
+                )
+            })?
         };
 
         let mut bridge = crate::powl_bridge::PowlBridge::new();
@@ -828,7 +830,14 @@ impl OcelStore {
     ) -> Result<()> {
         let conn = self.db.conn();
         emit_event_rows(
-            &conn, event_id, event_type, time_iso, session_id, attrs, objects, scope_token,
+            &conn,
+            event_id,
+            event_type,
+            time_iso,
+            session_id,
+            attrs,
+            objects,
+            scope_token,
             tenant_id,
         )
     }
@@ -851,7 +860,15 @@ impl OcelStore {
         tenant_id: &str,
     ) -> Result<()> {
         emit_event_rows(
-            tx, event_id, event_type, time_iso, session_id, attrs, objects, scope_token, tenant_id,
+            tx,
+            event_id,
+            event_type,
+            time_iso,
+            session_id,
+            attrs,
+            objects,
+            scope_token,
+            tenant_id,
         )
     }
 
@@ -901,9 +918,8 @@ impl OcelStore {
         let mut object_type_set = BTreeSet::new();
         let mut objects = Vec::new();
 
-        let mut stmt = conn.prepare(
-            "SELECT object_id, object_type FROM ocel_objects ORDER BY object_id ASC",
-        )?;
+        let mut stmt =
+            conn.prepare("SELECT object_id, object_type FROM ocel_objects ORDER BY object_id ASC")?;
 
         let obj_rows = stmt.query_map(rusqlite::params![], |row| {
             let id: String = row.get(0)?;
@@ -927,11 +943,12 @@ impl OcelStore {
         let mut event_type_set = BTreeSet::new();
         let mut events = Vec::new();
 
-        let event_rows: Vec<(String, String, String, String)> = if let Some(sid) = session_id_filter {
-            let mut stmt = conn.prepare(
-                &format!("SELECT event_id, event_type, time, session_id FROM {OCEL_EVENTS_TABLE}
-                 WHERE session_id = ?1 ORDER BY event_id ASC"),
-            )?;
+        let event_rows: Vec<(String, String, String, String)> = if let Some(sid) = session_id_filter
+        {
+            let mut stmt = conn.prepare(&format!(
+                "SELECT event_id, event_type, time, session_id FROM {OCEL_EVENTS_TABLE}
+                 WHERE session_id = ?1 ORDER BY event_id ASC"
+            ))?;
             stmt.query_map(rusqlite::params![sid], |row| {
                 let eid: String = row.get(0)?;
                 let etype: String = row.get(1)?;
@@ -963,9 +980,8 @@ impl OcelStore {
             let time = chrono::DateTime::parse_from_rfc3339(&time_str).unwrap_or(fixed_now);
 
             // Query event attributes
-            let mut attr_stmt = conn.prepare(
-                "SELECT name, value FROM ocel_event_attrs WHERE event_id = ?1",
-            )?;
+            let mut attr_stmt =
+                conn.prepare("SELECT name, value FROM ocel_event_attrs WHERE event_id = ?1")?;
 
             let attributes = attr_stmt
                 .query_map(rusqlite::params![&eid], |row| {
@@ -976,8 +992,9 @@ impl OcelStore {
                 .collect::<std::result::Result<Vec<_>, _>>()?;
 
             // Query relationships
-            let mut rel_stmt =
-                conn.prepare("SELECT object_id, qualifier FROM ocel_relationships WHERE event_id = ?1")?;
+            let mut rel_stmt = conn.prepare(
+                "SELECT object_id, qualifier FROM ocel_relationships WHERE event_id = ?1",
+            )?;
 
             let relationships = rel_stmt
                 .query_map(rusqlite::params![&eid], |row| {
@@ -994,40 +1011,53 @@ impl OcelStore {
         let event_types: Vec<(String,)> = event_type_set.iter().map(|n| (n.clone(),)).collect();
 
         Ok(OCEL {
-            event_types: event_types.iter().map(|(n,)| {
-                use wasm4pm_types::ocel::OCELType;
-                OCELType {
-                    name: n.clone(),
-                    attributes: Vec::new(),
-                }
-            }).collect(),
-            object_types: object_type_set.iter().map(|n| {
-                use wasm4pm_types::ocel::OCELType;
-                OCELType {
-                    name: n.clone(),
-                    attributes: Vec::new(),
-                }
-            }).collect(),
-            events: events.into_iter().map(|(eid, etype, time, attrs, rels)| {
-                use wasm4pm_types::ocel::{OCELEvent, OCELEventAttribute, OCELAttributeValue, OCELRelationship};
-                OCELEvent {
-                    id: eid,
-                    event_type: etype,
-                    time,
-                    attributes: attrs.iter().map(|(name, value)| {
-                        OCELEventAttribute {
-                            name: name.clone(),
-                            value: OCELAttributeValue::String(value.clone()),
-                        }
-                    }).collect(),
-                    relationships: rels.iter().map(|(oid, qual)| {
-                        OCELRelationship {
-                            object_id: oid.clone(),
-                            qualifier: qual.clone(),
-                        }
-                    }).collect(),
-                }
-            }).collect(),
+            event_types: event_types
+                .iter()
+                .map(|(n,)| {
+                    use wasm4pm_types::ocel::OCELType;
+                    OCELType {
+                        name: n.clone(),
+                        attributes: Vec::new(),
+                    }
+                })
+                .collect(),
+            object_types: object_type_set
+                .iter()
+                .map(|n| {
+                    use wasm4pm_types::ocel::OCELType;
+                    OCELType {
+                        name: n.clone(),
+                        attributes: Vec::new(),
+                    }
+                })
+                .collect(),
+            events: events
+                .into_iter()
+                .map(|(eid, etype, time, attrs, rels)| {
+                    use wasm4pm_types::ocel::{
+                        OCELAttributeValue, OCELEvent, OCELEventAttribute, OCELRelationship,
+                    };
+                    OCELEvent {
+                        id: eid,
+                        event_type: etype,
+                        time,
+                        attributes: attrs
+                            .iter()
+                            .map(|(name, value)| OCELEventAttribute {
+                                name: name.clone(),
+                                value: OCELAttributeValue::String(value.clone()),
+                            })
+                            .collect(),
+                        relationships: rels
+                            .iter()
+                            .map(|(oid, qual)| OCELRelationship {
+                                object_id: oid.clone(),
+                                qualifier: qual.clone(),
+                            })
+                            .collect(),
+                    }
+                })
+                .collect(),
             objects,
         })
     }
@@ -1152,17 +1182,16 @@ impl OcelStore {
     /// ```
     pub fn seed_from_ocel_bytes(&self, bytes: &[u8], default_domain: &str) -> Result<u64> {
         let doc: serde_json::Value = serde_json::from_slice(bytes)?;
-        let events: Vec<serde_json::Value> = if let Some(arr) =
-            doc.get("events").and_then(|v| v.as_array())
-        {
-            arr.clone()
-        } else if let Some(obj) = doc.get("ocel:events").and_then(|v| v.as_object()) {
-            obj.values().cloned().collect()
-        } else if let Some(arr) = doc.get("ocel:events").and_then(|v| v.as_array()) {
-            arr.clone()
-        } else {
-            return Ok(0);
-        };
+        let events: Vec<serde_json::Value> =
+            if let Some(arr) = doc.get("events").and_then(|v| v.as_array()) {
+                arr.clone()
+            } else if let Some(obj) = doc.get("ocel:events").and_then(|v| v.as_object()) {
+                obj.values().cloned().collect()
+            } else if let Some(arr) = doc.get("ocel:events").and_then(|v| v.as_array()) {
+                arr.clone()
+            } else {
+                return Ok(0);
+            };
         let mut inserted = 0u64;
         for ev in events {
             let etype = ev
@@ -1182,7 +1211,11 @@ impl OcelStore {
                 .cloned()
                 .unwrap_or(serde_json::Value::Null);
             let s = |k: &str| -> String {
-                attrs.get(k).and_then(|v| v.as_str()).unwrap_or("").to_string()
+                attrs
+                    .get(k)
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string()
             };
             let problem = s("problem_statement");
             let powl_model = if !s(OCEL_ATTR_POWL_MODEL).is_empty() {
@@ -1347,7 +1380,9 @@ pub fn record_llm_invoked_full(
     persist_full_io: bool,
 ) {
     let prompt_hash = blake3::hash(prompt_text.as_bytes()).to_hex().to_string();
-    let completion_hash = blake3::hash(completion_text.as_bytes()).to_hex().to_string();
+    let completion_hash = blake3::hash(completion_text.as_bytes())
+        .to_hex()
+        .to_string();
     let now = chrono::Utc::now().to_rfc3339();
     let ts_ms = chrono::Utc::now().timestamp_millis();
 

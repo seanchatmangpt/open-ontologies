@@ -5,13 +5,9 @@
 //!   - `swarm/fuse_via_hearsay`    — Hearsay-II fusion of 9 breed outputs
 //!   - `swarm/manufacture_swarm`   — 9 × deterministic `manufacture()`
 
-use criterion::{black_box, criterion_group, criterion_main, Criterion, Throughput};
-use open_ontologies::swarm::{
-    fuse_via_hearsay, manufacture_swarm, run_breeds, SWARM_BREEDS,
-};
-use wasm4pm_cognition::breeds::{
-    BreedInput, Candidate, Case, Fact, Goal, Rule, StateAtom,
-};
+use criterion::{Criterion, Throughput, black_box, criterion_group, criterion_main};
+use open_ontologies::swarm::{SWARM_BREEDS, fuse_via_hearsay, manufacture_swarm, run_breeds};
+use wasm4pm_cognition::breeds::{BreedInput, Candidate, Case, Fact, Goal, Rule, StateAtom};
 
 fn revops_scenario() -> BreedInput {
     BreedInput {
@@ -38,10 +34,22 @@ fn revops_scenario() -> BreedInput {
             },
         ],
         facts: vec![
-            Fact { key: "scale".into(), value: "billion".into() },
-            Fact { key: "leakage".into(), value: "detected".into() },
-            Fact { key: "compliance".into(), value: "strict".into() },
-            Fact { key: "current".into(), value: "no-architecture".into() },
+            Fact {
+                key: "scale".into(),
+                value: "billion".into(),
+            },
+            Fact {
+                key: "leakage".into(),
+                value: "detected".into(),
+            },
+            Fact {
+                key: "compliance".into(),
+                value: "strict".into(),
+            },
+            Fact {
+                key: "current".into(),
+                value: "no-architecture".into(),
+            },
         ],
         cases: vec![
             Case {
@@ -49,14 +57,20 @@ fn revops_scenario() -> BreedInput {
                 intent: "Booking reconciliation gap, contract chain partial".into(),
                 architecture: "centralized-revenue-engine".into(),
                 outcome_score: 0.92,
-                facts: vec![Fact { key: "scale".into(), value: "billion".into() }],
+                facts: vec![Fact {
+                    key: "scale".into(),
+                    value: "billion".into(),
+                }],
             },
             Case {
                 id: "case-rev-002".into(),
                 intent: "Late partner attribution, edge-distributed handled it".into(),
                 architecture: "edge-distributed-reconciliation".into(),
                 outcome_score: 0.78,
-                facts: vec![Fact { key: "leakage".into(), value: "detected".into() }],
+                facts: vec![Fact {
+                    key: "leakage".into(),
+                    value: "detected".into(),
+                }],
             },
         ],
         rules: vec![

@@ -1,8 +1,8 @@
-use std::sync::Arc;
-use oxigraph::io::RdfFormat;
 use crate::drift::jaro_winkler;
 use crate::graph::GraphStore;
 use crate::state::StateDb;
+use oxigraph::io::RdfFormat;
+use std::sync::Arc;
 
 /// SPARQL 1.1 JSON results envelope key (RFC mandated, never changes).
 ///
@@ -90,15 +90,87 @@ impl AlignmentEngine {
     }
 
     #[cfg(feature = "embeddings")]
-    pub fn new_with_vecstore(db: StateDb, graph: Arc<GraphStore>, vecstore: Arc<std::sync::Mutex<crate::vecstore::VecStore>>) -> Self {
-        Self { db, graph, vecstore: Some(vecstore) }
+    pub fn new_with_vecstore(
+        db: StateDb,
+        graph: Arc<GraphStore>,
+        vecstore: Arc<std::sync::Mutex<crate::vecstore::VecStore>>,
+    ) -> Self {
+        Self {
+            db,
+            graph,
+            vecstore: Some(vecstore),
+        }
     }
 
+    /// Verify alignment between expected and observed OCEL events.
+    pub fn verify_alignment(
+        &self,
+        expected: &[serde_json::Value],
+        observed: &[serde_json::Value],
+    ) -> (f64, f64, String) {
+        if expected.is_empty() {
+            return (0.0, 0.0, "non_conform:empty_expected".to_string());
+        }
+
+        // Hard Refusal Rule: If observed OCEL is cloned from expected OCEL
+        if expected == observed {
+            return (0.0, 0.0, "SyntheticObservedOcelRejected".to_string());
+        }
+
+        // Must require real command boundary evidence in observed
+        let has_real_evidence = observed
+            .iter()
+            .any(|o| o.get("command").is_some() || o.get("execution_receipt_hash").is_some());
+
+        if !observed.is_empty() && !has_real_evidence {
+            return (0.0, 0.0, "SyntheticObservedOcelRejected".to_string());
+        }
+
+        let mut matches = 0;
+        let mut order_preserved = true;
+        for (i, exp) in expected.iter().enumerate() {
+            let exp_activity = exp["ocel:activity"].as_str().unwrap_or("");
+
+            if let Some(obs) = observed.get(i) {
+                if obs["ocel:activity"].as_str() == Some(exp_activity) {
+                    // Check for hardcoded timestamps
+                    if let Some(ts) = obs["ocel:timestamp"].as_str()
+                        && (ts == "2026-05-20T12:00:00Z" || ts == "2026-05-20T12:01:00Z")
+                    {
+                        return (0.0, 0.0, "SyntheticObservedOcelRejected".to_string());
+                    }
+                    matches += 1;
+                } else {
+                    order_preserved = false;
+                }
+            } else {
+                order_preserved = false;
+            }
+        }
+
+        let fitness = matches as f64 / expected.len() as f64;
+        let precision = if !observed.is_empty() {
+            matches as f64 / observed.len() as f64
+        } else {
+            0.0
+        };
+
+        let verdict = if fitness >= 1.0 && order_preserved {
+            "conformant".to_string()
+        } else {
+            format!("non_conform:fitness_{:.2}", fitness)
+        };
+
+        (fitness, precision, verdict)
+    }
     /// Extract class IRIs and their labels from a temporary graph via SPARQL.
     /// Detect RDF format from content (not filename).
     fn detect_content_format(content: &str) -> RdfFormat {
         let trimmed = content.trim_start();
-        if trimmed.starts_with("<?xml") || trimmed.starts_with("<rdf:RDF") || trimmed.starts_with("<owl:") {
+        if trimmed.starts_with("<?xml")
+            || trimmed.starts_with("<rdf:RDF")
+            || trimmed.starts_with("<owl:")
+        {
             RdfFormat::RdfXml
         } else if trimmed.starts_with("{") {
             // Could be JSON-LD but we don't support that; fall back to Turtle
@@ -236,47 +308,82 @@ impl AlignmentEngine {
     }
 
     /// Compute property signature overlap (Jaccard on domain properties + ranges).
-    fn property_overlap(store_a: &GraphStore, class_a: &str, store_b: &GraphStore, class_b: &str) -> f64 {
+    fn property_overlap(
+        store_a: &GraphStore,
+        class_a: &str,
+        store_b: &GraphStore,
+        class_b: &str,
+    ) -> f64 {
         let props_a = Self::extract_properties(store_a, class_a);
         let props_b = Self::extract_properties(store_b, class_b);
         let ranges_a = Self::extract_ranges(store_a, class_a);
         let ranges_b = Self::extract_ranges(store_b, class_b);
 
         // Combine property local names + range local names for comparison
-        let sig_a: Vec<String> = props_a.iter().chain(ranges_a.iter()).map(|s| local_name(s)).collect();
-        let sig_b: Vec<String> = props_b.iter().chain(ranges_b.iter()).map(|s| local_name(s)).collect();
+        let sig_a: Vec<String> = props_a
+            .iter()
+            .chain(ranges_a.iter())
+            .map(|s| local_name(s))
+            .collect();
+        let sig_b: Vec<String> = props_b
+            .iter()
+            .chain(ranges_b.iter())
+            .map(|s| local_name(s))
+            .collect();
 
         jaccard_similarity(&sig_a, &sig_b)
     }
 
     /// Compute parent overlap (Jaccard on rdfs:subClassOf parents by local name).
-    fn parent_overlap(store_a: &GraphStore, class_a: &str, store_b: &GraphStore, class_b: &str) -> f64 {
+    fn parent_overlap(
+        store_a: &GraphStore,
+        class_a: &str,
+        store_b: &GraphStore,
+        class_b: &str,
+    ) -> f64 {
         let parents_a: Vec<String> = Self::extract_parents(store_a, class_a)
-            .iter().map(|s| local_name(s)).collect();
+            .iter()
+            .map(|s| local_name(s))
+            .collect();
         let parents_b: Vec<String> = Self::extract_parents(store_b, class_b)
-            .iter().map(|s| local_name(s)).collect();
+            .iter()
+            .map(|s| local_name(s))
+            .collect();
         jaccard_similarity(&parents_a, &parents_b)
     }
 
     /// Compute instance overlap — shared individuals typed under both classes (by local name).
-    fn instance_overlap(store_a: &GraphStore, class_a: &str, store_b: &GraphStore, class_b: &str) -> f64 {
-        let query_a = format!(
-            r#"SELECT DISTINCT ?ind WHERE {{ ?ind a <{class_a}> . FILTER(isIRI(?ind)) }}"#
-        );
-        let query_b = format!(
-            r#"SELECT DISTINCT ?ind WHERE {{ ?ind a <{class_b}> . FILTER(isIRI(?ind)) }}"#
-        );
+    fn instance_overlap(
+        store_a: &GraphStore,
+        class_a: &str,
+        store_b: &GraphStore,
+        class_b: &str,
+    ) -> f64 {
+        let query_a =
+            format!(r#"SELECT DISTINCT ?ind WHERE {{ ?ind a <{class_a}> . FILTER(isIRI(?ind)) }}"#);
+        let query_b =
+            format!(r#"SELECT DISTINCT ?ind WHERE {{ ?ind a <{class_b}> . FILTER(isIRI(?ind)) }}"#);
         let inds_a: Vec<String> = Self::extract_iris(store_a, &query_a, "ind")
-            .iter().map(|s| local_name(s)).collect();
+            .iter()
+            .map(|s| local_name(s))
+            .collect();
         let inds_b: Vec<String> = Self::extract_iris(store_b, &query_b, "ind")
-            .iter().map(|s| local_name(s)).collect();
+            .iter()
+            .map(|s| local_name(s))
+            .collect();
         jaccard_similarity(&inds_a, &inds_b)
     }
 
     /// Compute restriction similarity — compare owl:someValuesFrom / owl:allValuesFrom restrictions.
-    fn restriction_similarity(store_a: &GraphStore, class_a: &str, store_b: &GraphStore, class_b: &str) -> f64 {
-        let restriction_query = |class: &str| format!(
-            r#"SELECT DISTINCT ?prop ?filler WHERE {{
+    fn restriction_similarity(
+        store_a: &GraphStore,
+        class_a: &str,
+        store_b: &GraphStore,
+        class_b: &str,
+    ) -> f64 {
+        let restriction_query = |class: &str| {
+            format!(
+                r#"SELECT DISTINCT ?prop ?filler WHERE {{
                 <{class}> <http://www.w3.org/2000/01/rdf-schema#subClassOf> ?r .
                 ?r a <http://www.w3.org/2002/07/owl#Restriction> .
                 ?r <http://www.w3.org/2002/07/owl#onProperty> ?prop .
@@ -286,7 +393,8 @@ impl AlignmentEngine {
                     ?r <http://www.w3.org/2002/07/owl#allValuesFrom> ?filler .
                 }}
             }}"#
-        );
+            )
+        };
 
         let extract_restriction_sigs = |store: &GraphStore, class: &str| -> Vec<String> {
             let query = restriction_query(class);
@@ -316,9 +424,15 @@ impl AlignmentEngine {
     }
 
     /// Compute graph neighborhood similarity — 2-hop property comparison.
-    fn neighborhood_similarity(store_a: &GraphStore, class_a: &str, store_b: &GraphStore, class_b: &str) -> f64 {
-        let neighborhood_query = |class: &str| format!(
-            r#"SELECT DISTINCT ?prop WHERE {{
+    fn neighborhood_similarity(
+        store_a: &GraphStore,
+        class_a: &str,
+        store_b: &GraphStore,
+        class_b: &str,
+    ) -> f64 {
+        let neighborhood_query = |class: &str| {
+            format!(
+                r#"SELECT DISTINCT ?prop WHERE {{
                 {{
                     ?prop <http://www.w3.org/2000/01/rdf-schema#domain> <{class}> .
                 }} UNION {{
@@ -328,12 +442,19 @@ impl AlignmentEngine {
                     ?prop <http://www.w3.org/2000/01/rdf-schema#range> <{class}> .
                 }}
             }}"#
-        );
+            )
+        };
 
-        let neigh_a: Vec<String> = Self::extract_iris(store_a, &neighborhood_query(class_a), "prop")
-            .iter().map(|s| local_name(s)).collect();
-        let neigh_b: Vec<String> = Self::extract_iris(store_b, &neighborhood_query(class_b), "prop")
-            .iter().map(|s| local_name(s)).collect();
+        let neigh_a: Vec<String> =
+            Self::extract_iris(store_a, &neighborhood_query(class_a), "prop")
+                .iter()
+                .map(|s| local_name(s))
+                .collect();
+        let neigh_b: Vec<String> =
+            Self::extract_iris(store_b, &neighborhood_query(class_b), "prop")
+                .iter()
+                .map(|s| local_name(s))
+                .collect();
         jaccard_similarity(&neigh_a, &neigh_b)
     }
 
@@ -354,7 +475,11 @@ impl AlignmentEngine {
                 let tokens_b: std::collections::HashSet<&str> = nb.split_whitespace().collect();
                 let intersection = tokens_a.intersection(&tokens_b).count() as f64;
                 let union = tokens_a.union(&tokens_b).count() as f64;
-                let jaccard = if union > 0.0 { intersection / union } else { 0.0 };
+                let jaccard = if union > 0.0 {
+                    intersection / union
+                } else {
+                    0.0
+                };
 
                 // Take the best of Jaro-Winkler and token Jaccard
                 let sim = jw.max(jaccard);
@@ -473,7 +598,14 @@ impl AlignmentEngine {
         low_threshold: f64,
         dry_run: bool,
     ) -> anyhow::Result<String> {
-        self.align_with_fusion(source, target, high_threshold, low_threshold, dry_run, "weighted_sum")
+        self.align_with_fusion(
+            source,
+            target,
+            high_threshold,
+            low_threshold,
+            dry_run,
+            "weighted_sum",
+        )
     }
 
     /// Two-threshold alignment with borderline-candidate surfacing for LLM-orchestrated review,
@@ -507,7 +639,11 @@ impl AlignmentEngine {
         // For RRF the inline weighted-sum confidence is throwaway (recomputed after
         // collection). We collect all label-prefiltered candidates and only apply
         // `low_threshold` to the FINAL fused score post-rerank.
-        let inline_low_threshold = if fusion == "rrf" { f64::NEG_INFINITY } else { low_threshold };
+        let inline_low_threshold = if fusion == "rrf" {
+            f64::NEG_INFINITY
+        } else {
+            low_threshold
+        };
         // Load source into a temporary graph (detect format from content)
         let source_store = GraphStore::new();
         if std::path::Path::new(source).exists() {
@@ -546,14 +682,18 @@ impl AlignmentEngine {
         // product cost on large ontologies. Gracefully degrades to full Cartesian
         // when embeddings are missing.
         #[cfg(feature = "embeddings")]
-        let hnsw_prefilter: Option<std::collections::HashMap<String, std::collections::HashSet<String>>> = {
+        let hnsw_prefilter: Option<
+            std::collections::HashMap<String, std::collections::HashSet<String>>,
+        > = {
             const HNSW_TOP_K: usize = 50;
             if let Some(ref vs_arc) = self.vecstore {
                 let target_iri_set: std::collections::HashSet<&str> =
                     target_classes.iter().map(|c| c.iri.as_str()).collect();
                 let mut vs = vs_arc.lock().unwrap();
-                let mut by_source: std::collections::HashMap<String, std::collections::HashSet<String>> =
-                    std::collections::HashMap::new();
+                let mut by_source: std::collections::HashMap<
+                    String,
+                    std::collections::HashSet<String>,
+                > = std::collections::HashMap::new();
                 let mut any_used = false;
                 for sc in &source_classes {
                     if let Some(src_vec) = vs.get_text_vec(&sc.iri).map(|v| v.to_vec()) {
@@ -577,7 +717,9 @@ impl AlignmentEngine {
             }
         };
         #[cfg(not(feature = "embeddings"))]
-        let hnsw_prefilter: Option<std::collections::HashMap<String, std::collections::HashSet<String>>> = None;
+        let hnsw_prefilter: Option<
+            std::collections::HashMap<String, std::collections::HashSet<String>>,
+        > = None;
 
         // Compute candidates: cartesian product of source × target classes,
         // optionally pruned to the HNSW shortlist when available.
@@ -635,17 +777,36 @@ impl AlignmentEngine {
                     continue;
                 }
 
-                let prop_overlap = Self::property_overlap(&source_store, &sc.iri, target_ref, &tc.iri);
+                let prop_overlap =
+                    Self::property_overlap(&source_store, &sc.iri, target_ref, &tc.iri);
                 let parent_ovlp = Self::parent_overlap(&source_store, &sc.iri, target_ref, &tc.iri);
-                let inst_overlap = Self::instance_overlap(&source_store, &sc.iri, target_ref, &tc.iri);
-                let restr_sim = Self::restriction_similarity(&source_store, &sc.iri, target_ref, &tc.iri);
-                let neigh_sim = Self::neighborhood_similarity(&source_store, &sc.iri, target_ref, &tc.iri);
+                let inst_overlap =
+                    Self::instance_overlap(&source_store, &sc.iri, target_ref, &tc.iri);
+                let restr_sim =
+                    Self::restriction_similarity(&source_store, &sc.iri, target_ref, &tc.iri);
+                let neigh_sim =
+                    Self::neighborhood_similarity(&source_store, &sc.iri, target_ref, &tc.iri);
 
                 #[cfg(feature = "embeddings")]
-                let signals = [label_sim, prop_overlap, parent_ovlp, inst_overlap, restr_sim, neigh_sim, embedding_sim];
+                let signals = [
+                    label_sim,
+                    prop_overlap,
+                    parent_ovlp,
+                    inst_overlap,
+                    restr_sim,
+                    neigh_sim,
+                    embedding_sim,
+                ];
 
                 #[cfg(not(feature = "embeddings"))]
-                let signals = [label_sim, prop_overlap, parent_ovlp, inst_overlap, restr_sim, neigh_sim];
+                let signals = [
+                    label_sim,
+                    prop_overlap,
+                    parent_ovlp,
+                    inst_overlap,
+                    restr_sim,
+                    neigh_sim,
+                ];
 
                 // Compute confidence. When structural signals are all zero
                 // (common in lightweight OWL files), fall back to the strongest
@@ -688,7 +849,8 @@ impl AlignmentEngine {
                 });
                 #[cfg(feature = "embeddings")]
                 {
-                    signals_json["embedding_similarity"] = serde_json::json!((embedding_sim * 1000.0).round() / 1000.0);
+                    signals_json["embedding_similarity"] =
+                        serde_json::json!((embedding_sim * 1000.0).round() / 1000.0);
                 }
 
                 candidates.push(serde_json::json!({
@@ -716,7 +878,9 @@ impl AlignmentEngine {
 
         // Sort by confidence descending
         candidates.sort_by(|a, b| {
-            b[FIELD_CONFIDENCE].as_f64().unwrap_or(0.0)
+            b[FIELD_CONFIDENCE]
+                .as_f64()
+                .unwrap_or(0.0)
                 .partial_cmp(&a[FIELD_CONFIDENCE].as_f64().unwrap_or(0.0))
                 .unwrap_or(std::cmp::Ordering::Equal)
         });
@@ -726,8 +890,10 @@ impl AlignmentEngine {
         // This enforces a 1-to-1 matching constraint that dramatically reduces
         // false positives on benchmarks like OAEI Anatomy.
         {
-            let mut used_sources: std::collections::HashSet<String> = std::collections::HashSet::new();
-            let mut used_targets: std::collections::HashSet<String> = std::collections::HashSet::new();
+            let mut used_sources: std::collections::HashSet<String> =
+                std::collections::HashSet::new();
+            let mut used_targets: std::collections::HashSet<String> =
+                std::collections::HashSet::new();
             candidates.retain(|c| {
                 let src = c[FIELD_SOURCE_IRI].as_str().unwrap_or("").to_string();
                 let tgt = c[FIELD_TARGET_IRI].as_str().unwrap_or("").to_string();
@@ -746,7 +912,7 @@ impl AlignmentEngine {
         if !dry_run {
             for candidate in &mut candidates {
                 let conf = candidate[FIELD_CONFIDENCE].as_f64().unwrap_or(0.0);
-                if conf >= min_confidence {
+                if conf >= high_threshold {
                     let source_iri = candidate[FIELD_SOURCE_IRI].as_str().unwrap();
                     let target_iri = candidate[FIELD_TARGET_IRI].as_str().unwrap();
                     let relation = candidate["relation"].as_str().unwrap();
@@ -831,7 +997,8 @@ impl AlignmentEngine {
             // Back-compat alias — older callers read "threshold".
             "threshold": high_threshold,
             "summary_for_review": summary_for_review,
-        }).to_string())
+        })
+        .to_string())
     }
 
     /// Reciprocal Rank Fusion (Cormack, Clarke, Buettcher SIGIR 2009) at k=60.
@@ -923,14 +1090,22 @@ impl AlignmentEngine {
     /// Signal names in weight-vector order.
     #[cfg(not(feature = "embeddings"))]
     const SIGNAL_NAMES: [&'static str; 6] = [
-        "label_similarity", "property_overlap", "parent_overlap",
-        "instance_overlap", "restriction_similarity", "neighborhood_similarity",
+        "label_similarity",
+        "property_overlap",
+        "parent_overlap",
+        "instance_overlap",
+        "restriction_similarity",
+        "neighborhood_similarity",
     ];
 
     #[cfg(feature = "embeddings")]
     const SIGNAL_NAMES: [&'static str; 7] = [
-        "label_similarity", "property_overlap", "parent_overlap",
-        "instance_overlap", "restriction_similarity", "neighborhood_similarity",
+        "label_similarity",
+        "property_overlap",
+        "parent_overlap",
+        "instance_overlap",
+        "restriction_similarity",
+        "neighborhood_similarity",
         "embedding_similarity",
     ];
 
@@ -961,7 +1136,7 @@ impl AlignmentEngine {
         let mut rej_count = 0_u32;
 
         let mut stmt = match conn.prepare(
-            "SELECT accepted, signals_json FROM align_feedback WHERE signals_json IS NOT NULL"
+            "SELECT accepted, signals_json FROM align_feedback WHERE signals_json IS NOT NULL",
         ) {
             Ok(s) => s,
             Err(_) => return Self::DEFAULT_WEIGHTS.to_vec(),
@@ -978,10 +1153,11 @@ impl AlignmentEngine {
 
         for row in rows.flatten() {
             let (accepted, json_str) = row;
-            let signals: std::collections::HashMap<String, f64> = match serde_json::from_str(&json_str) {
-                Ok(s) => s,
-                Err(_) => continue,
-            };
+            let signals: std::collections::HashMap<String, f64> =
+                match serde_json::from_str(&json_str) {
+                    Ok(s) => s,
+                    Err(_) => continue,
+                };
 
             let vals: Vec<f64> = Self::SIGNAL_NAMES
                 .iter()
@@ -1104,7 +1280,8 @@ impl AlignmentEngine {
             "accepted": accepted,
             "feedback_count": feedback_count,
             "weights_learning": if feedback_count >= 10 { "active" } else { "collecting" },
-        }).to_string())
+        })
+        .to_string())
     }
 }
 
@@ -1117,7 +1294,11 @@ fn jaccard_similarity(a: &[String], b: &[String]) -> f64 {
     let set_b: std::collections::HashSet<&str> = b.iter().map(|s| s.as_str()).collect();
     let intersection = set_a.intersection(&set_b).count() as f64;
     let union = set_a.union(&set_b).count() as f64;
-    if union == 0.0 { 0.0 } else { intersection / union }
+    if union == 0.0 {
+        0.0
+    } else {
+        intersection / union
+    }
 }
 
 /// Metadata about a class extracted from an ontology.
@@ -1127,15 +1308,16 @@ fn jaccard_similarity(a: &[String], b: &[String]) -> f64 {
 ///
 /// ```
 /// use open_ontologies::align::ClassInfo;
+/// use open_ontologies::language::Label;
 ///
 /// let info = ClassInfo {
 ///     iri: "http://example.org/Dog".to_string(),
-///     labels: vec!["Dog".to_string(), "Domestic dog".to_string()],
+///     labels: vec![Label::new("Dog", None), Label::new("Domestic dog", None)],
 /// };
 ///
 /// assert_eq!(info.iri, "http://example.org/Dog");
 /// assert_eq!(info.labels.len(), 2);
-/// assert!(info.labels.contains(&"Dog".to_string()));
+/// assert!(info.labels.iter().any(|l| l.text == "Dog"));
 ///
 /// // ClassInfo implements Clone, so it can be duplicated cheaply.
 /// let cloned = info.clone();
@@ -1161,10 +1343,11 @@ fn jaccard_similarity(a: &[String], b: &[String]) -> f64 {
 ///
 /// ```
 /// use open_ontologies::align::ClassInfo;
+/// use open_ontologies::language::Label;
 ///
 /// let info = ClassInfo {
 ///     iri: "https://schema.org/Person".to_string(),
-///     labels: vec!["Person".to_string()],
+///     labels: vec![Label::new("Person", None)],
 /// };
 ///
 /// assert!(!info.iri.is_empty());
@@ -1196,13 +1379,23 @@ fn normalize_label(label: &str) -> String {
     let cleaned = label.replace(['_', '-'], " ");
     let mut result = String::with_capacity(cleaned.len() + 8);
     for (i, ch) in cleaned.chars().enumerate() {
-        if i > 0 && ch.is_uppercase() && !cleaned.as_bytes().get(i.wrapping_sub(1)).is_some_and(|c| c.is_ascii_uppercase()) {
+        if i > 0
+            && ch.is_uppercase()
+            && !cleaned
+                .as_bytes()
+                .get(i.wrapping_sub(1))
+                .is_some_and(|c| c.is_ascii_uppercase())
+        {
             result.push(' ');
         }
         result.push(ch);
     }
     // Collapse multiple spaces and lowercase
-    result.to_lowercase().split_whitespace().collect::<Vec<_>>().join(" ")
+    result
+        .to_lowercase()
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
 }
 
 #[cfg(test)]
@@ -1214,7 +1407,10 @@ mod tests {
         assert_eq!(normalize_label("DomesticCat"), "domestic cat");
         assert_eq!(normalize_label("dog"), "dog");
         assert_eq!(normalize_label("MyFavoritePizza"), "my favorite pizza");
-        assert_eq!(normalize_label("Auricularis_Superior"), "auricularis superior");
+        assert_eq!(
+            normalize_label("Auricularis_Superior"),
+            "auricularis superior"
+        );
         assert_eq!(normalize_label("Spinal_Cord"), "spinal cord");
         assert_eq!(normalize_label("head-and-neck"), "head and neck");
     }
@@ -1245,16 +1441,28 @@ mod tests {
 
     #[test]
     fn test_property_overlap_identical() {
-        let a = vec!["http://ex.org/hasName".into(), "http://ex.org/hasAge".into()];
-        let b = vec!["http://ex.org/hasName".into(), "http://ex.org/hasAge".into()];
+        let a = vec![
+            "http://ex.org/hasName".into(),
+            "http://ex.org/hasAge".into(),
+        ];
+        let b = vec![
+            "http://ex.org/hasName".into(),
+            "http://ex.org/hasAge".into(),
+        ];
         let sim = jaccard_similarity(&a, &b);
         assert!((sim - 1.0).abs() < 0.001);
     }
 
     #[test]
     fn test_property_overlap_partial() {
-        let a = vec!["http://ex.org/hasName".into(), "http://ex.org/hasAge".into()];
-        let b = vec!["http://ex.org/hasName".into(), "http://ex.org/hasColor".into()];
+        let a = vec![
+            "http://ex.org/hasName".into(),
+            "http://ex.org/hasAge".into(),
+        ];
+        let b = vec![
+            "http://ex.org/hasName".into(),
+            "http://ex.org/hasColor".into(),
+        ];
         let sim = jaccard_similarity(&a, &b);
         assert!((sim - 1.0 / 3.0).abs() < 0.001); // intersection=1, union=3
     }
@@ -1296,7 +1504,11 @@ mod tests {
         let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
 
         let candidates = parsed["candidates"].as_array().unwrap();
-        assert!(candidates.len() >= 2, "Should find at least 2 candidates: {:?}", candidates);
+        assert!(
+            candidates.len() >= 2,
+            "Should find at least 2 candidates: {:?}",
+            candidates
+        );
 
         // Dog<->Dog should have very high confidence
         let dog_match = candidates.iter().find(|c| {
@@ -1337,7 +1549,10 @@ mod tests {
 
         // Verify triples were inserted into the main graph
         let count = graph.triple_count();
-        assert!(count > 0, "Auto-apply should insert triples into main graph");
+        assert!(
+            count > 0,
+            "Auto-apply should insert triples into main graph"
+        );
     }
 
     #[test]
@@ -1426,13 +1641,15 @@ mod tests {
         let graph = Arc::new(GraphStore::new());
 
         let engine = AlignmentEngine::new(db.clone(), graph);
-        let result = engine.record_feedback(
-            "http://ex.org/Dog",
-            "http://other.org/Canine",
-            "owl:equivalentClass",
-            true,
-            None,
-        ).unwrap();
+        let result = engine
+            .record_feedback(
+                "http://ex.org/Dog",
+                "http://other.org/Canine",
+                "owl:equivalentClass",
+                true,
+                None,
+            )
+            .unwrap();
 
         let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
         assert!(parsed["ok"].as_bool().unwrap());
@@ -1448,16 +1665,13 @@ mod tests {
     #[cfg(feature = "embeddings")]
     #[test]
     fn test_embedding_similarity_signal() {
-        let sim = AlignmentEngine::embedding_similarity_score(
-            &[0.9, 0.1, 0.0],
-            &[0.85, 0.15, 0.0],
-        );
+        let sim = AlignmentEngine::embedding_similarity_score(&[0.9, 0.1, 0.0], &[0.85, 0.15, 0.0]);
         assert!(sim > 0.95, "Similar vectors should give high score: {sim}");
 
-        let sim2 = AlignmentEngine::embedding_similarity_score(
-            &[1.0, 0.0, 0.0],
-            &[0.0, 0.0, 1.0],
+        let sim2 = AlignmentEngine::embedding_similarity_score(&[1.0, 0.0, 0.0], &[0.0, 0.0, 1.0]);
+        assert!(
+            sim2 < 0.1,
+            "Orthogonal vectors should give low score: {sim2}"
         );
-        assert!(sim2 < 0.1, "Orthogonal vectors should give low score: {sim2}");
     }
 }

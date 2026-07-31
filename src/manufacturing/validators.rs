@@ -270,9 +270,8 @@ pub fn validate_bundle(bundle: &SolutionBundle) -> Result<(), DefectClass> {
             .file_name()
             .map(|s| s.to_string_lossy().into_owned())
             .unwrap_or_default();
-        let is_sidecar_bound = f.target == "iac"
-            && f.path.ends_with(".tf.json")
-            && sidecar_files.contains(&basename);
+        let is_sidecar_bound =
+            f.target == "iac" && f.path.ends_with(".tf.json") && sidecar_files.contains(&basename);
         let is_the_sidecar = f.path == "iac/.ontostar-receipt.json";
         if !has_comment_header && !is_sidecar_bound && !is_the_sidecar {
             return Err(DefectClass::ManufacturingChainBroken {
@@ -334,14 +333,15 @@ fn validate_iac(bundle: &SolutionBundle) -> Result<(), DefectClass> {
             // key — that is the bug the adversarial audit caught and
             // it would fail `terraform validate`.
             if let Some(obj) = parsed.as_object()
-                && obj.contains_key("_ontostar_receipt") {
-                    return Err(DefectClass::IacInvalid {
-                        reason: format!(
-                            "{} contains _ontostar_receipt key — Terraform top-level schema is closed; receipts must live in the sidecar",
-                            f.path
-                        ),
-                    });
-                }
+                && obj.contains_key("_ontostar_receipt")
+            {
+                return Err(DefectClass::IacInvalid {
+                    reason: format!(
+                        "{} contains _ontostar_receipt key — Terraform top-level schema is closed; receipts must live in the sidecar",
+                        f.path
+                    ),
+                });
+            }
         }
         if f.path == "iac/.ontostar-receipt.json" {
             have_sidecar = true;
@@ -353,12 +353,20 @@ fn validate_iac(bundle: &SolutionBundle) -> Result<(), DefectClass> {
                     });
                 }
             };
-            if parsed.get("artifact_hash").and_then(|v| v.as_str()).is_none() {
+            if parsed
+                .get("artifact_hash")
+                .and_then(|v| v.as_str())
+                .is_none()
+            {
                 return Err(DefectClass::IacInvalid {
                     reason: "sidecar.artifact_hash missing/non-string".into(),
                 });
             }
-            if parsed.get("work_order_receipt").and_then(|v| v.as_str()).is_none() {
+            if parsed
+                .get("work_order_receipt")
+                .and_then(|v| v.as_str())
+                .is_none()
+            {
                 return Err(DefectClass::IacInvalid {
                     reason: "sidecar.work_order_receipt missing/non-string".into(),
                 });
@@ -576,7 +584,9 @@ pub fn strip_header(contents: &str, prefix: &str) -> String {
     for line in contents.split_inclusive('\n') {
         let trimmed = line.trim_end_matches('\n').trim_end_matches('\r');
         let is_header = trimmed.starts_with(&header_marker)
-            && trimmed.split_once(": ").map(|x| x.1)
+            && trimmed
+                .split_once(": ")
+                .map(|x| x.1)
                 .map(|v| !v.is_empty())
                 .unwrap_or(false);
         if is_header {

@@ -1,3 +1,4 @@
+/// <reference path="../globals.d.ts" />
 // Supabase Edge Function: autonomic-executor
 // Executes ZOE LA Mobile autonomic actions per A0-A4 action class doctrine
 // Source: ontology/zoela/connect-group-routes.ttl — autonomic action classes

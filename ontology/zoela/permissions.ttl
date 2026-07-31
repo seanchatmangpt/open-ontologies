@@ -6,6 +6,7 @@
 @prefix rdfs:    <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix xsd:     <http://www.w3.org/2001/XMLSchema#> .
 @prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix acl:     <http://www.w3.org/ns/auth/acl#> .
 
 # ============================================================================
 # ZOE LA Mobile — Permissions Ontology
@@ -183,8 +184,8 @@ zoe:rls_table a owl:DatatypeProperty ;
 
 zoe:ZoePermission a owl:Class ;
     rdfs:label      "ZOE Permission"@en ;
-    rdfs:comment    "An ODRL Permission scoped to a ZOE LA data object type and sensitivity level. Grants a requiredRole (and above) the stated operation on the target."@en ;
-    rdfs:subClassOf odrl:Permission .
+    rdfs:comment    "An ODRL Permission and Solid ACL Authorization component scoped to a ZOE LA data object type and sensitivity level."@en ;
+    rdfs:subClassOf odrl:Permission , acl:Authorization .
 
 zoe:ZoeProhibition a owl:Class ;
     rdfs:label      "ZOE Prohibition"@en ;
@@ -193,8 +194,62 @@ zoe:ZoeProhibition a owl:Class ;
 
 zoe:ZoePolicy a owl:Class ;
     rdfs:label      "ZOE Policy"@en ;
-    rdfs:comment    "An ODRL Policy that aggregates permissions and prohibitions for a named Supabase table. The rls_table property identifies the SQL table that receives generated RLS rules."@en ;
-    rdfs:subClassOf odrl:Policy .
+    rdfs:comment    "An ODRL Policy and Solid ACL Authorization that aggregates permissions and prohibitions for a named Supabase table."@en ;
+    rdfs:subClassOf odrl:Policy , acl:Authorization .
+
+# ============================================================================
+# Solid ACL Vocabulary Declarations
+# ============================================================================
+
+acl:Authorization a owl:Class ;
+    rdfs:label "Authorization"@en ;
+    rdfs:comment "An element of access control, which associates agents and resources with access modes."@en .
+
+acl:AccessMode a owl:Class ;
+    rdfs:label "Access Mode"@en ;
+    rdfs:comment "A mode of access (e.g., Read, Write, Control, Append)."@en .
+
+acl:mode a owl:ObjectProperty ;
+    rdfs:label "access mode"@en ;
+    rdfs:comment "Links an Authorization to its allowed AccessMode."@en ;
+    rdfs:domain acl:Authorization ;
+    rdfs:range acl:AccessMode .
+
+acl:agent a owl:ObjectProperty ;
+    rdfs:label "agent"@en ;
+    rdfs:comment "Links an Authorization to the agent being authorized."@en ;
+    rdfs:domain acl:Authorization .
+
+acl:agentClass a owl:ObjectProperty ;
+    rdfs:label "agent class"@en ;
+    rdfs:comment "Links an Authorization to a class of agents (like a role) being authorized."@en ;
+    rdfs:domain acl:Authorization .
+
+acl:accessTo a owl:ObjectProperty ;
+    rdfs:label "access to"@en ;
+    rdfs:comment "Links an Authorization to the specific resource being secured."@en ;
+    rdfs:domain acl:Authorization .
+
+acl:accessToClass a owl:ObjectProperty ;
+    rdfs:label "access to class"@en ;
+    rdfs:comment "Links an Authorization to a class of resources being secured."@en ;
+    rdfs:domain acl:Authorization .
+
+acl:Read a acl:AccessMode ;
+    rdfs:label "Read"@en ;
+    rdfs:comment "The mode of access that allows reading/viewing a resource."@en .
+
+acl:Write a acl:AccessMode ;
+    rdfs:label "Write"@en ;
+    rdfs:comment "The mode of access that allows editing/modifying/writing a resource."@en .
+
+acl:Control a acl:AccessMode ;
+    rdfs:label "Control"@en ;
+    rdfs:comment "The mode of access that allows managing permissions/policies on a resource."@en .
+
+acl:Append a acl:AccessMode ;
+    rdfs:label "Append"@en ;
+    rdfs:comment "The mode of access that allows appending data to a resource."@en .
 
 # ============================================================================
 # Named Individuals — RLS-generating policies
@@ -359,3 +414,186 @@ zoe:PartnerReferralVolunteerProhibition a zoe:ZoeProhibition ;
     zoe:prohibitionTargetObjectType "referrals" ;
     zoe:blockedRole                zoe:VolunteerRole ;
     zoe:refusalReason              "Referral access requires CareTeamRole or above." .
+
+# ============================================================================
+# Storehouse and Storage Unit Access Control Policies (Solid ACL & W3C ODRL)
+# ============================================================================
+
+# ── StorehousePolicy ─────────────────────────────────────────────────────────
+
+zoe:StorehousePolicy a zoe:ZoePolicy ;
+    rdfs:label              "Storehouse Policy"@en ;
+    skos:prefLabel          "Storehouse Policy"@en ;
+    skos:definition         "Governs access to Storehouse facility records. Volunteers and above may read; Admins may write/control."@en ;
+    skos:notation           "STOREHOUSE-POLICY" ;
+    zoe:policyCode          "STRH" ;
+    zoe:rls_table           "storehouses" ;
+    zoe:hasSensitivityLevel zoe:SensitivityMinistryPrivate ;
+    acl:accessToClass       zoe:Storehouse ;
+    odrl:permission         zoe:StorehouseReadPermission,
+                            zoe:StorehouseWritePermission ;
+    odrl:prohibition        zoe:StorehouseMemberProhibition .
+
+zoe:StorehouseReadPermission a zoe:ZoePermission ;
+    rdfs:label            "Storehouse Read Permission"@en ;
+    skos:notation         "STRH-READ" ;
+    zoe:permissionCode    "STRH-READ" ;
+    zoe:targetObjectType  "storehouses" ;
+    zoe:targetSensitivity zoe:SensitivityMinistryPrivate ;
+    zoe:requiredRole      zoe:VolunteerRole ;
+    zoe:operation         "read" ;
+    acl:mode              acl:Read ;
+    acl:agentClass        zoe:VolunteerRole ;
+    acl:accessToClass     zoe:Storehouse .
+
+zoe:StorehouseWritePermission a zoe:ZoePermission ;
+    rdfs:label            "Storehouse Write/Control Permission"@en ;
+    skos:notation         "STRH-WRITE" ;
+    zoe:permissionCode    "STRH-WRITE" ;
+    zoe:targetObjectType  "storehouses" ;
+    zoe:targetSensitivity zoe:SensitivityMinistryPrivate ;
+    zoe:requiredRole      zoe:AdminRole ;
+    zoe:operation         "write" ;
+    acl:mode              acl:Write , acl:Control ;
+    acl:agentClass        zoe:AdminRole ;
+    acl:accessToClass     zoe:Storehouse .
+
+zoe:StorehouseMemberProhibition a zoe:ZoeProhibition ;
+    rdfs:label                      "Storehouse Member Prohibition"@en ;
+    skos:notation                   "STRH-BLOCK-MEMBER" ;
+    zoe:prohibitionCode             "STRH-BLOCK-MEMBER" ;
+    zoe:prohibitionTargetObjectType  "storehouses" ;
+    zoe:blockedRole                 zoe:MemberRole ;
+    zoe:refusalReason               "Storehouse facility access requires VolunteerRole or above." .
+
+# ── StorageUnitPolicy ────────────────────────────────────────────────────────
+
+zoe:StorageUnitPolicy a zoe:ZoePolicy ;
+    rdfs:label              "Storage Unit Policy"@en ;
+    skos:prefLabel          "Storage Unit Policy"@en ;
+    skos:definition         "Governs access to Storage Units within storehouses. Volunteers and above may read; LeaderRole and above may write."@en ;
+    skos:notation           "STORAGE-UNIT-POLICY" ;
+    zoe:policyCode          "STUNIT" ;
+    zoe:rls_table           "storage_units" ;
+    zoe:hasSensitivityLevel zoe:SensitivityMinistryPrivate ;
+    acl:accessToClass       zoe:StorageUnit ;
+    odrl:permission         zoe:StorageUnitReadPermission,
+                            zoe:StorageUnitWritePermission ;
+    odrl:prohibition        zoe:StorageUnitMemberProhibition .
+
+zoe:StorageUnitReadPermission a zoe:ZoePermission ;
+    rdfs:label            "Storage Unit Read Permission"@en ;
+    skos:notation         "STUNIT-READ" ;
+    zoe:permissionCode    "STUNIT-READ" ;
+    zoe:targetObjectType  "storage_units" ;
+    zoe:targetSensitivity zoe:SensitivityMinistryPrivate ;
+    zoe:requiredRole      zoe:VolunteerRole ;
+    zoe:operation         "read" ;
+    acl:mode              acl:Read ;
+    acl:agentClass        zoe:VolunteerRole ;
+    acl:accessToClass     zoe:StorageUnit .
+
+zoe:StorageUnitWritePermission a zoe:ZoePermission ;
+    rdfs:label            "Storage Unit Write Permission"@en ;
+    skos:notation         "STUNIT-WRITE" ;
+    zoe:permissionCode    "STUNIT-WRITE" ;
+    zoe:targetObjectType  "storage_units" ;
+    zoe:targetSensitivity zoe:SensitivityMinistryPrivate ;
+    zoe:requiredRole      zoe:LeaderRole ;
+    zoe:operation         "write" ;
+    acl:mode              acl:Write ;
+    acl:agentClass        zoe:LeaderRole ;
+    acl:accessToClass     zoe:StorageUnit .
+
+zoe:StorageUnitMemberProhibition a zoe:ZoeProhibition ;
+    rdfs:label                      "Storage Unit Member Prohibition"@en ;
+    skos:notation                   "STUNIT-BLOCK-MEMBER" ;
+    zoe:prohibitionCode             "STUNIT-BLOCK-MEMBER" ;
+    zoe:prohibitionTargetObjectType  "storage_units" ;
+    zoe:blockedRole                 zoe:MemberRole ;
+    zoe:refusalReason               "Storage unit access requires VolunteerRole or above." .
+
+# ── ResourcePolicy ───────────────────────────────────────────────────────────
+
+zoe:ResourcePolicy a zoe:ZoePolicy ;
+    rdfs:label              "Resource Policy"@en ;
+    skos:prefLabel          "Resource Policy"@en ;
+    skos:definition         "Governs access to Resource definitions. Anyone may read resources (public); only AdminRole may create, edit, or delete them."@en ;
+    skos:notation           "RESOURCE-POLICY" ;
+    zoe:policyCode          "RSRC" ;
+    zoe:rls_table           "resources" ;
+    zoe:hasSensitivityLevel zoe:SensitivityPublic ;
+    acl:accessToClass       zoe:Resource ;
+    odrl:permission         zoe:ResourceReadPermission,
+                            zoe:ResourceWritePermission .
+
+zoe:ResourceReadPermission a zoe:ZoePermission ;
+    rdfs:label            "Resource Read Permission"@en ;
+    skos:notation         "RSRC-READ" ;
+    zoe:permissionCode    "RSRC-READ" ;
+    zoe:targetObjectType  "resources" ;
+    zoe:targetSensitivity zoe:SensitivityPublic ;
+    zoe:requiredRole      zoe:MemberRole ;
+    zoe:operation         "read" ;
+    acl:mode              acl:Read ;
+    acl:agentClass        zoe:MemberRole ;
+    acl:accessToClass     zoe:Resource .
+
+zoe:ResourceWritePermission a zoe:ZoePermission ;
+    rdfs:label            "Resource Write Permission"@en ;
+    skos:notation         "RSRC-WRITE" ;
+    zoe:permissionCode    "RSRC-WRITE" ;
+    zoe:targetObjectType  "resources" ;
+    zoe:targetSensitivity zoe:SensitivityPublic ;
+    zoe:requiredRole      zoe:AdminRole ;
+    zoe:operation         "write" ;
+    acl:mode              acl:Write , acl:Control ;
+    acl:agentClass        zoe:AdminRole ;
+    acl:accessToClass     zoe:Resource .
+
+# ── StorehouseAssetPolicy ────────────────────────────────────────────────────
+
+zoe:StorehouseAssetPolicy a zoe:ZoePolicy ;
+    rdfs:label              "Storehouse Asset Policy"@en ;
+    skos:prefLabel          "Storehouse Asset Policy"@en ;
+    skos:definition         "Governs access to physical assets stored or tracked within a storehouse. Volunteers may read; LeaderRole may write."@en ;
+    skos:notation           "ASSET-POLICY" ;
+    zoe:policyCode          "ASSET" ;
+    zoe:rls_table           "storehouse_assets" ;
+    zoe:hasSensitivityLevel zoe:SensitivityMinistryPrivate ;
+    acl:accessToClass       zoe:StorehouseAsset ;
+    odrl:permission         zoe:StorehouseAssetReadPermission,
+                            zoe:StorehouseAssetWritePermission ;
+    odrl:prohibition        zoe:StorehouseAssetMemberProhibition .
+
+zoe:StorehouseAssetReadPermission a zoe:ZoePermission ;
+    rdfs:label            "Storehouse Asset Read Permission"@en ;
+    skos:notation         "ASSET-READ" ;
+    zoe:permissionCode    "ASSET-READ" ;
+    zoe:targetObjectType  "storehouse_assets" ;
+    zoe:targetSensitivity zoe:SensitivityMinistryPrivate ;
+    zoe:requiredRole      zoe:VolunteerRole ;
+    zoe:operation         "read" ;
+    acl:mode              acl:Read ;
+    acl:agentClass        zoe:VolunteerRole ;
+    acl:accessToClass     zoe:StorehouseAsset .
+
+zoe:StorehouseAssetWritePermission a zoe:ZoePermission ;
+    rdfs:label            "Storehouse Asset Write Permission"@en ;
+    skos:notation         "ASSET-WRITE" ;
+    zoe:permissionCode    "ASSET-WRITE" ;
+    zoe:targetObjectType  "storehouse_assets" ;
+    zoe:targetSensitivity zoe:SensitivityMinistryPrivate ;
+    zoe:requiredRole      zoe:LeaderRole ;
+    zoe:operation         "write" ;
+    acl:mode              acl:Write ;
+    acl:agentClass        zoe:LeaderRole ;
+    acl:accessToClass     zoe:StorehouseAsset .
+
+zoe:StorehouseAssetMemberProhibition a zoe:ZoeProhibition ;
+    rdfs:label                      "Storehouse Asset Member Prohibition"@en ;
+    skos:notation                   "ASSET-BLOCK-MEMBER" ;
+    zoe:prohibitionCode             "ASSET-BLOCK-MEMBER" ;
+    zoe:prohibitionTargetObjectType  "storehouse_assets" ;
+    zoe:blockedRole                 zoe:MemberRole ;
+    zoe:refusalReason               "Storehouse asset access requires VolunteerRole or above." .

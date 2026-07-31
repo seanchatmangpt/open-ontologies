@@ -23,8 +23,8 @@ use crate::ocel_store::OcelStore;
 use anyhow::Result;
 use chrono::Utc;
 use std::collections::HashMap;
-use wasm4pm_algos::conformance::check_conformance_alignment;
-use wasm4pm_types::{Attribute, AttributeValue, Event, EventLog, Trace};
+use wasm4pm_types::event_log::{Attribute, AttributeValue};
+use wasm4pm_types::{Event, EventLog, Trace};
 
 /// Minimum number of admitted scopes per domain before discovery runs.
 ///
@@ -73,10 +73,7 @@ pub struct DiscoveredWorkflow {
 /// let result = discover_for_domain("billing", &store).unwrap();
 /// assert!(result.is_none());
 /// ```
-pub fn discover_for_domain(
-    domain: &str,
-    store: &OcelStore,
-) -> Result<Option<DiscoveredWorkflow>> {
+pub fn discover_for_domain(domain: &str, store: &OcelStore) -> Result<Option<DiscoveredWorkflow>> {
     let db = store.db();
     let conn = db.conn();
 
@@ -108,7 +105,11 @@ pub fn discover_for_domain(
     )?;
     let event_rows: Vec<(String, String, String)> = stmt
         .query_map(rusqlite::params![domain], |r| {
-            Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?, r.get::<_, String>(2)?))
+            Ok((
+                r.get::<_, String>(0)?,
+                r.get::<_, String>(1)?,
+                r.get::<_, String>(2)?,
+            ))
         })?
         .collect::<std::result::Result<Vec<_>, _>>()?;
     drop(stmt);
@@ -126,19 +127,23 @@ pub fn discover_for_domain(
     if log.traces.is_empty() {
         return Ok(None);
     }
+    let wasm4pm_log = wasm4pm::models::EventLog::from(log);
 
-    // 4. wasm4pm discovery — alpha gives us a replayable Petri net.
-    let petri = match wasm4pm_algos::alpha::discover_alpha(&log, "concept:name") {
+    // 4. wasm4pm discovery — alpha++ gives us a replayable Petri net.
+    let admitted =
+        wasm4pm_types::admission::Admission::<_, ()>::new(wasm4pm_log.clone()).into_evidence();
+    let petri = match wasm4pm::algorithms::discover_alpha_plus_plus_from_log(
+        &admitted,
+        "concept:name",
+        0.5,
+    ) {
         Ok(p) => p,
         Err(_) => return Ok(None),
     };
 
     // 5. wasm4pm conformance — fitness of the discovered model on its own log.
-    let conf = match check_conformance_alignment(&log, &petri, "concept:name") {
-        Ok(c) => c,
-        Err(_) => return Ok(None),
-    };
-    let discovered_fitness = conf.fitness;
+    let conf = wasm4pm::conformance::token_replay_pure(&wasm4pm_log, &petri, "concept:name");
+    let discovered_fitness = conf.avg_fitness;
 
     // 6. Read declared fitness — average of recent conformance_runs for this class.
     let declared_fitness: f64 = conn
@@ -156,8 +161,11 @@ pub fn discover_for_domain(
     }
 
     // 7. Synthesize a POWL-shaped string from the DFG (best-effort serialization).
-    let powl_string = format!("DISCOVERED_DFG{{transitions={}, places={}}}",
-        petri.transitions.len(), petri.places.len());
+    let powl_string = format!(
+        "DISCOVERED_DFG{{transitions={}, places={}}}",
+        petri.transitions.len(),
+        petri.places.len()
+    );
     let id = format!("dw_{}_{}", domain, Utc::now().timestamp_millis());
     let now = Utc::now().to_rfc3339();
 
@@ -165,7 +173,14 @@ pub fn discover_for_domain(
         "INSERT INTO discovered_workflows
             (id, domain, powl_string, discovered_fitness, declared_fitness, status, suggested_at)
          VALUES (?1, ?2, ?3, ?4, ?5, 'pending', ?6)",
-        rusqlite::params![id, domain, powl_string, discovered_fitness, declared_fitness, now],
+        rusqlite::params![
+            id,
+            domain,
+            powl_string,
+            discovered_fitness,
+            declared_fitness,
+            now
+        ],
     )?;
 
     Ok(Some(DiscoveredWorkflow {

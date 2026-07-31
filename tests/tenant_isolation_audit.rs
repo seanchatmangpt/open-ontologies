@@ -29,8 +29,8 @@ fn fresh_db() -> StateDb {
 /// alpha's rows).
 #[test]
 fn receipt_sequence_query_is_tenant_scoped() {
-    use open_ontologies::receipts;
     use open_ontologies::production_record::ProductionRecord;
+    use open_ontologies::receipts;
 
     let db = fresh_db();
 
@@ -71,13 +71,11 @@ fn receipt_sequence_query_is_tenant_scoped() {
     let session = "shared-session";
 
     // Insert alpha receipt first.
-    receipts::persist_with_tenant(&alpha_receipt, &db, session, "alpha")
-        .expect("alpha persist");
+    receipts::persist_with_tenant(&alpha_receipt, &db, session, "alpha").expect("alpha persist");
 
     // Beta's sequence for the same session must start at 1, not 2.
     // We verify by inspecting the sequence column after insert.
-    receipts::persist_with_tenant(&beta_receipt, &db, session, "beta")
-        .expect("beta persist");
+    receipts::persist_with_tenant(&beta_receipt, &db, session, "beta").expect("beta persist");
 
     let conn = db.conn();
     let alpha_seq: i64 = conn
@@ -98,7 +96,10 @@ fn receipt_sequence_query_is_tenant_scoped() {
 
     // Both tenants must have sequence 1 — they don't share a sequence counter.
     assert_eq!(alpha_seq, 1, "alpha sequence should be 1");
-    assert_eq!(beta_seq, 1, "beta sequence must be 1, not 2 (tenant-scoped)");
+    assert_eq!(
+        beta_seq, 1,
+        "beta sequence must be 1, not 2 (tenant-scoped)"
+    );
 }
 
 /// OCEL event projection must be tenant-scoped.
@@ -145,6 +146,9 @@ fn ocel_events_query_is_tenant_scoped() {
         )
         .expect("alpha count query");
 
-    assert_eq!(beta_count, 0, "tenant beta must not see tenant alpha's events");
+    assert_eq!(
+        beta_count, 0,
+        "tenant beta must not see tenant alpha's events"
+    );
     assert_eq!(alpha_count, 1, "tenant alpha must see its own events");
 }

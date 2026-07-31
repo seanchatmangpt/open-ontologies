@@ -6,7 +6,7 @@
 
 use open_ontologies::defects::DefectClass;
 use open_ontologies::manufacturing::{
-    manufacture, manufacture_with_override, validators::validate_bundle, SolutionSpec,
+    SolutionSpec, manufacture, manufacture_with_override, validators::validate_bundle,
 };
 
 fn ok_spec() -> SolutionSpec {
@@ -31,8 +31,7 @@ fn iac_invalid_when_sidecar_missing_artifact_hash() {
         .iter_mut()
         .find(|f| f.path == "iac/.ontostar-receipt.json")
         .expect("sidecar present");
-    let mut v: serde_json::Value =
-        serde_json::from_str(&sidecar.contents).expect("sidecar parses");
+    let mut v: serde_json::Value = serde_json::from_str(&sidecar.contents).expect("sidecar parses");
     v.as_object_mut().unwrap().remove("artifact_hash");
     sidecar.contents = serde_json::to_string_pretty(&v).unwrap();
 
@@ -128,9 +127,10 @@ fn rust_invalid_when_lib_missing_solution_name_fn() {
         .iter_mut()
         .find(|f| f.path.ends_with("lib.rs"))
         .expect("lib.rs present");
-    lib.contents = lib
-        .contents
-        .replace("pub fn manufactured_solution_name", "pub fn renamed_solution");
+    lib.contents = lib.contents.replace(
+        "pub fn manufactured_solution_name",
+        "pub fn renamed_solution",
+    );
 
     match validate_bundle(&bundle) {
         Err(DefectClass::RustInvalid { reason }) => {

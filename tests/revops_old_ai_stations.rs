@@ -1,3 +1,5 @@
+#![allow(clippy::all, unused)]
+
 //! Phase 3.5 — Fortune-5 RevOps old-AI station tests.
 //!
 //! One test per breed from wasm4pm-cognition (ELIZA, CBR, DENDRAL,
@@ -17,16 +19,15 @@
 mod revops_common;
 
 use wasm4pm_cognition::breeds::{
-    dispatch_breed_test, BreedInput, Candidate, Case, Fact, Goal, Rule, StateAtom,
+    BreedInput, Candidate, Case, Fact, Goal, Rule, StateAtom, dispatch_breed_test,
 };
 
 /// RevOps domain fixture. Reused across all 9 station tests.
 fn revops_input() -> BreedInput {
     BreedInput {
-        intent:
-            "Detect revenue leakage in Fortune-5 RevOps pipeline: forecast not supported, \
+        intent: "Detect revenue leakage in Fortune-5 RevOps pipeline: forecast not supported, \
              bookings missing chain, late partner attribution, renewal risk undetected"
-                .to_string(),
+            .to_string(),
         candidates: vec![
             Candidate {
                 id: "centralized-revenue-engine".into(),
@@ -42,10 +43,22 @@ fn revops_input() -> BreedInput {
             },
         ],
         facts: vec![
-            Fact { key: "scale".into(), value: "billion".into() },
-            Fact { key: "compliance".into(), value: "strict".into() },
-            Fact { key: "leakage".into(), value: "detected".into() },
-            Fact { key: "current".into(), value: "no-architecture".into() },
+            Fact {
+                key: "scale".into(),
+                value: "billion".into(),
+            },
+            Fact {
+                key: "compliance".into(),
+                value: "strict".into(),
+            },
+            Fact {
+                key: "leakage".into(),
+                value: "detected".into(),
+            },
+            Fact {
+                key: "current".into(),
+                value: "no-architecture".into(),
+            },
         ],
         cases: vec![
             Case {
@@ -54,8 +67,14 @@ fn revops_input() -> BreedInput {
                 architecture: "centralized-revenue-engine".into(),
                 outcome_score: 0.92,
                 facts: vec![
-                    Fact { key: "scale".into(), value: "billion".into() },
-                    Fact { key: "compliance".into(), value: "strict".into() },
+                    Fact {
+                        key: "scale".into(),
+                        value: "billion".into(),
+                    },
+                    Fact {
+                        key: "compliance".into(),
+                        value: "strict".into(),
+                    },
                 ],
             },
             Case {
@@ -63,7 +82,10 @@ fn revops_input() -> BreedInput {
                 intent: "Late partner attribution".into(),
                 architecture: "edge-distributed-reconciliation".into(),
                 outcome_score: 0.78,
-                facts: vec![Fact { key: "leakage".into(), value: "detected".into() }],
+                facts: vec![Fact {
+                    key: "leakage".into(),
+                    value: "detected".into(),
+                }],
             },
         ],
         rules: vec![
@@ -73,6 +95,13 @@ fn revops_input() -> BreedInput {
                 premise: vec!["scale=billion".into()],
                 conclusion: "favor=centralized-revenue-engine".into(),
                 certainty: 0.9,
+            },
+            // For ELIZA keyword engine: match 'revenue' in the intent.
+            Rule {
+                id: "eliza-keyword".into(),
+                premise: vec!["REVENUE".into(), "(0)".into()],
+                conclusion: "Why do you mention revenue?".into(),
+                certainty: 1.0,
             },
             Rule {
                 id: "r2".into(),

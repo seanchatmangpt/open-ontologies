@@ -34,8 +34,8 @@ zoe:PartnerOrganization
 zoe:PartnerCapacity
     a owl:Class ;
     rdfs:subClassOf prov:Entity ;
-    rdfs:label "Partner Capacity" ;
-    rdfs:comment "A snapshot of a partner organization's current service capacity and availability for a given resource type." .
+    rdfs:label "Partner Capacity"@en ;
+    rdfs:comment "A snapshot of a partner organization's current service capacity and availability for a given resource type."@en .
 
 # ===========================================================================
 # Properties — zoe:PartnerOrganization

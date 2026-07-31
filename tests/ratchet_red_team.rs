@@ -25,8 +25,8 @@ mod no_bypass_audit;
 mod secret_grep_ratchet;
 
 use no_bypass_audit::{
-    body_calls_admission_real, body_discards_admission, build_fn_map,
-    collect_balanced_block, handler_gated_via_helper, strip_dead_code_blocks,
+    body_calls_admission_real, body_discards_admission, build_fn_map, collect_balanced_block,
+    handler_gated_via_helper, strip_dead_code_blocks,
 };
 use secret_grep_ratchet::{
     collect_aliases, line_format_brace_uses_forbidden, line_substitutes_key_with,
@@ -229,7 +229,8 @@ const SENTINEL: &str = "__SENTINEL_TAIL__";
 fn red_team_brace_in_char_literal_does_not_break_extraction() {
     // The `'{'` and `'}'` chars inside the body must NOT shift the
     // brace balance. The walker must still find the matching outer `}`.
-    let src = "fn handler() {\n    let _open = '{';\n    let _close = '}';\n    __SENTINEL_TAIL__;\n}";
+    let src =
+        "fn handler() {\n    let _open = '{';\n    let _close = '}';\n    __SENTINEL_TAIL__;\n}";
     let body_start = src.find('{').unwrap();
     let body = collect_balanced_block(src, body_start);
     assert!(
@@ -242,8 +243,11 @@ fn red_team_brace_in_char_literal_does_not_break_extraction() {
         "body must include the tail sentinel — char-literal braces broke balance: {:?}",
         body
     );
-    assert_eq!(body.matches('{').count(), body.matches('}').count(),
-        "open/close count must match in extracted body");
+    assert_eq!(
+        body.matches('{').count(),
+        body.matches('}').count(),
+        "open/close count must match in extracted body"
+    );
 }
 
 #[test]

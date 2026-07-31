@@ -19,9 +19,9 @@ use std::sync::Arc;
 use rmcp::{
     ErrorData, RoleServer, ServerHandler,
     model::{
-        CallToolRequestParams, CallToolResult, GetPromptRequestParams,
-        GetPromptResult, InitializeRequestParams, InitializeResult, ListPromptsResult,
-        ListToolsResult, PaginatedRequestParams, ServerInfo, Tool,
+        CallToolRequestParams, CallToolResult, GetPromptRequestParams, GetPromptResult,
+        InitializeRequestParams, InitializeResult, ListPromptsResult, ListToolsResult,
+        PaginatedRequestParams, ServerInfo, Tool,
     },
     service::RequestContext,
 };
@@ -242,7 +242,11 @@ impl<H: ServerHandler> ProofGatedServer<H> {
     /// # }
     /// ```
     pub fn new(inner: H, db: StateDb, signing_key: ed25519_dalek::SigningKey) -> Self {
-        Self { inner, db, signing_key }
+        Self {
+            inner,
+            db,
+            signing_key,
+        }
     }
 }
 
@@ -320,25 +324,33 @@ impl<H: ServerHandler> ServerHandler for ProofGatedServer<H> {
         let text = extract_text(&result);
         let result_json: serde_json::Value =
             serde_json::from_str(&text).unwrap_or(serde_json::Value::Null);
-        let ok = result_json.get("ok").and_then(|v| v.as_bool()).unwrap_or(false);
+        let ok = result_json
+            .get("ok")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
 
         if !ok {
             return Ok(result);
         }
 
         // 4. Collect OCEL evidence (scoped lock, released before admit).
-        let ocel_ev = collect_ocel(&self.db, &scope_token, started)
-            .map_err(|e| ErrorData::internal_error(format!("mcpp: ocel collect failed: {e}"), None))?;
+        let ocel_ev = collect_ocel(&self.db, &scope_token, started).map_err(|e| {
+            ErrorData::internal_error(format!("mcpp: ocel collect failed: {e}"), None)
+        })?;
 
         // 5. Build Ed25519-signed receipt.
         let part_name = format!("onto-gate/{tool_name}");
         let mut build_receipt = BuildReceipt::new_detached(&part_name);
-        build_receipt.sign(&self.signing_key)
-            .map_err(|e| ErrorData::internal_error(format!("mcpp: receipt sign failed: {e}"), None))?;
+        build_receipt.sign(&self.signing_key).map_err(|e| {
+            ErrorData::internal_error(format!("mcpp: receipt sign failed: {e}"), None)
+        })?;
         let canonical = build_receipt.canonical_bytes();
         let sig_bytes = self.signing_key.sign(&canonical);
         let signature_hex = hex::encode(sig_bytes.to_bytes());
-        let signed_receipt = SignedReceipt { receipt: build_receipt, signature: signature_hex };
+        let signed_receipt = SignedReceipt {
+            receipt: build_receipt,
+            signature: signature_hex,
+        };
 
         let receipt_hash = {
             use mcpp_core::receipt::hash_bytes;
@@ -350,11 +362,11 @@ impl<H: ServerHandler> ServerHandler for ProofGatedServer<H> {
         let evidence = AdmissionEvidence {
             route: "ontology".to_string(),
             conformance_vector: ConformanceThresholds {
-                fitness:     Some(1.0),
-                precision:   Some(1.0),
-                lifecycle:   Some(1.0),
+                fitness: Some(1.0),
+                precision: Some(1.0),
+                lifecycle: Some(1.0),
                 cardinality: Some(1.0),
-                receipt:     Some(1.0),
+                receipt: Some(1.0),
             },
             ocel_evidence: ocel_ev,
             manifest,
@@ -365,15 +377,15 @@ impl<H: ServerHandler> ServerHandler for ProofGatedServer<H> {
         // A gated server that silently degrades is not a gated server.
         let writer = new_proof_writer_for_proof_cmd();
         match writer.admit(evidence) {
-            Ok(Verdict::Accept(_)) => {
-                Ok(augment_with_proof(result, &scope_token, &receipt_hash))
-            }
-            Ok(Verdict::Refuse { reason, .. }) => {
-                Err(ErrorData::internal_error(format!("mcpp: proof gate refused: {reason:?}"), None))
-            }
-            Err(refusal) => {
-                Err(ErrorData::internal_error(format!("mcpp: proof gate error: {refusal:?}"), None))
-            }
+            Ok(Verdict::Accept(_)) => Ok(augment_with_proof(result, &scope_token, &receipt_hash)),
+            Ok(Verdict::Refuse { reason, .. }) => Err(ErrorData::internal_error(
+                format!("mcpp: proof gate refused: {reason:?}"),
+                None,
+            )),
+            Err(refusal) => Err(ErrorData::internal_error(
+                format!("mcpp: proof gate error: {refusal:?}"),
+                None,
+            )),
         }
     }
 }
@@ -417,11 +429,7 @@ fn augment_with_proof(
 /// Insert a synthetic OCEL event so the evidence log is never empty for
 /// read-only tools. The `db.conn()` guard is scoped to this function.
 #[cfg(feature = "mcpp")]
-fn emit_invocation_event(
-    db: &StateDb,
-    scope_token: &str,
-    tool_name: &str,
-) -> anyhow::Result<()> {
+fn emit_invocation_event(db: &StateDb, scope_token: &str, tool_name: &str) -> anyhow::Result<()> {
     use ulid::Ulid;
     let conn = db.conn();
     let event_id = Ulid::new().to_string();

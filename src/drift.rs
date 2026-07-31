@@ -146,8 +146,14 @@ impl DriftDetector {
         let v1_iris: HashSet<&str> = v1_vocab.keys().map(|s| s.as_str()).collect();
         let v2_iris: HashSet<&str> = v2_vocab.keys().map(|s| s.as_str()).collect();
 
-        let added: Vec<String> = v2_iris.difference(&v1_iris).map(|s| s.to_string()).collect();
-        let removed: Vec<String> = v1_iris.difference(&v2_iris).map(|s| s.to_string()).collect();
+        let added: Vec<String> = v2_iris
+            .difference(&v1_iris)
+            .map(|s| s.to_string())
+            .collect();
+        let removed: Vec<String> = v1_iris
+            .difference(&v2_iris)
+            .map(|s| s.to_string())
+            .collect();
 
         // Find likely renames
         let weights = self.get_learned_weights();
@@ -279,9 +285,16 @@ impl DriftDetector {
               signal_domain_range, signal_label_sim, signal_hierarchy, signal_individuals) \
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
             rusqlite::params![
-                id, from_iri, to_iri, predicted, confidence, actual,
-                signal_domain_range as i32, signal_label_sim,
-                signal_hierarchy as i32, signal_individuals as i32,
+                id,
+                from_iri,
+                to_iri,
+                predicted,
+                confidence,
+                actual,
+                signal_domain_range as i32,
+                signal_label_sim,
+                signal_hierarchy as i32,
+                signal_individuals as i32,
             ],
         );
     }
@@ -434,20 +447,27 @@ impl DriftDetector {
         }
 
         // Labels
-        let label_query = "SELECT ?s ?l WHERE { ?s <http://www.w3.org/2000/01/rdf-schema#label> ?l }";
+        let label_query =
+            "SELECT ?s ?l WHERE { ?s <http://www.w3.org/2000/01/rdf-schema#label> ?l }";
         if let Ok(json) = store.sparql_select(label_query)
             && let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&json)
-                && let Some(results) = parsed["results"].as_array() {
-                    for row in results {
-                        if let (Some(s), Some(l)) = (row["s"].as_str(), row["l"].as_str()) {
-                            let s = s.trim_matches(|c| c == '<' || c == '>');
-                            let l = l.trim_matches('"').split("^^").next().unwrap_or("").trim_matches('"');
-                            if let Some(entry) = vocab.get_mut(s) {
-                                entry.label = Some(l.to_string());
-                            }
-                        }
+            && let Some(results) = parsed["results"].as_array()
+        {
+            for row in results {
+                if let (Some(s), Some(l)) = (row["s"].as_str(), row["l"].as_str()) {
+                    let s = s.trim_matches(|c| c == '<' || c == '>');
+                    let l = l
+                        .trim_matches('"')
+                        .split("^^")
+                        .next()
+                        .unwrap_or("")
+                        .trim_matches('"');
+                    if let Some(entry) = vocab.get_mut(s) {
+                        entry.label = Some(l.to_string());
                     }
                 }
+            }
+        }
 
         // Domain/Range
         let dr_query = "SELECT ?p ?d ?r WHERE { \
@@ -456,21 +476,24 @@ impl DriftDetector {
         }";
         if let Ok(json) = store.sparql_select(dr_query)
             && let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&json)
-                && let Some(results) = parsed["results"].as_array() {
-                    for row in results {
-                        if let Some(p) = row["p"].as_str() {
-                            let p = p.trim_matches(|c| c == '<' || c == '>');
-                            if let Some(entry) = vocab.get_mut(p) {
-                                if let Some(d) = row["d"].as_str() {
-                                    entry.domain = Some(d.trim_matches(|c| c == '<' || c == '>').to_string());
-                                }
-                                if let Some(r) = row["r"].as_str() {
-                                    entry.range = Some(r.trim_matches(|c| c == '<' || c == '>').to_string());
-                                }
-                            }
+            && let Some(results) = parsed["results"].as_array()
+        {
+            for row in results {
+                if let Some(p) = row["p"].as_str() {
+                    let p = p.trim_matches(|c| c == '<' || c == '>');
+                    if let Some(entry) = vocab.get_mut(p) {
+                        if let Some(d) = row["d"].as_str() {
+                            entry.domain =
+                                Some(d.trim_matches(|c| c == '<' || c == '>').to_string());
+                        }
+                        if let Some(r) = row["r"].as_str() {
+                            entry.range =
+                                Some(r.trim_matches(|c| c == '<' || c == '>').to_string());
                         }
                     }
                 }
+            }
+        }
 
         vocab
     }
@@ -489,8 +512,11 @@ impl DriftDetector {
 
         // Signal 1: domain/range match
         let domain_range_match = match (v1_entry, v2_entry) {
-            (Some(e1), Some(e2)) => e1.domain == e2.domain && e1.range == e2.range
-                && (e1.domain.is_some() || e1.range.is_some()),
+            (Some(e1), Some(e2)) => {
+                e1.domain == e2.domain
+                    && e1.range == e2.range
+                    && (e1.domain.is_some() || e1.range.is_some())
+            }
             _ => false,
         };
 
@@ -523,10 +549,22 @@ impl DriftDetector {
     }
 
     fn score_confidence(&self, signals: &serde_json::Value, weights: &[f64]) -> f64 {
-        let dr = if signals["domain_range_match"].as_bool().unwrap_or(false) { 1.0 } else { 0.0 };
+        let dr = if signals["domain_range_match"].as_bool().unwrap_or(false) {
+            1.0
+        } else {
+            0.0
+        };
         let ls = signals["label_similarity"].as_f64().unwrap_or(0.0);
-        let sk = if signals["same_kind"].as_bool().unwrap_or(false) { 1.0 } else { 0.0 };
-        let hm = if signals["hierarchy_match"].as_bool().unwrap_or(false) { 1.0 } else { 0.0 };
+        let sk = if signals["same_kind"].as_bool().unwrap_or(false) {
+            1.0
+        } else {
+            0.0
+        };
+        let hm = if signals["hierarchy_match"].as_bool().unwrap_or(false) {
+            1.0
+        } else {
+            0.0
+        };
 
         let w = if weights.len() >= 4 {
             weights
@@ -554,7 +592,9 @@ fn parse_iris(json: &str, var: &str) -> Vec<String> {
         .unwrap_or_default()
         .iter()
         .filter_map(|r| {
-            r[var].as_str().map(|s| s.trim_matches(|c| c == '<' || c == '>').to_string())
+            r[var]
+                .as_str()
+                .map(|s| s.trim_matches(|c| c == '<' || c == '>').to_string())
         })
         .collect()
 }
@@ -701,8 +741,6 @@ fn jaro_similarity(s1: &str, s2: &str) -> f64 {
         k += 1;
     }
 
-    (matches / s1_len as f64
-        + matches / s2_len as f64
-        + (matches - transpositions / 2.0) / matches)
+    (matches / s1_len as f64 + matches / s2_len as f64 + (matches - transpositions / 2.0) / matches)
         / 3.0
 }

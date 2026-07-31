@@ -1,0 +1,19 @@
+PREFIX ghf:  <https://open-ontologies.org/profile/github-factory#>
+PREFIX rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+
+SELECT
+  (GROUP_CONCAT(?repoName;    SEPARATOR="|") AS ?repoNames)
+  (GROUP_CONCAT(?branch;      SEPARATOR="|") AS ?branches)
+  (GROUP_CONCAT(STR(?signed);  SEPARATOR="|") AS ?signedCommits)
+  (GROUP_CONCAT(STR(?reviews); SEPARATOR="|") AS ?reviewCounts)
+  (GROUP_CONCAT(STR(?admins);  SEPARATOR="|") AS ?enforceAdmins)
+WHERE {
+  ?repo a ghf:GitHubRepository ;
+        ghf:name ?repoName ;
+        ghf:hasBranchProtection ?bp .
+  ?bp ghf:branch ?branch ;
+      ghf:requireSignedCommits ?signed ;
+      ghf:requiredReviewCount ?reviews ;
+      ghf:enforceAdmins ?admins .
+}

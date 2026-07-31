@@ -1,3 +1,4 @@
+/// <reference path="../globals.d.ts" />
 // Supabase Edge Function: receipt-verify
 // Verifies BLAKE3 + Ed25519 receipts emitted by the open-ontologies ggen pipeline
 // Source: packages/evidence/receipts.ts type definitions

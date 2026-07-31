@@ -196,11 +196,7 @@ pub fn sweep(store: &OcelStore) -> Result<ThresholdSweepResult> {
 /// assert_eq!(json["adjusted"], 0);
 /// assert!(json["adjustments"].as_array().unwrap().is_empty());
 /// ```
-pub fn sweep_with(
-    store: &OcelStore,
-    age_days: i64,
-    delta: f64,
-) -> Result<ThresholdSweepResult> {
+pub fn sweep_with(store: &OcelStore, age_days: i64, delta: f64) -> Result<ThresholdSweepResult> {
     let db = store.db();
     let conn = db.conn();
     let cutoff = (Utc::now() - Duration::days(age_days)).to_rfc3339();
@@ -219,7 +215,11 @@ pub fn sweep_with(
                )",
         )?;
         stmt.query_map(rusqlite::params![cutoff], |r| {
-            Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?, r.get::<_, String>(2)?))
+            Ok((
+                r.get::<_, String>(0)?,
+                r.get::<_, String>(1)?,
+                r.get::<_, String>(2)?,
+            ))
         })?
         .collect::<std::result::Result<Vec<_>, _>>()?
     };
@@ -232,13 +232,15 @@ pub fn sweep_with(
             .map(|d| d.with_timezone(&Utc))
             .unwrap_or_else(|_| Utc::now());
         let window_end = (event_time + Duration::days(age_days)).to_rfc3339();
-        let alert_count: i64 = conn.query_row(
-            "SELECT COUNT(*) FROM ocel_events
+        let alert_count: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM ocel_events
              WHERE event_type IN ('monitor_alert', 'conformance_regression_detected')
                AND time BETWEEN ?1 AND ?2",
-            rusqlite::params![time_iso, window_end],
-            |r| r.get(0),
-        ).unwrap_or(0);
+                rusqlite::params![time_iso, window_end],
+                |r| r.get(0),
+            )
+            .unwrap_or(0);
 
         let (before, after, direction, reason) =
             adjust_one(&conn, &workflow_class, alert_count, delta)?;
@@ -273,7 +275,11 @@ pub fn sweep_with(
         .iter()
         .filter(|a| (a.before - a.after).abs() > f64::EPSILON)
         .count();
-    Ok(ThresholdSweepResult { examined, adjusted, adjustments })
+    Ok(ThresholdSweepResult {
+        examined,
+        adjusted,
+        adjustments,
+    })
 }
 
 fn adjust_one(
@@ -286,7 +292,13 @@ fn adjust_one(
         "SELECT precision_threshold, fitness_threshold, sample_count
          FROM workflow_thresholds WHERE workflow_class = ?1",
         rusqlite::params![workflow_class],
-        |r| Ok((r.get::<_, f64>(0)?, r.get::<_, f64>(1)?, r.get::<_, i64>(2)?)),
+        |r| {
+            Ok((
+                r.get::<_, f64>(0)?,
+                r.get::<_, f64>(1)?,
+                r.get::<_, i64>(2)?,
+            ))
+        },
     );
 
     let (current, fitness_threshold, sample_count) = match row {
@@ -296,9 +308,17 @@ fn adjust_one(
     };
 
     let (after, direction, reason) = if alert_count == 0 {
-        ((current - delta).max(PRECISION_FLOOR), "decrement", "no_alerts_in_window")
+        (
+            (current - delta).max(PRECISION_FLOOR),
+            "decrement",
+            "no_alerts_in_window",
+        )
     } else {
-        ((current + delta).min(PRECISION_CEIL), "increment", "alerts_observed")
+        (
+            (current + delta).min(PRECISION_CEIL),
+            "increment",
+            "alerts_observed",
+        )
     };
 
     let now = Utc::now().to_rfc3339();
@@ -310,7 +330,13 @@ fn adjust_one(
             precision_threshold = excluded.precision_threshold,
             sample_count = workflow_thresholds.sample_count + 1,
             updated_at = excluded.updated_at",
-        rusqlite::params![workflow_class, after, fitness_threshold, sample_count + 1, now],
+        rusqlite::params![
+            workflow_class,
+            after,
+            fitness_threshold,
+            sample_count + 1,
+            now
+        ],
     )?;
 
     Ok((current, after, direction, reason))

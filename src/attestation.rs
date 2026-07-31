@@ -104,9 +104,8 @@ impl Signer {
 
     /// Load a signer from a PEM-encoded PKCS#8 Ed25519 private key file.
     pub fn from_pem_file(path: &Path) -> anyhow::Result<Self> {
-        let pem = std::fs::read_to_string(path).map_err(|e| {
-            anyhow::anyhow!("read signing key {}: {e}", path.display())
-        })?;
+        let pem = std::fs::read_to_string(path)
+            .map_err(|e| anyhow::anyhow!("read signing key {}: {e}", path.display()))?;
         Self::from_pem_str(&pem)
     }
 
@@ -194,14 +193,11 @@ impl TrustedKeys {
     /// [`Self::from_dir_with_history`] to upsert the
     /// `trusted_keys_history` table on startup and to detect retired keys
     /// during runtime rotation.
-    pub fn from_dir_with_pems(
-        dir: &Path,
-    ) -> anyhow::Result<(Self, Vec<(String, KeyFingerprint)>)> {
+    pub fn from_dir_with_pems(dir: &Path) -> anyhow::Result<(Self, Vec<(String, KeyFingerprint)>)> {
         let mut out = Self::new();
         let mut pems: Vec<(String, KeyFingerprint)> = Vec::new();
-        let entries = std::fs::read_dir(dir).map_err(|e| {
-            anyhow::anyhow!("read trusted keys dir {}: {e}", dir.display())
-        })?;
+        let entries = std::fs::read_dir(dir)
+            .map_err(|e| anyhow::anyhow!("read trusted keys dir {}: {e}", dir.display()))?;
         for entry in entries {
             let entry = entry?;
             let path: PathBuf = entry.path();
@@ -217,9 +213,9 @@ impl TrustedKeys {
             }
             let pem = std::fs::read_to_string(&path)
                 .map_err(|e| anyhow::anyhow!("read {}: {e}", path.display()))?;
-            let fpr = out.insert_pem(&pem).map_err(|e| {
-                anyhow::anyhow!("parse trusted key {}: {e}", path.display())
-            })?;
+            let fpr = out
+                .insert_pem(&pem)
+                .map_err(|e| anyhow::anyhow!("parse trusted key {}: {e}", path.display()))?;
             pems.push((pem, fpr));
         }
         Ok((out, pems))
@@ -236,10 +232,7 @@ impl TrustedKeys {
     /// lower bound to compare against during A10". Without this upsert,
     /// `key_valid_at` would never be populated and A10 would silently
     /// admit receipts whose key was retired before they were signed.
-    pub fn from_dir_with_history(
-        dir: &Path,
-        db: &crate::state::StateDb,
-    ) -> anyhow::Result<Self> {
+    pub fn from_dir_with_history(dir: &Path, db: &crate::state::StateDb) -> anyhow::Result<Self> {
         let (trust, pems) = Self::from_dir_with_pems(dir)?;
         let now = chrono::Utc::now().to_rfc3339();
         let conn = db.conn();
@@ -266,10 +259,7 @@ impl TrustedKeys {
         }
         // Mark any active row whose fingerprint is no longer in `dir`
         // as retired.
-        let active_fprs: Vec<String> = pems
-            .iter()
-            .map(|(_, f)| fingerprint_hex(f))
-            .collect();
+        let active_fprs: Vec<String> = pems.iter().map(|(_, f)| fingerprint_hex(f)).collect();
         let placeholders = if active_fprs.is_empty() {
             "''".to_string()
         } else {
@@ -491,10 +481,7 @@ mod tests {
         let sk = SigningKey::generate(&mut OsRng);
         let vk = sk.verifying_key();
         let fpr = fingerprint(&vk);
-        (
-            Signer { key: sk, fpr },
-            vk,
-        )
+        (Signer { key: sk, fpr }, vk)
     }
 
     #[test]

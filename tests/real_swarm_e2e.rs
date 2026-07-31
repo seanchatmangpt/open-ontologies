@@ -1,36 +1,10 @@
-//! Real swarm end-to-end: 9 wasm4pm cognition breeds, each
-//! manufactured into a real AtomVM module + Rust crate + IaC sidecar,
-//! erlc-compiled to .beam, run against a shared RevOps scenario, and
-//! fused into one consensus via Hearsay-II.
-//!
-//! This is the swarm proof: every layer the prior phases built —
-//! Rust admission gate (manufacturing), AtomVM target (erlc), wasm4pm
-//! cognition (9 breeds), Hearsay-II fusion — composing into a single
-//! end-to-end run.
-//!
-//! What is real:
-//!   - wasm4pm-cognition::breeds::dispatch_breed_test runs all 9 breeds
-//!     in-process against the scenario.
-//!   - manufacture() emits one full bundle per breed (9 × {iac/rust/
-//!     erlang/atomvm}).
-//!   - erlc compiles the 9 AtomVM modules to real .beam bytes.
-//!   - cargo check compiles one of the 9 Rust crates as a smoke test
-//!     (running cargo on all 9 would take ~80s; one is enough to
-//!     prove the generator emits valid Rust).
-//!   - The fused Hearsay consensus is BLAKE3-hashed and the hash
-//!     bound back to the swarm's work-order receipt.
-//!
-//! What is mocked: nothing.
+#![allow(clippy::collapsible_if, dead_code)]
 
 use open_ontologies::manufacturing::ManufacturedFile;
-use open_ontologies::swarm::{
-    fuse_via_hearsay, manufacture_swarm, run_breeds, SWARM_BREEDS,
-};
+use open_ontologies::swarm::{SWARM_BREEDS, fuse_via_hearsay, manufacture_swarm, run_breeds};
 use std::process::Command;
 use tempfile::tempdir;
-use wasm4pm_cognition::breeds::{
-    BreedInput, Candidate, Case, Fact, Goal, Rule, StateAtom,
-};
+use wasm4pm_cognition::breeds::{BreedInput, Candidate, Case, Fact, Goal, Rule, StateAtom};
 
 fn revops_scenario() -> BreedInput {
     BreedInput {
@@ -57,10 +31,22 @@ fn revops_scenario() -> BreedInput {
             },
         ],
         facts: vec![
-            Fact { key: "scale".into(), value: "billion".into() },
-            Fact { key: "leakage".into(), value: "detected".into() },
-            Fact { key: "compliance".into(), value: "strict".into() },
-            Fact { key: "current".into(), value: "no-architecture".into() },
+            Fact {
+                key: "scale".into(),
+                value: "billion".into(),
+            },
+            Fact {
+                key: "leakage".into(),
+                value: "detected".into(),
+            },
+            Fact {
+                key: "compliance".into(),
+                value: "strict".into(),
+            },
+            Fact {
+                key: "current".into(),
+                value: "no-architecture".into(),
+            },
         ],
         cases: vec![
             Case {
@@ -68,14 +54,20 @@ fn revops_scenario() -> BreedInput {
                 intent: "Booking reconciliation gap, contract chain partial".into(),
                 architecture: "centralized-revenue-engine".into(),
                 outcome_score: 0.92,
-                facts: vec![Fact { key: "scale".into(), value: "billion".into() }],
+                facts: vec![Fact {
+                    key: "scale".into(),
+                    value: "billion".into(),
+                }],
             },
             Case {
                 id: "case-rev-002".into(),
                 intent: "Late partner attribution, edge-distributed handled it".into(),
                 architecture: "edge-distributed-reconciliation".into(),
                 outcome_score: 0.78,
-                facts: vec![Fact { key: "leakage".into(), value: "detected".into() }],
+                facts: vec![Fact {
+                    key: "leakage".into(),
+                    value: "detected".into(),
+                }],
             },
         ],
         rules: vec![
@@ -125,7 +117,11 @@ fn locate_tool(bin: &str) -> Option<std::path::PathBuf> {
         return Some(std::path::PathBuf::from(bin));
     }
     // 2. `which` via the shell, which inherits the user's interactive PATH.
-    if let Ok(out) = Command::new("/bin/sh").arg("-c").arg(format!("which {bin}")).output() {
+    if let Ok(out) = Command::new("/bin/sh")
+        .arg("-c")
+        .arg(format!("which {bin}"))
+        .output()
+    {
         if out.status.success() {
             let s = String::from_utf8_lossy(&out.stdout).trim().to_string();
             if !s.is_empty() && std::path::Path::new(&s).exists() {
@@ -177,8 +173,7 @@ fn swarm_manufactures_nine_atomvm_modules_under_one_work_order() {
     let work_order_hash = "5".repeat(64);
     let nodes = manufacture_swarm("revops_swarm", &work_order_hash).unwrap();
     assert_eq!(nodes.len(), 9, "expected 9 swarm nodes");
-    let mut breed_names: std::collections::HashSet<String> =
-        std::collections::HashSet::new();
+    let mut breed_names: std::collections::HashSet<String> = std::collections::HashSet::new();
     for n in &nodes {
         breed_names.insert(n.breed.clone());
         // Each node carries the swarm work-order hash.
@@ -194,7 +189,12 @@ fn swarm_manufactures_nine_atomvm_modules_under_one_work_order() {
             .into_iter()
             .filter(|f| f.path.ends_with(".erl"))
             .collect();
-        assert_eq!(avm_files.len(), 1, "{}: expected one .erl in atomvm/", n.breed);
+        assert_eq!(
+            avm_files.len(),
+            1,
+            "{}: expected one .erl in atomvm/",
+            n.breed
+        );
         let avm_path = &avm_files[0].path;
         assert!(
             avm_path.contains(&n.breed),
@@ -267,7 +267,12 @@ fn swarm_atomvm_modules_compile_under_real_erlc() {
             compiled.push(beam.to_string_lossy().into_owned());
         }
     }
-    assert_eq!(compiled.len(), 9, "expected 9 .beam files compiled, got {}", compiled.len());
+    assert_eq!(
+        compiled.len(),
+        9,
+        "expected 9 .beam files compiled, got {}",
+        compiled.len()
+    );
     eprintln!("SWARM erlc: 9/9 .beam files compiled");
     for c in &compiled {
         eprintln!("  {c}");
@@ -296,9 +301,7 @@ fn swarm_breeds_run_and_fuse_via_hearsay() {
             traces_real += 1;
         }
     }
-    eprintln!(
-        "SWARM breeds: {traces_real}/9 produced real traces, {traces_abstain}/9 abstained"
-    );
+    eprintln!("SWARM breeds: {traces_real}/9 produced real traces, {traces_abstain}/9 abstained");
     // At least 5 of 9 should produce real traces. Anything below that
     // is a swarm cognition collapse — the fixture must be improved.
     assert!(
@@ -316,7 +319,11 @@ fn swarm_breeds_run_and_fuse_via_hearsay() {
     eprintln!("  selected: {:?}", consensus.consensus_selected);
     eprintln!(
         "  explanation: {}",
-        consensus.consensus_explanation.chars().take(200).collect::<String>()
+        consensus
+            .consensus_explanation
+            .chars()
+            .take(200)
+            .collect::<String>()
     );
     for r in &consensus.node_reports {
         eprintln!(
@@ -397,6 +404,10 @@ fn full_swarm_e2e_real_atomvm_compile_plus_real_breed_consensus() {
     eprintln!("  selected:      {:?}", consensus.consensus_selected);
     eprintln!(
         "  explanation:   {}",
-        consensus.consensus_explanation.chars().take(140).collect::<String>()
+        consensus
+            .consensus_explanation
+            .chars()
+            .take(140)
+            .collect::<String>()
     );
 }

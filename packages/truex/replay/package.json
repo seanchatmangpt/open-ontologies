@@ -1,0 +1,14 @@
+{
+  "name": "@truex/replay",
+  "version": "1.0.0",
+  "description": "Replay artifact generation (Markdown, Mermaid, Audit).",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "jest"
+  },
+  "dependencies": {
+    "blake3": "^2.1.7"
+  }
+}

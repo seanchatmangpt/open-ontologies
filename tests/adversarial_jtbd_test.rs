@@ -310,7 +310,11 @@ fn test_version_without_name_uses_default() {
 
     // Version without a label — clap must reject and explain why.
     // `version` lives under `ontology`, not `governance`, post-refactor.
-    let out = Iso::new(&dir).verb(["ontology", "version"]).build().output().unwrap();
+    let out = Iso::new(&dir)
+        .verb(["ontology", "version"])
+        .build()
+        .output()
+        .unwrap();
 
     assert!(
         !out.status.success(),
@@ -415,7 +419,11 @@ fn test_serial_counterfactual_ontology_load_query_clear_rollback() {
     );
 
     // Step 4: Clear — proves in-memory store is actually cleared
-    let out = Iso::new(&dir).verb(["ontology", "clear"]).build().output().unwrap();
+    let out = Iso::new(&dir)
+        .verb(["ontology", "clear"])
+        .build()
+        .output()
+        .unwrap();
     assert!(
         out.status.success(),
         "Step 4 (clear) failed. stderr: {}",
@@ -526,8 +534,7 @@ fn test_serial_counterfactual_ingest_csv_to_queryable_rdf() {
     );
 
     // Query for the CSV data — counter-factual: must find the names
-    let sparql =
-        r#"SELECT ?value WHERE { ?s ?p ?value . FILTER(CONTAINS(STR(?value), "Alice")) }"#;
+    let sparql = r#"SELECT ?value WHERE { ?s ?p ?value . FILTER(CONTAINS(STR(?value), "Alice")) }"#;
     let out = Iso::new(&dir)
         .verb(["ontology", "sparql"])
         .flags(["--sparql_query", sparql])

@@ -1,0 +1,5 @@
+packages:
+{%- set pkg_list = packages | split(pat="|||") %}
+{%- for pkg in pkg_list %}
+  - 'packages/truex/{{ pkg | split(pat="@@@") | first | replace(from="@truex/", to="") }}'
+{%- endfor %}

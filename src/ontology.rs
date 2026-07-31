@@ -342,7 +342,10 @@ impl OntologyService {
     /// assert_eq!(vd["issue_count"], vn["issue_count"]);
     /// assert_eq!(vd["suppressed_count"], 0);
     /// ```
-    pub fn lint_with_feedback(content: &str, db: Option<&crate::state::StateDb>) -> anyhow::Result<String> {
+    pub fn lint_with_feedback(
+        content: &str,
+        db: Option<&crate::state::StateDb>,
+    ) -> anyhow::Result<String> {
         let store = Store::new()?;
         let reader = Cursor::new(content.as_bytes());
         for quad in RdfParser::from_format(RdfFormat::Turtle).for_reader(reader) {
@@ -454,7 +457,11 @@ impl OntologyService {
     /// let v: serde_json::Value = serde_json::from_str(&json).unwrap();
     /// assert_eq!(v["versions"].as_array().unwrap().len(), 2);
     /// ```
-    pub fn save_version(db: &StateDb, store: &Arc<GraphStore>, label: &str) -> anyhow::Result<String> {
+    pub fn save_version(
+        db: &StateDb,
+        store: &Arc<GraphStore>,
+        label: &str,
+    ) -> anyhow::Result<String> {
         let content = store.snapshot("ntriples")?;
         let count = store.triple_count();
         let conn = db.conn();
@@ -466,7 +473,8 @@ impl OntologyService {
             "ok": true,
             "label": label,
             TRIPLE_COUNT_KEY: count,
-        }).to_string())
+        })
+        .to_string())
     }
 
     /// List all saved ontology versions.
@@ -514,15 +522,18 @@ impl OntologyService {
         let mut stmt = conn.prepare(
             "SELECT id, label, triple_count, format, created_at FROM ontology_versions ORDER BY id DESC"
         )?;
-        let versions: Vec<serde_json::Value> = stmt.query_map([], |row| {
-            Ok(serde_json::json!({
-                "id": row.get::<_, i64>(0)?,
-                "label": row.get::<_, String>(1)?,
-                TRIPLE_COUNT_KEY: row.get::<_, i64>(2)?,
-                "format": row.get::<_, String>(3)?,
-                "created_at": row.get::<_, String>(4)?,
-            }))
-        })?.filter_map(|r| r.ok()).collect();
+        let versions: Vec<serde_json::Value> = stmt
+            .query_map([], |row| {
+                Ok(serde_json::json!({
+                    "id": row.get::<_, i64>(0)?,
+                    "label": row.get::<_, String>(1)?,
+                    TRIPLE_COUNT_KEY: row.get::<_, i64>(2)?,
+                    "format": row.get::<_, String>(3)?,
+                    "created_at": row.get::<_, String>(4)?,
+                }))
+            })?
+            .filter_map(|r| r.ok())
+            .collect();
         Ok(serde_json::json!({"versions": versions}).to_string())
     }
 
@@ -572,7 +583,11 @@ impl OntologyService {
     /// let result = OntologyService::rollback_version(&db, &store, "nonexistent-label");
     /// assert!(result.is_err(), "rollback to unknown label must return Err");
     /// ```
-    pub fn rollback_version(db: &StateDb, store: &Arc<GraphStore>, label: &str) -> anyhow::Result<String> {
+    pub fn rollback_version(
+        db: &StateDb,
+        store: &Arc<GraphStore>,
+        label: &str,
+    ) -> anyhow::Result<String> {
         let conn = db.conn();
         let content: String = conn.query_row(
             "SELECT content FROM ontology_versions WHERE label = ?1 ORDER BY id DESC LIMIT 1",
@@ -585,6 +600,7 @@ impl OntologyService {
             "ok": true,
             "label": label,
             "triples_restored": count,
-        }).to_string())
+        })
+        .to_string())
     }
 }

@@ -1,3 +1,5 @@
+#![allow(clippy::all, unused)]
+
 //! R7 WG-1 saboteur — synthesise an adversarial source string where
 //! `parsed.fields["ctq_text"]` flows directly into `Receipt::new`. The
 //! audit visitor (rebuilt for this test) MUST flag it.
@@ -99,7 +101,10 @@ fn match_candidate_field(expr: &Expr) -> Option<String> {
 
 fn match_parsed_fields_index(expr: &Expr) -> Option<String> {
     let inner = unwrap_method_chain(expr);
-    let Expr::Index(ExprIndex { expr: base, index, .. }) = inner else {
+    let Expr::Index(ExprIndex {
+        expr: base, index, ..
+    }) = inner
+    else {
         return None;
     };
     let Expr::Field(ExprField {
@@ -128,8 +133,16 @@ fn match_parsed_fields_index(expr: &Expr) -> Option<String> {
 
 fn sink_path_name(call_func: &Expr) -> Option<String> {
     if let Expr::Path(p) = call_func {
-        let segs: Vec<String> = p.path.segments.iter().map(|s| s.ident.to_string()).collect();
-        if segs.len() == 2 && segs[1] == "new" && RECEIPT_CONSTRUCTOR_TYPES.contains(&segs[0].as_str()) {
+        let segs: Vec<String> = p
+            .path
+            .segments
+            .iter()
+            .map(|s| s.ident.to_string())
+            .collect();
+        if segs.len() == 2
+            && segs[1] == "new"
+            && RECEIPT_CONSTRUCTOR_TYPES.contains(&segs[0].as_str())
+        {
             return Some(format!("{}::new", segs[0]));
         }
         if let Some(last) = segs.last()
@@ -154,7 +167,8 @@ impl<'ast> Visit<'ast> for V {
                     self.flagged.push(format!("{}: candidate.{}", sink, field));
                 }
                 if let Some(field) = match_parsed_fields_index(arg) {
-                    self.flagged.push(format!("{}: parsed.fields[\"{}\"]", sink, field));
+                    self.flagged
+                        .push(format!("{}: parsed.fields[\"{}\"]", sink, field));
                 }
             }
         }
@@ -169,7 +183,8 @@ impl<'ast> Visit<'ast> for V {
                     self.flagged.push(format!("{}: candidate.{}", name, field));
                 }
                 if let Some(field) = match_parsed_fields_index(arg) {
-                    self.flagged.push(format!("{}: parsed.fields[\"{}\"]", name, field));
+                    self.flagged
+                        .push(format!("{}: parsed.fields[\"{}\"]", name, field));
                 }
             }
         }
@@ -192,7 +207,9 @@ fn b1_parsed_fields_index_into_receipt_new_is_flagged() {
     let mut v = V::default();
     v.visit_file(&file);
     assert!(
-        v.flagged.iter().any(|s| s.contains("Receipt::new") && s.contains("ctq_text")),
+        v.flagged
+            .iter()
+            .any(|s| s.contains("Receipt::new") && s.contains("ctq_text")),
         "saboteur missed: parsed.fields[\"ctq_text\"] flows into Receipt::new \
          but visitor did not flag.\nflagged={:?}",
         v.flagged
@@ -219,7 +236,9 @@ fn b2_candidate_field_clone_into_evaluate_admission_is_flagged() {
     let mut v = V::default();
     v.visit_file(&file);
     assert!(
-        v.flagged.iter().any(|s| s.contains("evaluate_admission") && s.contains("measure_text")),
+        v.flagged
+            .iter()
+            .any(|s| s.contains("evaluate_admission") && s.contains("measure_text")),
         "saboteur missed: candidate.measure_text.clone() flows into \
          evaluate_admission but visitor did not flag.\nflagged={:?}",
         v.flagged
@@ -237,7 +256,9 @@ fn b3_parsed_fields_into_emit_event_is_flagged() {
     let mut v = V::default();
     v.visit_file(&file);
     assert!(
-        v.flagged.iter().any(|s| s.contains("emit_event") && s.contains("verification_text")),
+        v.flagged
+            .iter()
+            .any(|s| s.contains("emit_event") && s.contains("verification_text")),
         "saboteur missed: parsed.fields[\"verification_text\"] flows into \
          emit_event but visitor did not flag.\nflagged={:?}",
         v.flagged

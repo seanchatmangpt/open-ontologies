@@ -1,0 +1,14 @@
+{
+  "name": "@truex/conformance",
+  "version": "1.0.0",
+  "description": "Golden corpus and adversarial conformance tests.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "jest"
+  },
+  "dependencies": {
+    "blake3": "^2.1.7"
+  }
+}

@@ -706,6 +706,9 @@ pub struct OntoSqlIngestInput {
 ///     scope_token: None,
 ///     bypass_admission: None,
 ///     bypass_reason: None,
+///     fusion: None,
+///     high_threshold: None,
+///     low_threshold: None,
 /// };
 /// assert_eq!(inp.min_confidence, Some(0.85));
 /// assert_eq!(inp.dry_run, Some(true));
@@ -823,6 +826,7 @@ pub struct OntoEnforceFeedbackInput {
 /// let inp = OntoEmbedInput {
 ///     struct_dim: Some(64),
 ///     struct_epochs: Some(200),
+///     descriptions: None,
 /// };
 /// assert_eq!(inp.struct_dim, Some(64));
 /// assert_eq!(inp.struct_epochs, Some(200));
@@ -874,6 +878,8 @@ pub struct OntoHnswBuildInput {
 ///     top_k: Some(5),
 ///     mode: Some("text".to_string()),
 ///     alpha: Some(0.7),
+///     use_hnsw: None,
+///     ef_search: None,
 /// };
 /// assert_eq!(inp.top_k, Some(5));
 /// assert_eq!(inp.mode.as_deref(), Some("text"));
@@ -1439,7 +1445,7 @@ pub struct OntoTranslateCandidateInput {
     /// `GroqTranslator` shaped-signature path. `"groq_pm4py"` — shells
     /// out to `scripts/ctq_from_voice.py`, the same pm4py/dspy subprocess
     /// proven against real Groq in `tests/real_groq_ctq.rs`. `"gemini"` —
-    /// headless Gemini CLI via OAuth (`gemini -p … --approval-mode yolo`);
+    /// headless Gemini CLI via OAuth (`npx -y @google/gemini-cli -p … --approval-mode yolo`);
     /// no API key required, binary resolved via `GEMINI_BIN` env or `"gemini"`.
     /// Unknown values are treated as `"inproc"`.
     pub engine: Option<String>,
@@ -1580,7 +1586,7 @@ pub struct OntoExecutiveProjectionInput {
     /// Projection engine. `"inproc"` (default) — uses the in-process
     /// `GroqTranslator`. `"groq_pm4py"` — shells out to
     /// `scripts/executive_projection.py`. `"gemini"` — headless Gemini CLI
-    /// via OAuth (`gemini -p … --approval-mode yolo`); no API key required.
+    /// via OAuth (`npx -y @google/gemini-cli -p … --approval-mode yolo`); no API key required.
     /// Unknown values treated as `"inproc"`.
     pub engine: Option<String>,
     /// Override the python interpreter used by the `groq_pm4py` engine
@@ -1607,7 +1613,7 @@ pub struct OntoGroqStatusInput {
 
 /// Read-only liveness probe for the Gemini CLI engine.
 /// Checks binary availability (`--version`) and OAuth session validity
-/// (`gemini -p ping … --approval-mode yolo`). No API key required.
+/// (`npx -y @google/gemini-cli -p ping … --approval-mode yolo`). No API key required.
 ///
 /// # Example
 ///

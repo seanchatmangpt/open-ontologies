@@ -1,0 +1,39 @@
+{%- set persona_list = personas | split(pat="|") -%}
+name: Work Order
+description: Standardized work order for GitHub Factory
+body:
+  - type: input
+    id: jtbd_id
+    attributes:
+      label: JTBD ID
+      placeholder: e.g. JTBD-001
+    validations:
+      required: true
+  - type: dropdown
+    id: persona
+    attributes:
+      label: Persona
+      options:
+{%- set_global seen_personas = [] %}
+{%- for persona in persona_list %}
+{%- if persona | trim != "" and persona | trim not in seen_personas %}
+{%- set_global seen_personas = seen_personas | concat(with=persona | trim) %}
+        - {{ persona | trim }}
+{%- endif %}
+{%- endfor %}
+    validations:
+      required: true
+  - type: textarea
+    id: summary
+    attributes:
+      label: Task Summary
+      description: What needs to be implemented?
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Observed Evidence
+      description: Expected OCEL or boundary requirements.
+    validations:
+      required: false

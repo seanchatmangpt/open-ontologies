@@ -142,8 +142,7 @@ impl<'a> WorkflowScope<'a> {
             .unwrap_or_else(|| ulid::Ulid::new().to_string());
 
         let powl_hash = blake3::hash(powl_string.as_bytes()).to_hex().to_string();
-        let alphabet_json =
-            serde_json::to_string(&alphabet).unwrap_or_else(|_| "[]".to_string());
+        let alphabet_json = serde_json::to_string(&alphabet).unwrap_or_else(|_| "[]".to_string());
         let now = chrono::Utc::now().to_rfc3339();
 
         let conn = self.db.conn();
@@ -284,9 +283,8 @@ impl<'a> WorkflowScope<'a> {
     /// if no row exists.
     pub fn tenant_for(&self, scope_token: &str) -> Result<Option<String>, ScopeError> {
         let conn = self.db.conn();
-        let mut stmt = conn.prepare(
-            "SELECT tenant_id FROM declared_workflows WHERE scope_token = ?1",
-        )?;
+        let mut stmt =
+            conn.prepare("SELECT tenant_id FROM declared_workflows WHERE scope_token = ?1")?;
         let mut rows = stmt.query(rusqlite::params![scope_token])?;
         if let Some(r) = rows.next()? {
             Ok(Some(r.get::<_, String>(0)?))

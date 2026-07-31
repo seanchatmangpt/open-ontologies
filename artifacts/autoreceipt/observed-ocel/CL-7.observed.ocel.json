@@ -1,0 +1,47 @@
+{
+  "jtbd_id": "CL-7",
+  "persona_id": "Compliance",
+  "actuation_plan_id": "actuate_CL-7",
+  "expected_ocel_hash": "77bd21cb549fbb18adc3c8656d6c5e5aee3261ff9a2f0ddf491812252778d203",
+  "real_boundary_evidence": "92c5b6620fa62b698c6b1fb844a4e3c802f035b4acbdc3f680d3b18af0e89769",
+  "raw_evidence_hash": "672425ae0470b34e9639709678f567d86d9cd33efbafdba6a4b2146caabdc589",
+  "boundary_type": "headless_membrane",
+  "actor_basis8": "persona_compliance",
+  "execution_mode": "real_boundary_execution",
+  "ocel:global-log": {
+    "ocel:object-types": [
+      "prov:Agent",
+      "schema:Action",
+      "prov:Entity"
+    ]
+  },
+  "ocel:events": [
+    {
+      "ocel:activity": "IntentSubmitted",
+      "ocel:vmap": {
+        "status": "Pending"
+      }
+    },
+    {
+      "ocel:activity": "PolicyChecked",
+      "ocel:vmap": {
+        "status": "Admitted"
+      }
+    },
+    {
+      "ocel:activity": "ReceiptEmitted",
+      "ocel:vmap": {
+        "status": "Complete"
+      }
+    },
+    {
+      "ocel:activity": "ExecutionComplete_CL-7",
+      "ocel:vmap": {
+        "status": "Complete",
+        "exit_code": 0,
+        "stdout_hash": "7fc0023a6402c7bd7abd98bb3e580968de4833eed07d88d1cc8d70819d69c7a0"
+      }
+    }
+  ],
+  "valid_for_autoreceipt_closure": true
+}

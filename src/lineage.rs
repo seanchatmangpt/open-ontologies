@@ -1,6 +1,7 @@
 use crate::state::StateDb;
 use chrono::Utc;
-use wasm4pm_types::{Attribute, Attributes, Event, EventLog, Trace, AttributeValue};
+use wasm4pm_types::event_log::{Attribute, AttributeValue, Attributes};
+use wasm4pm_types::{Event, EventLog, Trace};
 
 /// The SQLite table name used to store lineage events.
 ///
@@ -67,7 +68,10 @@ impl LineageLog {
     /// assert_eq!(compact, "\n");
     /// ```
     pub fn new(db: StateDb) -> Self {
-        Self { db, governance_webhook: None }
+        Self {
+            db,
+            governance_webhook: None,
+        }
     }
 
     /// Create a `LineageLog` that also POSTs every event to a governance webhook.
@@ -106,7 +110,10 @@ impl LineageLog {
     ///     "event must appear in lineage, got: {compact}");
     /// ```
     pub fn with_governance_webhook(db: StateDb, webhook_url: Option<String>) -> Self {
-        Self { db, governance_webhook: webhook_url }
+        Self {
+            db,
+            governance_webhook: webhook_url,
+        }
     }
 
     /// Generate a new session ID (short hex).
@@ -521,10 +528,10 @@ impl LineageLog {
     pub fn get_compact(&self, session_id: &str) -> String {
         let conn = self.db.conn();
         let mut stmt = conn
-            .prepare(
-                &format!("SELECT seq, timestamp, event_type, operation, details
-                 FROM {LINEAGE_EVENTS_TABLE} WHERE session_id = ?1 ORDER BY seq ASC"),
-            )
+            .prepare(&format!(
+                "SELECT seq, timestamp, event_type, operation, details
+                 FROM {LINEAGE_EVENTS_TABLE} WHERE session_id = ?1 ORDER BY seq ASC"
+            ))
             .unwrap();
         let rows: Vec<String> = stmt
             .query_map(rusqlite::params![session_id], |row| {
@@ -533,7 +540,10 @@ impl LineageLog {
                 let etype: String = row.get(2)?;
                 let op: String = row.get(3)?;
                 let details: String = row.get::<_, Option<String>>(4)?.unwrap_or_default();
-                Ok(format!("{}:{}:{}:{}:{}:{}", session_id, seq, ts, etype, op, details))
+                Ok(format!(
+                    "{}:{}:{}:{}:{}:{}",
+                    session_id, seq, ts, etype, op, details
+                ))
             })
             .unwrap()
             .filter_map(|r| r.ok())
@@ -593,7 +603,7 @@ fn rand_id() -> u64 {
 ///     .find(|t| {
 ///         t.attributes.iter().any(|a| {
 ///             a.key == "case:concept:name"
-///             && matches!(&a.value, wasm4pm_types::AttributeValue::String(v) if v == "s1")
+///             && matches!(&a.value, wasm4pm_types::event_log::AttributeValue::String(v) if v == "s1")
 ///         })
 ///     })
 ///     .expect("trace for session s1 must exist");
@@ -605,7 +615,7 @@ fn rand_id() -> u64 {
 ///     .find(|a| a.key == "concept:name")
 ///     .expect("concept:name attribute must be present");
 /// assert!(matches!(&concept.value,
-///     wasm4pm_types::AttributeValue::String(v) if v == "G:admission_granted"
+///     wasm4pm_types::event_log::AttributeValue::String(v) if v == "G:admission_granted"
 /// ));
 /// ```
 ///
@@ -652,7 +662,7 @@ fn rand_id() -> u64 {
 ///     .find(|a| a.key == "lifecycle:transition")
 ///     .expect("lifecycle:transition attribute must be present on every event");
 /// assert!(matches!(&lc.value,
-///     wasm4pm_types::AttributeValue::String(v) if v == "complete"
+///     wasm4pm_types::event_log::AttributeValue::String(v) if v == "complete"
 /// ), "lifecycle:transition must be 'complete', got: {:?}", lc.value);
 /// ```
 ///
@@ -662,18 +672,19 @@ pub fn lineage_to_event_log(
     session_id_filter: Option<&str>,
 ) -> anyhow::Result<EventLog> {
     let mut stmt = if session_id_filter.is_some() {
-        conn.prepare(
-            &format!("SELECT session_id, timestamp, event_type, operation, details
-             FROM {LINEAGE_EVENTS_TABLE} WHERE session_id = ?1 ORDER BY session_id ASC, seq ASC"),
-        )?
+        conn.prepare(&format!(
+            "SELECT session_id, timestamp, event_type, operation, details
+             FROM {LINEAGE_EVENTS_TABLE} WHERE session_id = ?1 ORDER BY session_id ASC, seq ASC"
+        ))?
     } else {
-        conn.prepare(
-            &format!("SELECT session_id, timestamp, event_type, operation, details
-             FROM {LINEAGE_EVENTS_TABLE} ORDER BY session_id ASC, seq ASC"),
-        )?
+        conn.prepare(&format!(
+            "SELECT session_id, timestamp, event_type, operation, details
+             FROM {LINEAGE_EVENTS_TABLE} ORDER BY session_id ASC, seq ASC"
+        ))?
     };
 
-    let mut traces: std::collections::BTreeMap<String, Vec<Event>> = std::collections::BTreeMap::new();
+    let mut traces: std::collections::BTreeMap<String, Vec<Event>> =
+        std::collections::BTreeMap::new();
 
     let rows = if let Some(sid) = session_id_filter {
         stmt.query_map(rusqlite::params![sid], map_lineage_row)?
@@ -693,7 +704,10 @@ pub fn lineage_to_event_log(
                 "case:concept:name".to_string(),
                 AttributeValue::String(case_id),
             )];
-            Trace { events, attributes: trace_attrs }
+            Trace {
+                events,
+                attributes: trace_attrs,
+            }
         })
         .collect();
 
@@ -724,12 +738,13 @@ fn map_lineage_row(row: &rusqlite::Row) -> rusqlite::Result<(String, Event)> {
     ));
 
     if let Some(d) = details
-        && !d.is_empty() {
-            attributes.push(Attribute::new(
-                "details".to_string(),
-                AttributeValue::String(d),
-            ));
-        }
+        && !d.is_empty()
+    {
+        attributes.push(Attribute::new(
+            "details".to_string(),
+            AttributeValue::String(d),
+        ));
+    }
 
     let event = Event { attributes };
     Ok((session_id, event))

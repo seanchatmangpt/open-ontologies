@@ -3,14 +3,13 @@
 //! All fitness/replay numbers in this test originate in
 //! `wasm4pm::powl::conformance::token_replay`. The bridge is plumbing only.
 
-use open_ontologies::powl_bridge::{classify_replay, PowlBridge};
 use open_ontologies::DefectClass;
+use open_ontologies::powl_bridge::{PowlBridge, classify_replay};
 
 /// `SEQ(a, b, c)` in the plan maps to a POWL strict-partial-order with
 /// edges `a-->b, b-->c` in wasm4pm's grammar (no `SEQ` keyword exists in the
 /// parser; sequencing is expressed via `PO=(nodes={...}, order={...})`).
-const SEQ_ABC: &str =
-    "PO=(nodes={a, b, c}, order={a-->b, b-->c})";
+const SEQ_ABC: &str = "PO=(nodes={a, b, c}, order={a-->b, b-->c})";
 
 #[test]
 fn seq_perfect_trace_has_fitness_one() {
@@ -47,9 +46,10 @@ fn seq_skipped_stage_yields_skipped_task_defect() {
 
     let cls = classify_replay(&bridge, root, &trace, &r);
     assert!(cls.fitness < 1.0);
-    let has_skipped_b = cls.defects.iter().any(|(d, _)| {
-        matches!(d, DefectClass::SkippedTask { stage } if stage == "b")
-    });
+    let has_skipped_b = cls
+        .defects
+        .iter()
+        .any(|(d, _)| matches!(d, DefectClass::SkippedTask { stage } if stage == "b"));
     assert!(
         has_skipped_b,
         "expected SkippedTask{{stage='b'}} in defects, got {:?}",

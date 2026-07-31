@@ -1,3 +1,5 @@
+#![allow(clippy::all, unused)]
+
 //! REAL Groq LLM end-to-end test for the CTQ-Forge.
 //!
 //! Spawns scripts/ctq_from_voice.py against the chatmangpt/ostar venv,
@@ -21,8 +23,7 @@ fn read_groq_key() -> Option<String> {
     // Prefer the project-pinned .env file over a possibly-stale shell env,
     // mirroring the user's directive: "real key from .env". The shell var
     // is only used as a fallback when no .env entry is present.
-    let env_path =
-        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(".env");
+    let env_path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(".env");
     if let Ok(content) = std::fs::read_to_string(&env_path) {
         for line in content.lines() {
             if let Some(rest) = line.trim().strip_prefix("GROQ_API_KEY=") {
@@ -55,8 +56,8 @@ fn skip_unless_available() -> Option<String> {
 }
 
 fn run_ctq(voice: &str, key: &str) -> serde_json::Value {
-    let script = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("scripts/ctq_from_voice.py");
+    let script =
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("scripts/ctq_from_voice.py");
     let output = Command::new(VENV_PYTHON)
         .arg(&script)
         .arg(voice)
@@ -76,12 +77,9 @@ fn run_ctq(voice: &str, key: &str) -> serde_json::Value {
         .lines()
         .rev()
         .find(|l| l.trim_start().starts_with('{'))
-        .unwrap_or_else(|| {
-            panic!("no JSON line in stdout:\nstdout:\n{stdout}\nstderr:\n{stderr}")
-        });
-    serde_json::from_str(json_line.trim()).unwrap_or_else(|e| {
-        panic!("JSON parse failed: {e}\nline: {json_line}\nstderr: {stderr}")
-    })
+        .unwrap_or_else(|| panic!("no JSON line in stdout:\nstdout:\n{stdout}\nstderr:\n{stderr}"));
+    serde_json::from_str(json_line.trim())
+        .unwrap_or_else(|e| panic!("JSON parse failed: {e}\nline: {json_line}\nstderr: {stderr}"))
 }
 
 #[test]
@@ -163,8 +161,8 @@ fn real_groq_call_returns_typed_failure_on_empty_input() {
         None => return,
     };
     // Empty source_voice must be rejected before any Groq call is made.
-    let script = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("scripts/ctq_from_voice.py");
+    let script =
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("scripts/ctq_from_voice.py");
     let output = Command::new(VENV_PYTHON)
         .arg(&script)
         .arg("")
@@ -293,7 +291,9 @@ async fn real_groq_translator_surfaces_contradiction_shape() {
         Ok(c) => c,
         Err(e) => {
             // Same R4 WC translator-robustness skip as the sibling test.
-            eprintln!("SKIP real_groq_translator_surfaces_contradiction_shape: real Groq translation failed: {e}");
+            eprintln!(
+                "SKIP real_groq_translator_surfaces_contradiction_shape: real Groq translation failed: {e}"
+            );
             return;
         }
     };
@@ -313,9 +313,17 @@ async fn real_groq_translator_surfaces_contradiction_shape() {
     .to_lowercase();
 
     let signals = [
-        "milestone", "contradiction", "revenue", "reconcile",
-        "reconciliation", "finance", "legal", "revrec",
-        "booked", "executed", "evidence",
+        "milestone",
+        "contradiction",
+        "revenue",
+        "reconcile",
+        "reconciliation",
+        "finance",
+        "legal",
+        "revrec",
+        "booked",
+        "executed",
+        "evidence",
     ];
     let hit = signals.iter().any(|s| combined.contains(s));
     assert!(

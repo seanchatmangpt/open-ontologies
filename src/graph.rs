@@ -136,8 +136,9 @@ impl GraphStore {
     /// let store = GraphStore::open("/tmp/my_store").unwrap();
     /// ```
     pub fn open<P: AsRef<std::path::Path>>(path: P) -> anyhow::Result<Self> {
-        let store = Store::open(path.as_ref())
-            .map_err(|e| anyhow::anyhow!("Failed to open Oxigraph store at {:?}: {e}", path.as_ref()))?;
+        let store = Store::open(path.as_ref()).map_err(|e| {
+            anyhow::anyhow!("Failed to open Oxigraph store at {:?}: {e}", path.as_ref())
+        })?;
         Ok(Self {
             store: Mutex::new(store),
         })
@@ -254,7 +255,12 @@ impl GraphStore {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn load_content_with_base(&self, content: &str, format: RdfFormat, base_iri: Option<&str>) -> anyhow::Result<usize> {
+    pub fn load_content_with_base(
+        &self,
+        content: &str,
+        format: RdfFormat,
+        base_iri: Option<&str>,
+    ) -> anyhow::Result<usize> {
         let store = self.store.lock().unwrap();
         let reader = Cursor::new(content.as_bytes());
         let mut parser = RdfParser::from_format(format);
@@ -696,13 +702,18 @@ impl GraphStore {
         let individual_query = "SELECT (COUNT(DISTINCT ?i) AS ?count) WHERE { ?i a ?c . FILTER(?c != <http://www.w3.org/2002/07/owl#Class> && ?c != <http://www.w3.org/2000/01/rdf-schema#Class> && ?c != <http://www.w3.org/2002/07/owl#ObjectProperty> && ?c != <http://www.w3.org/2002/07/owl#DatatypeProperty> && ?c != <http://www.w3.org/2002/07/owl#Ontology>) }";
 
         let count_from_query = |q: &str| -> usize {
-            let Ok(prepared) = SparqlEvaluator::new().parse_query(q) else { return 0 };
-            let Ok(QueryResults::Solutions(solutions)) = prepared
-                .on_store(&store)
-                .execute()
-            else { return 0 };
-            let Some(Ok(row)) = solutions.into_iter().next() else { return 0 };
-            let Some(Term::Literal(lit)) = row.get("count") else { return 0 };
+            let Ok(prepared) = SparqlEvaluator::new().parse_query(q) else {
+                return 0;
+            };
+            let Ok(QueryResults::Solutions(solutions)) = prepared.on_store(&store).execute() else {
+                return 0;
+            };
+            let Some(Ok(row)) = solutions.into_iter().next() else {
+                return 0;
+            };
+            let Some(Term::Literal(lit)) = row.get("count") else {
+                return 0;
+            };
             lit.value().parse().unwrap_or(0)
         };
 
@@ -851,6 +862,8 @@ impl GraphStore {
     /// Send a SPARQL CONSTRUCT query to a remote SPARQL endpoint and return the
     /// response body (typically Turtle or N-Triples).
     ///
+    /// Runs the query against an open (unauthenticated) endpoint.
+    ///
     /// # Note
     ///
     /// Requires a live network connection to a SPARQL endpoint.
@@ -919,7 +932,18 @@ impl GraphStore {
     /// }
     /// ```
     pub async fn push_sparql(endpoint: &str, content: &str) -> anyhow::Result<String> {
-        Self::push_sparql_graph(endpoint, content, None, &[]).await
+        Self::push_sparql_graph_auth(endpoint, content, None, &[], &SparqlAuth::default()).await
+    }
+
+    /// Push triples to an endpoint via SPARQL 1.1 Update, with optional named
+    /// graph and HTTP auth.
+    pub async fn push_sparql_auth(
+        endpoint: &str,
+        content: &str,
+        graph: Option<&str>,
+        auth: &SparqlAuth,
+    ) -> anyhow::Result<String> {
+        Self::push_sparql_graph_auth(endpoint, content, graph, &[], auth).await
     }
 
     /// SPARQL 1.1 Update push with optional named graph and arbitrary extra
@@ -939,6 +963,24 @@ impl GraphStore {
         content: &str,
         graph_iri: Option<&str>,
         extra_headers: &[(&str, &str)],
+    ) -> anyhow::Result<String> {
+        Self::push_sparql_graph_auth(
+            endpoint,
+            content,
+            graph_iri,
+            extra_headers,
+            &SparqlAuth::default(),
+        )
+        .await
+    }
+
+    /// Unified SPARQL 1.1 Update push with optional named graph, extra headers, and HTTP auth.
+    pub async fn push_sparql_graph_auth(
+        endpoint: &str,
+        content: &str,
+        graph_iri: Option<&str>,
+        extra_headers: &[(&str, &str)],
+        auth: &SparqlAuth,
     ) -> anyhow::Result<String> {
         let body = match graph_iri {
             None => format!("INSERT DATA {{ {} }}", content),
@@ -960,11 +1002,11 @@ impl GraphStore {
             }
         };
         let client = reqwest::Client::new();
-        let mut req = client
+        let mut rb = client
             .post(endpoint)
             .header("Content-Type", "application/sparql-update");
         for (name, value) in extra_headers {
-            req = req.header(*name, *value);
+            rb = rb.header(*name, *value);
         }
         let resp = req.body(body).send().await?;
         if !resp.status().is_success() {

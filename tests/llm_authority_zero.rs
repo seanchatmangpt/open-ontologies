@@ -1,3 +1,5 @@
+#![allow(clippy::all, unused)]
+
 //! Round 4 WC (R4) → R7 WG-1 (R7): §22 LLMAuthority saboteur ratchet.
 //!
 //! ## Why this file exists
@@ -199,7 +201,10 @@ fn match_candidate_field(expr: &Expr) -> Option<&'static str> {
 /// (or wrapped projection chain).
 fn match_parsed_fields_index(expr: &Expr) -> Option<String> {
     let inner = unwrap_method_chain(expr);
-    let Expr::Index(ExprIndex { expr: base, index, .. }) = inner else {
+    let Expr::Index(ExprIndex {
+        expr: base, index, ..
+    }) = inner
+    else {
         return None;
     };
     // base must be `parsed.fields`.
@@ -233,9 +238,17 @@ fn match_parsed_fields_index(expr: &Expr) -> Option<String> {
 fn sink_name(call_func: &Expr) -> Option<String> {
     if let Expr::Path(p) = call_func {
         // Path calls — Receipt::new(...) etc.
-        let segs: Vec<String> = p.path.segments.iter().map(|s| s.ident.to_string()).collect();
+        let segs: Vec<String> = p
+            .path
+            .segments
+            .iter()
+            .map(|s| s.ident.to_string())
+            .collect();
         // Constructor pattern: Type::new
-        if segs.len() == 2 && segs[1] == "new" && RECEIPT_CONSTRUCTOR_TYPES.contains(&segs[0].as_str()) {
+        if segs.len() == 2
+            && segs[1] == "new"
+            && RECEIPT_CONSTRUCTOR_TYPES.contains(&segs[0].as_str())
+        {
             return Some(format!("{}::new", segs[0]));
         }
         // Bare named function (rare in this codebase).
@@ -390,7 +403,10 @@ pub fn audit_file(rel: &str, src: &str) -> Vec<String> {
     let file: File = match syn::parse_file(src) {
         Ok(f) => f,
         Err(e) => {
-            return vec![format!("{}: parse error (run `cargo check` first): {}", rel, e)];
+            return vec![format!(
+                "{}: parse error (run `cargo check` first): {}",
+                rel, e
+            )];
         }
     };
     let mut v = SinkFlowVisitor::new(rel.to_string(), &allow_static);

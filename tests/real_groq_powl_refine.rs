@@ -1,3 +1,5 @@
+#![allow(clippy::all, unused)]
+
 //! REAL Groq LLM end-to-end test for the POWL *refiner*.
 //!
 //! Spawns scripts/powl_refine.py against the chatmangpt/pm4py fork and
@@ -92,12 +94,9 @@ fn run_refine(
         .lines()
         .rev()
         .find(|l| l.trim_start().starts_with('{'))
-        .unwrap_or_else(|| {
-            panic!("no JSON line in stdout:\nstdout:\n{stdout}\nstderr:\n{stderr}")
-        });
-    serde_json::from_str(json_line.trim()).unwrap_or_else(|e| {
-        panic!("JSON parse failed: {e}\nline: {json_line}\nstderr: {stderr}")
-    })
+        .unwrap_or_else(|| panic!("no JSON line in stdout:\nstdout:\n{stdout}\nstderr:\n{stderr}"));
+    serde_json::from_str(json_line.trim())
+        .unwrap_or_else(|e| panic!("JSON parse failed: {e}\nline: {json_line}\nstderr: {stderr}"))
 }
 
 #[test]
@@ -135,7 +134,10 @@ fn real_groq_refines_xor_into_sequence_when_description_demands_it() {
     let changed = result["changed"].as_bool().unwrap_or(false);
     let refinements = result["refinements"].as_i64().unwrap_or(0);
 
-    assert_eq!(original_out, original, "original_powl should be echoed back");
+    assert_eq!(
+        original_out, original,
+        "original_powl should be echoed back"
+    );
     assert!(!refined.is_empty(), "refined_powl must not be empty");
     assert!(refinements >= 1, "expected at least one refine attempt");
 

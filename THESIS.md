@@ -55,7 +55,7 @@ The `LlmInput` struct was introduced to sanitize every byte crossing the LLM bou
 - Ensures that API surfaces only accept `&LlmInput`, never raw strings, turning input sanitization into a compile-time guarantee.
 
 ### 4.2 Engine Agnosticism and Local Models
-The system was decoupled from strict Groq dependencies by introducing a native Gemini CLI engine fallback. The `onto_translate_candidate` tool now supports an `engine="gemini"` path, executing a headless subprocess (`gemini-3.1-flash-lite-preview`) without requiring an API key, proving the portability of the LLM orchestration layer.
+The system was decoupled from strict Groq dependencies by introducing a native Gemini CLI engine fallback. The `onto_translate_candidate` tool now supports an `engine="gemini"` path, executing a headless subprocess (`gemini-3.1-flash-lite`) without requiring an API key, proving the portability of the LLM orchestration layer.
 
 ---
 

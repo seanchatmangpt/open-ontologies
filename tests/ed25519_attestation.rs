@@ -16,11 +16,11 @@
 //!      (different artifact_hash). Must fail with
 //!      `AttestationInvalid { reason: "signature_invalid" }`.
 
-use ed25519_dalek::pkcs8::spki::der::pem::LineEnding;
-use ed25519_dalek::pkcs8::EncodePublicKey;
 use ed25519_dalek::SigningKey;
+use ed25519_dalek::pkcs8::EncodePublicKey;
+use ed25519_dalek::pkcs8::spki::der::pem::LineEnding;
 use open_ontologies::attestation::{Signer, TrustedKeys};
-use open_ontologies::cell_ready::{cell_ready, CellReadyInputs, PowlOpRef};
+use open_ontologies::cell_ready::{CellReadyInputs, PowlOpRef, cell_ready};
 use open_ontologies::defects::DefectClass;
 use open_ontologies::ocel_store::OcelStore;
 use open_ontologies::production_record::ProductionRecord;
@@ -98,8 +98,7 @@ fn preview_record(
         conformance_run_id: "run-test".to_string(),
         gate_config_hash: parse(HEX32),
         production_law_version: "ontostar-1.0.0".to_string(),
-        defects_taxonomy_version:
-            open_ontologies::defects::DEFECTS_TAXONOMY_VERSION.to_string(),
+        defects_taxonomy_version: open_ontologies::defects::DEFECTS_TAXONOMY_VERSION.to_string(),
         gates_passed: vec![
             "A1_WorkflowDeclared".into(),
             "A2_ScopeClosed".into(),
@@ -310,8 +309,8 @@ fn receipt_replay_attack_rejected() {
         Err(DefectClass::AttestationInvalid { reason }) => {
             assert_eq!(reason, "signature_invalid", "got reason: {reason}");
         }
-        other => panic!(
-            "receipt-replay attack must be rejected with AttestationInvalid, got {other:?}"
-        ),
+        other => {
+            panic!("receipt-replay attack must be rejected with AttestationInvalid, got {other:?}")
+        }
     }
 }

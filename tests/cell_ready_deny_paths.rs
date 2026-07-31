@@ -4,7 +4,7 @@
 //! field, and asserts the typed `DefectClass` returned. The baseline must
 //! itself pass — verified in `cell_ready_ok_baseline_passes`.
 
-use open_ontologies::cell_ready::{cell_ready, CellReadyInputs, PowlOpRef};
+use open_ontologies::cell_ready::{CellReadyInputs, PowlOpRef, cell_ready};
 use open_ontologies::defects::DefectClass;
 use open_ontologies::ocel_store::OcelStore;
 use open_ontologies::state::StateDb;
@@ -162,7 +162,11 @@ fn cell_ready_threshold_failed_on_low_fitness() {
     bag.fitness_required = 0.95;
 
     match cell_ready(inputs_from(&bag), &store) {
-        Err(DefectClass::ThresholdFailed { metric, observed, required }) => {
+        Err(DefectClass::ThresholdFailed {
+            metric,
+            observed,
+            required,
+        }) => {
             assert_eq!(metric, "fitness");
             assert!((observed - 0.50).abs() < 1e-9);
             assert!((required - 0.95).abs() < 1e-9);
@@ -291,7 +295,11 @@ fn cell_ready_threshold_failed_on_low_precision() {
     bag.precision_required = 0.85;
 
     match cell_ready(inputs_from(&bag), &store) {
-        Err(DefectClass::ThresholdFailed { metric, observed, required }) => {
+        Err(DefectClass::ThresholdFailed {
+            metric,
+            observed,
+            required,
+        }) => {
             assert_eq!(
                 metric, "precision",
                 "must short-circuit on precision branch, got metric={metric}"

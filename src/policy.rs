@@ -76,9 +76,8 @@ pub fn register_rule(db: &StateDb, rule: &PolicyRule) -> anyhow::Result<()> {
 pub fn list_rules(db: &StateDb) -> anyhow::Result<Vec<PolicyRule>> {
     ensure(db)?;
     let conn = db.conn();
-    let mut stmt = conn.prepare(
-        "SELECT name, effect, condition, description FROM policy_rules ORDER BY name",
-    )?;
+    let mut stmt = conn
+        .prepare("SELECT name, effect, condition, description FROM policy_rules ORDER BY name")?;
     let rows: Vec<PolicyRule> = stmt
         .query_map([], |r| {
             Ok(PolicyRule {
@@ -133,7 +132,10 @@ pub fn check_action(
         }
     }
     let verdict = if any_deny { "deny" } else { "allow" }.to_string();
-    Ok(PolicyReport { verdict, rule_results: results })
+    Ok(PolicyReport {
+        verdict,
+        rule_results: results,
+    })
 }
 
 #[cfg(test)]
@@ -170,17 +172,21 @@ mod tests {
             &PolicyRule {
                 name: "deny_locked".to_string(),
                 effect: "deny".to_string(),
-                condition:
-                    "ASK { <{target}> <http://example.org/audit#locked> \"yes\" }".to_string(),
+                condition: "ASK { <{target}> <http://example.org/audit#locked> \"yes\" }"
+                    .to_string(),
                 description: None,
             },
         )
         .unwrap();
-        let report =
-            check_action(&db, &g, &["http://ex.org/Free".to_string()]).unwrap();
+        let report = check_action(&db, &g, &["http://ex.org/Free".to_string()]).unwrap();
         assert_eq!(report.verdict, "allow");
         // The deny rule did NOT fire for Free.
-        assert!(report.rule_results.iter().any(|r| r.rule_name == "deny_locked" && !r.fired));
+        assert!(
+            report
+                .rule_results
+                .iter()
+                .any(|r| r.rule_name == "deny_locked" && !r.fired)
+        );
     }
 
     #[test]
@@ -192,16 +198,20 @@ mod tests {
             &PolicyRule {
                 name: "deny_locked".to_string(),
                 effect: "deny".to_string(),
-                condition:
-                    "ASK { <{target}> <http://example.org/audit#locked> \"yes\" }".to_string(),
+                condition: "ASK { <{target}> <http://example.org/audit#locked> \"yes\" }"
+                    .to_string(),
                 description: None,
             },
         )
         .unwrap();
-        let report =
-            check_action(&db, &g, &["http://ex.org/Critical".to_string()]).unwrap();
+        let report = check_action(&db, &g, &["http://ex.org/Critical".to_string()]).unwrap();
         assert_eq!(report.verdict, "deny");
-        assert!(report.rule_results.iter().any(|r| r.fired && r.effect == "deny"));
+        assert!(
+            report
+                .rule_results
+                .iter()
+                .any(|r| r.fired && r.effect == "deny")
+        );
     }
 
     #[test]
@@ -224,8 +234,7 @@ mod tests {
     fn check_action_with_no_rules_returns_allow() {
         let db = fresh_db();
         let g = graph_with_lock();
-        let report =
-            check_action(&db, &g, &["http://ex.org/Free".to_string()]).unwrap();
+        let report = check_action(&db, &g, &["http://ex.org/Free".to_string()]).unwrap();
         assert_eq!(report.verdict, "allow");
         assert!(report.rule_results.is_empty());
     }
@@ -240,8 +249,7 @@ mod tests {
             &PolicyRule {
                 name: "self_loop_deny".to_string(),
                 effect: "deny".to_string(),
-                condition:
-                    "ASK { <{target}> ?p <{target}> }".to_string(),
+                condition: "ASK { <{target}> ?p <{target}> }".to_string(),
                 description: None,
             },
         )

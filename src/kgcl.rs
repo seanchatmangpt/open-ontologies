@@ -46,7 +46,11 @@ impl KgclChange {
     /// - `obsolete <kind> <iri> with replacement <iri>`
     pub fn to_cnl(&self) -> String {
         match self {
-            KgclChange::NodeCreation { about_node, node_kind, .. } => {
+            KgclChange::NodeCreation {
+                about_node,
+                node_kind,
+                ..
+            } => {
                 format!("create {} <{}>", node_kind, about_node)
             }
             KgclChange::NodeObsoletion {
@@ -251,7 +255,10 @@ mod tests {
         let report = drift_to_kgcl(&drift, 0.7);
         assert_eq!(report.changes.len(), 2);
         // Order: obsoletions first, then creations.
-        assert!(matches!(report.changes[0], KgclChange::NodeObsoletion { .. }));
+        assert!(matches!(
+            report.changes[0],
+            KgclChange::NodeObsoletion { .. }
+        ));
         assert!(matches!(report.changes[1], KgclChange::NodeCreation { .. }));
 
         let cnl = report.to_cnl();
@@ -346,7 +353,11 @@ mod tests {
         ids.sort();
         let count_before = ids.len();
         ids.dedup();
-        assert_eq!(ids.len(), count_before, "IDs must be unique within a report");
+        assert_eq!(
+            ids.len(),
+            count_before,
+            "IDs must be unique within a report"
+        );
     }
 
     #[test]

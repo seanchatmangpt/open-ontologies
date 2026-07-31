@@ -5,7 +5,7 @@ use clap_noun_verb_macros::verb;
 use serde::Serialize;
 use std::sync::Arc;
 
-use open_ontologies::config::{expand_tilde, Config};
+use open_ontologies::config::{Config, expand_tilde};
 use open_ontologies::graph::GraphStore;
 use open_ontologies::mcpp_gate::MaybeGatedServer;
 use open_ontologies::server::OpenOntologiesServer;
@@ -111,7 +111,10 @@ pub(crate) fn load_cfg(config_path: &str) -> anyhow::Result<Config> {
         Ok(c) => Ok(c),
         Err(e) => {
             if e.to_string().contains("failed to read") {
-                eprintln!("warn: config not found at {}; using defaults. Run `open-ontologies server init` to create it.", path);
+                eprintln!(
+                    "warn: config not found at {}; using defaults. Run `open-ontologies server init` to create it.",
+                    path
+                );
                 Ok(Config::default())
             } else {
                 Err(e)
@@ -120,39 +123,105 @@ pub(crate) fn load_cfg(config_path: &str) -> anyhow::Result<Config> {
     }
 }
 
-pub(crate) fn build_cache_cfg(cfg: &Config, idle_ttl_secs: Option<u64>, auto_refresh: bool) -> open_ontologies::config::CacheConfig {
+pub(crate) fn build_cache_cfg(
+    cfg: &Config,
+    idle_ttl_secs: Option<u64>,
+    auto_refresh: bool,
+) -> open_ontologies::config::CacheConfig {
     let mut cc = cfg.cache.clone();
-    if let Some(ttl) = idle_ttl_secs { cc.idle_ttl_secs = ttl; }
-    if auto_refresh { cc.auto_refresh = true; }
+    if let Some(ttl) = idle_ttl_secs {
+        cc.idle_ttl_secs = ttl;
+    }
+    if auto_refresh {
+        cc.auto_refresh = true;
+    }
     cc
 }
 
-pub(crate) fn build_tool_filter_cfg(cfg: &Config, allow: Option<&str>, deny: Option<&str>) -> anyhow::Result<open_ontologies::toolfilter::ToolFilter> {
+pub(crate) fn build_tool_filter_cfg(
+    cfg: &Config,
+    allow: Option<&str>,
+    deny: Option<&str>,
+) -> anyhow::Result<open_ontologies::toolfilter::ToolFilter> {
     use open_ontologies::toolfilter::{Mode, ToolFilter, parse_csv};
-    if allow.is_some() && deny.is_some() { anyhow::bail!("--tools-allow and --tools-deny are mutually exclusive"); }
-    if let Some(spec) = allow { let (list, groups) = parse_csv(spec); return Ok(ToolFilter { mode: Mode::Allow, list, groups }); }
-    if let Some(spec) = deny { let (list, groups) = parse_csv(spec); return Ok(ToolFilter { mode: Mode::Deny, list, groups }); }
-    let mode = if cfg.tools.mode.is_empty() { Mode::All } else { Mode::parse(&cfg.tools.mode).map_err(|e| anyhow::anyhow!(e))? };
-    Ok(ToolFilter { mode, list: cfg.tools.list.clone(), groups: cfg.tools.groups.clone() })
+    if allow.is_some() && deny.is_some() {
+        anyhow::bail!("--tools-allow and --tools-deny are mutually exclusive");
+    }
+    if let Some(spec) = allow {
+        let (list, groups) = parse_csv(spec);
+        return Ok(ToolFilter {
+            mode: Mode::Allow,
+            list,
+            groups,
+        });
+    }
+    if let Some(spec) = deny {
+        let (list, groups) = parse_csv(spec);
+        return Ok(ToolFilter {
+            mode: Mode::Deny,
+            list,
+            groups,
+        });
+    }
+    let mode = if cfg.tools.mode.is_empty() {
+        Mode::All
+    } else {
+        Mode::parse(&cfg.tools.mode).map_err(|e| anyhow::anyhow!(e))?
+    };
+    Ok(ToolFilter {
+        mode,
+        list: cfg.tools.list.clone(),
+        groups: cfg.tools.groups.clone(),
+    })
 }
 
 pub(crate) fn init_tracing_cfg(cfg: &open_ontologies::config::LoggingConfig) {
-    use tracing_subscriber::{fmt, EnvFilter};
+    use tracing_subscriber::{EnvFilter, fmt};
     let level = open_ontologies::config::resolve_logging_level(cfg);
     let env_filter = EnvFilter::try_new(&level).unwrap_or_else(|_| EnvFilter::new("info"));
     let writer_file = cfg.file.as_deref().and_then(|p| {
         let path = expand_tilde(p);
-        if let Some(parent) = std::path::Path::new(&path).parent() { let _ = std::fs::create_dir_all(parent); }
-        std::fs::OpenOptions::new().create(true).append(true).open(&path).ok()
+        if let Some(parent) = std::path::Path::new(&path).parent() {
+            let _ = std::fs::create_dir_all(parent);
+        }
+        std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&path)
+            .ok()
     });
     let format = cfg.format.trim().to_lowercase();
     let _ = match (format.as_str(), writer_file) {
-        ("json", Some(f)) => fmt().with_env_filter(env_filter).json().with_writer(std::sync::Mutex::new(f)).try_init(),
-        ("json", None) => fmt().with_env_filter(env_filter).json().with_writer(std::io::stderr).try_init(),
-        ("pretty", Some(f)) => fmt().with_env_filter(env_filter).pretty().with_writer(std::sync::Mutex::new(f)).try_init(),
-        ("pretty", None) => fmt().with_env_filter(env_filter).pretty().with_writer(std::io::stderr).try_init(),
-        (_, Some(f)) => fmt().with_env_filter(env_filter).compact().with_writer(std::sync::Mutex::new(f)).try_init(),
-        (_, None) => fmt().with_env_filter(env_filter).compact().with_writer(std::io::stderr).try_init(),
+        ("json", Some(f)) => fmt()
+            .with_env_filter(env_filter)
+            .json()
+            .with_writer(std::sync::Mutex::new(f))
+            .try_init(),
+        ("json", None) => fmt()
+            .with_env_filter(env_filter)
+            .json()
+            .with_writer(std::io::stderr)
+            .try_init(),
+        ("pretty", Some(f)) => fmt()
+            .with_env_filter(env_filter)
+            .pretty()
+            .with_writer(std::sync::Mutex::new(f))
+            .try_init(),
+        ("pretty", None) => fmt()
+            .with_env_filter(env_filter)
+            .pretty()
+            .with_writer(std::io::stderr)
+            .try_init(),
+        (_, Some(f)) => fmt()
+            .with_env_filter(env_filter)
+            .compact()
+            .with_writer(std::sync::Mutex::new(f))
+            .try_init(),
+        (_, None) => fmt()
+            .with_env_filter(env_filter)
+            .compact()
+            .with_writer(std::io::stderr)
+            .try_init(),
     };
 }
 
@@ -167,23 +236,46 @@ fn open_db_and_graph(data_dir: &str) -> NounVerbResult<(String, StateDb, Arc<Gra
     Ok((data_dir_expanded, db, graph))
 }
 
-fn maybe_start_monitor(watch: bool, cfg: &Config, db_path_str: &str, watch_interval: Option<u64>, graph: Arc<GraphStore>) -> NounVerbResult<()> {
+fn maybe_start_monitor(
+    watch: bool,
+    cfg: &Config,
+    db_path_str: &str,
+    watch_interval: Option<u64>,
+    graph: Arc<GraphStore>,
+) -> NounVerbResult<()> {
     let monitor_enabled = watch || cfg.monitor.enabled;
-    let interval = watch_interval.unwrap_or_else(|| open_ontologies::config::resolve_monitor_interval_secs(&cfg.monitor));
+    let interval = watch_interval
+        .unwrap_or_else(|| open_ontologies::config::resolve_monitor_interval_secs(&cfg.monitor));
     if monitor_enabled {
         let db_path = std::path::Path::new(db_path_str).to_path_buf();
         let watch_db = StateDb::open(&db_path)
             .map_err(|e| clap_noun_verb::NounVerbError::execution_error(e.to_string()))?;
-        open_ontologies::monitor::start_background_loop(watch_db, graph, std::time::Duration::from_secs(interval));
+        open_ontologies::monitor::start_background_loop(
+            watch_db,
+            graph,
+            std::time::Duration::from_secs(interval),
+        );
     }
     Ok(())
 }
 
-fn run_stdio_server(cfg: Config, db: StateDb, graph: Arc<GraphStore>, governance_webhook: Option<String>, cache_config: open_ontologies::config::CacheConfig, tool_filter: open_ontologies::toolfilter::ToolFilter) -> NounVerbResult<()> {
+fn run_stdio_server(
+    cfg: Config,
+    db: StateDb,
+    graph: Arc<GraphStore>,
+    governance_webhook: Option<String>,
+    cache_config: open_ontologies::config::CacheConfig,
+    tool_filter: open_ontologies::toolfilter::ToolFilter,
+) -> NounVerbResult<()> {
     use rmcp::ServiceExt;
     let ontology_dirs = open_ontologies::config::resolve_ontology_dirs(&cfg.general.ontology_dirs);
     for d in &ontology_dirs {
-        if !d.exists() { eprintln!("warning: ontology_dirs entry does not exist: {}", d.display()); }
+        if !d.exists() {
+            eprintln!(
+                "warning: ontology_dirs entry does not exist: {}",
+                d.display()
+            );
+        }
     }
     let llm_engine = open_ontologies::config::resolve_llm_engine(&cfg.llm);
     eprintln!("info: default LLM engine = {}", llm_engine);
@@ -194,8 +286,7 @@ fn run_stdio_server(cfg: Config, db: StateDb, graph: Arc<GraphStore>, governance
     }
     // R5 WC-1 — resolve the admin principal allowlist ONCE at startup.
     // Subsequent env mutations are ignored (TOCTOU-immune).
-    let admin_principals =
-        open_ontologies::config::resolve_admin_principals(&cfg.authority);
+    let admin_principals = open_ontologies::config::resolve_admin_principals(&cfg.authority);
     eprintln!(
         "info: admin principals configured = {} entries",
         admin_principals.len()
@@ -203,18 +294,29 @@ fn run_stdio_server(cfg: Config, db: StateDb, graph: Arc<GraphStore>, governance
     // R5 WC-2 — share the retention pause handle between the worker
     // and the MCP server so `onto_retention_pause` /
     // `onto_retention_resume` mutate the same atomic the worker reads.
-    let pause_handle =
-        std::sync::Arc::new(std::sync::atomic::AtomicI64::new(0));
-    let inner = OpenOntologiesServer::new_with_repo_options(db.clone(), graph, governance_webhook, cfg.embeddings, cache_config, tool_filter, ontology_dirs)
-        .with_default_llm_engine(llm_engine)
-        .with_admin_principals(admin_principals)
-        .with_retention_pause(pause_handle.clone());
+    let pause_handle = std::sync::Arc::new(std::sync::atomic::AtomicI64::new(0));
+    let inner = OpenOntologiesServer::new_with_repo_options(
+        db.clone(),
+        graph,
+        governance_webhook,
+        cfg.embeddings,
+        cache_config,
+        tool_filter,
+        ontology_dirs,
+    )
+    .with_default_llm_engine(llm_engine)
+    .with_admin_principals(admin_principals)
+    .with_retention_pause(pause_handle.clone());
 
     #[cfg(feature = "mcpp")]
     let server: MaybeGatedServer = match mcpp_core::receipt::KeyLoader::from_env() {
         Ok(Some(key)) => {
             eprintln!("info: mcpp proof gating enabled (stdio)");
-            MaybeGatedServer::Gated(open_ontologies::mcpp_gate::ProofGatedServer::new(inner, db.clone(), key))
+            MaybeGatedServer::Gated(open_ontologies::mcpp_gate::ProofGatedServer::new(
+                inner,
+                db.clone(),
+                key,
+            ))
         }
         _ => MaybeGatedServer::Bare(inner),
     };
@@ -243,9 +345,8 @@ fn run_stdio_server(cfg: Config, db: StateDb, graph: Arc<GraphStore>, governance
     // `pause_handle` atomic with the retention worker; on a corruption
     // verdict the verifier calls `fetch_max(now + pause_secs)` so
     // retention skips its next tick. Monotone — never shortens a pause.
-    let verifier_ocel = std::sync::Arc::new(
-        open_ontologies::ocel_store::OcelStore::new(db.clone()),
-    );
+    let verifier_ocel =
+        std::sync::Arc::new(open_ontologies::ocel_store::OcelStore::new(db.clone()));
     let (_verifier, _verifier_cursor) =
         open_ontologies::verifier_worker::VerifierWorker::spawn_with_cursor(
             db.clone(),
@@ -256,24 +357,28 @@ fn run_stdio_server(cfg: Config, db: StateDb, graph: Arc<GraphStore>, governance
     // Tier 3 — Health Guardian. Periodic scope-leak and receipt-chain-gap
     // checks. Shares the StateDb but holds no other shared state. Dropped
     // with the server — the tokio task exits when the handle is dropped.
-    let _health_guardian =
-        open_ontologies::health_guardian::HealthGuardian::spawn(db);
-    tokio::runtime::Handle::current().block_on(async {
-        let service = server.serve(rmcp::transport::stdio()).await
-            .map_err(|e| anyhow::anyhow!(e))?;
-        service.waiting().await.map_err(|e| anyhow::anyhow!(e))?;
-        Ok::<(), anyhow::Error>(())
-    }).map_err(|e| clap_noun_verb::NounVerbError::execution_error(e.to_string()))
+    let _health_guardian = open_ontologies::health_guardian::HealthGuardian::spawn(db);
+    tokio::runtime::Handle::current()
+        .block_on(async {
+            let service = server
+                .serve(rmcp::transport::stdio())
+                .await
+                .map_err(|e| anyhow::anyhow!(e))?;
+            service.waiting().await.map_err(|e| anyhow::anyhow!(e))?;
+            Ok::<(), anyhow::Error>(())
+        })
+        .map_err(|e| clap_noun_verb::NounVerbError::execution_error(e.to_string()))
 }
 
 fn auto_restore_last_ontology(db: &StateDb, graph: Arc<GraphStore>) -> NounVerbResult<()> {
     if let Ok(Some(path)) = db.get_last_active_path()
-        && std::path::Path::new(&path).exists() {
-            match graph.load_file(&path) {
-                Ok(n) => eprintln!("info: restored last active ontology from {path} ({n} triples)"),
-                Err(e) => eprintln!("warn: could not restore last active ontology: {e}"),
-            }
+        && std::path::Path::new(&path).exists()
+    {
+        match graph.load_file(&path) {
+            Ok(n) => eprintln!("info: restored last active ontology from {path} ({n} triples)"),
+            Err(e) => eprintln!("warn: could not restore last active ontology: {e}"),
         }
+    }
     Ok(())
 }
 
@@ -283,7 +388,10 @@ fn run_unix_server(socket_path: String, files: Vec<String>) -> NounVerbResult<()
         let path = expand_tilde(f);
         match graph.load_file(&path) {
             Ok(n) => eprintln!("Loaded {path}: {n} triples"),
-            Err(e) => { eprintln!("Failed to load {path}: {e}"); std::process::exit(1); }
+            Err(e) => {
+                eprintln!("Failed to load {path}: {e}");
+                std::process::exit(1);
+            }
         }
     }
     eprintln!("Graph has {} triples total", graph.triple_count());
@@ -292,8 +400,23 @@ fn run_unix_server(socket_path: String, files: Vec<String>) -> NounVerbResult<()
         .map_err(|e| clap_noun_verb::NounVerbError::execution_error(e.to_string()))
 }
 
-fn build_http_axum_router(cfg: &Config, shared_graph: Arc<GraphStore>, shared_db: StateDb, governance_webhook: Option<String>, token: Option<String>, cache_config: open_ontologies::config::CacheConfig, tool_filter: open_ontologies::toolfilter::ToolFilter) -> (axum::Router, String, u16, tokio_util::sync::CancellationToken) {
-    use rmcp::transport::streamable_http_server::{StreamableHttpServerConfig, StreamableHttpService, session::local::LocalSessionManager};
+fn build_http_axum_router(
+    cfg: &Config,
+    shared_graph: Arc<GraphStore>,
+    shared_db: StateDb,
+    governance_webhook: Option<String>,
+    token: Option<String>,
+    cache_config: open_ontologies::config::CacheConfig,
+    tool_filter: open_ontologies::toolfilter::ToolFilter,
+) -> (
+    axum::Router,
+    String,
+    u16,
+    tokio_util::sync::CancellationToken,
+) {
+    use rmcp::transport::streamable_http_server::{
+        StreamableHttpServerConfig, StreamableHttpService, session::local::LocalSessionManager,
+    };
     use tokio_util::sync::CancellationToken;
 
     let host = open_ontologies::config::resolve_http_host(&cfg.http);
@@ -307,7 +430,8 @@ fn build_http_axum_router(cfg: &Config, shared_graph: Arc<GraphStore>, shared_db
     http_config.stateful_mode = cfg.http.stateful_mode;
     http_config.cancellation_token = ct.clone();
 
-    let db_path = std::path::Path::new(&expand_tilde(&cfg.general.data_dir)).join("open-ontologies.db");
+    let db_path =
+        std::path::Path::new(&expand_tilde(&cfg.general.data_dir)).join("open-ontologies.db");
     let gw = governance_webhook.clone();
     let embed = cfg.embeddings.clone();
     let cc = cache_config.clone();
@@ -341,8 +465,7 @@ fn build_http_axum_router(cfg: &Config, shared_graph: Arc<GraphStore>, shared_db
     );
     // Admin allowlist Arc for the principal_extract_layer — shared with
     // the factory closure (same Vec resolved once).
-    let admin_principals_for_layer =
-        std::sync::Arc::new(admin_principals_for_factory.clone());
+    let admin_principals_for_layer = std::sync::Arc::new(admin_principals_for_factory.clone());
 
     // Load mcpp signing key once at startup; cloned into each per-request factory.
     #[cfg(feature = "mcpp")]
@@ -353,56 +476,74 @@ fn build_http_axum_router(cfg: &Config, shared_graph: Arc<GraphStore>, shared_db
         eprintln!("info: mcpp proof gating enabled (HTTP)");
     }
 
-    let service: StreamableHttpService<MaybeGatedServer, LocalSessionManager> = StreamableHttpService::new(
-        move || {
-            let db = StateDb::open(&db_path).map_err(std::io::Error::other)?;
-            // Phase 11: per-request tenant rebind. The factory closure runs
-            // once per HTTP request; reading the tenant from the
-            // `TENANT_OVERRIDE` task-local (set by `tenant_extract_layer`)
-            // means this server instance is bound to the tenant declared
-            // in the `X-Ontostar-Tenant` header for the lifetime of the
-            // call. Concurrent requests cannot leak across each other
-            // because each gets its own task-local scope and its own
-            // freshly-cloned `OpenOntologiesServer`.
-            let tenant = open_ontologies::server::current_tenant_override()
-                .unwrap_or_else(|| "default".to_string());
-            let inner = OpenOntologiesServer::new_with_repo_options(db.clone(), sg.clone(), gw.clone(), embed.clone(), cc.clone(), tf.clone(), dirs.clone())
+    let service: StreamableHttpService<MaybeGatedServer, LocalSessionManager> =
+        StreamableHttpService::new(
+            move || {
+                let db = StateDb::open(&db_path).map_err(std::io::Error::other)?;
+                // Phase 11: per-request tenant rebind. The factory closure runs
+                // once per HTTP request; reading the tenant from the
+                // `TENANT_OVERRIDE` task-local (set by `tenant_extract_layer`)
+                // means this server instance is bound to the tenant declared
+                // in the `X-Ontostar-Tenant` header for the lifetime of the
+                // call. Concurrent requests cannot leak across each other
+                // because each gets its own task-local scope and its own
+                // freshly-cloned `OpenOntologiesServer`.
+                let tenant = open_ontologies::server::current_tenant_override()
+                    .unwrap_or_else(|| "default".to_string());
+                let inner = OpenOntologiesServer::new_with_repo_options(
+                    db.clone(),
+                    sg.clone(),
+                    gw.clone(),
+                    embed.clone(),
+                    cc.clone(),
+                    tf.clone(),
+                    dirs.clone(),
+                )
                 .with_default_llm_engine(llm_engine_for_factory.clone())
                 .with_admin_principals(admin_principals_for_factory.clone())
                 .with_tenant(&tenant);
-            #[cfg(feature = "mcpp")]
-            if let Some(ref key) = mcpp_signing_key {
-                return Ok(MaybeGatedServer::Gated(
-                    open_ontologies::mcpp_gate::ProofGatedServer::new(inner, db, key.clone())
-                ));
-            }
-            Ok(MaybeGatedServer::Bare(inner))
-        },
-        Default::default(),
-        http_config,
-    );
+                #[cfg(feature = "mcpp")]
+                if let Some(ref key) = mcpp_signing_key {
+                    return Ok(MaybeGatedServer::Gated(
+                        open_ontologies::mcpp_gate::ProofGatedServer::new(inner, db, key.clone()),
+                    ));
+                }
+                Ok(MaybeGatedServer::Bare(inner))
+            },
+            Default::default(),
+            http_config,
+        );
 
     let llm_cfg_for_health = cfg.llm.clone();
     let shared_db_for_api = shared_db.clone();
     let api = build_api_router(shared_graph, shared_db_for_api, llm_cfg_for_health);
 
     // Health endpoint bypasses auth middleware by being on separate router
-    let health = axum::Router::new()
-        .route("/health", axum::routing::get(|| async {
+    let health = axum::Router::new().route(
+        "/health",
+        axum::routing::get(|| async {
             axum::Json(serde_json::json!({
                 "status": "ok",
                 "version": env!("CARGO_PKG_VERSION"),
             }))
-        }));
+        }),
+    );
 
     // T2-6 — A2A protocol router (also bypasses auth)
     let a2a_router = {
         let agent_name = cfg.a2a.agent_name.clone();
         let agent_url = open_ontologies::config::resolve_a2a_agent_url(&cfg.a2a);
-        open_ontologies::a2a::build_a2a_router(std::sync::Arc::new(shared_db.clone()), &agent_name, &agent_name, &agent_url)
+        open_ontologies::a2a::build_a2a_router(
+            std::sync::Arc::new(shared_db.clone()),
+            &agent_name,
+            &agent_name,
+            &agent_url,
+        )
     };
 
-    let mut router = axum::Router::new().nest("/api", api).nest_service("/mcp", service);
+    let mut router = axum::Router::new()
+        .nest("/api", api)
+        .nest_service("/mcp", service);
 
     // R5 WC-2 — X-Ontostar-Principal extraction layer. Wired AFTER the
     // bearer-token layer (added below) so the caller's principal is
@@ -445,14 +586,25 @@ fn build_http_axum_router(cfg: &Config, shared_graph: Arc<GraphStore>, shared_db
 
     if let Some(ref t) = resolved_token {
         let expected = format!("Bearer {}", t);
-        router = router.layer(axum::middleware::from_fn(move |req: axum::extract::Request, next: axum::middleware::Next| {
-            let expected = expected.clone();
-            async move {
-                let auth = req.headers().get("authorization").and_then(|v| v.to_str().ok());
-                if auth == Some(&expected) { next.run(req).await }
-                else { axum::http::Response::builder().status(401).body(axum::body::Body::from("Unauthorized")).unwrap() }
-            }
-        }));
+        router = router.layer(axum::middleware::from_fn(
+            move |req: axum::extract::Request, next: axum::middleware::Next| {
+                let expected = expected.clone();
+                async move {
+                    let auth = req
+                        .headers()
+                        .get("authorization")
+                        .and_then(|v| v.to_str().ok());
+                    if auth == Some(&expected) {
+                        next.run(req).await
+                    } else {
+                        axum::http::Response::builder()
+                            .status(401)
+                            .body(axum::body::Body::from("Unauthorized"))
+                            .unwrap()
+                    }
+                }
+            },
+        ));
     }
 
     // CORS: empty origins list = permissive (dev); non-empty = strict allowlist
@@ -460,9 +612,14 @@ fn build_http_axum_router(cfg: &Config, shared_graph: Arc<GraphStore>, shared_db
         router = router.layer(tower_http::cors::CorsLayer::permissive());
     } else {
         use tower_http::cors::AllowOrigin;
-        let parsed_origins: Vec<_> = cors_origins.into_iter().filter_map(|o| o.parse().ok()).collect();
+        let parsed_origins: Vec<_> = cors_origins
+            .into_iter()
+            .filter_map(|o| o.parse().ok())
+            .collect();
         if !parsed_origins.is_empty() {
-            router = router.layer(tower_http::cors::CorsLayer::new().allow_origin(AllowOrigin::list(parsed_origins)));
+            router = router.layer(
+                tower_http::cors::CorsLayer::new().allow_origin(AllowOrigin::list(parsed_origins)),
+            );
         }
     }
 
@@ -555,26 +712,27 @@ pub(crate) async fn tenant_extract_layer_with_allowlist(
         .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty());
     if !allowlist.is_empty()
-        && let Some(ref hv) = header_raw {
-            // Caller explicitly set the header — strictly validate.
-            if !is_valid_tenant_id(hv) || !allowlist.iter().any(|t| t == hv) {
-                let body = serde_json::json!({
-                    "ok": false,
-                    "defect": {
-                        "kind": "FalsePass",
-                        "reason": "tenant_not_in_allowlist",
-                    },
-                    "error": format!("tenant '{}' is not in OPEN_ONTOLOGIES_KNOWN_TENANTS allowlist",
-                        hv.replace('"', "'")),
-                })
-                .to_string();
-                return axum::http::Response::builder()
-                    .status(403)
-                    .header("content-type", "application/json")
-                    .body(axum::body::Body::from(body))
-                    .unwrap();
-            }
+        && let Some(ref hv) = header_raw
+    {
+        // Caller explicitly set the header — strictly validate.
+        if !is_valid_tenant_id(hv) || !allowlist.iter().any(|t| t == hv) {
+            let body = serde_json::json!({
+                "ok": false,
+                "defect": {
+                    "kind": "FalsePass",
+                    "reason": "tenant_not_in_allowlist",
+                },
+                "error": format!("tenant '{}' is not in OPEN_ONTOLOGIES_KNOWN_TENANTS allowlist",
+                    hv.replace('"', "'")),
+            })
+            .to_string();
+            return axum::http::Response::builder()
+                .status(403)
+                .header("content-type", "application/json")
+                .body(axum::body::Body::from(body))
+                .unwrap();
         }
+    }
     let tenant = header_raw
         .filter(|s| is_valid_tenant_id(s))
         .unwrap_or_else(|| "default".to_string());
@@ -628,8 +786,8 @@ async fn principal_extract_layer(
             .map(|s| s.trim().to_string())
             .filter(|s| !s.is_empty())
             .unwrap_or_default();
-        let is_admin = !admin_allowlist.is_empty()
-            && admin_allowlist.iter().any(|p| p == &caller_tenant);
+        let is_admin =
+            !admin_allowlist.is_empty() && admin_allowlist.iter().any(|p| p == &caller_tenant);
         if !is_admin {
             let body = serde_json::json!({
                 "ok": false,
@@ -679,7 +837,11 @@ async fn llm_engine_extract_layer(
         .await
 }
 
-fn build_api_router(shared_graph: Arc<GraphStore>, shared_db: StateDb, llm_cfg: open_ontologies::config::LlmConfig) -> axum::Router {
+fn build_api_router(
+    shared_graph: Arc<GraphStore>,
+    shared_db: StateDb,
+    llm_cfg: open_ontologies::config::LlmConfig,
+) -> axum::Router {
     let sg_stats = shared_graph.clone();
     let sg_query = shared_graph.clone();
     let sg_update = shared_graph.clone();
@@ -736,8 +898,8 @@ async fn health_llm_probe(cfg: &open_ontologies::config::LlmConfig) -> serde_jso
         });
     }
     let python = open_ontologies::config::resolve_llm_python(cfg);
-    let script = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("scripts/groq_status.py");
+    let script =
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("scripts/groq_status.py");
     let out = match tokio::task::spawn_blocking(move || {
         std::process::Command::new(&python).arg(&script).output()
     })
@@ -772,7 +934,8 @@ async fn health_llm_probe(cfg: &open_ontologies::config::LlmConfig) -> serde_jso
         .rev()
         .find(|l| l.trim_start().starts_with('{'))
         .map(|s| s.trim().to_string());
-    let mut resp = match json_line.and_then(|l| serde_json::from_str::<serde_json::Value>(&l).ok()) {
+    let mut resp = match json_line.and_then(|l| serde_json::from_str::<serde_json::Value>(&l).ok())
+    {
         Some(v) => v,
         None => serde_json::json!({
             "ok": false,
@@ -795,7 +958,10 @@ async fn health_llm_probe(cfg: &open_ontologies::config::LlmConfig) -> serde_jso
 /// environment so [`open_ontologies::config::resolve_llm_engine`] picks
 /// them up uniformly with config + auto-detect. Must be called before
 /// `Config::load` so resolution is consistent.
-fn apply_llm_cli_overrides(llm_engine: Option<&str>, llm_python: Option<&str>) -> NounVerbResult<()> {
+fn apply_llm_cli_overrides(
+    llm_engine: Option<&str>,
+    llm_python: Option<&str>,
+) -> NounVerbResult<()> {
     if let Some(e) = llm_engine.map(|s| s.trim()).filter(|s| !s.is_empty()) {
         if !open_ontologies::config::VALID_LLM_ENGINES.contains(&e) {
             return Err(clap_noun_verb::NounVerbError::execution_error(format!(
@@ -805,19 +971,35 @@ fn apply_llm_cli_overrides(llm_engine: Option<&str>, llm_python: Option<&str>) -
             )));
         }
         // SAFETY: process is single-threaded at CLI bootstrap time.
-        unsafe { std::env::set_var("OPEN_ONTOLOGIES_LLM_ENGINE", e); }
+        unsafe {
+            std::env::set_var("OPEN_ONTOLOGIES_LLM_ENGINE", e);
+        }
     }
     if let Some(p) = llm_python.map(|s| s.trim()).filter(|s| !s.is_empty()) {
         // SAFETY: process is single-threaded at CLI bootstrap time.
-        unsafe { std::env::set_var("OPEN_ONTOLOGIES_LLM_PYTHON", p); }
+        unsafe {
+            std::env::set_var("OPEN_ONTOLOGIES_LLM_PYTHON", p);
+        }
     }
     Ok(())
 }
 
 /// Start the MCP server (stdio transport)
-#[allow(clippy::too_many_arguments)] // Every parameter is a CLI flag exposed by clap_noun_verb; struct-wrapping would lose the auto-derived argument metadata.
+#[allow(clippy::too_many_arguments)]
+// Every parameter is a CLI flag exposed by clap_noun_verb; struct-wrapping would lose the auto-derived argument metadata.
 #[verb]
-fn serve(config: Option<String>, governance_webhook: Option<String>, watch: Option<bool>, watch_interval: Option<u64>, tools_allow: Option<String>, tools_deny: Option<String>, idle_ttl_secs: Option<u64>, auto_refresh: Option<bool>, llm_engine: Option<String>, llm_python: Option<String>) -> NounVerbResult<ServeOutput> {
+fn serve(
+    config: Option<String>,
+    governance_webhook: Option<String>,
+    watch: Option<bool>,
+    watch_interval: Option<u64>,
+    tools_allow: Option<String>,
+    tools_deny: Option<String>,
+    idle_ttl_secs: Option<u64>,
+    auto_refresh: Option<bool>,
+    llm_engine: Option<String>,
+    llm_python: Option<String>,
+) -> NounVerbResult<ServeOutput> {
     // Load .env into the process environment before resolving config so the
     // Groq translator can pick up GROQ_API_KEY without leaking it to a
     // shell. Best-effort: missing .env is not an error.
@@ -830,18 +1012,48 @@ fn serve(config: Option<String>, governance_webhook: Option<String>, watch: Opti
     let db_path_str = format!("{}/open-ontologies.db", expand_tilde(&cfg.general.data_dir));
     let (_, db, graph) = open_db_and_graph(&cfg.general.data_dir)?;
     auto_restore_last_ontology(&db, graph.clone())?;
-    maybe_start_monitor(watch.unwrap_or(false), &cfg, &db_path_str, watch_interval, graph.clone())?;
+    maybe_start_monitor(
+        watch.unwrap_or(false),
+        &cfg,
+        &db_path_str,
+        watch_interval,
+        graph.clone(),
+    )?;
     let cache_config = build_cache_cfg(&cfg, idle_ttl_secs, auto_refresh.unwrap_or(false));
     let tool_filter = build_tool_filter_cfg(&cfg, tools_allow.as_deref(), tools_deny.as_deref())
         .map_err(|e| clap_noun_verb::NounVerbError::execution_error(e.to_string()))?;
-    run_stdio_server(cfg, db, graph, governance_webhook, cache_config, tool_filter)?;
-    Ok(ServeOutput { status: "done".to_string() })
+    run_stdio_server(
+        cfg,
+        db,
+        graph,
+        governance_webhook,
+        cache_config,
+        tool_filter,
+    )?;
+    Ok(ServeOutput {
+        status: "done".to_string(),
+    })
 }
 
 /// Start the MCP server (Streamable HTTP transport)
-#[allow(clippy::too_many_arguments)] // Every parameter is a CLI flag exposed by clap_noun_verb; struct-wrapping would lose the auto-derived argument metadata.
+#[allow(clippy::too_many_arguments)]
+// Every parameter is a CLI flag exposed by clap_noun_verb; struct-wrapping would lose the auto-derived argument metadata.
 #[verb]
-fn serve_http(config: Option<String>, host: Option<String>, port: Option<u16>, token: Option<String>, governance_webhook: Option<String>, watch: Option<bool>, watch_interval: Option<u64>, tools_allow: Option<String>, tools_deny: Option<String>, idle_ttl_secs: Option<u64>, auto_refresh: Option<bool>, llm_engine: Option<String>, llm_python: Option<String>) -> NounVerbResult<ServeOutput> {
+fn serve_http(
+    config: Option<String>,
+    host: Option<String>,
+    port: Option<u16>,
+    token: Option<String>,
+    governance_webhook: Option<String>,
+    watch: Option<bool>,
+    watch_interval: Option<u64>,
+    tools_allow: Option<String>,
+    tools_deny: Option<String>,
+    idle_ttl_secs: Option<u64>,
+    auto_refresh: Option<bool>,
+    llm_engine: Option<String>,
+    llm_python: Option<String>,
+) -> NounVerbResult<ServeOutput> {
     dotenvy::dotenv().ok();
     apply_llm_cli_overrides(llm_engine.as_deref(), llm_python.as_deref())?;
     let cfg = load_cfg(config.as_deref().unwrap_or(DEFAULT_CONFIG_PATH))
@@ -851,44 +1063,81 @@ fn serve_http(config: Option<String>, host: Option<String>, port: Option<u16>, t
     let db_path_str = format!("{}/open-ontologies.db", expand_tilde(&cfg.general.data_dir));
     let (_, shared_db, shared_graph) = open_db_and_graph(&cfg.general.data_dir)?;
     auto_restore_last_ontology(&shared_db, shared_graph.clone())?;
-    maybe_start_monitor(watch.unwrap_or(false), &cfg, &db_path_str, watch_interval, shared_graph.clone())?;
+    maybe_start_monitor(
+        watch.unwrap_or(false),
+        &cfg,
+        &db_path_str,
+        watch_interval,
+        shared_graph.clone(),
+    )?;
     let cache_config = build_cache_cfg(&cfg, idle_ttl_secs, auto_refresh.unwrap_or(false));
     let tool_filter = build_tool_filter_cfg(&cfg, tools_allow.as_deref(), tools_deny.as_deref())
         .map_err(|e| clap_noun_verb::NounVerbError::execution_error(e.to_string()))?;
-    let resolved_host = host.unwrap_or_else(|| open_ontologies::config::resolve_http_host(&cfg.http));
-    let resolved_port = port.unwrap_or_else(|| open_ontologies::config::resolve_http_port(&cfg.http));
-    let (router, _, _, ct) = build_http_axum_router(&cfg, shared_graph, shared_db, governance_webhook, token, cache_config, tool_filter);
-    tokio::runtime::Handle::current().block_on(async {
-        let addr = format!("{resolved_host}:{resolved_port}");
-        let listener = tokio::net::TcpListener::bind(&addr).await?;
-        eprintln!("Open Ontologies MCP server listening on http://{addr}/mcp");
-        axum::serve(listener, router).with_graceful_shutdown(async move { ct.cancelled_owned().await }).await
-    }).map_err(|e| clap_noun_verb::NounVerbError::execution_error(e.to_string()))?;
-    Ok(ServeOutput { status: "done".to_string() })
+    let resolved_host =
+        host.unwrap_or_else(|| open_ontologies::config::resolve_http_host(&cfg.http));
+    let resolved_port =
+        port.unwrap_or_else(|| open_ontologies::config::resolve_http_port(&cfg.http));
+    let (router, _, _, ct) = build_http_axum_router(
+        &cfg,
+        shared_graph,
+        shared_db,
+        governance_webhook,
+        token,
+        cache_config,
+        tool_filter,
+    );
+    tokio::runtime::Handle::current()
+        .block_on(async {
+            let addr = format!("{resolved_host}:{resolved_port}");
+            let listener = tokio::net::TcpListener::bind(&addr).await?;
+            eprintln!("Open Ontologies MCP server listening on http://{addr}/mcp");
+            axum::serve(listener, router)
+                .with_graceful_shutdown(async move { ct.cancelled_owned().await })
+                .await
+        })
+        .map_err(|e| clap_noun_verb::NounVerbError::execution_error(e.to_string()))?;
+    Ok(ServeOutput {
+        status: "done".to_string(),
+    })
 }
 
 /// Start unix socket server for Tardygrada fact grounding
 #[verb]
-fn serve_unix(config: Option<String>, socket: Option<String>, files_csv: Option<String>) -> NounVerbResult<ServeOutput> {
+fn serve_unix(
+    config: Option<String>,
+    socket: Option<String>,
+    files_csv: Option<String>,
+) -> NounVerbResult<ServeOutput> {
     dotenvy::dotenv().ok();
     let cfg = load_cfg(config.as_deref().unwrap_or(DEFAULT_CONFIG_PATH))
         .map_err(|e| clap_noun_verb::NounVerbError::execution_error(e.to_string()))?;
     init_tracing_cfg(&cfg.logging);
     open_ontologies::runtime::init_from_config(&cfg);
-    let socket_path = socket.or_else(|| cfg.socket.path.clone())
+    let socket_path = socket
+        .or_else(|| cfg.socket.path.clone())
         .unwrap_or_else(|| "/tmp/tardygrada-ontology-complete.sock".to_string());
     let preload = if let Some(csv) = files_csv.filter(|s| !s.is_empty()) {
-        csv.split(',').map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect()
+        csv.split(',')
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .collect()
     } else {
         cfg.socket.preload_files.clone()
     };
     run_unix_server(socket_path, preload)?;
-    Ok(ServeOutput { status: "done".to_string() })
+    Ok(ServeOutput {
+        status: "done".to_string(),
+    })
 }
 
 /// Initialize data directory, DB, and default config
 #[verb]
-fn init(data_dir: Option<String>, model_url: Option<String>, tokenizer_url: Option<String>, model_name: Option<String>) -> NounVerbResult<InitOutput> {
+fn init(
+    data_dir: Option<String>,
+    model_url: Option<String>,
+    tokenizer_url: Option<String>,
+    model_name: Option<String>,
+) -> NounVerbResult<InitOutput> {
     // Option B: model_url/tokenizer_url/model_name are accepted as CLI flags but not yet wired.
     // Reject explicit values loudly so users aren't misled into thinking the download happened.
     if model_url.is_some() || tokenizer_url.is_some() || model_name.is_some() {
@@ -909,7 +1158,9 @@ fn init(data_dir: Option<String>, model_url: Option<String>, tokenizer_url: Opti
         std::fs::write(&config_path, INIT_CONFIG_TEMPLATE)
             .map_err(|e| clap_noun_verb::NounVerbError::execution_error(e.to_string()))?;
         true
-    } else { false };
+    } else {
+        false
+    };
     Ok(InitOutput {
         ok: true,
         data_dir: dir_expanded,

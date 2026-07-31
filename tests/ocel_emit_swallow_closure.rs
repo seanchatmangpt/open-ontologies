@@ -27,12 +27,10 @@
 //! These are deny-path / counterfactual gates per §17. Without the hook
 //! the bug would silently survive every round of refactoring.
 
-use open_ontologies::admission::{
-    AdmissionOp, ArtifactRef, NoopPowlReplay, OntoStarAdmissionGate,
-};
-use open_ontologies::ocel_store::{OcelStore, EMIT_FAILURE_INJECTION_HOOK};
+use open_ontologies::admission::{AdmissionOp, ArtifactRef, NoopPowlReplay, OntoStarAdmissionGate};
+use open_ontologies::ocel_store::{EMIT_FAILURE_INJECTION_HOOK, OcelStore};
 use open_ontologies::state::StateDb;
-use open_ontologies::workflows::{by_name, WorkflowScope};
+use open_ontologies::workflows::{WorkflowScope, by_name};
 use tempfile::tempdir;
 
 fn fresh_db() -> StateDb {
@@ -124,7 +122,7 @@ fn denial_witness_survives_primary_emit_failure() {
     let result = with_emit_failure("admission_denied", || {
         gate.evaluate(
             "", // empty scope_token forces ScopeUnclosed deny BEFORE any
-                // workflow_declared emit could happen.
+            // workflow_declared emit could happen.
             AdmissionOp::Apply,
             &artifact,
             &store,

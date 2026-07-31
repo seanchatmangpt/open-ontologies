@@ -69,7 +69,12 @@ fn skip_unless_ready() -> Option<String> {
     Some(key)
 }
 
-fn run_python(script: &str, args: &[&str], extra_env: &HashMap<&str, &str>, key: &str) -> serde_json::Value {
+fn run_python(
+    script: &str,
+    args: &[&str],
+    extra_env: &HashMap<&str, &str>,
+    key: &str,
+) -> serde_json::Value {
     let path = manifest().join("scripts").join(script);
     let mut cmd = Command::new(VENV);
     cmd.arg(&path);
@@ -85,7 +90,10 @@ fn run_python(script: &str, args: &[&str], extra_env: &HashMap<&str, &str>, key:
     let stdout = String::from_utf8_lossy(&out.stdout).into_owned();
     let stderr = String::from_utf8_lossy(&out.stderr).into_owned();
     if !out.status.success() {
-        panic!("{script} failed: code={:?}\nstdout:\n{stdout}\nstderr:\n{stderr}", out.status.code());
+        panic!(
+            "{script} failed: code={:?}\nstdout:\n{stdout}\nstderr:\n{stderr}",
+            out.status.code()
+        );
     }
     let json_line = stdout
         .lines()
@@ -114,14 +122,14 @@ fn chicago_tdd_full_chain_with_real_humans_simulated_via_groq() {
     // ── Stage 1: VP-Sales speaks (real Groq impersonation) ─────────────
     let stake = run_python(
         "simulate_stakeholder.py",
-        &["vp_sales", "forecast trust gap between Sales and Finance reconciliation"],
+        &[
+            "vp_sales",
+            "forecast trust gap between Sales and Finance reconciliation",
+        ],
         &HashMap::new(),
         &key,
     );
-    let voice = stake["voice"]
-        .as_str()
-        .expect("voice present")
-        .to_string();
+    let voice = stake["voice"].as_str().expect("voice present").to_string();
     assert!(voice.len() > 50, "stakeholder voice too short: {voice}");
     assert!(
         voice.contains("forecast")
@@ -161,9 +169,7 @@ fn chicago_tdd_full_chain_with_real_humans_simulated_via_groq() {
     );
     let reviewer_admit = review["admit"].as_bool().unwrap_or(false);
     let reviewer_reason = review["reason"].as_str().unwrap_or_default().to_string();
-    eprintln!(
-        "STAGE 3 — Senior reviewer: admit={reviewer_admit} reason={reviewer_reason}"
-    );
+    eprintln!("STAGE 3 — Senior reviewer: admit={reviewer_admit} reason={reviewer_reason}");
     // Reviewer is human. They may legitimately reject. We do NOT short-
     // circuit the test on rejection — the chain is exercising the
     // interaction surface, and a rejection here is *also* observable
@@ -181,9 +187,7 @@ fn chicago_tdd_full_chain_with_real_humans_simulated_via_groq() {
     let region = arch["region"].as_str().unwrap_or("us-east-1").to_string();
     let mcu = arch["mcu_target"].as_str().unwrap_or("esp32").to_string();
     let children = arch["supervisor_children"].as_u64().unwrap_or(4) as u32;
-    eprintln!(
-        "STAGE 4 — Architect picks: region={region} mcu={mcu} children={children}\n"
-    );
+    eprintln!("STAGE 4 — Architect picks: region={region} mcu={mcu} children={children}\n");
 
     // ── Stage 5: Real Groq proposes the SolutionSpec from the CTQ ─────
     // We pass a synthetic 64-hex work_order_receipt_hash since the
@@ -212,7 +216,9 @@ fn chicago_tdd_full_chain_with_real_humans_simulated_via_groq() {
     let spec_obj = &spec_result["spec"];
     eprintln!(
         "STAGE 5 — Spec from CTQ: name={} region={} mcu={} children={}\n",
-        spec_obj["name"], spec_obj["region"], spec_obj["mcu_target"],
+        spec_obj["name"],
+        spec_obj["region"],
+        spec_obj["mcu_target"],
         spec_obj["supervisor_children"]
     );
     // Hash preservation contract: the Python script injects the hash
@@ -224,7 +230,7 @@ fn chicago_tdd_full_chain_with_real_humans_simulated_via_groq() {
     );
 
     // ── Stage 6: Deterministic manufacture() emits the bundle ─────────
-    use open_ontologies::manufacturing::{manufacture, SolutionSpec};
+    use open_ontologies::manufacturing::{SolutionSpec, manufacture};
     let spec = SolutionSpec {
         name: spec_obj["name"]
             .as_str()
@@ -235,18 +241,12 @@ fn chicago_tdd_full_chain_with_real_humans_simulated_via_groq() {
             .unwrap_or(&ctq_text)
             .to_string(),
         iac_target: "aws".to_string(),
-        region: spec_obj["region"]
-            .as_str()
-            .unwrap_or(&region)
-            .to_string(),
+        region: spec_obj["region"].as_str().unwrap_or(&region).to_string(),
         supervisor_children: spec_obj["supervisor_children"]
             .as_u64()
             .map(|n| n as u32)
             .unwrap_or(children),
-        mcu_target: spec_obj["mcu_target"]
-            .as_str()
-            .unwrap_or(&mcu)
-            .to_string(),
+        mcu_target: spec_obj["mcu_target"].as_str().unwrap_or(&mcu).to_string(),
         work_order_receipt_hash: work_order_hash.clone(),
     };
     let bundle = manufacture(&spec).expect("manufacture must succeed");
@@ -373,16 +373,28 @@ fn chicago_tdd_adversarial_stakeholder_voice_does_not_admit() {
     eprintln!("ADVERSARIAL VOICE: {voice}");
     let ctq_result = run_python("ctq_from_voice.py", &[&voice], &HashMap::new(), &key);
     // Whichever way the validator falls, the output must be structured.
-    for k in &["ctq_text", "measure_text", "verification_text",
-               "negative_case_text", "control_plan_text", "verdict"] {
+    for k in &[
+        "ctq_text",
+        "measure_text",
+        "verification_text",
+        "negative_case_text",
+        "control_plan_text",
+        "verdict",
+    ] {
         assert!(
             ctq_result.get(*k).is_some(),
             "adversarial CTQ output missing `{k}`: {ctq_result}"
         );
     }
     let neg = ctq_result["negative_case_text"].as_str().unwrap_or("");
-    assert!(!neg.trim().is_empty(), "negative_case_text empty under adversarial voice");
-    eprintln!("ADVERSARIAL CTQ verdict={} neg={}", ctq_result["verdict"], neg);
+    assert!(
+        !neg.trim().is_empty(),
+        "negative_case_text empty under adversarial voice"
+    );
+    eprintln!(
+        "ADVERSARIAL CTQ verdict={} neg={}",
+        ctq_result["verdict"], neg
+    );
 }
 
 #[test]
@@ -407,12 +419,7 @@ fn chicago_tdd_stability_three_runs_same_voice_produce_admissible_ctqs() {
         if r["verdict"].as_bool().unwrap_or(false) {
             admits += 1;
         }
-        texts.push(
-            r["ctq_text"]
-                .as_str()
-                .unwrap_or_default()
-                .to_string(),
-        );
+        texts.push(r["ctq_text"].as_str().unwrap_or_default().to_string());
     }
     eprintln!("STABILITY: admits={admits}/3 texts={texts:?}");
     assert!(

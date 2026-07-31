@@ -1,0 +1,64 @@
+{
+  "ocel:global-log": {
+    "ocel:object-types": [
+      "schema:Action"
+    ]
+  },
+  "ocel:events": [
+    {
+      "ocel:activity": "AutoLoopExecution",
+      "ocel:timestamp": "2026-05-21T05:06:29Z",
+      "ocel:vmap": {
+        "exit_code": 0,
+        "stdout_hash": "f3f83a7ee7bc260234c41c037af9fdabb642a77af4572c10998a0196e007ed9d"
+      },
+      "execution_mode": "synthetic_or_command_smoke",
+      "valid_for_autoreceipt_closure": false,
+      "state": "SyntheticObservedOcelRejected"
+    },
+    {
+      "ocel:activity": "AutoLoopExecution",
+      "ocel:timestamp": "2026-05-21T04:57:24Z",
+      "ocel:vmap": {
+        "exit_code": 0,
+        "stdout_hash": "282c9bbd94024224aa884fec43d34826244cffc053095eccf93c671589d0ffcf"
+      },
+      "execution_mode": "synthetic_or_command_smoke",
+      "valid_for_autoreceipt_closure": false,
+      "state": "SyntheticObservedOcelRejected"
+    },
+    {
+      "ocel:activity": "AutoLoopExecution",
+      "ocel:timestamp": "2026-05-21T05:04:41Z",
+      "ocel:vmap": {
+        "exit_code": 0,
+        "stdout_hash": "e1a4aea441b5b94501afae27784e4c7be08580fcbd880b3fe277c31694e12d1f"
+      },
+      "execution_mode": "synthetic_or_command_smoke",
+      "valid_for_autoreceipt_closure": false,
+      "state": "SyntheticObservedOcelRejected"
+    },
+    {
+      "ocel:activity": "AutoLoopExecution",
+      "ocel:timestamp": "2026-05-21T05:05:13Z",
+      "ocel:vmap": {
+        "exit_code": 0,
+        "stdout_hash": "3c601fa32999a1767780f60a8e94711ca5a0aaf9323f4b1a4c8f3ccd1879506e"
+      },
+      "execution_mode": "synthetic_or_command_smoke",
+      "valid_for_autoreceipt_closure": false,
+      "state": "SyntheticObservedOcelRejected"
+    },
+    {
+      "ocel:activity": "AutoLoopExecution",
+      "ocel:timestamp": "2026-05-21T05:05:52Z",
+      "ocel:vmap": {
+        "exit_code": 0,
+        "stdout_hash": "553f76653f254dbaebe0a187ee64a7c63924b4b4d55ff7f7fab523adcad83d84"
+      },
+      "execution_mode": "synthetic_or_command_smoke",
+      "valid_for_autoreceipt_closure": false,
+      "state": "SyntheticObservedOcelRejected"
+    }
+  ]
+}

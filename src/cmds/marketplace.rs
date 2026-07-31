@@ -39,26 +39,43 @@ pub struct InstallOutput {
 #[verb]
 fn list(domain: Option<String>) -> NounVerbResult<ListOutput> {
     let entries = marketplace::list(domain.as_deref());
-    let ontologies = entries.iter().map(|e| MarketplaceEntry {
-        id: e.id.to_string(),
-        name: e.name.to_string(),
-        description: e.description.to_string(),
-        domain: e.domain.to_string(),
-        format: marketplace::format_name(e.format).to_string(),
-    }).collect::<Vec<_>>();
-    Ok(ListOutput { count: ontologies.len(), ontologies })
+    let ontologies = entries
+        .iter()
+        .map(|e| MarketplaceEntry {
+            id: e.id.to_string(),
+            name: e.name.to_string(),
+            description: e.description.to_string(),
+            domain: e.domain.to_string(),
+            format: marketplace::format_name(e.format).to_string(),
+        })
+        .collect::<Vec<_>>();
+    Ok(ListOutput {
+        count: ontologies.len(),
+        ontologies,
+    })
 }
 
 /// Install a standard ontology from the marketplace
 #[verb]
 fn install(id: String, data_dir: Option<String>) -> NounVerbResult<InstallOutput> {
     let entry = marketplace::find(&id).ok_or_else(|| {
-        clap_noun_verb::NounVerbError::execution_error(format!("Unknown ontology ID: '{}'. Run 'marketplace list'.", id))
+        clap_noun_verb::NounVerbError::execution_error(format!(
+            "Unknown ontology ID: '{}'. Run 'marketplace list'.",
+            id
+        ))
     })?;
-    let (_db, graph) = setup(data_dir.as_deref().unwrap_or(DEFAULT_DATA_DIR)).map_err(to_verb_err)?;
+    let (_db, graph) =
+        setup(data_dir.as_deref().unwrap_or(DEFAULT_DATA_DIR)).map_err(to_verb_err)?;
     let content = tokio::runtime::Handle::current()
         .block_on(GraphStore::fetch_url(entry.url))
         .map_err(to_verb_err)?;
-    let count = graph.load_content_with_base(&content, entry.format, Some(entry.url)).map_err(to_verb_err)?;
-    Ok(InstallOutput { ok: true, installed: entry.id.to_string(), name: entry.name.to_string(), triples_loaded: count })
+    let count = graph
+        .load_content_with_base(&content, entry.format, Some(entry.url))
+        .map_err(to_verb_err)?;
+    Ok(InstallOutput {
+        ok: true,
+        installed: entry.id.to_string(),
+        name: entry.name.to_string(),
+        triples_loaded: count,
+    })
 }

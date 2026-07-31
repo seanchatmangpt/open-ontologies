@@ -23,6 +23,12 @@ if command -v cargo >/dev/null 2>&1; then
 else
     fail "cargo not found — install Rust via https://rustup.rs"
 fi
+if rustc --version 2>&1 | grep -q nightly; then
+  echo "ok: nightly toolchain active (required for wasm4pm-compat)"
+else
+  echo "FAIL: nightly toolchain required — add rust-toolchain.toml channel=nightly"
+  exit 1
+fi
 
 # ── 2. Required sister repos ─────────────────────────
 echo "2. Sister repositories"

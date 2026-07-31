@@ -1,0 +1,72 @@
+import { Receipt } from '@truex/receipt';
+import { OCEL } from '@truex/ocel2';
+import * as crypto from 'crypto';
+
+export enum VerificationState {
+  Admitted = 'Admitted',
+  Refused = 'Refused',
+  Incomplete = 'Incomplete'
+}
+
+export interface ValidationResult {
+  state: VerificationState;
+  refusal_state?: string;
+  missing?: string[];
+}
+
+export class Verifier {
+  async verify(receipt: Receipt): Promise<ValidationResult> {
+    // 1. Raw Boundary mandatory
+    if (!receipt.raw_evidence) {
+      return { state: VerificationState.Refused, refusal_state: 'SummaryOnlyProof' };
+    }
+
+    // 2. Physical Hash Recomputation (Anti-Laundering)
+    const computedHash = crypto.createHash('sha256').update(JSON.stringify(receipt.raw_evidence)).digest('hex');
+    if (receipt.raw_evidence_hash && receipt.raw_evidence_hash !== computedHash) {
+      return { state: VerificationState.Refused, refusal_state: 'OCELLaundering' };
+    }
+
+    // 3. Structural Derivation Adjudication
+    if (!this.isBoundaryDerived(receipt.observed_ocel, receipt.raw_evidence)) {
+      return { state: VerificationState.Refused, refusal_state: 'OCELLaundering' };
+    }
+
+    return { state: VerificationState.Admitted };
+  }
+
+  private isBoundaryDerived(ocel: any, raw: any): boolean {
+    if (!ocel || !raw) return false;
+
+    const events = ocel['ocel:events'] || [];
+    
+    {% if derivations %}
+    {%- set drv_list = derivations | split(pat="|||") %}
+    {%- for drv in drv_list %}
+    {%- set data = drv | split(pat="@@@") %}
+    {%- set rule_label = data[0] %}
+    {%- set prefix = data[1] %}
+    {%- set raw_field = data[2] %}
+    {%- set ocel_field = data[3] %}
+    // Enforcing Derivation Rule: {{ rule_label }}
+    {% if prefix != "none" %}
+    const events_{{ loop.index }} = events.filter((e: any) => e['ocel:activity'].startsWith('{{ prefix }}'));
+    {% else %}
+    const events_{{ loop.index }} = events;
+    {% endif %}
+
+    for (const event of events_{{ loop.index }}) {
+      const vmap = event['ocel:vmap'] || {};
+      {% if raw_field != "none" and ocel_field != "none" %}
+      // Adjudicating physical field mapping: {{ raw_field }} -> {{ ocel_field }}
+      if (vmap.{{ ocel_field }} !== undefined && vmap.{{ ocel_field }} !== raw.{{ raw_field }}) {
+        return false;
+      }
+      {% endif %}
+    }
+    {%- endfor %}
+    {% endif %}
+
+    return true;
+  }
+}

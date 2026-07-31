@@ -177,7 +177,6 @@ mod tests {
 
     #[test]
     fn short_tokens_are_ignored() {
-        // 3-char tokens drop out even when absent from evidence.
         let evidence = "alpha beta gamma";
         let summary = "xyz alpha";
         assert!(invented_tokens(summary, evidence).is_empty());

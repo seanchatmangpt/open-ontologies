@@ -1,0 +1,14 @@
+# wasm4pm-cognition-breeds.rq
+# Returns pipe-delimited cognition breed metadata for wasm4pm-cognition-stub template
+
+PREFIX wasm4pm: <urn:wasm4pm:requirements:>
+PREFIX w4pmstub: <https://ggen.io/onto/wasm4pm/stub/>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+
+SELECT ?breed_names ?breed_docs ?candidate_fields
+WHERE {
+  BIND("Eliza|Cbr|Dendral|Strips|Prolog|Mycin|Gps|Soar|Hearsay" AS ?breed_names)
+  BIND("Conversational language processing and dialogue|Case-based reasoning with similarity matching|Constraint satisfaction for organic structure elucidation|STRIPS-based planning with preconditions and effects|Logic programming and backtracking inference|Rule-based expert system with confidence factors|General Problem Solver with means-ends analysis|State-space search with conflict resolution|Hierarchical reasoning with blackboard architecture" AS ?breed_docs)
+  BIND("score:eliminated:elimination_reason|key:value" AS ?candidate_fields)
+}

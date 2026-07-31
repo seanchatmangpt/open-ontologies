@@ -1,0 +1,5 @@
+validate:no-downstream-authority — informational report
+  current downstream-authority pattern matches: 7
+  P0-A baseline (acceptable until P0-B):         15
+  (7 known matches remain — to be eliminated in P0-B)
+validate:no-downstream-authority PASS

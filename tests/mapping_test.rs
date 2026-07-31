@@ -1,9 +1,13 @@
-use open_ontologies::mapping::{MappingConfig, FieldMapping};
+use open_ontologies::mapping::{FieldMapping, MappingConfig};
 
 #[test]
 fn test_mapping_from_csv_headers() {
     let headers = vec!["id".to_string(), "name".to_string(), "category".to_string()];
-    let config = MappingConfig::from_headers(&headers, "http://example.org/data/", "http://example.org/ont#Thing");
+    let config = MappingConfig::from_headers(
+        &headers,
+        "http://example.org/data/",
+        "http://example.org/ont#Thing",
+    );
     assert_eq!(config.mappings.len(), 3);
     assert_eq!(config.base_iri, "http://example.org/data/");
     assert_eq!(config.class, "http://example.org/ont#Thing");
@@ -16,15 +20,13 @@ fn test_mapping_serialize_deserialize() {
         base_iri: "http://example.org/data/".to_string(),
         id_field: "id".to_string(),
         class: "http://example.org/ont#Building".to_string(),
-        mappings: vec![
-            FieldMapping {
-                field: "name".to_string(),
-                predicate: "http://www.w3.org/2000/01/rdf-schema#label".to_string(),
-                datatype: Some("http://www.w3.org/2001/XMLSchema#string".to_string()),
-                class: None,
-                lookup: false,
-            },
-        ],
+        mappings: vec![FieldMapping {
+            field: "name".to_string(),
+            predicate: "http://www.w3.org/2000/01/rdf-schema#label".to_string(),
+            datatype: Some("http://www.w3.org/2001/XMLSchema#string".to_string()),
+            class: None,
+            lookup: false,
+        }],
     };
     let json = serde_json::to_string(&config).unwrap();
     let parsed: MappingConfig = serde_json::from_str(&json).unwrap();
@@ -58,10 +60,15 @@ fn test_mapping_apply_to_row() {
     let row: std::collections::HashMap<String, String> = [
         ("id".to_string(), "b1".to_string()),
         ("name".to_string(), "Tower Bridge".to_string()),
-    ].into();
+    ]
+    .into();
     let triples = config.row_to_triples(&row);
     assert!(triples.len() >= 3); // type + id + name
-    assert!(triples.iter().any(|t| t.contains("rdf:type") || t.contains("22-rdf-syntax-ns#type")));
+    assert!(
+        triples
+            .iter()
+            .any(|t| t.contains("rdf:type") || t.contains("22-rdf-syntax-ns#type"))
+    );
     assert!(triples.iter().any(|t| t.contains("Tower Bridge")));
 }
 
@@ -106,20 +113,19 @@ fn test_mapping_lookup_field_produces_iri() {
         base_iri: "http://example.org/data/".to_string(),
         id_field: "id".to_string(),
         class: "http://example.org/ont#Item".to_string(),
-        mappings: vec![
-            FieldMapping {
-                field: "category".to_string(),
-                predicate: "http://example.org/ont#category".to_string(),
-                datatype: None,
-                class: Some("http://example.org/ont#Category".to_string()),
-                lookup: true,
-            },
-        ],
+        mappings: vec![FieldMapping {
+            field: "category".to_string(),
+            predicate: "http://example.org/ont#category".to_string(),
+            datatype: None,
+            class: Some("http://example.org/ont#Category".to_string()),
+            lookup: true,
+        }],
     };
     let row: std::collections::HashMap<String, String> = [
         ("id".into(), "x1".into()),
         ("category".into(), "Electronics".into()),
-    ].into();
+    ]
+    .into();
     let triples = config.row_to_triples(&row);
     // lookup field should produce an IRI object, not a literal
     let cat_triple = triples.iter().find(|t| t.contains("ont#category")).unwrap();
@@ -133,20 +139,16 @@ fn test_mapping_skip_empty_values() {
         base_iri: "http://example.org/data/".to_string(),
         id_field: "id".to_string(),
         class: "http://example.org/ont#Item".to_string(),
-        mappings: vec![
-            FieldMapping {
-                field: "name".to_string(),
-                predicate: "http://example.org/ont#name".to_string(),
-                datatype: None,
-                class: None,
-                lookup: false,
-            },
-        ],
+        mappings: vec![FieldMapping {
+            field: "name".to_string(),
+            predicate: "http://example.org/ont#name".to_string(),
+            datatype: None,
+            class: None,
+            lookup: false,
+        }],
     };
-    let row: std::collections::HashMap<String, String> = [
-        ("id".into(), "x1".into()),
-        ("name".into(), "".into()),
-    ].into();
+    let row: std::collections::HashMap<String, String> =
+        [("id".into(), "x1".into()), ("name".into(), "".into())].into();
     let triples = config.row_to_triples(&row);
     // Should only have the rdf:type triple, not a triple for empty name
     assert_eq!(triples.len(), 1);

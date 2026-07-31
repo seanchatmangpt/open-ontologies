@@ -17,7 +17,7 @@
 mod cell_ready_fixtures;
 
 use cell_ready_fixtures::{
-    fresh_db, inputs_from_bag, ok_bag_for, setup_scope, small_revops_scenario, HEX32,
+    HEX32, fresh_db, inputs_from_bag, ok_bag_for, setup_scope, small_revops_scenario,
 };
 use open_ontologies::cell_ready::cell_ready;
 use open_ontologies::defects::DefectClass;
@@ -111,6 +111,8 @@ fn saboteur_canned_breed_outputs_dont_satisfy_consensus_diversity() {
             selected: Some("centralized-revenue-engine".into()),
             explanation: "canned: rubber-stamp".into(),
             inference_trace: vec![],
+            ocel_log: None,
+            retained_cases: vec![],
         }
     };
     let reports = vec![
@@ -127,10 +129,11 @@ fn saboteur_canned_breed_outputs_dont_satisfy_consensus_diversity() {
     // Compare canned vs real: real run produces non-empty inference
     // traces for at least some breeds; the canned reports are all-zero.
     let real_reports = run_breeds(&scenario);
-    let real_total_trace: usize =
-        real_reports.iter().map(|(_, o)| o.inference_trace.len()).sum();
-    let canned_total_trace: usize =
-        reports.iter().map(|(_, o)| o.inference_trace.len()).sum();
+    let real_total_trace: usize = real_reports
+        .iter()
+        .map(|(_, o)| o.inference_trace.len())
+        .sum();
+    let canned_total_trace: usize = reports.iter().map(|(_, o)| o.inference_trace.len()).sum();
     assert_eq!(
         canned_total_trace, 0,
         "canned outputs must have zero traces by construction"

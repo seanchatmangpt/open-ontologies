@@ -1,4 +1,4 @@
-.PHONY: build test lint audit check adversarial cell8-certify check-dead-params check-test-count check-test-removal-tag check-ast-audit expand expand-prereq bench bench-pizza bench-ontoaxiom bench-mushroom bench-vision bench-reasoner bench-oaei docker docker-run init serve serve-http clean clean-worktrees clean-worktrees-soft gc-build
+.PHONY: build test lint audit check adversarial cell8-certify check-dead-params check-test-count check-test-removal-tag check-ast-audit expand expand-prereq bench bench-pizza bench-ontoaxiom bench-mushroom bench-vision bench-reasoner bench-oaei docker docker-run init serve serve-http clean clean-worktrees clean-worktrees-soft gc-build ggen-sync-full watch-ggen-onto watch-ggen-onto-demo watch-ggen-onto-test verify-setup
 
 # ─── Development ─────────────────────────────────────────────────────────────
 
@@ -6,7 +6,7 @@ build:
 	cargo build --release
 
 test:
-	cargo test
+	cargo test -- --test-threads=1
 
 lint:
 	cargo clippy -- -D warnings
@@ -65,6 +65,7 @@ adversarial: check-dead-params check-test-count check-test-removal-tag check-ast
 	@echo "✓ All adversarial JTBD gates passed"
 
 cell8-certify: adversarial
+	@command -v python3 >/dev/null 2>&1 || (echo "ERROR: python3 required" && exit 1)
 	@echo "Generating Cell8 A1-A13 EARL certification report..."
 	@cargo test --test cell8_thirteen_gates -- --test-threads=1 2>&1 | grep -q "test result: ok"
 	@python3 tools/emit-earl-report.py > cell8-final-assertion-report.ttl
@@ -72,6 +73,7 @@ cell8-certify: adversarial
 	@! grep -q 'earl:failed' cell8-final-assertion-report.ttl
 	@echo "✓ Cell8 A1-A13 certification complete"
 
+# NOTE: cargo audit requires network access (rustsec advisory-db). Fails offline.
 audit:
 	cargo audit
 
@@ -126,12 +128,37 @@ ggen-sync-full:
 	@echo "Step 1/4: validate source TTL..."
 	cargo run --release -- ontology validate --input ontology/cli-open-ontologies.ttl
 	@echo "Step 2/4: ggen sync..."
-	cargo run --release -- ggen sync
+	ggen sync
 	@echo "Step 3/4: compile check..."
 	$(MAKE) check
 	@echo "Step 4/4: test suite..."
 	$(MAKE) test
 	@echo "✓ ggen-sync-full complete"
+
+# Watch-based TTL feedback loop: auto-trigger ggen sync on file change
+# Watches ontology/ directory for .ttl modifications and runs:
+#   1. ggen sync --audit true
+#   2. onto validate (SHACL A1-A3 gates)
+#   3. Register artifacts in receipt
+#   4. Record lineage event
+#
+# Requirements:
+#   - macOS: brew install fswatch
+#   - Linux: apt-get install inotify-tools
+#
+# Usage:
+#   make watch-ggen-onto        # start watching
+#   make watch-ggen-onto-demo   # preview what would run (dry-run)
+#   make watch-ggen-onto-test   # run integration tests
+
+watch-ggen-onto:
+	@bash tools/watch-ggen-onto.sh --watch
+
+watch-ggen-onto-demo:
+	@bash tools/watch-ggen-onto.sh --dry-run
+
+watch-ggen-onto-test:
+	cargo test --test integration_ggen_onto_feedback -- --test-threads=1
 
 # Quick setup verification — checks path deps, binary health, config.
 verify-setup:

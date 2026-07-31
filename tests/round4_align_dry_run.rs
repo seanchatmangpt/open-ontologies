@@ -80,10 +80,13 @@ async fn align_dry_run_emits_zero_align_run_events() {
             source: SOURCE_TTL.to_string(),
             target: None,
             min_confidence: Some(0.85),
+            high_threshold: None,
+            low_threshold: None,
             dry_run: Some(true),
             scope_token: None,
             bypass_admission: None,
             bypass_reason: None,
+            fusion: None,
         }))
         .await;
 
@@ -108,10 +111,13 @@ async fn align_apply_emits_exactly_one_align_run_event() {
             source: SOURCE_TTL.to_string(),
             target: None,
             min_confidence: Some(0.85),
+            high_threshold: None,
+            low_threshold: None,
             dry_run: Some(false),
             scope_token: None,
             bypass_admission: Some(true),
             bypass_reason: Some("r4-we-align-apply-test".into()),
+            fusion: None,
         }))
         .await;
 

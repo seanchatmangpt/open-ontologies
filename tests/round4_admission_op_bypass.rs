@@ -99,9 +99,7 @@ async fn bypass_emits_admission_audit_before_revoke() {
     let audit_idx = rows
         .iter()
         .position(|(_, ty, _, op)| ty == "admission_audit" && op == "bypass")
-        .expect(
-            "expected an admission_audit row with op=bypass before any admission_bypass row",
-        );
+        .expect("expected an admission_audit row with op=bypass before any admission_bypass row");
     let bypass_idx = rows
         .iter()
         .position(|(_, ty, _, _)| ty == "admission_bypass")

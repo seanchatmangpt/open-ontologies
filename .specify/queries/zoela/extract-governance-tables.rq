@@ -1,0 +1,74 @@
+# =============================================================================
+# extract-governance-tables.rq — operational reference tables for RLS
+# =============================================================================
+#
+# P0-B.7c: surfaces the governance reference tables declared in
+# ontology/profiles/zoela-governance.ttl (zoe:Role, zoe:PersonRoleAssignment).
+# These tables are the substrate that zoela-rls.sql subqueries depend on,
+# so they must be created BEFORE any RLS policies.
+#
+# Doctrine:
+#   No public-vocab admission gating here — governance is the foundation
+#   under the admission system, not above it. We trust the profile TTL.
+#
+# Output layout (ONE aggregated row, pipe-delimited per table):
+#   ?tableNames     — Postgres table name (skos:notation)
+#   ?classLabels    — human-readable class label (for comment header)
+#   ?classDescs     — rdfs:comment with separators stripped
+#   ?classIris      — local ZOE class IRI (for provenance)
+#   ?colSpecs       — body columns packed:
+#                       outer separator = "@@@" (between tables)
+#                       inner separator = "|||" (between columns of a table)
+#   ?seedSpecs      — seed rows packed:
+#                       outer separator = "@@@" (between tables)
+#                       inner separator = "|||" (between rows of a table)
+# =============================================================================
+
+PREFIX ggen:  <https://open-ontologies.org/ggen#>
+PREFIX zoe:   <https://zoela.org/ontology/>
+PREFIX owl:   <http://www.w3.org/2002/07/owl#>
+PREFIX rdf:   <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX rdfs:  <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX skos:  <http://www.w3.org/2004/02/skos/core#>
+PREFIX xsd:   <http://www.w3.org/2001/XMLSchema#>
+PREFIX org:   <http://www.w3.org/ns/org#>
+
+SELECT
+  (GROUP_CONCAT(?tableName;   SEPARATOR="|")   AS ?tableNames)
+  (GROUP_CONCAT(?classLabel;  SEPARATOR="|")   AS ?classLabels)
+  (GROUP_CONCAT(?classDesc;   SEPARATOR="|")   AS ?classDescs)
+  (GROUP_CONCAT(?classIri;    SEPARATOR="|")   AS ?classIris)
+  (GROUP_CONCAT(?colSpec;     SEPARATOR="@@@") AS ?colSpecs)
+  (GROUP_CONCAT(?seedSpec;    SEPARATOR="@@@") AS ?seedSpecs)
+WHERE {
+  {
+    SELECT ?class ?_tableOrder
+        (SAMPLE(?_tableName)  AS ?tableName)
+        (SAMPLE(?_classLabel) AS ?classLabel)
+        (SAMPLE(?_classDesc)  AS ?classDesc)
+        (SAMPLE(?_classIri)   AS ?classIri)
+        (GROUP_CONCAT(DISTINCT ?_colDdl;  SEPARATOR="|||") AS ?colSpec)
+        (GROUP_CONCAT(DISTINCT ?_seedRow; SEPARATOR="|||") AS ?seedSpec)
+    WHERE {
+      ?class a owl:Class ;
+             rdfs:subClassOf ?_anchor ;
+             skos:notation   ?_tableName ;
+             rdfs:label      ?_classLabelLit .
+      FILTER(STRSTARTS(STR(?class),   "https://zoela.org/ontology/"))
+      FILTER(STRSTARTS(STR(?_anchor), "http://www.w3.org/ns/org#"))
+      BIND(STR(?class)         AS ?_classIri)
+      BIND(STR(?_classLabelLit) AS ?_classLabel)
+      OPTIONAL { ?class rdfs:comment ?_descLit }
+      BIND(REPLACE(STR(COALESCE(?_descLit, "")), "[|@]", " ") AS ?_classDesc)
+
+      OPTIONAL { ?class ggen:hasGovernanceColumn ?_colDdlRaw }
+      OPTIONAL { ?class ggen:hasSeedRow          ?_seedRowRaw }
+      OPTIONAL { ?class ggen:governanceTableOrder ?_tableOrderRaw }
+      BIND(COALESCE(?_colDdlRaw,     "") AS ?_colDdl)
+      BIND(COALESCE(?_seedRowRaw,    "") AS ?_seedRow)
+      BIND(COALESCE(?_tableOrderRaw, 999) AS ?_tableOrder)
+    }
+    GROUP BY ?class ?_tableOrder
+    ORDER BY ?_tableOrder
+  }
+}

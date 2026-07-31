@@ -4,6 +4,7 @@
 @prefix owl:     <http://www.w3.org/2002/07/owl#> .
 @prefix xsd:     <http://www.w3.org/2001/XMLSchema#> .
 @prefix skos:    <http://www.w3.org/2004/02/skos/core#> .
+@prefix odrl:    <http://www.w3.org/ns/odrl/2/> .
 @prefix dcterms: <http://purl.org/dc/terms/> .
 
 # ============================================================================
@@ -54,7 +55,8 @@
 zoe:AdmissionCondition a owl:Class ;
     rdfs:label   "Admission Condition"@en ;
     rdfs:comment "A named conjunct in the AutonomicActionAllowed equation. Each condition corresponds to one of the 8 boolean predicates that must be true for autonomic execution to proceed."@en ;
-    rdfs:subClassOf owl:Thing .
+    rdfs:subClassOf owl:Thing ;
+    rdfs:subClassOf odrl:Constraint .
 
 # The 8 named conjuncts
 
@@ -105,7 +107,7 @@ zoe:EvidenceSufficientCondition a zoe:AdmissionCondition ;
 zoe:AdmissionConditionSet a owl:Class ;
     rdfs:label   "Admission Condition Set"@en ;
     rdfs:comment "A set of AdmissionConditions that jointly constitute the AutonomicActionAllowed equation for a specific route. An AutonomicPolicy references a condition set to declare what must hold before execution proceeds."@en ;
-    rdfs:subClassOf owl:Thing .
+    rdfs:subClassOf odrl:Policy .
 
 # ============================================================================
 # § 3  Properties linking condition sets to their conjuncts
@@ -169,7 +171,7 @@ zoe:ConnectGroupAdmissionConditionSet a zoe:AdmissionConditionSet ;
 zoe:AutonomicActionAllowed a owl:Class ;
     rdfs:label   "Autonomic Action Allowed"@en ;
     rdfs:comment "Class of execution decisions that satisfy all required conjuncts in the AutonomicActionAllowed equation. An individual is a member iff it asserts zoe:satisfiesConditionSet to an AdmissionConditionSet whose every requiresCondition holds."@en ;
-    rdfs:subClassOf owl:Thing ;
+    rdfs:subClassOf odrl:Permission ;
     rdfs:subClassOf [
         a owl:Restriction ;
         owl:onProperty  zoe:satisfiesConditionSet ;
@@ -190,7 +192,8 @@ zoe:satisfiesConditionSet a owl:ObjectProperty ;
 zoe:EscalationRule a owl:Class ;
     rdfs:label   "Escalation Rule"@en ;
     rdfs:comment "A named rule specifying which AutonomicActionClass applies when a specific AdmissionGate fails. Escalation rules override the default A4_REFUSE for gates that should route to human judgment rather than hard refusal."@en ;
-    rdfs:subClassOf owl:Thing .
+    rdfs:subClassOf owl:Thing ;
+    rdfs:subClassOf odrl:Rule .
 
 zoe:escalatesOnGate a owl:ObjectProperty ;
     rdfs:domain  zoe:EscalationRule ;

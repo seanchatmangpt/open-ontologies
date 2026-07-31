@@ -77,8 +77,8 @@ impl TenantContext {
     /// unsafe { std::env::remove_var("OPEN_ONTOLOGIES_TENANT_ID") };
     /// ```
     pub fn from_env() -> Self {
-        let raw = std::env::var("OPEN_ONTOLOGIES_TENANT_ID")
-            .unwrap_or_else(|_| "default".to_string());
+        let raw =
+            std::env::var("OPEN_ONTOLOGIES_TENANT_ID").unwrap_or_else(|_| "default".to_string());
         let raw = raw.trim();
         Self {
             tenant_id: if raw.is_empty() {

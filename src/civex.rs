@@ -244,23 +244,24 @@ pub fn certify_action(
     let slice_hash = hash_iri_set(&dependency_iris);
 
     // ── Step 4: utility estimate + LCB (Wilson one-sided) ───────────────────
-    let (utility_point, utility_lcb, queries_eval, per_query_pass) = match frame
-        .utility_metric
-        .as_str()
-    {
-        "dependent_query_pass_rate" => {
-            evaluate_dependent_queries(graph, &frame.proposed_delta_ttl, &frame.dependent_queries, frame.alpha)?
-        }
-        _ => {
-            // Fallback: utility is a binary "delta is non-degenerate" check.
-            // Point estimate 1.0 if the delta loads as valid Turtle and adds at
-            // least one triple, else 0.0. LCB conservatively equals point estimate.
-            let temp = GraphStore::new();
-            let ok = temp.load_turtle(&frame.proposed_delta_ttl, None).is_ok();
-            let p = if ok { 1.0 } else { 0.0 };
-            (p, p, 0, Vec::new())
-        }
-    };
+    let (utility_point, utility_lcb, queries_eval, per_query_pass) =
+        match frame.utility_metric.as_str() {
+            "dependent_query_pass_rate" => evaluate_dependent_queries(
+                graph,
+                &frame.proposed_delta_ttl,
+                &frame.dependent_queries,
+                frame.alpha,
+            )?,
+            _ => {
+                // Fallback: utility is a binary "delta is non-degenerate" check.
+                // Point estimate 1.0 if the delta loads as valid Turtle and adds at
+                // least one triple, else 0.0. LCB conservatively equals point estimate.
+                let temp = GraphStore::new();
+                let ok = temp.load_turtle(&frame.proposed_delta_ttl, None).is_ok();
+                let p = if ok { 1.0 } else { 0.0 };
+                (p, p, 0, Vec::new())
+            }
+        };
 
     // ── Step 5: provenance hash (canonical-form snapshot + delta) ───────────
     let provenance_hash = compute_provenance_hash(graph, &frame.proposed_delta_ttl)?;
@@ -646,7 +647,11 @@ mod tests {
         // observing a 100% pass rate on a small sample doesn't certify the true
         // rate is 100%.
         let lcb = wilson_one_sided_lcb(10, 10, 0.05);
-        assert!(lcb < 1.0, "Wilson LCB at 10/10 should be < 1.0; got {}", lcb);
+        assert!(
+            lcb < 1.0,
+            "Wilson LCB at 10/10 should be < 1.0; got {}",
+            lcb
+        );
         assert!(lcb > 0.7, "but it should still be > 0.7; got {}", lcb);
     }
 

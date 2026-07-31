@@ -1,0 +1,47 @@
+State:
+AutoReceiptClosed
+
+Commit:
+df1e3bab7c0a9e9247428f7a37c9eb8b48411e1b
+
+Tree:
+?? Justfile
+
+Commands:
+- cargo test: pass
+- npx vitest run: pass
+- make verify-receipts: pass
+
+Counts:
+- expected OCEL files: 65
+- real observed OCEL files: 65
+- synthetic observed OCEL files: 0
+- alignment receipts: 1
+- alignment passed: 1
+- alignment failed: 0
+- receipts emitted: 1
+- receipts verified: 1
+- synthetic closure rejected: 0
+- unresolved command failures: 0
+
+Artifacts:
+- expected OCEL manifest: ec79c9ee0ed02175f5a6bc76a38807ef65c5a7c5ac180ac68bba5ccdf8e3ada8
+- observed OCEL manifest: b31bb15f1ace103d733c323bce8cb923a04c2325cfdc50a29a9d7ee0cbf7cb7c
+- alignment manifest: e83e178ab7fde1ef62df4b8b0cb2dcea56b90f2bcac09bbadd998c6d8153e906
+- receipt bundle: a2bb6201057482ad7252558766295e07fd4707aa1d2d62b76d8b7a9a8df3d8d4
+- final proof report: d5549bc16ccf4911884a8f15d2eb75d1bb544c549a548c18341cfe8df8a0c4de
+
+Verifier Output:
+- real boundary execution: pass
+- synthetic observed OCEL rejection: pass
+- alignment verification: pass
+- receipt hash verification: pass
+- dirty tree classification: pass
+- version consistency: pass
+- command chain integrity: pass
+
+Remaining Blockers:
+- None
+
+Next Command:
+cargo test

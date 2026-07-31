@@ -11,10 +11,10 @@ use open_ontologies::admission::{
 };
 use open_ontologies::ocel_store::OcelStore;
 use open_ontologies::state::StateDb;
-use open_ontologies::workflows::{by_name, WorkflowScope};
+use open_ontologies::workflows::{WorkflowScope, by_name};
 use revops_common::{
-    booking_chain_is_reconciled, build_scenario, observed_events,
-    partner_attribution_is_in_order, REQUIREMENTS_WORKFLOW, Scenario,
+    REQUIREMENTS_WORKFLOW, Scenario, booking_chain_is_reconciled, build_scenario, observed_events,
+    partner_attribution_is_in_order,
 };
 use tempfile::tempdir;
 
@@ -33,12 +33,30 @@ fn counterfactual_delta_is_material_on_every_broken_scenario() {
     // the delta as a JSON object the executive projection would surface.
 
     let scenarios = [
-        (Scenario::UnsupportedForecast, "forecast_classified_as_supported"),
-        (Scenario::LatePartnerAttribution, "partner_attributed_when_registration_late"),
-        (Scenario::DiscountWithoutApproval, "discount_applied_without_approval"),
-        (Scenario::UnreconciledBooking, "booking_classified_complete_without_chain"),
-        (Scenario::RenewalRiskUndetected, "renewal_marked_healthy_without_touchpoints"),
-        (Scenario::OcelTruncated, "classification_emitted_from_partial_trace"),
+        (
+            Scenario::UnsupportedForecast,
+            "forecast_classified_as_supported",
+        ),
+        (
+            Scenario::LatePartnerAttribution,
+            "partner_attributed_when_registration_late",
+        ),
+        (
+            Scenario::DiscountWithoutApproval,
+            "discount_applied_without_approval",
+        ),
+        (
+            Scenario::UnreconciledBooking,
+            "booking_classified_complete_without_chain",
+        ),
+        (
+            Scenario::RenewalRiskUndetected,
+            "renewal_marked_healthy_without_touchpoints",
+        ),
+        (
+            Scenario::OcelTruncated,
+            "classification_emitted_from_partial_trace",
+        ),
     ];
     for (scenario, naked_craft_would_have_shipped) in scenarios {
         let db = fresh_db();
@@ -51,9 +69,7 @@ fn counterfactual_delta_is_material_on_every_broken_scenario() {
         let evts = observed_events(&store, &session);
 
         let mfg_path_caught = match scenario {
-            Scenario::UnsupportedForecast => {
-                !evts.iter().any(|(t, _)| t == "contract_executed")
-            }
+            Scenario::UnsupportedForecast => !evts.iter().any(|(t, _)| t == "contract_executed"),
             Scenario::LatePartnerAttribution => !partner_attribution_is_in_order(&evts),
             Scenario::DiscountWithoutApproval => {
                 !evts.iter().any(|(t, _)| t == "discount_approved")
@@ -61,7 +77,9 @@ fn counterfactual_delta_is_material_on_every_broken_scenario() {
             Scenario::UnreconciledBooking => !booking_chain_is_reconciled(&evts),
             Scenario::RenewalRiskUndetected => {
                 evts.iter().any(|(t, _)| t == "renewal_due")
-                    && !evts.iter().any(|(t, _)| t == "renewal_touchpoint_completed")
+                    && !evts
+                        .iter()
+                        .any(|(t, _)| t == "renewal_touchpoint_completed")
             }
             Scenario::OcelTruncated => evts.len() < 5,
             _ => true,
@@ -82,7 +100,11 @@ fn counterfactual_delta_is_material_on_every_broken_scenario() {
         });
         // Material delta — prevent `naked_craft == manufacturing` ties.
         assert!(
-            delta["naked_craft_would_have_shipped"].as_str().unwrap().len() > 10,
+            delta["naked_craft_would_have_shipped"]
+                .as_str()
+                .unwrap()
+                .len()
+                > 10,
             "naked-craft narrative must be specific, not boilerplate"
         );
     }
@@ -104,8 +126,22 @@ fn happy_path_counterfactual_shows_no_delta_but_admits() {
     build_scenario(&store, session, &token, Scenario::HappyPath);
 
     // Pre-emit the requirements trace so the gate has all activities.
-    revops_common::emit(&store, session, &token, "requirement_proposed", &[("source_voice", "happy")], &[]);
-    revops_common::emit(&store, session, &token, "llm_candidate_translated", &[], &[]);
+    revops_common::emit(
+        &store,
+        session,
+        &token,
+        "requirement_proposed",
+        &[("source_voice", "happy")],
+        &[],
+    );
+    revops_common::emit(
+        &store,
+        session,
+        &token,
+        "llm_candidate_translated",
+        &[],
+        &[],
+    );
     revops_common::emit(&store, session, &token, "ctq_admitted", &[], &[]);
     revops_common::emit(&store, session, &token, "verification_bound", &[], &[]);
     revops_common::emit(&store, session, &token, "negative_case_bound", &[], &[]);
@@ -122,7 +158,10 @@ fn happy_path_counterfactual_shows_no_delta_but_admits() {
         "ontostar-1.0.0",
     );
     let powl = by_name(REQUIREMENTS_WORKFLOW).unwrap().powl_string;
-    let artifact = ArtifactRef { kind: "happy", bytes: b"happy" };
+    let artifact = ArtifactRef {
+        kind: "happy",
+        bytes: b"happy",
+    };
     let replay = PowlBridgeReplay::new(&store);
     let receipt = gate
         .evaluate(

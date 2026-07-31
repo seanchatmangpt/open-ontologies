@@ -13,7 +13,7 @@
 //! 3. `post_bootstrap_admits_chain_length_2` — `post_bootstrap = true`, chain = [t0, now],
 //!    gate must pass (chain is long enough).
 
-use open_ontologies::cell_ready::{cell_ready, CellReadyInputs, PowlOpRef};
+use open_ontologies::cell_ready::{CellReadyInputs, PowlOpRef, cell_ready};
 use open_ontologies::defects::DefectClass;
 use open_ontologies::ocel_store::OcelStore;
 use open_ontologies::state::StateDb;
@@ -34,9 +34,7 @@ fn fresh_store() -> (StateDb, OcelStore) {
 
 fn setup_scope(db: &StateDb, session: &str) -> String {
     let scope = WorkflowScope::new(db, session);
-    let token = scope
-        .open(None, Some(POWL_STR), None)
-        .expect("open scope");
+    let token = scope.open(None, Some(POWL_STR), None).expect("open scope");
     scope.close(&token).expect("close scope");
     let conn = db.conn();
     conn.execute(
@@ -74,8 +72,7 @@ fn build_inputs<'a>(
     let observed_stages: &'static [String] =
         Box::leak(vec!["a".to_string(), "b".to_string()].into_boxed_slice());
     let run_id: &'static str = Box::leak(format!("run-{}", scope_token).into_boxed_str());
-    let provenance: &'static [String] =
-        Box::leak(vec![HEX32.to_string()].into_boxed_slice());
+    let provenance: &'static [String] = Box::leak(vec![HEX32.to_string()].into_boxed_slice());
     let admitted: &'static [String] = Box::leak(Vec::<String>::new().into_boxed_slice());
     CellReadyInputs {
         scope_token,

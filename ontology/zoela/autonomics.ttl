@@ -4,6 +4,7 @@
 @prefix owl:     <http://www.w3.org/2002/07/owl#> .
 @prefix xsd:     <http://www.w3.org/2001/XMLSchema#> .
 @prefix skos:    <http://www.w3.org/2004/02/skos/core#> .
+@prefix odrl:    <http://www.w3.org/ns/odrl/2/> .
 @prefix dcterms: <http://purl.org/dc/terms/> .
 
 # ============================================================================
@@ -173,7 +174,7 @@ zoe:NotificationBudgetGate
 zoe:AutonomicPolicy a owl:Class ;
     rdfs:label   "Autonomic Policy"@en ;
     rdfs:comment "A named policy governing the admission sequence and action-class escalation rules for an autonomic route. Each policy declares which admission gates apply in what order, and what route it governs."@en ;
-    rdfs:subClassOf owl:Thing .
+    rdfs:subClassOf odrl:Policy .
 
 # ============================================================================
 # § 7  AutonomicPolicy Properties

@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-05-13T07:07:54.861141+00:00",
-  "ggen_version": "26.5.5",
+  "generated_at": "2026-06-02T07:41:41.522296+00:00",
+  "ggen_version": "26.5.21",
   "inputs": {
     "manifest_hash": "",
     "ontology_hashes": {},
@@ -10,10 +10,472 @@
   "pipeline": [],
   "outputs": [
     {
+      "path": "./src/cmds/generated.rs",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./src/cmds/generated.rs"
+    },
+    {
       "path": "./src/cmds/generated_revops.rs",
       "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "size_bytes": 0,
       "source_rule": "rule-./src/cmds/generated_revops.rs"
+    },
+    {
+      "path": "./packages/types/zoela.ts",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./packages/types/zoela.ts"
+    },
+    {
+      "path": "./supabase/migrations/20260519000002_zoela_admitted_tables.sql",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./supabase/migrations/20260519000002_zoela_admitted_tables.sql"
+    },
+    {
+      "path": "./.ggen/audit/p0-a/zoela-refusals.sql",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./.ggen/audit/p0-a/zoela-refusals.sql"
+    },
+    {
+      "path": "./supabase/migrations/20260519000003_zoela_admitted_columns.sql",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./supabase/migrations/20260519000003_zoela_admitted_columns.sql"
+    },
+    {
+      "path": "./supabase/migrations/20260519000001_zoela_governance.sql",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./supabase/migrations/20260519000001_zoela_governance.sql"
+    },
+    {
+      "path": "./supabase/migrations/20260519000005_zoela_legacy_coverage.sql",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./supabase/migrations/20260519000005_zoela_legacy_coverage.sql"
+    },
+    {
+      "path": "./supabase/migrations/20260519000004_zoela_admitted_rls.sql",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./supabase/migrations/20260519000004_zoela_admitted_rls.sql"
+    },
+    {
+      "path": "./apps/mobile/package.json",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./apps/mobile/package.json"
+    },
+    {
+      "path": "./apps/mobile/app.json",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./apps/mobile/app.json"
+    },
+    {
+      "path": "./apps/mobile/tsconfig.json",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./apps/mobile/tsconfig.json"
+    },
+    {
+      "path": "./apps/mobile/babel.config.js",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./apps/mobile/babel.config.js"
+    },
+    {
+      "path": "./apps/mobile/metro.config.js",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./apps/mobile/metro.config.js"
+    },
+    {
+      "path": "./apps/mobile/App.tsx",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./apps/mobile/App.tsx"
+    },
+    {
+      "path": "./apps/mobile/src/lib/supabaseClient.ts",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./apps/mobile/src/lib/supabaseClient.ts"
+    },
+    {
+      "path": "./apps/mobile/scripts/verify-supabase.mjs",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./apps/mobile/scripts/verify-supabase.mjs"
+    },
+    {
+      "path": "./apps/mobile/README.md",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./apps/mobile/README.md"
+    },
+    {
+      "path": "./packages/schemas/zoela.ts",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./packages/schemas/zoela.ts"
+    },
+    {
+      "path": "./packages/forms/zoela.tsx",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./packages/forms/zoela.tsx"
+    },
+    {
+      "path": "./packages/evidence/OcelEvents.ts",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./packages/evidence/OcelEvents.ts"
+    },
+    {
+      "path": "./packages/screens/zoela.tsx",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./packages/screens/zoela.tsx"
+    },
+    {
+      "path": "./packages/screens/adminScreens.tsx",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./packages/screens/adminScreens.tsx"
+    },
+    {
+      "path": "./packages/navigation/zoela.tsx",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./packages/navigation/zoela.tsx"
+    },
+    {
+      "path": "./packages/types/pushCards.ts",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./packages/types/pushCards.ts"
+    },
+    {
+      "path": "./packages/evidence/ocelSchema.ts",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./packages/evidence/ocelSchema.ts"
+    },
+    {
+      "path": "./packages/screens/adminDetailScreen.tsx",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./packages/screens/adminDetailScreen.tsx"
+    },
+    {
+      "path": "./packages/navigation/navigationStack.tsx",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./packages/navigation/navigationStack.tsx"
+    },
+    {
+      "path": "./src/autoreceipt_law.rs",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./src/autoreceipt_law.rs"
+    },
+    {
+      "path": "./src/autoreceipt_law.rs",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./src/autoreceipt_law.rs"
+    },
+    {
+      "path": "./artifacts/ghf/terraform/repositories.tf",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./artifacts/ghf/terraform/repositories.tf"
+    },
+    {
+      "path": "./artifacts/ghf/terraform/labels.tf",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./artifacts/ghf/terraform/labels.tf"
+    },
+    {
+      "path": "./artifacts/ghf/terraform/branch-protection.tf",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./artifacts/ghf/terraform/branch-protection.tf"
+    },
+    {
+      "path": "./artifacts/ghf/terraform/environments.tf",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./artifacts/ghf/terraform/environments.tf"
+    },
+    {
+      "path": "./.github/workflows/receipt-verify.yml",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./.github/workflows/receipt-verify.yml"
+    },
+    {
+      "path": "./.github/workflows/contribution-ledger.yml",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./.github/workflows/contribution-ledger.yml"
+    },
+    {
+      "path": "./.github/ISSUE_TEMPLATE/work-order.yml",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./.github/ISSUE_TEMPLATE/work-order.yml"
+    },
+    {
+      "path": "./scripts/gh-create-issue.sh",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./scripts/gh-create-issue.sh"
+    },
+    {
+      "path": "./scripts/gh-create-pr.sh",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./scripts/gh-create-pr.sh"
+    },
+    {
+      "path": "./scripts/collect-github-evidence.sh",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./scripts/collect-github-evidence.sh"
+    },
+    {
+      "path": "./artifacts/ghf/ocel/expected.ocel.jsonl",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./artifacts/ghf/ocel/expected.ocel.jsonl"
+    },
+    {
+      "path": "./docs/ghf-proof-matrix.md",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./docs/ghf-proof-matrix.md"
+    },
+    {
+      "path": "./docs/weekly-ledger-template.md",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./docs/weekly-ledger-template.md"
+    },
+    {
+      "path": "./SECURITY.md",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./SECURITY.md"
+    },
+    {
+      "path": "./packages/truex/canonical/package.json",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./packages/truex/canonical/package.json"
+    },
+    {
+      "path": "./packages/truex/capture/package.json",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./packages/truex/capture/package.json"
+    },
+    {
+      "path": "./packages/truex/cli/package.json",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./packages/truex/cli/package.json"
+    },
+    {
+      "path": "./packages/truex/conformance/package.json",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./packages/truex/conformance/package.json"
+    },
+    {
+      "path": "./packages/truex/examples/package.json",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./packages/truex/examples/package.json"
+    },
+    {
+      "path": "./packages/truex/ocel2/package.json",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./packages/truex/ocel2/package.json"
+    },
+    {
+      "path": "./packages/truex/otel/package.json",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./packages/truex/otel/package.json"
+    },
+    {
+      "path": "./packages/truex/receipt/package.json",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./packages/truex/receipt/package.json"
+    },
+    {
+      "path": "./packages/truex/replay/package.json",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./packages/truex/replay/package.json"
+    },
+    {
+      "path": "./packages/truex/verifier/package.json",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./packages/truex/verifier/package.json"
+    },
+    {
+      "path": "./packages/truex/vkg/package.json",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./packages/truex/vkg/package.json"
+    },
+    {
+      "path": "./packages/truex/verifier/index.ts",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./packages/truex/verifier/index.ts"
+    },
+    {
+      "path": "./packages/truex/ocel2/index.ts",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./packages/truex/ocel2/index.ts"
+    },
+    {
+      "path": "./packages/truex/receipt/index.ts",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./packages/truex/receipt/index.ts"
+    },
+    {
+      "path": "./packages/truex/replay/index.ts",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./packages/truex/replay/index.ts"
+    },
+    {
+      "path": "./packages/truex/vkg/index.ts",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./packages/truex/vkg/index.ts"
+    },
+    {
+      "path": "./packages/truex/cli/main.ts",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./packages/truex/cli/main.ts"
+    },
+    {
+      "path": "./schemas/truex-receipt.v1.schema.json",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./schemas/truex-receipt.v1.schema.json"
+    },
+    {
+      "path": "./schemas/truex-boundary.v1.schema.json",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./schemas/truex-boundary.v1.schema.json"
+    },
+    {
+      "path": "./tests/truex-e2e-LaunderedHashTest.test.ts",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./tests/truex-e2e-LaunderedHashTest.test.ts"
+    },
+    {
+      "path": "./tests/truex-e2e-MissingRawEvidenceTest.test.ts",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./tests/truex-e2e-MissingRawEvidenceTest.test.ts"
+    },
+    {
+      "path": "./tests/truex-e2e-NonDerivableExitCodeTest.test.ts",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./tests/truex-e2e-NonDerivableExitCodeTest.test.ts"
+    },
+    {
+      "path": "./tests/truex-e2e-ValidCheckoutTest.test.ts",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./tests/truex-e2e-ValidCheckoutTest.test.ts"
+    },
+    {
+      "path": "./tests/truex-summary-only-refusal.test.ts",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./tests/truex-summary-only-refusal.test.ts"
+    },
+    {
+      "path": "./docs/truex-ecosystem.md",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./docs/truex-ecosystem.md"
+    },
+    {
+      "path": "./receipts/manufacture-receipt.json",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./receipts/manufacture-receipt.json"
+    },
+    {
+      "path": "./pnpm-workspace.yaml",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./pnpm-workspace.yaml"
+    },
+    {
+      "path": "./package.json",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./package.json"
+    },
+    {
+      "path": "./jest.config.js",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./jest.config.js"
+    },
+    {
+      "path": "./tsconfig.json",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./tsconfig.json"
+    },
+    {
+      "path": "./src/wasm4pm_algos_stub.rs",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./src/wasm4pm_algos_stub.rs"
+    },
+    {
+      "path": "./src/wasm4pm_cognition_stub.rs",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./src/wasm4pm_cognition_stub.rs"
+    },
+    {
+      "path": "./src/wasm4pm_stub.rs",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./src/wasm4pm_stub.rs"
+    },
+    {
+      "path": "./src/wasm4pm_types_stub.rs",
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_rule": "rule-./src/wasm4pm_types_stub.rs"
     }
   ],
   "validation_passed": true,

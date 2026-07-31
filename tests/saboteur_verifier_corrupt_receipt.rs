@@ -23,8 +23,8 @@ use open_ontologies::config::VerifierConfig;
 use open_ontologies::ocel_store::OcelStore;
 use open_ontologies::state::StateDb;
 use open_ontologies::verifier_worker::VerifierWorker;
-use std::sync::atomic::{AtomicI64, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicI64, Ordering};
 use tempfile::tempdir;
 
 fn fresh_db() -> (StateDb, tempfile::TempDir) {

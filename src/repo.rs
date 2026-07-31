@@ -11,7 +11,7 @@
 use std::path::{Path, PathBuf};
 use std::time::UNIX_EPOCH;
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 
 /// File extensions the RDF parser (`GraphStore::detect_format`) accepts.
 /// Lowercased, without the leading dot. Keep in sync with `graph.rs`.
@@ -332,7 +332,11 @@ pub fn list_all(repos: &[PathBuf], recursive: bool) -> Vec<RepoEntry> {
         let canon = std::fs::canonicalize(repo).unwrap_or_else(|_| repo.clone());
         walk(&canon, &canon, recursive, &mut out);
     }
-    out.sort_by(|a, b| a.repo_dir.cmp(&b.repo_dir).then(a.relative.cmp(&b.relative)));
+    out.sort_by(|a, b| {
+        a.repo_dir
+            .cmp(&b.repo_dir)
+            .then(a.relative.cmp(&b.relative))
+    });
     out
 }
 
@@ -397,7 +401,10 @@ pub fn resolve_load_target(name: &str, repos: &[PathBuf]) -> Result<PathBuf> {
                 cand.display()
             ));
         }
-        return Err(anyhow!("no file matching '{}' found in ontology_dirs", trimmed));
+        return Err(anyhow!(
+            "no file matching '{}' found in ontology_dirs",
+            trimmed
+        ));
     }
 
     // Case 3: bare stem — recursive search across all repos.

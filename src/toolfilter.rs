@@ -304,23 +304,11 @@ pub fn expand_group(name: &str) -> &'static [&'static str] {
             "onto_enforce_feedback",
         ],
         // Tools that talk to external systems.
-        "remote" => &[
-            "onto_pull",
-            "onto_push",
-            "onto_marketplace",
-            "onto_import",
-        ],
+        "remote" => &["onto_pull", "onto_push", "onto_marketplace", "onto_import"],
         // Embedding / semantic search tools.
-        "embeddings" => &[
-            "onto_embed",
-            "onto_search",
-            "onto_similarity",
-        ],
+        "embeddings" => &["onto_embed", "onto_search", "onto_similarity"],
         // SQL data backbone tools (PostgreSQL / DuckDB).
-        "sql" => &[
-            "onto_import_schema",
-            "onto_sql_ingest",
-        ],
+        "sql" => &["onto_import_schema", "onto_sql_ingest"],
         _ => &[],
     }
 }

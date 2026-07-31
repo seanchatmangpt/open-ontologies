@@ -1,0 +1,7 @@
+{
+  "jtbd_id": "OA-3",
+  "status": "NotExecutableYet",
+  "reason": "Missing concrete bash/cargo commands for E2E mapping.",
+  "stdout_hash": "none",
+  "receipt_hash": "none"
+}
