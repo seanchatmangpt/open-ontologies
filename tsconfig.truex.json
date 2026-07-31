@@ -1,0 +1,19 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true
+  },
+  "include": [
+    "packages/truex/**/*.ts",
+    "tests/truex-*.test.ts"
+  ],
+  "exclude": [
+    "generated/**",
+    "packages/forms/**",
+    "packages/navigation/**",
+    "packages/routes/**",
+    "packages/schemas/**",
+    "packages/screens/**",
+    "node_modules/**"
+  ]
+}

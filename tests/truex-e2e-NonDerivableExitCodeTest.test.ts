@@ -4,7 +4,7 @@ import { Receipt } from '../packages/truex/receipt';
 describe('Truex Autonomic E2E Validation: NonDerivableExitCodeTest', () => {
   /**
    * Scenario: NonDerivableExitCodeTest
-   * Expected: Refused (OCELLaundering)
+   * Expected: Refused (NonDerivableExecution)
    */
   it('NonDerivableExitCodeTest', async () => {
     const verifier = new Verifier();
@@ -15,7 +15,7 @@ describe('Truex Autonomic E2E Validation: NonDerivableExitCodeTest', () => {
     const result = await verifier.verify(receipt);
     expect(result.state).toBe('Refused');
     
-    expect(result.refusal_state).toBe('OCELLaundering');
+    expect(result.refusal_state).toBe('NonDerivableExecution');
     
   });
 });

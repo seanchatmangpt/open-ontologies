@@ -1,6 +1,6 @@
-import { Verifier, VerificationState } from '../packages/truex/verifier';
-import { Receipt } from '../packages/truex/receipt';
-import { ReplayEngine } from '../packages/truex/replay';
+import { Verifier, VerificationState } from '../verifier';
+import { Receipt } from '../receipt';
+import { ReplayEngine } from '../replay';
 import * as fs from 'fs';
 
 async function main() {
