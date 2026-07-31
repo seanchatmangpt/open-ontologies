@@ -1,11 +1,11 @@
 # syntax=docker/dockerfile:1.6
 #
-# Multi-stage Dockerfile for the open-ontologies (ontostar) MCP server.
+# Multi-stage Dockerfile for the open-ontologies (OntoStar) MCP server.
 #
 # Build args:
 #   FEATURES        Cargo feature list, space-separated. Default: "" (empty).
 #                   Pass FEATURES=embeddings to enable ONNX/local embeddings.
-#   RUST_VERSION    Rust toolchain. Default 1.75.
+#   RUST_VERSION    Rust toolchain. Default matches rust-toolchain.toml.
 #
 # Expected runtime mounts / env:
 #   /data                 -> persistent state (Oxigraph DB, cache, snapshots).
@@ -21,7 +21,7 @@
 #
 # Healthcheck: HTTP GET /health on 3050.
 
-ARG RUST_VERSION=1.88
+ARG RUST_VERSION=1.97.1
 
 ############################
 # Stage 1 — builder
@@ -44,14 +44,12 @@ ENV CARGO_INCREMENTAL=0 \
     CARGO_TERM_COLOR=never
 
 WORKDIR /build
-
-# Copy the full workspace (workspace crates require sibling manifests).
 COPY . .
 
 RUN if [ -n "$FEATURES" ]; then \
-        cargo build --release --features "$FEATURES" --bin open-ontologies; \
+        cargo build --locked --release --features "$FEATURES" --bin open-ontologies; \
     else \
-        cargo build --release --bin open-ontologies; \
+        cargo build --locked --release --bin open-ontologies; \
     fi \
     && strip target/release/open-ontologies
 
@@ -61,9 +59,9 @@ RUN if [ -n "$FEATURES" ]; then \
 FROM debian:bookworm-slim AS runtime
 
 LABEL org.opencontainers.image.title="ontostar" \
-      org.opencontainers.image.description="open-ontologies MCP server (ontostar)" \
-      org.opencontainers.image.source="https://github.com/fabio-rovai/open-ontologies" \
-      io.modelcontextprotocol.server.name="io.github.fabio-rovai/open-ontologies"
+      org.opencontainers.image.description="Open Ontologies MCP server and OntoStar admission authority" \
+      org.opencontainers.image.source="https://github.com/seanchatmangpt/open-ontologies" \
+      io.modelcontextprotocol.server.name="io.github.seanchatmangpt/open-ontologies"
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
         ca-certificates \
@@ -75,7 +73,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         netcat-openbsd \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd --system --gid 10001 ontostar \
-    && useradd  --system --uid 10001 --gid ontostar --home-dir /home/ontostar --create-home ontostar \
+    && useradd --system --uid 10001 --gid ontostar --home-dir /home/ontostar --create-home ontostar \
     && mkdir -p /data /config /secrets \
     && chown -R ontostar:ontostar /data /config /secrets
 
@@ -98,5 +96,5 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
 ENTRYPOINT ["/usr/local/bin/open-ontologies"]
 CMD ["server", "serve_http", \
      "--config", "/config/config.toml", \
-     "--host",   "0.0.0.0", \
-     "--port",   "3050"]
+     "--host", "0.0.0.0", \
+     "--port", "3050"]
