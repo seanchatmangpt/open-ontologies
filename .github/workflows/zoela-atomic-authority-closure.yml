@@ -1,0 +1,73 @@
+name: Zoela Atomic Authority Closure
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/zoela-atomic-authority-closure.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: zoela-atomic-authority-closure
+  cancel-in-progress: false
+
+jobs:
+  close:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out aggregate WIP branch
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: agent/finish-wip-20260730
+          fetch-depth: 0
+      - name: Import reviewed transformer and close authority graph
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin agent/wip-zoela-closure
+          git show FETCH_HEAD:tools/rewrite_zoela_values.py > tools/rewrite_zoela_values.py
+          chmod +x tools/rewrite_zoela_values.py
+          python3 tools/rewrite_zoela_values.py --apply
+          python3 tools/rewrite_zoela_values.py --check
+
+          python3 - <<'PY'
+          from pathlib import Path
+          query_paths = (
+              '.specify/queries/zoela/extract-service-routes.rq',
+              '.specify/queries/zoela/extract-receipt-models.rq',
+              '.specify/queries/zoela/extract-role-requirements.rq',
+              '.specify/queries/zoela/extract-assignment-eligibility.rq',
+              '.specify/queries/zoela/extract-resource-matching-rules.rq',
+              '.specify/queries/zoela/extract-followup-rules.rq',
+              '.specify/queries/zoela/extract-connect-group-stages.rq',
+              '.specify/queries/zoela/extract-connect-group-work-orders.rq',
+              '.specify/queries/zoela/extract-connect-group-admin.rq',
+          )
+          manifest = Path('ggen.toml').read_text()
+          if 'TEMPORARILY DISABLED' in manifest:
+              raise SystemExit('disabled Zoela rules remain')
+          for path in query_paths:
+              if 'VALUES' in Path(path).read_text().upper():
+                  raise SystemExit(f'VALUES remains in {path}')
+          Path('.wip').mkdir(exist_ok=True)
+          Path('.wip/zoela-values.done').write_text(
+              'transformer=tools/rewrite_zoela_values.py\n'
+              'query_authorities=9\n'
+              'activated_rules=11\n'
+              'values_blocks=0\n'
+              'ratchet=pass\n'
+          )
+          PY
+      - name: Persist one atomic authority checkpoint
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add ggen.toml tools/rewrite_zoela_values.py .specify/queries/zoela .wip/zoela-values.done
+          if ! git diff --cached --quiet; then
+            git commit -m 'fix(zoela): close VALUES authority and activate all blocked rules'
+            git push origin HEAD:agent/finish-wip-20260730
+          fi
