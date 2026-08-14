@@ -1,0 +1,27 @@
+PREFIX dflss: <https://ggen.io/onto/dflss-dmedi/>
+PREFIX rdfs:  <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX skos:  <http://www.w3.org/2004/02/skos/core#>
+
+SELECT ?phaseOrder ?phaseLabel ?topicOrder ?topicLabel ?relevanceLabel ?arxivId ?paperLabel ?paperUrl ?sparseReason
+WHERE {
+  ?topic a ?topicClass ;
+    dflss:belongsToPhase ?phase ;
+    rdfs:label ?topicLabel .
+  ?topicClass rdfs:subClassOf* dflss:Topic .
+  ?phase dflss:phaseOrder ?phaseOrder ;
+    rdfs:label ?phaseLabel .
+  OPTIONAL { ?topic dflss:topicOrder ?topicOrder . }
+  OPTIONAL { ?topic dflss:sparseCoverageReason ?sparseReason . }
+  OPTIONAL {
+    ?claim dflss:claimTopic ?topic ;
+      dflss:claimRelevance ?relevance .
+    ?relevance skos:prefLabel ?relevanceLabel .
+    OPTIONAL {
+      ?claim dflss:claimPaper ?paper .
+      ?paper dflss:arxivId ?arxivId ;
+        rdfs:label ?paperLabel ;
+        dflss:paperUrl ?paperUrl .
+    }
+  }
+}
+ORDER BY ?phaseOrder ?topicOrder ?relevanceLabel ?arxivId
