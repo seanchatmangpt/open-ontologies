@@ -1,0 +1,98 @@
+@prefix dflss: <https://ggen.io/onto/dflss-dmedi/> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+dflss:Ontology a owl:Ontology ; rdfs:label "DFLSS DMEDI arXiv Coverage Ontology"@en ; owl:versionInfo "26.9.1-dmedi-research-seed" ; dcterms:creator "Sean Chatman" .
+dflss:Methodology a owl:Class . dflss:Phase a owl:Class . dflss:Topic a owl:Class . dflss:Tool a owl:Class ; rdfs:subClassOf dflss:Topic . dflss:ResearchSubject a owl:Class . dflss:ResearchPaper a owl:Class . dflss:ArxivPaper a owl:Class ; rdfs:subClassOf dflss:ResearchPaper . dflss:CoverageClaim a owl:Class . dflss:RelevanceClass a owl:Class .
+dflss:hasPhase a owl:ObjectProperty . dflss:belongsToPhase a owl:ObjectProperty . dflss:mapsToSubject a owl:ObjectProperty . dflss:coversTopic a owl:ObjectProperty . dflss:hasCoverageClaim a owl:ObjectProperty . dflss:claimTopic a owl:ObjectProperty . dflss:claimPaper a owl:ObjectProperty . dflss:claimRelevance a owl:ObjectProperty .
+dflss:phaseOrder a owl:DatatypeProperty ; rdfs:range xsd:integer . dflss:topicOrder a owl:DatatypeProperty ; rdfs:range xsd:integer . dflss:arxivId a owl:DatatypeProperty ; rdfs:range xsd:string . dflss:paperUrl a owl:DatatypeProperty ; rdfs:range xsd:anyURI . dflss:publishedYear a owl:DatatypeProperty ; rdfs:range xsd:gYear . dflss:authorsText a owl:DatatypeProperty ; rdfs:range xsd:string . dflss:sparseCoverageReason a owl:DatatypeProperty ; rdfs:range xsd:string .
+
+dflss:Direct a dflss:RelevanceClass ; skos:prefLabel "Direct"@en .
+dflss:StronglyRelated a dflss:RelevanceClass ; skos:prefLabel "StronglyRelated"@en .
+dflss:Adjacent a dflss:RelevanceClass ; skos:prefLabel "Adjacent"@en .
+dflss:Sparse a dflss:RelevanceClass ; skos:prefLabel "Sparse"@en .
+dflss:NoDirectArxivCoverage a dflss:RelevanceClass ; skos:prefLabel "NoDirectArxivCoverage"@en .
+
+dflss:DMEDI a dflss:Methodology ; rdfs:label "Define Measure Explore Develop Implement"@en ; dflss:hasPhase dflss:Define, dflss:Measure, dflss:Explore, dflss:Develop, dflss:Implement, dflss:Capstone .
+dflss:Define a dflss:Phase ; rdfs:label "Define"@en ; dflss:phaseOrder 1 .
+dflss:Measure a dflss:Phase ; rdfs:label "Measure"@en ; dflss:phaseOrder 2 .
+dflss:Explore a dflss:Phase ; rdfs:label "Explore"@en ; dflss:phaseOrder 3 .
+dflss:Develop a dflss:Phase ; rdfs:label "Develop"@en ; dflss:phaseOrder 4 .
+dflss:Implement a dflss:Phase ; rdfs:label "Implement"@en ; dflss:phaseOrder 5 .
+dflss:Capstone a dflss:Phase ; rdfs:label "Capstone"@en ; dflss:phaseOrder 6 .
+
+dflss:Charter a dflss:Tool ; rdfs:label "Charter"@en ; dflss:belongsToPhase dflss:Define ; dflss:topicOrder 1 ; dflss:mapsToSubject dflss:ProjectCharterSubject .
+dflss:MGPP a dflss:Tool ; rdfs:label "MGPP"@en ; dflss:belongsToPhase dflss:Define ; dflss:topicOrder 2 ; dflss:mapsToSubject dflss:ProjectGovernanceSubject ; dflss:sparseCoverageReason "Course/vendor-specific vocabulary; map to project governance until local definition is admitted."@en .
+dflss:RiskManagement a dflss:Tool ; rdfs:label "Risk Management"@en ; dflss:belongsToPhase dflss:Define ; dflss:topicOrder 3 ; dflss:mapsToSubject dflss:RiskAnalysisSubject .
+dflss:CommunicationPlan a dflss:Tool ; rdfs:label "Communication Plan"@en ; dflss:belongsToPhase dflss:Define ; dflss:topicOrder 4 ; dflss:mapsToSubject dflss:StakeholderCommunicationSubject .
+dflss:VoiceOfCustomer a dflss:Tool ; rdfs:label "Voice of Customer"@en ; dflss:belongsToPhase dflss:Measure ; dflss:topicOrder 1 ; dflss:mapsToSubject dflss:VoiceOfCustomerSubject .
+dflss:QualityFunctionDeployment a dflss:Tool ; rdfs:label "Quality Function Deployment"@en ; dflss:belongsToPhase dflss:Measure ; dflss:topicOrder 2 ; dflss:mapsToSubject dflss:QualityFunctionDeploymentSubject .
+dflss:TargetCosting a dflss:Tool ; rdfs:label "Target Costing"@en ; dflss:belongsToPhase dflss:Measure ; dflss:topicOrder 3 ; dflss:mapsToSubject dflss:TargetCostingSubject ; dflss:sparseCoverageReason "Sparse direct arXiv coverage; stronger fit in management-accounting and product-costing literature."@en .
+dflss:Scorecards a dflss:Tool ; rdfs:label "Scorecards"@en ; dflss:belongsToPhase dflss:Measure ; dflss:topicOrder 4 ; dflss:mapsToSubject dflss:ScorecardSubject .
+dflss:StatisticalSoftware a dflss:Tool ; rdfs:label "Intro to Minitab / Statistical Software"@en ; dflss:belongsToPhase dflss:Measure ; dflss:topicOrder 5 ; dflss:mapsToSubject dflss:StatisticalSoftwareSubject ; dflss:sparseCoverageReason "Minitab is proprietary; map to reproducible statistical computing."@en .
+dflss:BasicStatistics a dflss:Tool ; rdfs:label "Basic Statistics"@en ; dflss:belongsToPhase dflss:Measure ; dflss:topicOrder 6 ; dflss:mapsToSubject dflss:StatisticalInferenceSubject .
+dflss:VariationAndControlCharts a dflss:Tool ; rdfs:label "Variation and Control Charts"@en ; dflss:belongsToPhase dflss:Measure ; dflss:topicOrder 7 ; dflss:mapsToSubject dflss:StatisticalProcessControlSubject .
+dflss:MeasurementSystemsAnalysis a dflss:Tool ; rdfs:label "Measurement Systems Analysis"@en ; dflss:belongsToPhase dflss:Measure ; dflss:topicOrder 8 ; dflss:mapsToSubject dflss:MeasurementSystemsAnalysisSubject .
+dflss:ProcessCapability a dflss:Tool ; rdfs:label "Process Capability"@en ; dflss:belongsToPhase dflss:Measure ; dflss:topicOrder 9 ; dflss:mapsToSubject dflss:ProcessCapabilitySubject .
+dflss:ConceptGeneration a dflss:Tool ; rdfs:label "Concept Generation"@en ; dflss:belongsToPhase dflss:Explore ; dflss:topicOrder 1 ; dflss:mapsToSubject dflss:ConceptGenerationSubject .
+dflss:TRIZProductDesign a dflss:Tool ; rdfs:label "TRIZ for New Product Design"@en ; dflss:belongsToPhase dflss:Explore ; dflss:topicOrder 2 ; dflss:mapsToSubject dflss:TRIZSubject .
+dflss:TransactionalTRIZ a dflss:Tool ; rdfs:label "Transactional TRIZ"@en ; dflss:belongsToPhase dflss:Explore ; dflss:topicOrder 3 ; dflss:mapsToSubject dflss:TRIZSubject .
+dflss:ConceptSelectionPughAHP a dflss:Tool ; rdfs:label "Concept Selection - Pugh and AHP"@en ; dflss:belongsToPhase dflss:Explore ; dflss:topicOrder 4 ; dflss:mapsToSubject dflss:ConceptSelectionSubject .
+dflss:StatisticalToleranceDesign a dflss:Tool ; rdfs:label "Statistical Tolerance Design"@en ; dflss:belongsToPhase dflss:Explore ; dflss:topicOrder 5 ; dflss:mapsToSubject dflss:ToleranceDesignSubject .
+dflss:MonteCarloSimulation a dflss:Tool ; rdfs:label "Monte Carlo Simulation"@en ; dflss:belongsToPhase dflss:Explore ; dflss:topicOrder 6 ; dflss:mapsToSubject dflss:MonteCarloSubject .
+dflss:HypothesisTesting a dflss:Tool ; rdfs:label "Hypothesis Testing"@en ; dflss:belongsToPhase dflss:Explore ; dflss:topicOrder 7 ; dflss:mapsToSubject dflss:StatisticalInferenceSubject .
+dflss:ConfidenceIntervals a dflss:Tool ; rdfs:label "Confidence Intervals"@en ; dflss:belongsToPhase dflss:Explore ; dflss:topicOrder 8 ; dflss:mapsToSubject dflss:StatisticalInferenceSubject .
+dflss:TestsOfMeansMediansVariances a dflss:Tool ; rdfs:label "Testing Means, Medians, and Variances"@en ; dflss:belongsToPhase dflss:Explore ; dflss:topicOrder 9 ; dflss:mapsToSubject dflss:StatisticalInferenceSubject .
+dflss:ProportionAndChiSquare a dflss:Tool ; rdfs:label "Proportion and Chi-Square"@en ; dflss:belongsToPhase dflss:Explore ; dflss:topicOrder 10 ; dflss:mapsToSubject dflss:CategoricalDataSubject .
+dflss:Regression a dflss:Tool ; rdfs:label "Simple and Multiple Regression"@en ; dflss:belongsToPhase dflss:Explore ; dflss:topicOrder 11 ; dflss:mapsToSubject dflss:RegressionSubject .
+dflss:MultiVariAnalysis a dflss:Tool ; rdfs:label "Multi-Vari Analysis"@en ; dflss:belongsToPhase dflss:Explore ; dflss:topicOrder 12 ; dflss:mapsToSubject dflss:MultiVariSubject .
+dflss:DesignFMEA a dflss:Tool ; rdfs:label "Design FMEA"@en ; dflss:belongsToPhase dflss:Explore ; dflss:topicOrder 13 ; dflss:mapsToSubject dflss:FMEASubject .
+dflss:DetailedDesign a dflss:Tool ; rdfs:label "Detailed Design"@en ; dflss:belongsToPhase dflss:Develop ; dflss:topicOrder 1 ; dflss:mapsToSubject dflss:DetailedDesignSubject .
+dflss:TwoWayANOVA a dflss:Tool ; rdfs:label "2-Way ANOVA"@en ; dflss:belongsToPhase dflss:Develop ; dflss:topicOrder 2 ; dflss:mapsToSubject dflss:ANOVASubject .
+dflss:IntroDOE a dflss:Tool ; rdfs:label "Intro to Design of Experiments"@en ; dflss:belongsToPhase dflss:Develop ; dflss:topicOrder 3 ; dflss:mapsToSubject dflss:DOESubject .
+dflss:FullFactorialDOE a dflss:Tool ; rdfs:label "Full-Factorial DOE"@en ; dflss:belongsToPhase dflss:Develop ; dflss:topicOrder 4 ; dflss:mapsToSubject dflss:FullFactorialSubject .
+dflss:FractionalFactorialDOE a dflss:Tool ; rdfs:label "Fractional Factorial DOE"@en ; dflss:belongsToPhase dflss:Develop ; dflss:topicOrder 5 ; dflss:mapsToSubject dflss:FractionalFactorialSubject .
+dflss:CatapultDOESimulation a dflss:Tool ; rdfs:label "DOE Catapult Simulation"@en ; dflss:belongsToPhase dflss:Develop ; dflss:topicOrder 6 ; dflss:mapsToSubject dflss:EducationalDOESimulationSubject ; dflss:sparseCoverageReason "Specific catapult exercises are training artifacts; map to DOE simulation pedagogy."@en .
+dflss:LeanConcepts a dflss:Tool ; rdfs:label "Key Lean Concepts"@en ; dflss:belongsToPhase dflss:Develop ; dflss:topicOrder 7 ; dflss:mapsToSubject dflss:LeanSubject .
+dflss:LeanDesign a dflss:Tool ; rdfs:label "Lean Design"@en ; dflss:belongsToPhase dflss:Develop ; dflss:topicOrder 8 ; dflss:mapsToSubject dflss:LeanDesignSubject .
+dflss:DFMA a dflss:Tool ; rdfs:label "Design for Manufacture and Assembly"@en ; dflss:belongsToPhase dflss:Develop ; dflss:topicOrder 9 ; dflss:mapsToSubject dflss:DFMASubject .
+dflss:Reliability a dflss:Tool ; rdfs:label "Intro to Reliability"@en ; dflss:belongsToPhase dflss:Develop ; dflss:topicOrder 10 ; dflss:mapsToSubject dflss:ReliabilitySubject .
+dflss:DOEWithCurvature a dflss:Tool ; rdfs:label "Design of Experiments with Curvature"@en ; dflss:belongsToPhase dflss:Develop ; dflss:topicOrder 11 ; dflss:mapsToSubject dflss:ResponseSurfaceSubject .
+dflss:ConjointAnalysis a dflss:Tool ; rdfs:label "Conjoint Analysis"@en ; dflss:belongsToPhase dflss:Develop ; dflss:topicOrder 12 ; dflss:mapsToSubject dflss:ConjointSubject .
+dflss:MixtureDesigns a dflss:Tool ; rdfs:label "Mixture Designs"@en ; dflss:belongsToPhase dflss:Develop ; dflss:topicOrder 13 ; dflss:mapsToSubject dflss:MixtureDesignSubject .
+dflss:RobustDesign a dflss:Tool ; rdfs:label "Robust Design"@en ; dflss:belongsToPhase dflss:Develop ; dflss:topicOrder 14 ; dflss:mapsToSubject dflss:RobustDesignSubject .
+dflss:HelicopterRSMSimulation a dflss:Tool ; rdfs:label "Helicopter RSM Simulation"@en ; dflss:belongsToPhase dflss:Develop ; dflss:topicOrder 15 ; dflss:mapsToSubject dflss:EducationalRSMSimulationSubject ; dflss:sparseCoverageReason "Specific helicopter exercises are training artifacts; map to response-surface-methodology simulation pedagogy."@en .
+dflss:PrototypeAndPilot a dflss:Tool ; rdfs:label "Prototype and Pilot"@en ; dflss:belongsToPhase dflss:Implement ; dflss:topicOrder 1 ; dflss:mapsToSubject dflss:PrototypePilotSubject .
+dflss:ProcessControl a dflss:Tool ; rdfs:label "Process Control"@en ; dflss:belongsToPhase dflss:Implement ; dflss:topicOrder 2 ; dflss:mapsToSubject dflss:StatisticalProcessControlSubject .
+dflss:ImplementationPlanning a dflss:Tool ; rdfs:label "Implementation Planning"@en ; dflss:belongsToPhase dflss:Implement ; dflss:topicOrder 3 ; dflss:mapsToSubject dflss:ImplementationPlanningSubject .
+dflss:DMEDICapstoneProject a dflss:Tool ; rdfs:label "DMEDI Capstone"@en ; dflss:belongsToPhase dflss:Capstone ; dflss:topicOrder 1 ; dflss:mapsToSubject dflss:CapstoneSubject .
+
+dflss:paper-2403-13002 a dflss:ArxivPaper ; rdfs:label "AutoTRIZ: Artificial Ideation with TRIZ and Large Language Models"@en ; dflss:arxivId "2403.13002" ; dflss:paperUrl "https://arxiv.org/abs/2403.13002"^^xsd:anyURI ; dflss:authorsText "Shuo Jiang; Jianxi Luo" ; dflss:publishedYear "2024"^^xsd:gYear ; dflss:coversTopic dflss:TRIZProductDesign, dflss:ConceptGeneration, dflss:TransactionalTRIZ ; dflss:hasCoverageClaim dflss:claim-2403-13002-triz .
+dflss:paper-1901-04443 a dflss:ArxivPaper ; rdfs:label "Statistical process control based on control charts"@en ; dflss:arxivId "1901.04443" ; dflss:paperUrl "https://arxiv.org/abs/1901.04443"^^xsd:anyURI ; dflss:authorsText "Alevizakos et al." ; dflss:publishedYear "2019"^^xsd:gYear ; dflss:coversTopic dflss:VariationAndControlCharts, dflss:ProcessControl ; dflss:hasCoverageClaim dflss:claim-1901-04443-spc .
+dflss:paper-1503-06885 a dflss:ArxivPaper ; rdfs:label "Trends and Practices in Process Capability Studies"@en ; dflss:arxivId "1503.06885" ; dflss:paperUrl "https://arxiv.org/abs/1503.06885"^^xsd:anyURI ; dflss:authorsText "Ruediger Knueppel" ; dflss:publishedYear "2015"^^xsd:gYear ; dflss:coversTopic dflss:ProcessCapability ; dflss:hasCoverageClaim dflss:claim-1503-06885-processcap .
+dflss:paper-2604-15544 a dflss:ArxivPaper ; rdfs:label "Practical Process Capability Indices Workflows"@en ; dflss:arxivId "2604.15544" ; dflss:paperUrl "https://arxiv.org/abs/2604.15544"^^xsd:anyURI ; dflss:authorsText "Fei Jiang; Lei Yang" ; dflss:publishedYear "2026"^^xsd:gYear ; dflss:coversTopic dflss:ProcessCapability, dflss:PrototypeAndPilot ; dflss:hasCoverageClaim dflss:claim-2604-15544-processcap .
+dflss:paper-2603-14479 a dflss:ArxivPaper ; rdfs:label "Risk-Calibrated Process Capability Approval with Finite Samples"@en ; dflss:arxivId "2603.14479" ; dflss:paperUrl "https://arxiv.org/abs/2603.14479"^^xsd:anyURI ; dflss:authorsText "Fei Jiang; Lei Yang" ; dflss:publishedYear "2026"^^xsd:gYear ; dflss:coversTopic dflss:ProcessCapability, dflss:RiskManagement, dflss:PrototypeAndPilot ; dflss:hasCoverageClaim dflss:claim-2603-14479-risk .
+dflss:paper-2112-10338 a dflss:ArxivPaper ; rdfs:label "FMEA for Experimental Use of FLASH on a Clinical Accelerator"@en ; dflss:arxivId "2112.10338" ; dflss:paperUrl "https://arxiv.org/abs/2112.10338"^^xsd:anyURI ; dflss:authorsText "Owen et al." ; dflss:publishedYear "2021"^^xsd:gYear ; dflss:coversTopic dflss:DesignFMEA, dflss:RiskManagement, dflss:PrototypeAndPilot ; dflss:hasCoverageClaim dflss:claim-2112-10338-fmea .
+dflss:paper-2406-18114 a dflss:ArxivPaper ; rdfs:label "Knowledge Graph Enhanced RAG for FMEA"@en ; dflss:arxivId "2406.18114" ; dflss:paperUrl "https://arxiv.org/abs/2406.18114"^^xsd:anyURI ; dflss:authorsText "Li et al." ; dflss:publishedYear "2024"^^xsd:gYear ; dflss:coversTopic dflss:DesignFMEA ; dflss:hasCoverageClaim dflss:claim-2406-18114-fmea .
+dflss:paper-1803-06536 a dflss:ArxivPaper ; rdfs:label "Optimal Design of Experiments for Nonlinear Response Surface Models"@en ; dflss:arxivId "1803.06536" ; dflss:paperUrl "https://arxiv.org/abs/1803.06536"^^xsd:anyURI ; dflss:authorsText "Huang; Gilmour; Mylona; Goos" ; dflss:publishedYear "2018"^^xsd:gYear ; dflss:coversTopic dflss:IntroDOE, dflss:DOEWithCurvature, dflss:HelicopterRSMSimulation ; dflss:hasCoverageClaim dflss:claim-1803-06536-doe .
+dflss:paper-1712-09074 a dflss:ArxivPaper ; rdfs:label "Space-Filling Designs for Robustness Experiments"@en ; dflss:arxivId "1712.09074" ; dflss:paperUrl "https://arxiv.org/abs/1712.09074"^^xsd:anyURI ; dflss:authorsText "Joseph; Gu; Ba; Myers" ; dflss:publishedYear "2017"^^xsd:gYear ; dflss:coversTopic dflss:RobustDesign, dflss:DOEWithCurvature ; dflss:hasCoverageClaim dflss:claim-1712-09074-robust .
+dflss:paper-2510-24349 a dflss:ArxivPaper ; rdfs:label "Pseudo-Bayesian Optimal Designs for Fitting Fractional Polynomial Response Surface Models"@en ; dflss:arxivId "2510.24349" ; dflss:paperUrl "https://arxiv.org/abs/2510.24349"^^xsd:anyURI ; dflss:authorsText "Trinca; Gilmour" ; dflss:publishedYear "2025"^^xsd:gYear ; dflss:coversTopic dflss:DOEWithCurvature, dflss:FractionalFactorialDOE ; dflss:hasCoverageClaim dflss:claim-2510-24349-rsm .
+
+dflss:claim-2403-13002-triz a dflss:CoverageClaim ; dflss:claimPaper dflss:paper-2403-13002 ; dflss:claimTopic dflss:TRIZProductDesign ; dflss:claimRelevance dflss:Direct .
+dflss:claim-1901-04443-spc a dflss:CoverageClaim ; dflss:claimPaper dflss:paper-1901-04443 ; dflss:claimTopic dflss:VariationAndControlCharts ; dflss:claimRelevance dflss:Direct .
+dflss:claim-1503-06885-processcap a dflss:CoverageClaim ; dflss:claimPaper dflss:paper-1503-06885 ; dflss:claimTopic dflss:ProcessCapability ; dflss:claimRelevance dflss:Direct .
+dflss:claim-2604-15544-processcap a dflss:CoverageClaim ; dflss:claimPaper dflss:paper-2604-15544 ; dflss:claimTopic dflss:ProcessCapability ; dflss:claimRelevance dflss:Direct .
+dflss:claim-2603-14479-risk a dflss:CoverageClaim ; dflss:claimPaper dflss:paper-2603-14479 ; dflss:claimTopic dflss:RiskManagement ; dflss:claimRelevance dflss:StronglyRelated .
+dflss:claim-2112-10338-fmea a dflss:CoverageClaim ; dflss:claimPaper dflss:paper-2112-10338 ; dflss:claimTopic dflss:DesignFMEA ; dflss:claimRelevance dflss:Direct .
+dflss:claim-2406-18114-fmea a dflss:CoverageClaim ; dflss:claimPaper dflss:paper-2406-18114 ; dflss:claimTopic dflss:DesignFMEA ; dflss:claimRelevance dflss:Direct .
+dflss:claim-1803-06536-doe a dflss:CoverageClaim ; dflss:claimPaper dflss:paper-1803-06536 ; dflss:claimTopic dflss:DOEWithCurvature ; dflss:claimRelevance dflss:Direct .
+dflss:claim-1712-09074-robust a dflss:CoverageClaim ; dflss:claimPaper dflss:paper-1712-09074 ; dflss:claimTopic dflss:RobustDesign ; dflss:claimRelevance dflss:Direct .
+dflss:claim-2510-24349-rsm a dflss:CoverageClaim ; dflss:claimPaper dflss:paper-2510-24349 ; dflss:claimTopic dflss:DOEWithCurvature ; dflss:claimRelevance dflss:Direct .
+dflss:claim-target-costing-sparse a dflss:CoverageClaim ; dflss:claimTopic dflss:TargetCosting ; dflss:claimRelevance dflss:Sparse .
+dflss:claim-minitab-sparse a dflss:CoverageClaim ; dflss:claimTopic dflss:StatisticalSoftware ; dflss:claimRelevance dflss:Sparse .
+dflss:claim-mgpp-sparse a dflss:CoverageClaim ; dflss:claimTopic dflss:MGPP ; dflss:claimRelevance dflss:NoDirectArxivCoverage .
+dflss:claim-catapult-sparse a dflss:CoverageClaim ; dflss:claimTopic dflss:CatapultDOESimulation ; dflss:claimRelevance dflss:Sparse .
+dflss:claim-helicopter-sparse a dflss:CoverageClaim ; dflss:claimTopic dflss:HelicopterRSMSimulation ; dflss:claimRelevance dflss:Sparse .
