@@ -15,7 +15,9 @@ The ontology does **not** claim that every course module has direct arXiv covera
 - `ontology/dflss-dmedi.ttl` — OWL/Turtle curriculum, topic, subject, paper, and coverage-claim graph.
 - `ontology/dflss-dmedi-shapes.ttl` — SHACL shapes for phases, topics, papers, and claims.
 - `sparql/dflss-dmedi-topic-coverage.rq` — ordered phase/topic/paper coverage query.
-- `tools/validate_dflss_dmedi.py` — dependency-free static verifier for the seed ontology package.
+- `tools/validate_dflss_dmedi.py` — executable static Definition-of-Done verifier and receipt emitter.
+- `docs/dflss-dmedi-definition-of-done.md` — normative Definition of Done for this package.
+- `.github/scripts/dflss-dod.sh` — exact-head replay used by the repository verification matrix.
 
 ## Seed coverage
 
@@ -32,13 +34,21 @@ The SPARQL query is designed to answer:
 
 ## Verification
 
-Run the local verifier from the repository root:
+The normative Definition of Done is `docs/dflss-dmedi-definition-of-done.md`.
+
+Replay the complete package-level DoD from the repository root:
 
 ```bash
-python tools/validate_dflss_dmedi.py
+bash .github/scripts/dflss-dod.sh
 ```
 
-For the full repository gate, run the repository-required quality ladder:
+For a dependency-free static preflight and machine-readable receipt:
+
+```bash
+python tools/validate_dflss_dmedi.py --receipt target/verifier/dflss-dmedi-dod.json
+```
+
+For the full repository quality ladder:
 
 ```bash
 make check
