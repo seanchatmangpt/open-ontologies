@@ -4,7 +4,7 @@ version = "26.5.13"
 edition = "2024"
 description = "AI-native ontology engine — standalone MCP server"
 license = "MIT"
-repository = "https://github.com/fabio-rovai/open-ontologies"
+repository = "https://github.com/seanchatmangpt/open-ontologies"
 
 [[bin]]
 name = "open-ontologies"
