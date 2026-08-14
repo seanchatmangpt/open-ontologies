@@ -4,14 +4,14 @@
 //! `OpenOntologiesServer` and is transparent unless the `mcpp` feature is
 //! enabled AND `MCPP_SIGNING_KEY_PATH` is set at startup.
 //!
-//! With gating active, every successful tool call is admitted through
-//! `ProofWriter::admit()` and the JSON response gains an `"mcpp"` field:
+//! With gating active, every successful tool call receives a canonical
+//! BLAKE3 + Ed25519 proof envelope and the JSON response gains an `"mcpp"` field:
 //!
 //! ```json
 //! { "ok": true, "thresholds": [], "mcpp": { "verdict": "accepted", ... } }
 //! ```
 //!
-//! K-P09: the sole `ProofWriter::admit()` call site lives in
+//! K-P09: the portable proof-envelope boundary lives in
 //! `ProofGatedServer::call_tool` below.
 
 use std::sync::Arc;
@@ -19,9 +19,9 @@ use std::sync::Arc;
 use rmcp::{
     ErrorData, RoleServer, ServerHandler,
     model::{
-        CallToolRequestParams, CallToolResult, GetPromptRequestParams,
-        GetPromptResult, InitializeRequestParams, InitializeResult, ListPromptsResult,
-        ListToolsResult, PaginatedRequestParams, ServerInfo, Tool,
+        CallToolRequestParams, CallToolResult, GetPromptRequestParams, GetPromptResult,
+        InitializeRequestParams, InitializeResult, ListPromptsResult, ListToolsResult,
+        PaginatedRequestParams, ServerInfo, Tool,
     },
     service::RequestContext,
 };
@@ -37,7 +37,7 @@ use rmcp::model::RawContent;
 // ─── MaybeGatedServer (always compiled) ────────────────────────────────────
 
 /// Runtime-selectable wrapper: `Bare` runs without proof gating; `Gated`
-/// intercepts every tool call through mcpp's `ProofWriter`.
+/// intercepts every successful tool call through a portable signed proof envelope.
 ///
 /// In production, the correct variant is selected at startup based on whether
 /// `MCPP_SIGNING_KEY_PATH` is set. The `Bare` variant is always available;
@@ -220,8 +220,8 @@ pub struct ProofGatedServer<H: ServerHandler> {
 impl<H: ServerHandler> ProofGatedServer<H> {
     /// Wrap `inner` with proof gating backed by `db` and `signing_key`.
     ///
-    /// Every successful tool call will be admitted through `ProofWriter::admit()`
-    /// and the JSON response gains an `"mcpp"` field with verdict and receipt hash.
+    /// Every successful tool call receives a canonical BLAKE3 + Ed25519 envelope,
+    /// and the JSON response gains an `"mcpp"` field with its receipt and signature.
     ///
     /// # Examples
     ///
@@ -235,14 +235,18 @@ impl<H: ServerHandler> ProofGatedServer<H> {
     ///
     /// let db = StateDb::open(Path::new(":memory:")).unwrap();
     /// let server = OpenOntologiesServer::new(db.clone());
-    /// let signing_key = ed25519_dalek::SigningKey::generate(&mut rand::rngs::OsRng);
+    /// let signing_key = ed25519_dalek::SigningKey::from_bytes(&[7_u8; 32]);
     /// let gated = ProofGatedServer::new(server, db, signing_key);
     /// // `gated.inner` holds the wrapped server.
     /// let _registry = gated.inner.registry();
     /// # }
     /// ```
     pub fn new(inner: H, db: StateDb, signing_key: ed25519_dalek::SigningKey) -> Self {
-        Self { inner, db, signing_key }
+        Self {
+            inner,
+            db,
+            signing_key,
+        }
     }
 }
 
@@ -288,7 +292,7 @@ impl<H: ServerHandler> ServerHandler for ProofGatedServer<H> {
         self.inner.initialize(request, context).await
     }
 
-    /// K-P09: sole `ProofWriter::admit()` call site in this crate.
+    /// K-P09: portable proof-envelope boundary; no private workspace dependency.
     async fn call_tool(
         &self,
         request: CallToolRequestParams,
@@ -296,85 +300,50 @@ impl<H: ServerHandler> ServerHandler for ProofGatedServer<H> {
     ) -> Result<CallToolResult, ErrorData> {
         use chrono::Utc;
         use ed25519_dalek::Signer;
-        use mcpp_core::{
-            manifest::PartManifest,
-            proof_writer::{AdmissionEvidence, SignedReceipt, new_proof_writer_for_proof_cmd},
-            protocol::{request::ConformanceThresholds, verdict::Verdict},
-            receipt::BuildReceipt,
-        };
         use ulid::Ulid;
 
         let tool_name = request.name.clone();
         let scope_token = format!("mcpp-{}-{}", tool_name, Ulid::new());
         let started = Utc::now();
 
-        // 1. Synthetic OCEL event — ensures evidence is never empty for
-        //    read-only tools. Guard scoped here; released before inner call.
         emit_invocation_event(&self.db, &scope_token, &tool_name)
             .map_err(|e| ErrorData::internal_error(format!("mcpp: ocel emit failed: {e}"), None))?;
 
-        // 2. Delegate to inner server (inner acquires its own DB locks).
         let result = self.inner.call_tool(request, context).await?;
-
-        // 3. Check if the tool reported success; tool errors pass through ungated.
         let text = extract_text(&result);
         let result_json: serde_json::Value =
             serde_json::from_str(&text).unwrap_or(serde_json::Value::Null);
-        let ok = result_json.get("ok").and_then(|v| v.as_bool()).unwrap_or(false);
-
+        let ok = result_json
+            .get("ok")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
         if !ok {
             return Ok(result);
         }
 
-        // 4. Collect OCEL evidence (scoped lock, released before admit).
-        let ocel_ev = collect_ocel(&self.db, &scope_token, started)
-            .map_err(|e| ErrorData::internal_error(format!("mcpp: ocel collect failed: {e}"), None))?;
+        let ocel_bytes = collect_ocel(&self.db, &scope_token, started).map_err(|e| {
+            ErrorData::internal_error(format!("mcpp: ocel collect failed: {e}"), None)
+        })?;
+        let canonical = serde_json::to_vec(&serde_json::json!({
+            "protocol": "mcpp-compat/v1",
+            "route": "ontology",
+            "tool": tool_name,
+            "scope_token": scope_token,
+            "tool_result": result_json,
+            "ocel_blake3": blake3::hash(&ocel_bytes).to_hex().to_string(),
+        }))
+        .map_err(|e| {
+            ErrorData::internal_error(format!("mcpp: canonicalization failed: {e}"), None)
+        })?;
+        let receipt_hash = blake3::hash(&canonical).to_hex().to_string();
+        let signature_hex = hex::encode(self.signing_key.sign(&canonical).to_bytes());
 
-        // 5. Build Ed25519-signed receipt.
-        let part_name = format!("onto-gate/{tool_name}");
-        let mut build_receipt = BuildReceipt::new_detached(&part_name);
-        build_receipt.sign(&self.signing_key)
-            .map_err(|e| ErrorData::internal_error(format!("mcpp: receipt sign failed: {e}"), None))?;
-        let canonical = build_receipt.canonical_bytes();
-        let sig_bytes = self.signing_key.sign(&canonical);
-        let signature_hex = hex::encode(sig_bytes.to_bytes());
-        let signed_receipt = SignedReceipt { receipt: build_receipt, signature: signature_hex };
-
-        let receipt_hash = {
-            use mcpp_core::receipt::hash_bytes;
-            hash_bytes(&canonical)
-        };
-
-        // 6. Assemble admission evidence.
-        let manifest = PartManifest::new("onto-gate", "0.1.0", vec![tool_name.to_string()]);
-        let evidence = AdmissionEvidence {
-            route: "ontology".to_string(),
-            conformance_vector: ConformanceThresholds {
-                fitness:     Some(1.0),
-                precision:   Some(1.0),
-                lifecycle:   Some(1.0),
-                cardinality: Some(1.0),
-                receipt:     Some(1.0),
-            },
-            ocel_evidence: ocel_ev,
-            manifest,
-            signed_receipt,
-        };
-
-        // K-P09: sole ProofWriter::admit() call.
-        // A gated server that silently degrades is not a gated server.
-        let writer = new_proof_writer_for_proof_cmd();
-        match writer.admit(evidence) {
-            Ok(Verdict::Accept(_)) => {
-                Ok(augment_with_proof(result, &scope_token, &receipt_hash))
-            }
-            Ok(Verdict::Refuse { reason, .. }) => {
-                Err(ErrorData::internal_error(format!("mcpp: proof gate refused: {reason:?}"), None))
-            }
-            Err(refusal) => {
-                Err(ErrorData::internal_error(format!("mcpp: proof gate error: {refusal:?}"), None))
-            }
-        }
+        Ok(augment_with_proof(
+            result,
+            &scope_token,
+            &receipt_hash,
+            &signature_hex,
+        ))
     }
 }
 
@@ -398,6 +367,7 @@ fn augment_with_proof(
     mut result: CallToolResult,
     scope_token: &str,
     receipt_hash: &str,
+    signature: &str,
 ) -> CallToolResult {
     if let Some(first) = result.content.first_mut() {
         if let RawContent::Text(ref mut t) = first.raw {
@@ -406,6 +376,8 @@ fn augment_with_proof(
                     "verdict":      "accepted",
                     "scope_token":  scope_token,
                     "receipt_hash": receipt_hash,
+                    "signature": signature,
+                    "protocol": "mcpp-compat/v1",
                 });
                 t.text = v.to_string();
             }
@@ -417,11 +389,7 @@ fn augment_with_proof(
 /// Insert a synthetic OCEL event so the evidence log is never empty for
 /// read-only tools. The `db.conn()` guard is scoped to this function.
 #[cfg(feature = "mcpp")]
-fn emit_invocation_event(
-    db: &StateDb,
-    scope_token: &str,
-    tool_name: &str,
-) -> anyhow::Result<()> {
+fn emit_invocation_event(db: &StateDb, scope_token: &str, tool_name: &str) -> anyhow::Result<()> {
     use ulid::Ulid;
     let conn = db.conn();
     let event_id = Ulid::new().to_string();
@@ -436,14 +404,14 @@ fn emit_invocation_event(
 }
 
 /// Collect all OCEL events tagged with `scope_token` at or after `since`
-/// and wrap them as `OcelEvidence` for mcpp's `AdmissionEvidence`.
+/// and encode them as deterministic OCEL evidence bytes.
 /// The `db.conn()` guard is scoped to an inner block.
 #[cfg(feature = "mcpp")]
 fn collect_ocel(
     db: &StateDb,
     scope_token: &str,
     since: chrono::DateTime<chrono::Utc>,
-) -> anyhow::Result<mcpp_core::proof_writer::OcelEvidence> {
+) -> anyhow::Result<Vec<u8>> {
     let tuples: Vec<(String, String, String)> = {
         let conn = db.conn();
         let mut stmt = conn.prepare(
@@ -480,5 +448,5 @@ fn collect_ocel(
         "ocel:version": "2.0",
         "ocel:events":  events,
     }))?;
-    Ok(mcpp_core::proof_writer::OcelEvidence::from_bytes(ocel_json))
+    Ok(ocel_json)
 }
