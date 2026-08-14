@@ -108,6 +108,11 @@ jobs:
       - uses: actions/setup-python@{setup_python}
         with:
           python-version: '{python}'
+      - name: Install pinned toolchain
+        shell: bash
+        run: |
+          rustup toolchain install '{rust}' --profile minimal --component rustfmt --component clippy
+          rustup default '{rust}'
       - name: Verify pinned toolchain
         shell: bash
         run: rustup show active-toolchain | grep -F '{rust}'
