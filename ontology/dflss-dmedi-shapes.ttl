@@ -1,0 +1,119 @@
+@prefix dflss:  <https://ggen.io/onto/dflss-dmedi/> .
+@prefix sh:     <http://www.w3.org/ns/shacl#> .
+@prefix rdf:    <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:   <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:    <http://www.w3.org/2001/XMLSchema#> .
+
+# ============================================================================
+# DFLSS DMEDI Research Coverage SHACL Shapes
+# ============================================================================
+
+# The shapes are intentionally closed around the curriculum/research bridge:
+# phases, topics, arXiv papers, and explicit coverage claims. Sparse/no-direct
+# coverage is represented as first-class evidence rather than silently omitted.
+
+dflss:PhaseShape a sh:NodeShape ;
+  rdfs:label "DFLSS phase shape"@en ;
+  sh:targetClass dflss:Phase ;
+  sh:property [
+    sh:path rdfs:label ;
+    sh:minCount 1 ;
+    sh:uniqueLang true
+  ] ;
+  sh:property [
+    sh:path dflss:phaseOrder ;
+    sh:minCount 1 ;
+    sh:maxCount 1 ;
+    sh:datatype xsd:integer
+  ] .
+
+dflss:TopicShape a sh:NodeShape ;
+  rdfs:label "DFLSS topic/tool shape"@en ;
+  sh:targetClass dflss:Topic, dflss:Tool ;
+  sh:property [
+    sh:path rdfs:label ;
+    sh:minCount 1 ;
+    sh:uniqueLang true
+  ] ;
+  sh:property [
+    sh:path dflss:belongsToPhase ;
+    sh:minCount 1 ;
+    sh:maxCount 1 ;
+    sh:class dflss:Phase
+  ] ;
+  sh:property [
+    sh:path dflss:topicOrder ;
+    sh:minCount 1 ;
+    sh:maxCount 1 ;
+    sh:datatype xsd:integer
+  ] ;
+  sh:property [
+    sh:path dflss:mapsToSubject ;
+    sh:minCount 1 ;
+    sh:class dflss:ResearchSubject
+  ] .
+
+dflss:ArxivPaperShape a sh:NodeShape ;
+  rdfs:label "arXiv paper shape"@en ;
+  sh:targetClass dflss:ArxivPaper ;
+  sh:property [
+    sh:path rdfs:label ;
+    sh:minCount 1 ;
+    sh:uniqueLang true
+  ] ;
+  sh:property [
+    sh:path dflss:arxivId ;
+    sh:minCount 1 ;
+    sh:maxCount 1 ;
+    sh:datatype xsd:string ;
+    sh:pattern "^[0-9]{4}\\.[0-9]{4,5}(v[0-9]+)?$"
+  ] ;
+  sh:property [
+    sh:path dflss:paperUrl ;
+    sh:minCount 1 ;
+    sh:maxCount 1 ;
+    sh:datatype xsd:anyURI
+  ] ;
+  sh:property [
+    sh:path dflss:authorsText ;
+    sh:minCount 1 ;
+    sh:maxCount 1 ;
+    sh:datatype xsd:string
+  ] ;
+  sh:property [
+    sh:path dflss:publishedYear ;
+    sh:minCount 1 ;
+    sh:maxCount 1 ;
+    sh:datatype xsd:gYear
+  ] ;
+  sh:property [
+    sh:path dflss:coversTopic ;
+    sh:minCount 1 ;
+    sh:class dflss:Topic
+  ] ;
+  sh:property [
+    sh:path dflss:hasCoverageClaim ;
+    sh:minCount 1 ;
+    sh:class dflss:CoverageClaim
+  ] .
+
+dflss:CoverageClaimShape a sh:NodeShape ;
+  rdfs:label "coverage claim shape"@en ;
+  sh:targetClass dflss:CoverageClaim ;
+  sh:property [
+    sh:path dflss:claimTopic ;
+    sh:minCount 1 ;
+    sh:maxCount 1 ;
+    sh:class dflss:Topic
+  ] ;
+  sh:property [
+    sh:path dflss:claimRelevance ;
+    sh:minCount 1 ;
+    sh:maxCount 1 ;
+    sh:class dflss:RelevanceClass
+  ] ;
+  sh:property [
+    sh:path dflss:claimPaper ;
+    sh:maxCount 1 ;
+    sh:class dflss:ArxivPaper
+  ] .
