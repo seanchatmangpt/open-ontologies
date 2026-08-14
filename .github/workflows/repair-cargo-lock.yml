@@ -1,0 +1,40 @@
+name: Repair Cargo Lock Once
+
+on:
+  push:
+    branches:
+      - agent/dflss-dmedi-arxiv-20260814
+
+permissions:
+  contents: write
+
+concurrency:
+  group: repair-cargo-lock-once
+  cancel-in-progress: false
+
+jobs:
+  repair:
+    if: ${{ github.actor != 'github-actions[bot]' }}
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: agent/dflss-dmedi-arxiv-20260814
+          fetch-depth: 0
+      - name: Regenerate lockfile from manifests
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm Cargo.lock
+          cargo generate-lockfile
+          cargo metadata --locked --format-version 1 --no-deps >/dev/null
+      - name: Persist repaired lockfile and retire repair workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add Cargo.lock
+          git rm .github/workflows/repair-cargo-lock.yml
+          git commit -m 'fix(ci): regenerate valid cargo lockfile'
+          git push origin HEAD:agent/dflss-dmedi-arxiv-20260814
