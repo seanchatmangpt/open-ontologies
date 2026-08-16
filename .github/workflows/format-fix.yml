@@ -18,8 +18,9 @@ jobs:
         with:
           ref: ${{ github.ref_name }}
           fetch-depth: 0
-      - uses: dtolnay/rust-toolchain@nightly-2026-06-22
+      - uses: dtolnay/rust-toolchain@master
         with:
+          toolchain: nightly-2026-06-22
           components: rustfmt
       - name: Format exact workspace
         run: |
