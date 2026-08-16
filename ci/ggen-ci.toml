@@ -6,7 +6,7 @@ generated_workflow = ".github/workflows/ci.yml"
 verifier_report = "target/verifier/ggen-ci-report.json"
 
 [toolchain]
-rust = "nightly-2026-04-15"
+rust = "nightly-2026-06-22"
 python = "3.12"
 
 [actions]

@@ -31,11 +31,11 @@ jobs:
       - name: Install pinned toolchain
         shell: bash
         run: |
-          rustup toolchain install 'nightly-2026-04-15' --profile minimal --component rustfmt --component clippy
-          rustup default 'nightly-2026-04-15'
+          rustup toolchain install 'nightly-2026-06-22' --profile minimal --component rustfmt --component clippy
+          rustup default 'nightly-2026-06-22'
       - name: Verify pinned toolchain
         shell: bash
-        run: rustup show active-toolchain | grep -F 'nightly-2026-04-15'
+        run: rustup show active-toolchain | grep -F 'nightly-2026-06-22'
       - name: Verify generated CI replay
         run: python3 tools/verify_ggen_ci.py --output target/verifier/ggen-ci-report.json
       - name: Verify repository constitution

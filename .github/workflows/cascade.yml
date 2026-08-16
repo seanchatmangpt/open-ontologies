@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@nightly-2026-06-22
         with: { components: clippy }
       - uses: Swatinem/rust-cache@v2
         with: { key: cascade-check }
@@ -33,7 +33,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@nightly-2026-06-22
       - uses: Swatinem/rust-cache@v2
         with: { key: cascade-substrate }
       - name: four ratchets (no-bypass, secret-grep, llm-authority-zero, test-removal-tag)
@@ -49,7 +49,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@nightly-2026-06-22
         with: { components: clippy }
       - uses: Swatinem/rust-cache@v2
         with: { key: cascade-adversarial }
