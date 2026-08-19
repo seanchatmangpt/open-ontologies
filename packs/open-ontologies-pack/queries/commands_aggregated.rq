@@ -4,6 +4,8 @@
 #
 # Returns a SINGLE row with pipe-delimited aggregates so the Tera template
 # can render the complete file in one pass (ggen renders once per row).
+# Bindings are ordered by stable lexical command identity before aggregation;
+# the outer ORDER BY also satisfies ggen's strict deterministic SELECT gate.
 #
 # Variables:
 #   ?names         — pipe-delimited cli:name values  (e.g. "ontology|alignment|...")
@@ -25,25 +27,32 @@ SELECT
   (GROUP_CONCAT(?subCount;    SEPARATOR="|") AS ?subCounts)
   (GROUP_CONCAT(?type;        SEPARATOR="|") AS ?types)
 WHERE {
-  onto:OntoInterface cli:hasCommand ?command .
-
   {
-    ?command a cli:Command .
-    BIND("Command" AS ?type)
-  } UNION {
-    ?command a cli:SpecialCommand .
-    BIND("SpecialCommand" AS ?type)
-  }
-
-  ?command cli:name        ?name ;
-           cli:summary     ?summary ;
-           cli:description ?description .
-
-  {
-    SELECT ?command (STR(COUNT(?sub)) AS ?subCount)
+    SELECT ?command ?name ?summary ?description ?subCount ?type
     WHERE {
-      OPTIONAL { ?command cli:hasSubcommand ?sub . }
+      onto:OntoInterface cli:hasCommand ?command .
+
+      {
+        ?command a cli:Command .
+        BIND("Command" AS ?type)
+      } UNION {
+        ?command a cli:SpecialCommand .
+        BIND("SpecialCommand" AS ?type)
+      }
+
+      ?command cli:name        ?name ;
+               cli:summary     ?summary ;
+               cli:description ?description .
+
+      {
+        SELECT ?command (STR(COUNT(?sub)) AS ?subCount)
+        WHERE {
+          OPTIONAL { ?command cli:hasSubcommand ?sub . }
+        }
+        GROUP BY ?command
+      }
     }
-    GROUP BY ?command
+    ORDER BY ?name ?command
   }
 }
+ORDER BY ?names
