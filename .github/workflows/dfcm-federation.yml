@@ -1,0 +1,18 @@
+name: DfCM Federation
+
+on:
+  pull_request:
+    paths:
+      - 'ecosystem/capability-owner.toml'
+      - '.github/workflows/dfcm-federation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  dfcm-federation:
+    uses: seanchatmangpt/chatman-ecosystem/.github/workflows/federated-capability-owner.yml@a6f47cecc442e9bf8a6cd715e5394bc9a3356a1c
+    with:
+      control-plane-sha: a6f47cecc442e9bf8a6cd715e5394bc9a3356a1c
+      descriptor-path: ecosystem/capability-owner.toml
