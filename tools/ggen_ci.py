@@ -62,6 +62,7 @@ def render(manifest: dict[str, Any]) -> str:
     python = str(manifest["toolchain"]["python"])
     checkout = str(manifest["actions"]["checkout"])
     setup_python = str(manifest["actions"]["setup_python"])
+    upload_artifact = str(manifest["actions"]["upload_artifact"])
 
     admission_commands = [str(value) for value in manifest["admission"]["commands"]]
     if len(admission_commands) != 4:
@@ -119,7 +120,19 @@ jobs:
       - name: Verify repository constitution
         run: {admission_commands[1]}
       - name: Verify authored Rust formatting
+        id: rustfmt
+        shell: bash
         run: {admission_commands[2]}
+      - name: Upload rustfmt repair witness
+        if: failure() && steps.rustfmt.outcome == 'failure'
+        uses: actions/upload-artifact@{upload_artifact}
+        with:
+          name: rustfmt-repair-${{{{ github.sha }}}}
+          path: |
+            target/verifier/rustfmt.patch
+            target/verifier/rustfmt-status.txt
+          if-no-files-found: error
+          retention-days: 1
       - name: Verify locked dependency graph
         run: {admission_commands[3]}
 

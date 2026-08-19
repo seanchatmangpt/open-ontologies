@@ -39,7 +39,19 @@ jobs:
       - name: Verify repository constitution
         run: python3 tools/verify_ggen_standards.py
       - name: Verify authored Rust formatting
-        run: cargo fmt --all -- --check
+        id: rustfmt
+        shell: bash
+        run: bash tools/verify_rustfmt.sh
+      - name: Upload rustfmt repair witness
+        if: failure() && steps.rustfmt.outcome == 'failure'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: rustfmt-repair-${{ github.sha }}
+          path: |
+            target/verifier/rustfmt.patch
+            target/verifier/rustfmt-status.txt
+          if-no-files-found: error
+          retention-days: 1
       - name: Verify locked dependency graph
         run: cargo metadata --locked --format-version 1 --no-deps
 
