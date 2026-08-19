@@ -16,6 +16,7 @@ rustup toolchain install "$GGEN_TOOLCHAIN" --profile minimal --component rustfmt
 git clone --filter=blob:none --no-checkout https://github.com/seanchatmangpt/ggen.git "$TMP/ggen"
 git -C "$TMP/ggen" fetch --depth=1 origin "$GGEN_SHA"
 git -C "$TMP/ggen" checkout --detach "$GGEN_SHA"
+git -C "$TMP/ggen" rev-parse HEAD | grep -Fx "$GGEN_SHA"
 
 (
   cd "$TMP/ggen"
