@@ -13,6 +13,18 @@ on:
       - 'tools/dead-param-gate.sh'
       - '.github/workflows/ggen-standards.yml'
       - '.github/workflows/manufacture-portable-lock.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'AGENTS.md'
+      - '.chatmangpt/**'
+      - 'standards/**'
+      - 'tools/verify_ggen_standards.py'
+      - 'tools/dead-param-gate.sh'
+      - '.github/workflows/ggen-standards.yml'
+      - '.github/workflows/manufacture-portable-lock.yml'
   workflow_dispatch:
 
 permissions:
