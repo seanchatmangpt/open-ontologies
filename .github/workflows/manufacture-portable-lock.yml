@@ -1,0 +1,63 @@
+name: Manufacture portable Cargo.lock
+
+on:
+  push:
+    branches: [fix/portable-constitution-20260819]
+    paths:
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'AGENTS.md'
+      - '.chatmangpt/**'
+      - 'standards/**'
+      - 'tools/verify_ggen_standards.py'
+      - 'tools/dead-param-gate.sh'
+      - '.github/workflows/ggen-standards.yml'
+      - '.github/workflows/manufacture-portable-lock.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: manufacture-portable-lock-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: '0'
+  RUST_BACKTRACE: '1'
+  RUSTUP_TOOLCHAIN: nightly-2026-04-15
+
+jobs:
+  manufacture-lock:
+    name: manufacture and verify lock projection
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out exact candidate
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Install pinned Rust toolchain
+        shell: bash
+        run: |
+          rustup toolchain install nightly-2026-04-15 --profile minimal
+          rustup show active-toolchain | grep -F nightly-2026-04-15
+      - name: Admit constitutional contract before manufacture
+        run: python3 tools/verify_ggen_standards.py --contract-only
+      - name: Manufacture Cargo.lock from admitted manifest
+        shell: bash
+        run: |
+          rm -f Cargo.lock
+          cargo generate-lockfile
+      - name: Verify manufactured repository substrate
+        shell: bash
+        run: |
+          python3 tools/verify_ggen_standards.py
+          cargo metadata --locked --format-version 1 --no-deps > /tmp/cargo-metadata.json
+      - name: Upload manufactured lock projection
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: portable-cargo-lock
+          path: Cargo.lock
+          if-no-files-found: error
+          retention-days: 1
