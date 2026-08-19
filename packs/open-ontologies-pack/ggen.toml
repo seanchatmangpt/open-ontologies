@@ -5,14 +5,9 @@ description = "Self-hosted ggen pack for open-ontologies CLI generation"
 
 [ontology]
 source = "ontology.ttl"
-base_uri = "https://ggen.io/onto/cli/open-ontologies/"
-format = "turtle"
+base_iri = "https://ggen.io/onto/cli/open-ontologies/"
 
-[rdf]
-base_uri = "https://ggen.io/onto/cli/open-ontologies/"
-default_format = "turtle"
-
-[rdf.prefixes]
+[ontology.prefixes]
 cli = "https://ggen.io/onto/cli/spec/"
 onto = "https://ggen.io/onto/cli/open-ontologies/"
 rdf = "http://www.w3.org/1999/02/22-rdf-syntax-ns#"
@@ -21,9 +16,12 @@ owl = "http://www.w3.org/2002/07/owl#"
 xsd = "http://www.w3.org/2001/XMLSchema#"
 
 [generation]
-enabled = true
-rules = [
-  { name = "cli-cmds", query = { file = "queries/commands_aggregated.rq" }, template = { file = "templates/cmds.rs.tera" }, output_file = "generated/cmds.rs", mode = "Overwrite" },
-]
+output_dir = "."
 
-regenerate_paths = ["generated/cmds.rs"]
+[[generation.rules]]
+name = "cli-cmds"
+query = { file = "queries/commands_aggregated.rq" }
+template = { file = "templates/cmds.rs.tera" }
+output_file = "generated/cmds.rs"
+skip_empty = false
+mode = "Overwrite"
