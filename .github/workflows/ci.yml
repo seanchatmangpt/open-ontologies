@@ -35,7 +35,7 @@ jobs:
           rustup toolchain install 'nightly-2026-04-15' --profile minimal --component rustfmt
           rustup show active-toolchain | grep -F 'nightly-2026-04-15'
       - name: Verify generated CI replay
-        run: python3 tools/verify_ggen_ci.py --output target/verifier/ggen-ci-report.json
+        run: python3 tools/verify_ggen_ci.py --output target/verifier/ggen-ci-report.json && bash tools/verify_ggen_pack_runtime.sh
       - name: Verify repository constitution
         run: python3 tools/verify_ggen_standards.py
       - name: Verify authored Rust formatting

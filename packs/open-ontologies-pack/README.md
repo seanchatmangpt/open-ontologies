@@ -11,11 +11,18 @@ python3 tools/ggen_pack.py --write
 python3 tools/ggen_pack.py --check
 ```
 
-Generate from the pack directory with the repository-pinned ggen toolchain:
+Generate from the pack directory with ggen:
 
 ```sh
 cd packs/open-ontologies-pack
-ggen sync
+ggen sync run
+ggen receipt verify
 ```
 
-`generated/cmds.rs` is a pack-local projection and is not a hand-editing surface. A mismatch between root authorities and pack projections is `REFUSED:GGEN_PACK_DRIFT`.
+The executable repository verifier pins the ggen implementation SHA and its Rust toolchain, performs a dry run, two real sync runs, verifies both receipts, and refuses nondeterministic generated output:
+
+```sh
+bash tools/verify_ggen_pack_runtime.sh
+```
+
+`generated/cmds.rs` is a pack-local projection and is not a hand-editing surface. A mismatch between root authorities and pack projections is `REFUSED:GGEN_PACK_DRIFT`; divergent replay output is `REFUSED:GGEN_PACK_NONDETERMINISTIC`.
