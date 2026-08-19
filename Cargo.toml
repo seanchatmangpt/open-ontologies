@@ -4,7 +4,7 @@ version = "26.5.13"
 edition = "2024"
 description = "AI-native ontology engine — standalone MCP server"
 license = "MIT"
-repository = "https://github.com/fabio-rovai/open-ontologies"
+repository = "https://github.com/seanchatmangpt/open-ontologies"
 
 [[bin]]
 name = "open-ontologies"
@@ -48,10 +48,13 @@ bincode = { version = "1.3", optional = true }
 sha2 = "0.10"
 dirs = "6"
 shell-words = "1"
-wasm4pm-types = { path = "/Users/sac/wasm4pm/crates/wasm4pm-types", features = ["import"] }
-wasm4pm-algos = { path = "/Users/sac/wasm4pm/crates/wasm4pm-algos" }
-wasm4pm = { path = "/Users/sac/wasm4pm/wasm4pm", default-features = false, features = ["powl", "conformance_basic", "hand_rolled_stats", "streaming_basic", "discovery_advanced", "ml"] }
-wasm4pm-cognition = { path = "/Users/sac/wasm4pm/crates/wasm4pm-cognition", default-features = false }
+# `wasm4pm-types` is the source-level compatibility name. The public
+# `wasm4pm-compat` crate supplies the admitted formats surface in clean checkouts.
+wasm4pm-types = { version = "=26.6.29", package = "wasm4pm-compat", features = ["formats"] }
+# The remaining wasm4pm surfaces are pinned to one immutable public revision.
+# `ocel` is required for the AppState execution surface used by this source tree.
+wasm4pm = { git = "https://github.com/seanchatmangpt/wasm4pm", rev = "057d5ba24e10c70036fc4742ede55318c7fe6949", default-features = false, features = ["powl", "ocel", "conformance_basic", "hand_rolled_stats", "streaming_basic", "discovery_advanced", "ml"] }
+wasm4pm-cognition = { git = "https://github.com/seanchatmangpt/wasm4pm", rev = "057d5ba24e10c70036fc4742ede55318c7fe6949", package = "wasm4pm-cognition" }
 blake3 = "1"
 hex = "0.4"
 base64 = "0.22"
@@ -69,7 +72,8 @@ wait-timeout = "0.2"
 # R7 WB-2 — Per-tenant cost meter. Concurrent-friendly map of
 # `tenant_id` → `AtomicU64` token counter with daily UTC rollover.
 dashmap = "6"
-mcpp-core = { path = "/Users/sac/mcpp/crates/mcpp-core", optional = true }
+# `mcpp-core` remains an unsupported private integration at the portable
+# repository boundary; enabling the feature does not silently reach a workstation path.
 # T2-1 — A2A (Agent-to-Agent) protocol support (lightweight, no external deps)
 async-trait = "0.1"
 uuid = { version = "1.4", features = ["v4"] }
@@ -80,7 +84,7 @@ postgres = ["sqlx"]
 duckdb = ["dep:duckdb"]
 sql = ["postgres", "duckdb"]
 embeddings = ["tract-onnx", "tokenizers"]
-mcpp = ["dep:mcpp-core"]
+mcpp = []
 
 [lints.clippy]
 todo = "deny"
