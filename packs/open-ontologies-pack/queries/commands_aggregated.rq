@@ -1,0 +1,49 @@
+# =============================================================================
+# commands_aggregated.rq — All top-level commands in ONE aggregated row
+# =============================================================================
+#
+# Returns a SINGLE row with pipe-delimited aggregates so the Tera template
+# can render the complete file in one pass (ggen renders once per row).
+#
+# Variables:
+#   ?names         — pipe-delimited cli:name values  (e.g. "ontology|alignment|...")
+#   ?summaries     — pipe-delimited cli:summary values
+#   ?descriptions  — pipe-delimited cli:description values
+#   ?subCounts     — pipe-delimited subcommandCount values (as strings)
+#   ?types         — pipe-delimited "Command" or "SpecialCommand" per entry
+# =============================================================================
+
+PREFIX cli:  <https://ggen.io/onto/cli/spec/>
+PREFIX onto: <https://ggen.io/onto/cli/open-ontologies/>
+PREFIX rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+
+SELECT
+  (GROUP_CONCAT(?name;        SEPARATOR="|") AS ?names)
+  (GROUP_CONCAT(?summary;     SEPARATOR="|") AS ?summaries)
+  (GROUP_CONCAT(?description; SEPARATOR="|") AS ?descriptions)
+  (GROUP_CONCAT(?subCount;    SEPARATOR="|") AS ?subCounts)
+  (GROUP_CONCAT(?type;        SEPARATOR="|") AS ?types)
+WHERE {
+  onto:OntoInterface cli:hasCommand ?command .
+
+  {
+    ?command a cli:Command .
+    BIND("Command" AS ?type)
+  } UNION {
+    ?command a cli:SpecialCommand .
+    BIND("SpecialCommand" AS ?type)
+  }
+
+  ?command cli:name        ?name ;
+           cli:summary     ?summary ;
+           cli:description ?description .
+
+  {
+    SELECT ?command (STR(COUNT(?sub)) AS ?subCount)
+    WHERE {
+      OPTIONAL { ?command cli:hasSubcommand ?sub . }
+    }
+    GROUP BY ?command
+  }
+}
