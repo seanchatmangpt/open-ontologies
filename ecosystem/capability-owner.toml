@@ -1,0 +1,15 @@
+schema = "chatman.federated-capability-owner.v1"
+version = "26.9.1"
+repository = "seanchatmangpt/open-ontologies"
+owner_id = "repository:open-ontologies"
+control_plane_repository = "seanchatmangpt/chatman-ecosystem"
+control_plane_subject = "git:a6f47cecc442e9bf8a6cd715e5394bc9a3356a1c"
+base_sha = "19110557537ffdbc7590a4243c36b1e5bfc1e58e"
+allowed_authorities = ["observe", "classify", "persist_control_plane"]
+simulation_only = false
+ambient_do = false
+automatic_irreversible_do = false
+release_component = "open-ontologies"
+release_role = "public-ontology"
+release_dependencies = []
+do_mode = "none"
