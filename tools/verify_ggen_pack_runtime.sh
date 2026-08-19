@@ -20,7 +20,7 @@ git -C "$TMP/ggen" rev-parse HEAD | grep -Fx "$GGEN_SHA"
 
 (
   cd "$TMP/ggen"
-  cargo +"$GGEN_TOOLCHAIN" build --locked -p ggen-cli-lib --bin ggen
+  RUSTC_WRAPPER="" cargo +"$GGEN_TOOLCHAIN" build --locked -p ggen-cli-lib --bin ggen
 )
 
 GGEN_BIN="$TMP/ggen/target/debug/ggen"
