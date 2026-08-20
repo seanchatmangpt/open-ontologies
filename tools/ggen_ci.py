@@ -65,8 +65,8 @@ def render(manifest: dict[str, Any]) -> str:
     upload_artifact = str(manifest["actions"]["upload_artifact"])
 
     admission_commands = [str(value) for value in manifest["admission"]["commands"]]
-    if len(admission_commands) != 4:
-        raise ValueError("admission.commands must contain exactly four ordered gates")
+    if len(admission_commands) != 5:
+        raise ValueError("admission.commands must contain exactly five ordered gates")
     portable_os = [str(value) for value in manifest["portable"]["os"]]
     portable_commands = [str(value) for value in manifest["portable"]["commands"]]
     real_os = [str(value) for value in manifest["real_toolchain"]["os"]]
@@ -135,6 +135,8 @@ jobs:
           retention-days: 1
       - name: Verify locked dependency graph
         run: {admission_commands[3]}
+      - name: Verify ggen pack runtime
+        run: {admission_commands[4]}
 
   verification:
     name: unit integration e2e adversarial

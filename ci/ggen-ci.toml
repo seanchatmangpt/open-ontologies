@@ -16,10 +16,11 @@ upload_artifact = "ea165f8d65b6e75b540449e92b4886f43607fa02"
 
 [admission]
 commands = [
-  "python3 tools/verify_ggen_ci.py --output target/verifier/ggen-ci-report.json && bash tools/verify_ggen_pack_runtime.sh",
+  "python3 tools/verify_ggen_ci.py --output target/verifier/ggen-ci-report.json",
   "python3 tools/verify_ggen_standards.py",
   "bash tools/verify_rustfmt.sh",
   "cargo metadata --locked --format-version 1 --no-deps",
+  "bash tools/verify_ggen_pack_runtime.sh",
 ]
 
 [verification]
