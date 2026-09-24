@@ -44,3 +44,6 @@ ontology/cell8-*.ttl
 
 # DuckDB database files.
 *.duckdb
+# ggen receipt-signing private keys are per-checkout credentials: never commit them (security, 2026-09-24)
+.ggen/keys/signing.key
+**/.ggen/keys/signing.key
