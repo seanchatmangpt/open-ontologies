@@ -1,0 +1,35 @@
+schema_version = "1.0.0"
+namespace_version = "26.7.31"
+
+[namespace]
+origin = "https://chatmangpt.com"
+vocabulary = "https://chatmangpt.com/ns#"
+identifier_base = "https://chatmangpt.com/id/"
+registry_id = "https://chatmangpt.com/id/namespace/26.7.31"
+registry_repository = "seanchatmangpt/chatmangpt"
+
+[repository]
+id = "https://chatmangpt.com/id/repository/seanchatmangpt/open-ontologies"
+full_name = "seanchatmangpt/open-ontologies"
+source_url = "https://github.com/seanchatmangpt/open-ontologies"
+kind = "program"
+family = "knowledge"
+admission_basis = "metadata_only"
+standing = "UNKNOWN"
+
+[public_object]
+id = "https://chatmangpt.com/id/system/ontostar"
+canonical_path = "/systems/ontostar"
+canonical_url = "https://chatmangpt.com/systems/ontostar"
+source_repository = "https://chatmangpt.com/id/repository/seanchatmangpt/open-ontologies"
+publish = true
+admission = "ADMITTED"
+standing = "UNKNOWN"
+description = "Receipt-bound recursive ontology admission and process-evidence authority."
+
+[law]
+repository_is_identity = false
+metadata_implies_standing = false
+unknown_may_claim_alive = false
+receipt_required_for_actuation_claim = true
+external_actuation_broker = "BRCE"
