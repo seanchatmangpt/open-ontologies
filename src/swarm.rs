@@ -321,6 +321,9 @@ pub fn run_breeds(scenario: &BreedInput) -> Vec<(String, BreedOutput)> {
                     selected: None,
                     explanation: format!("{breed}: abstained (preconditions not met)"),
                     inference_trace: vec![],
+                    // Abstention: no OCEL log derived, no case retained.
+                    ocel_log: None,
+                    retained_cases: vec![],
                 };
                 out.push(((*breed).to_string(), abst));
             }
@@ -426,6 +429,9 @@ pub fn fuse_via_hearsay(
             selected: None,
             explanation: format!("{HEARSAY_BREED}: abstained"),
             inference_trace: vec![],
+            // Abstention: no OCEL log derived, no case retained.
+            ocel_log: None,
+            retained_cases: vec![],
         },
     };
     let node_reports: Vec<NodeReport> = reports

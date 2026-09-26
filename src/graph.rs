@@ -79,6 +79,47 @@ pub const GRAPH_STAT_TRIPLES: &str = "triples";
 /// assert_eq!(GRAPH_STAT_CLASSES, "classes");
 /// ```
 pub const GRAPH_STAT_CLASSES: &str = "classes";
+/// Optional HTTP authentication for remote SPARQL endpoints.
+///
+/// Enterprise triple stores gate their SPARQL Protocol endpoints behind auth:
+/// Stardog and Ontotext GraphDB accept HTTP Basic; token-secured deployments
+/// accept a Bearer token. Open stores (Apache Jena/Fuseki, Eclipse RDF4J,
+/// public Virtuoso) need none — leave this empty.
+#[derive(Default, Clone)]
+pub struct SparqlAuth {
+    /// HTTP Basic credentials as (username, password).
+    pub basic: Option<(String, String)>,
+    /// Bearer token (takes precedence over `basic` if both are set).
+    pub bearer: Option<String>,
+}
+
+impl SparqlAuth {
+    /// Build from optional username/password/token (e.g. tool inputs).
+    /// Returns a no-auth value when all are absent.
+    pub fn from_parts(
+        username: Option<String>,
+        password: Option<String>,
+        token: Option<String>,
+    ) -> Self {
+        let basic = match (username, password) {
+            (Some(u), Some(p)) => Some((u, p)),
+            (Some(u), None) => Some((u, String::new())),
+            _ => None,
+        };
+        SparqlAuth { basic, bearer: token }
+    }
+
+    /// Apply the configured auth to a request builder.
+    fn apply(&self, rb: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
+        if let Some(t) = &self.bearer {
+            rb.bearer_auth(t)
+        } else if let Some((u, p)) = &self.basic {
+            rb.basic_auth(u, Some(p))
+        } else {
+            rb
+        }
+    }
+}
 
 /// In-memory RDF graph store backed by Oxigraph.
 ///
@@ -554,6 +595,51 @@ impl GraphStore {
         Ok(after.saturating_sub(before))
     }
 
+    /// Canonicalise the store's blank nodes via RDFC 1.0 (W3C Recommendation,
+    /// 21 May 2024) using SHA-256, returning a NEW `GraphStore` whose blank
+    /// nodes have deterministic `_:c14n<n>` identifiers derived from the graph
+    /// structure.
+    ///
+    /// This is the principled successor to per-callsite "filter `_:` IRIs out
+    /// of the SPARQL result set" — for any operation that depends on stable
+    /// identity across reparses (drift detection, hashing, signature
+    /// comparison), canonicalisation preserves the semantic content of
+    /// anonymous restriction classes / quoted axioms instead of dropping them.
+    ///
+    /// **Warning:** per the W3C spec, canonical IDs are a function of the
+    /// whole graph. Mutating one quad can shift many bnode IDs, so this
+    /// is poorly suited to producing minimal-diff outputs over arbitrary
+    /// edits. For drift detection specifically, the existing rename-pairing
+    /// logic in `drift.rs::detect()` will re-match shifted IDs via the
+    /// label/domain/range/hierarchy/individual signal ensemble, so the
+    /// net result is more informative than the previous "filter and forget"
+    /// approach (PR #14, @rustforrecess) that dropped bnode content entirely.
+    pub fn canonicalize_blank_nodes(&self) -> anyhow::Result<GraphStore> {
+        use oxigraph::model::dataset::{CanonicalizationAlgorithm, CanonicalizationHashAlgorithm};
+        use oxigraph::model::Dataset;
+
+        let store = self.store.lock().unwrap();
+        let mut dataset = Dataset::new();
+        for quad in store.iter() {
+            let q = quad?;
+            dataset.insert(&q);
+        }
+        drop(store);
+
+        dataset.canonicalize(CanonicalizationAlgorithm::Rdfc10 {
+            hash_algorithm: CanonicalizationHashAlgorithm::Sha256,
+        });
+
+        let new_gs = GraphStore::new();
+        {
+            let new_store = new_gs.store.lock().unwrap();
+            for quad in dataset.iter() {
+                new_store.insert(quad)?;
+            }
+        }
+        Ok(new_gs)
+    }
+
     /// Serialize all triples in the store to a string in the given format.
     ///
     /// Supported format strings: `"turtle"` / `"ttl"`, `"ntriples"` / `"nt"`,
@@ -940,6 +1026,21 @@ impl GraphStore {
         graph_iri: Option<&str>,
         extra_headers: &[(&str, &str)],
     ) -> anyhow::Result<String> {
+        Self::push_sparql_graph_auth(endpoint, content, graph_iri, extra_headers, &SparqlAuth::default())
+            .await
+    }
+
+    /// [`GraphStore::push_sparql_graph`] plus optional HTTP authentication
+    /// (HTTP Basic or Bearer, see [`SparqlAuth`]) for enterprise triple
+    /// stores. Extra headers (e.g. the OntoStar receipt binding) are sent
+    /// unchanged; auth is applied last.
+    pub async fn push_sparql_graph_auth(
+        endpoint: &str,
+        content: &str,
+        graph_iri: Option<&str>,
+        extra_headers: &[(&str, &str)],
+        auth: &SparqlAuth,
+    ) -> anyhow::Result<String> {
         let body = match graph_iri {
             None => format!("INSERT DATA {{ {} }}", content),
             Some(iri) => {
@@ -966,7 +1067,7 @@ impl GraphStore {
         for (name, value) in extra_headers {
             req = req.header(*name, *value);
         }
-        let resp = req.body(body).send().await?;
+        let resp = auth.apply(req.body(body)).send().await?;
         if !resp.status().is_success() {
             anyhow::bail!("SPARQL update returned HTTP {}", resp.status());
         }

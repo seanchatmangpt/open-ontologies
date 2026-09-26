@@ -132,6 +132,13 @@ impl DriftDetector {
     /// assert_eq!(parsed["removed"].as_array().unwrap().len(), 1);
     /// assert_eq!(parsed["added"].as_array().unwrap().len(), 1);
     /// ```
+    /// Each snapshot is canonicalised via RDFC 1.0 (W3C Recommendation, 21 May 2024,
+    /// SHA-256) before vocabulary extraction. The earlier per-callsite "filter `_:`
+    /// IRIs out of SPARQL results" (PR #14, @rustforrecess) protected the rename
+    /// detector from spurious bnode noise on reparse — canonicalisation preserves the
+    /// same protection (identical graphs reparse to identical canonical IDs) while
+    /// keeping anonymous restriction classes / quoted axioms visible in the diff
+    /// instead of dropping them entirely.
     pub fn detect(&self, v1_turtle: &str, v2_turtle: &str) -> anyhow::Result<String> {
         let raw1 = GraphStore::new();
         let raw2 = GraphStore::new();
@@ -194,6 +201,20 @@ impl DriftDetector {
         });
 
         Ok(result.to_string())
+    }
+
+    /// Detect drift and convert to a KGCL change report (high-level semantic format).
+    /// `rename_threshold` controls when a likely_rename becomes an obsoletion-with-replacement
+    /// (default 0.7 is a reasonable starting point).
+    pub fn detect_kgcl(
+        &self,
+        v1_turtle: &str,
+        v2_turtle: &str,
+        rename_threshold: f64,
+    ) -> anyhow::Result<crate::kgcl::KgclReport> {
+        let json_str = self.detect(v1_turtle, v2_turtle)?;
+        let json: serde_json::Value = serde_json::from_str(&json_str)?;
+        Ok(crate::kgcl::drift_to_kgcl(&json, rename_threshold))
     }
 
     /// Record feedback for a rename prediction to improve future confidence scores.

@@ -111,6 +111,8 @@ fn saboteur_canned_breed_outputs_dont_satisfy_consensus_diversity() {
             selected: Some("centralized-revenue-engine".into()),
             explanation: "canned: rubber-stamp".into(),
             inference_trace: vec![],
+            ocel_log: None,
+            retained_cases: vec![],
         }
     };
     let reports = vec![

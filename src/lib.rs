@@ -1,3 +1,13 @@
+// v26.9.26 portable boundary: `mcpp-core` is a private workstation crate with
+// no public source, so the `mcpp` feature cannot be satisfied from a clean
+// checkout. Refuse it loudly at compile time (typed UNSUPPORTED) instead of
+// failing on an unresolved crate or reaching a `/Users/...` path dependency.
+#[cfg(feature = "mcpp")]
+compile_error!(
+    "UNSUPPORTED(mcpp): feature `mcpp` requires the private `mcpp-core` crate, which has no \
+     portable source; build without `--features mcpp`"
+);
+
 pub mod a2a;
 pub mod admission;
 pub mod attestation;
@@ -15,9 +25,7 @@ pub mod workflows;
 pub use defects::{DefectClass, Deviation};
 pub mod align;
 pub mod align_fuzzy;
-pub mod batch;
 pub mod borderline_loop;
-pub mod cache;
 /// Compiled claim verification (Tardygrada Layer 3 hot path).
 pub mod claimcheck;
 pub mod civex;
@@ -29,6 +37,16 @@ pub mod coevolve;
 pub mod config;
 pub mod cq;
 pub mod drift;
+// Restored v26.9.26: the upstream merge f146c229 kept these source files but
+// dropped their declarations (upstream fabio-rovai/main@58837bd declares them).
+pub mod dynamics;
+pub mod dynamics_bcplus;
+pub mod eval_alignment;
+pub mod eval_rag;
+pub mod extract_scaffold;
+pub mod flora_pipeline;
+pub mod policy;
+pub mod shape_combinatorics;
 pub mod enforce;
 pub mod feedback;
 pub mod graph;
@@ -43,6 +61,8 @@ pub mod powl_bridge;
 // Extracted from `server.rs::onto_executive_projection` so the algorithm
 // is testable without crossing the Groq HTTP boundary.
 pub mod projection_check;
+// Graph-projection loss audit (#35), upstream `projection_check`.
+pub mod projection_loss;
 pub mod webhook;
 pub mod mapping;
 pub mod marketplace;
@@ -65,7 +85,6 @@ pub mod state;
 // Phase 11 — multi-tenant session isolation.
 pub mod tenant;
 pub mod schema;
-pub mod socket;
 pub mod sqlsource;
 pub mod tableaux;
 pub mod toolfilter;
@@ -77,43 +96,21 @@ pub mod vecstore;
 pub mod embed;
 #[cfg(feature = "embeddings")]
 pub mod embed_remote;
-pub mod enforce;
-pub mod feedback;
-pub mod graph;
 #[cfg(feature = "embeddings")]
 pub mod hnsw_index;
-pub mod ingest;
-pub mod inputs;
 pub mod kgcl;
 pub mod language;
-pub mod lineage;
-pub mod mapping;
-pub mod marketplace;
-pub mod monitor;
-pub mod ontology;
-pub mod plan;
 pub mod plan_classical;
 pub mod plan_pddl;
 pub mod plan_validate;
-#[cfg(feature = "embeddings")]
-pub mod poincare;
-pub mod reason;
-pub mod registry;
-pub mod repo;
-pub mod runtime;
-pub mod schema;
 pub mod segment_retrieve;
-pub mod server;
-pub mod shacl;
 #[cfg(unix)]
 pub mod socket;
 #[cfg(windows)]
 #[path = "socket_windows.rs"]
 pub mod socket;
 pub mod sql_sync;
-pub mod sqlsource;
 pub mod vocab_check;
-pub mod state;
 #[cfg(feature = "embeddings")]
 pub mod structembed;
 

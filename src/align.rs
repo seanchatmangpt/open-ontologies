@@ -372,6 +372,13 @@ impl AlignmentEngine {
     #[cfg(feature = "embeddings")]
     const DEFAULT_WEIGHTS: [f64; 7] = [0.20, 0.15, 0.12, 0.12, 0.12, 0.09, 0.20];
 
+    /// Minimum embedding cosine for a pair to bypass the label-similarity
+    /// pre-filter. This is the gate that admits cross-lingual matches
+    /// (e.g. `Dog`↔`Chien`), which share no surface tokens and so score ~0 on
+    /// label similarity but high on a multilingual embedding model.
+    #[cfg(feature = "embeddings")]
+    const CROSS_LINGUAL_EMBED_MIN: f64 = 0.80;
+
     /// Returns the default signal weights as a slice.
     ///
     /// Without the `embeddings` feature there are 6 structural signals; with it
@@ -746,7 +753,7 @@ impl AlignmentEngine {
         if !dry_run {
             for candidate in &mut candidates {
                 let conf = candidate[FIELD_CONFIDENCE].as_f64().unwrap_or(0.0);
-                if conf >= min_confidence {
+                if conf >= high_threshold {
                     let source_iri = candidate[FIELD_SOURCE_IRI].as_str().unwrap();
                     let target_iri = candidate[FIELD_TARGET_IRI].as_str().unwrap();
                     let relation = candidate["relation"].as_str().unwrap();
