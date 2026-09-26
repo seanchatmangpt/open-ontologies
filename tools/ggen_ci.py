@@ -62,10 +62,11 @@ def render(manifest: dict[str, Any]) -> str:
     python = str(manifest["toolchain"]["python"])
     checkout = str(manifest["actions"]["checkout"])
     setup_python = str(manifest["actions"]["setup_python"])
+    upload_artifact = str(manifest["actions"]["upload_artifact"])
 
     admission_commands = [str(value) for value in manifest["admission"]["commands"]]
-    if len(admission_commands) != 4:
-        raise ValueError("admission.commands must contain exactly four ordered gates")
+    if len(admission_commands) != 5:
+        raise ValueError("admission.commands must contain exactly five ordered gates")
     portable_os = [str(value) for value in manifest["portable"]["os"]]
     portable_commands = [str(value) for value in manifest["portable"]["commands"]]
     real_os = [str(value) for value in manifest["real_toolchain"]["os"]]
@@ -98,6 +99,7 @@ env:
   CARGO_TERM_COLOR: always
   CARGO_INCREMENTAL: 0
   RUST_BACKTRACE: 1
+  RUSTUP_TOOLCHAIN: {rust}
 
 jobs:
   admission:
@@ -108,17 +110,33 @@ jobs:
       - uses: actions/setup-python@{setup_python}
         with:
           python-version: '{python}'
-      - name: Verify pinned toolchain
+      - name: Install and verify pinned toolchain
         shell: bash
-        run: rustup show active-toolchain | grep -F '{rust}'
+        run: |
+          rustup toolchain install '{rust}' --profile minimal --component rustfmt
+          rustup show active-toolchain | grep -F '{rust}'
       - name: Verify generated CI replay
         run: {admission_commands[0]}
       - name: Verify repository constitution
         run: {admission_commands[1]}
       - name: Verify authored Rust formatting
+        id: rustfmt
+        shell: bash
         run: {admission_commands[2]}
+      - name: Upload rustfmt repair witness
+        if: failure() && steps.rustfmt.outcome == 'failure'
+        uses: actions/upload-artifact@{upload_artifact}
+        with:
+          name: rustfmt-repair-${{{{ github.sha }}}}
+          path: |
+            target/verifier/rustfmt.patch
+            target/verifier/rustfmt-status.txt
+          if-no-files-found: error
+          retention-days: 1
       - name: Verify locked dependency graph
         run: {admission_commands[3]}
+      - name: Verify ggen pack runtime
+        run: {admission_commands[4]}
 
   verification:
     name: unit integration e2e adversarial

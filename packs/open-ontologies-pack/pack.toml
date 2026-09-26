@@ -1,0 +1,4 @@
+[pack]
+name = "open-ontologies-pack"
+version = "0.1.11"
+description = "Self-hosted ggen pack for the open-ontologies CLI surface. Pack ontology/query/template files are deterministic projections of the repository's canonical ontology and .specify manufacturing sources; tools/ggen_pack.py enforces byte-identical replay."
