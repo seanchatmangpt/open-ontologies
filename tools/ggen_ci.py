@@ -98,6 +98,7 @@ env:
   CARGO_TERM_COLOR: always
   CARGO_INCREMENTAL: 0
   RUST_BACKTRACE: 1
+  RUSTUP_TOOLCHAIN: {rust}
 
 jobs:
   admission:
@@ -108,9 +109,11 @@ jobs:
       - uses: actions/setup-python@{setup_python}
         with:
           python-version: '{python}'
-      - name: Verify pinned toolchain
+      - name: Install and verify pinned toolchain
         shell: bash
-        run: rustup show active-toolchain | grep -F '{rust}'
+        run: |
+          rustup toolchain install '{rust}' --profile minimal --component rustfmt
+          rustup show active-toolchain | grep -F '{rust}'
       - name: Verify generated CI replay
         run: {admission_commands[0]}
       - name: Verify repository constitution
