@@ -132,7 +132,7 @@ fn bench_admission_components(c: &mut Criterion) {
         let replay = PowlBridgeReplay::new(&store);
         group.bench_function("powl_bridge_replay_full", |b| {
             b.iter(|| {
-                let res = replay.replay(black_box(&token), black_box(powl));
+                let res = replay.replay(black_box(&token), black_box(powl), "default");
                 black_box(res);
             })
         });
@@ -162,6 +162,7 @@ fn bench_admission_components(c: &mut Criterion) {
                     &session,
                     powl,
                     &observed,
+                    "default",
                 );
                 black_box(res.ok());
             })
@@ -191,6 +192,7 @@ fn bench_admission_components(c: &mut Criterion) {
                     &session,
                     powl,
                     &observed,
+                    "default",
                 );
                 black_box(res.ok());
             })

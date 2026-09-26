@@ -8,24 +8,42 @@
 
 mod cmds;
 
-fn main() -> anyhow::Result<()> {
-    // The root async future is polled on the calling thread. Windows gives
-    // the main thread 1 MiB of stack (vs 8 MiB on Linux/macOS), which
-    // overflows in debug builds, so run on a thread with an explicit 8 MiB.
-    std::thread::Builder::new()
-        .stack_size(8 * 1024 * 1024)
-        .spawn(async_main)?
+/// Stack size for the thread that hosts the async runtime. Windows gives the
+/// main thread 1 MiB of stack (vs 8 MiB on Linux/macOS), which overflows in
+/// debug builds, so the CLI runs on a thread with an explicit 8 MiB.
+const CLI_STACK_BYTES: usize = 8 * 1024 * 1024;
+
+// Merge note (v26.9.26): upstream f146c229^2 introduced the stack-size thread
+// around an `async_main`; the fork kept `#[tokio::main] async fn main`, and the
+// merge left both (duplicate `main`, missing `async_main`). This keeps the
+// fork's clap-noun-verb dispatch inside a Tokio runtime (same semantics as
+// `#[tokio::main]`) and hosts it on the upstream 8 MiB thread.
+fn main() {
+    let code = std::thread::Builder::new()
+        .name("open-ontologies-cli".into())
+        .stack_size(CLI_STACK_BYTES)
+        .spawn(run_cli)
+        .expect("failed to spawn CLI thread")
         .join()
-        .expect("main thread panicked")
+        .expect("CLI thread panicked");
+    std::process::exit(code)
 }
 
-#[tokio::main]
-async fn main() {
-    match clap_noun_verb::run() {
-        Ok(()) => std::process::exit(0),
+fn run_cli() -> i32 {
+    let runtime = match tokio::runtime::Builder::new_multi_thread().enable_all().build() {
+        Ok(rt) => rt,
         Err(e) => {
-            eprintln!("ERROR: {}", e);
-            std::process::exit(1);
+            eprintln!("ERROR: failed to start async runtime: {}", e);
+            return 1;
         }
-    }
+    };
+    runtime.block_on(async {
+        match clap_noun_verb::run() {
+            Ok(()) => 0,
+            Err(e) => {
+                eprintln!("ERROR: {}", e);
+                1
+            }
+        }
+    })
 }

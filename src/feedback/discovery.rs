@@ -6,25 +6,29 @@
 //! insert a `discovered_workflows` row with status=pending. Manual approval
 //! flips status via `onto_workflow_feedback`.
 //!
-//! Adapter note: the plan calls for `wasm4pm::powl::discovery::choice_graph::discover_choice_graph`
-//! (POWL 2.0). That function requires a pre-computed DFG + activity sets, and
-//! its return value (`Option<(Vec<HashSet<String>>, HashSet<(usize, usize)>)>`)
-//! is not a directly-replayable model. To satisfy the spirit of the plan
-//! ("no local PM math") we delegate the whole pipeline to wasm4pm-algos:
-//!   1. `discover_dfg` → directly-follows graph from the OCEL traces
-//!   2. `discover_alpha` → Petri net (replayable model)
-//!   3. `check_conformance_alignment` → fitness against the same log
+//! Engine binding (v26.9.26): the former `wasm4pm-algos` crate no longer exists
+//! at any public revision (absent at wasm4pm@057d5ba2, on wasm4pm main and on
+//! crates.io), so discovery is bound to the public `wasm4pm` engine surface:
+//!   1. `wasm4pm::algorithms::discover_alpha_plus_plus_from_log` → Petri net
+//!      (replayable model; Alpha++ also handles length-1/2 loops)
+//!   2. `wasm4pm::conformance::token_replay_pure` → fitness against the same log
 //!
-//! This keeps every PM call inside wasm4pm; the choice_graph entry point can
-//! be substituted later when Stream 2's PowlBridge exposes a wrapper that
-//! converts choice_graph output to a model the conformance checker accepts.
+//! Every process-mining computation stays inside wasm4pm; this module only
+//! projects OCEL rows into a `wasm4pm::models::EventLog` and records the verdict.
 
 use crate::ocel_store::OcelStore;
 use anyhow::Result;
 use chrono::Utc;
-use std::collections::HashMap;
-use wasm4pm_algos::conformance::check_conformance_alignment;
-use wasm4pm_types::{Attribute, AttributeValue, Event, EventLog, Trace};
+use std::collections::{BTreeMap, HashMap};
+use wasm4pm::models::{AttributeValue, Event, EventLog, PetriNet, Trace};
+use wasm4pm_types::admission::Admission;
+
+/// Activity attribute key used for both discovery and replay.
+pub const ACTIVITY_KEY: &str = "concept:name";
+
+/// Alpha++ minimum support; 0.0 keeps every observed directly-follows relation
+/// (the log is already scoped to admitted traces of one domain).
+pub const ALPHA_PP_MIN_SUPPORT: f64 = 0.0;
 
 /// Minimum number of admitted scopes per domain before discovery runs.
 ///
@@ -127,18 +131,11 @@ pub fn discover_for_domain(
         return Ok(None);
     }
 
-    // 4. wasm4pm discovery — alpha gives us a replayable Petri net.
-    let petri = match wasm4pm_algos::alpha::discover_alpha(&log, "concept:name") {
-        Ok(p) => p,
+    // 4+5. wasm4pm discovery + conformance on the same log.
+    let (petri, discovered_fitness) = match mine_fitness(&log) {
+        Ok(v) => v,
         Err(_) => return Ok(None),
     };
-
-    // 5. wasm4pm conformance — fitness of the discovered model on its own log.
-    let conf = match check_conformance_alignment(&log, &petri, "concept:name") {
-        Ok(c) => c,
-        Err(_) => return Ok(None),
-    };
-    let discovered_fitness = conf.fitness;
 
     // 6. Read declared fitness — average of recent conformance_runs for this class.
     let declared_fitness: f64 = conn
@@ -211,27 +208,61 @@ pub fn record_feedback(store: &OcelStore, id: &str, accepted: bool) -> Result<St
     Ok(status.to_string())
 }
 
-fn build_event_log(traces_by_key: &HashMap<String, Vec<String>>) -> EventLog {
+/// Discover a Petri net from `log` with wasm4pm Alpha++ and replay the same
+/// log on it with wasm4pm token replay. Returns the model and its average
+/// fitness in `[0, 1]`. An empty log is refused with an error rather than
+/// reported as a vacuous fitness.
+///
+/// # Example
+///
+/// ```
+/// use std::collections::HashMap;
+/// use open_ontologies::feedback::discovery::{build_event_log, mine_fitness};
+///
+/// let mut traces = HashMap::new();
+/// traces.insert("c1".to_string(), vec!["a".to_string(), "b".to_string()]);
+/// traces.insert("c2".to_string(), vec!["a".to_string(), "b".to_string()]);
+/// let (net, fitness) = mine_fitness(&build_event_log(&traces)).unwrap();
+/// assert!(!net.transitions.is_empty());
+/// assert!((0.0..=1.0).contains(&fitness));
+/// ```
+pub fn mine_fitness(log: &EventLog) -> Result<(PetriNet, f64)> {
+    if log.traces.is_empty() {
+        anyhow::bail!("REFUSED(EMPTY_LOG): discovery requires at least one trace");
+    }
+    let admitted = Admission::<_, ()>::new(log.clone()).into_evidence();
+    let petri = wasm4pm::algorithms::discover_alpha_plus_plus_from_log(
+        &admitted,
+        ACTIVITY_KEY,
+        ALPHA_PP_MIN_SUPPORT,
+    )
+    .map_err(|e| anyhow::anyhow!("wasm4pm alpha++ discovery failed: {e}"))?;
+    let conf = wasm4pm::conformance::token_replay_pure(log, &petri, ACTIVITY_KEY);
+    let fitness = conf.avg_fitness;
+    if !fitness.is_finite() {
+        anyhow::bail!("wasm4pm token replay returned non-finite fitness");
+    }
+    Ok((petri, fitness))
+}
+
+/// Project per-case activity sequences into a wasm4pm `EventLog`. Traces are
+/// emitted in case-id order so the projection is deterministic.
+pub fn build_event_log(traces_by_key: &HashMap<String, Vec<String>>) -> EventLog {
+    let ordered: BTreeMap<&String, &Vec<String>> = traces_by_key.iter().collect();
     let mut log = EventLog::default();
-    for (case_id, activities) in traces_by_key {
-        let trace = Trace {
-            attributes: vec![Attribute {
-                key: "concept:name".into(),
-                value: AttributeValue::String(case_id.clone()),
-                own_attributes: None,
-            }],
-            events: activities
-                .iter()
-                .map(|act| Event {
-                    attributes: vec![Attribute {
-                        key: "concept:name".into(),
-                        value: AttributeValue::String(act.clone()),
-                        own_attributes: None,
-                    }],
-                })
-                .collect(),
-        };
-        log.traces.push(trace);
+    for (case_id, activities) in ordered {
+        let mut attributes = BTreeMap::new();
+        attributes.insert(ACTIVITY_KEY.to_string(), AttributeValue::String(case_id.clone()));
+        let events = activities
+            .iter()
+            .map(|act| {
+                let mut ev = Event::new();
+                ev.attributes
+                    .insert(ACTIVITY_KEY.to_string(), AttributeValue::String(act.clone()));
+                ev
+            })
+            .collect();
+        log.traces.push(Trace { attributes, events });
     }
     log
 }

@@ -1791,7 +1791,12 @@ impl OpenOntologiesServer {
 
     #[tool(name = "onto_pull", description = "Fetch an ontology from a remote URL or SPARQL endpoint and load it into the store")]
     async fn onto_pull(&self, Parameters(input): Parameters<OntoPullInput>) -> String {
-        use crate::graph::GraphStore;
+        use crate::graph::{GraphStore, SparqlAuth};
+        let auth = SparqlAuth::from_parts(
+            input.username.clone(),
+            input.password.clone(),
+            input.token.clone(),
+        );
 
         if input.url.trim().is_empty() {
             return r#"{"ok":false,"error":"'url' is required — provide an HTTP URL to a .ttl/.rdf file or a SPARQL CONSTRUCT endpoint.","hint":"Example: onto_pull with url='https://example.org/ontology.ttl' or url='http://localhost:7878/query' with sparql=true and a CONSTRUCT query."}"#.to_string();
@@ -1870,7 +1875,20 @@ impl OpenOntologiesServer {
                     ("X-Ostar-Production-Law", prod_law.as_str()),
                     ("X-Ostar-Scope-Token", scope_tok.as_str()),
                 ];
-                match GraphStore::push_sparql_graph(&input.endpoint, &content, None, &extra).await {
+                let auth = crate::graph::SparqlAuth::from_parts(
+                    input.username.clone(),
+                    input.password.clone(),
+                    input.token.clone(),
+                );
+                match GraphStore::push_sparql_graph_auth(
+                    &input.endpoint,
+                    &content,
+                    input.graph.as_deref(),
+                    &extra,
+                    &auth,
+                )
+                .await
+                {
                     Ok(msg) => serde_json::json!({
                         "ok": true,
                         "message": msg,
@@ -2776,7 +2794,7 @@ impl OpenOntologiesServer {
 
     #[tool(name = "graph_projection_lossy_check", description = "Audit a projected Turtle slice against the loaded ontology's full neighbourhood of the seed IRIs. Reports dropped predicates, dropped object IRIs, per-seed coverage ratio, and aggregate coverage. Pair with onto_segment_retrieve when the slice is being passed to a downstream LLM — knowing what was left behind lets the caller decide whether the slice is sufficient. Per IJCAI 2025 'How to Mitigate Information Loss in KGs for GraphRAG'.")]
     async fn graph_projection_lossy_check(&self, Parameters(input): Parameters<GraphProjectionLossyCheckInput>) -> String {
-        match crate::projection_check::check_projection_loss(&self.graph, &input.source_iris, &input.projected_ttl) {
+        match crate::projection_loss::check_projection_loss(&self.graph, &input.source_iris, &input.projected_ttl) {
             Ok(report) => serde_json::to_string(&report)
                 .unwrap_or_else(|e| format!(r#"{{"error":"serialization: {}"}}"#, e)),
             Err(e) => format!(r#"{{"error":"{}"}}"#, e),
@@ -4248,7 +4266,7 @@ impl OpenOntologiesServer {
                         &ts,
                         &self.session_id,
                         &[
-                            ("threshold", &min_conf.to_string()),
+                            ("threshold", &high.to_string()),
                             ("candidate_count", &candidate_count.to_string()),
                             ("auto_applied_count", &auto_applied.to_string()),
                         ],
@@ -4256,7 +4274,7 @@ impl OpenOntologiesServer {
                         None,
                     );
 
-                    self.lineage().record(&self.session_id, "AL", "align", &format!("threshold={}", min_conf));
+                    self.lineage().record(&self.session_id, "AL", "align", &format!("threshold={}", high));
                 }
                 if let Some(r) = &receipt {
                     let mut parsed: serde_json::Value =

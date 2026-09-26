@@ -86,6 +86,11 @@ pub const DEFAULT_WEBHOOK_TIMEOUT_SECS_VALUE: u64 = 10;
 
 const DEFAULT_TABLEAUX_MAX_DEPTH: usize = DEFAULT_TABLEAUX_MAX_DEPTH_VALUE;
 const DEFAULT_TABLEAUX_MAX_NODES: usize = DEFAULT_TABLEAUX_MAX_NODES_VALUE;
+/// 10s per satisfiability test. Generous for well-behaved ontologies, and the
+/// difference between a reported Unknown and an unbounded hang for the rest.
+const DEFAULT_TABLEAUX_TEST_TIMEOUT_MS: usize = 10_000;
+/// 180s for a whole classification, matching the ORE competition timeout.
+const DEFAULT_CLASSIFY_TIMEOUT_MS: usize = 180_000;
 const DEFAULT_REASONER_MAX_ITER: usize = DEFAULT_REASONER_MAX_ITER_VALUE;
 const DEFAULT_CACHE_HASH_PREFIX: usize = DEFAULT_CACHE_HASH_PREFIX_VALUE;
 const DEFAULT_FB_SUPPRESS: i64 = 3;
@@ -234,6 +239,46 @@ pub fn tableaux_max_depth() -> usize { TABLEAUX_MAX_DEPTH.load(Ordering::Relaxed
 /// ```
 pub fn tableaux_max_nodes() -> usize { TABLEAUX_MAX_NODES.load(Ordering::Relaxed) }
 
+/// Wall-clock cut-off for a single tableau satisfiability test, in
+/// milliseconds. `None` (value 0) means no time limit.
+///
+/// This exists because the node and depth budgets do not bound the number of
+/// BRANCHES explored. A tableau can stay small and shallow while backtracking
+/// through exponentially many disjunction and merge choices, which is exactly
+/// how nominal-bearing ontologies hang the reasoner. A clock is the only
+/// budget that catches that.
+pub fn tableaux_test_timeout_ms() -> Option<u64> {
+    match TABLEAUX_TEST_TIMEOUT_MS.load(Ordering::Relaxed) {
+        0 => None,
+        ms => Some(ms as u64),
+    }
+}
+
+/// Override the per-test timeout. Used by the CLI `--reason-timeout-ms` flag
+/// and by tests.
+pub fn set_tableaux_test_timeout_ms(ms: usize) {
+    TABLEAUX_TEST_TIMEOUT_MS.store(ms, Ordering::Relaxed);
+}
+
+/// Wall-clock cut-off for an ENTIRE classification run, in milliseconds.
+/// `None` (value 0) means no limit.
+///
+/// Distinct from the per-test timeout, which bounds one satisfiability check.
+/// Classification performs one check per class plus one per ordered pair, so
+/// the per-test budget multiplied by the pair count is the real worst case and
+/// it is enormous. This is the budget that actually bounds the run.
+///
+/// Default matches the ORE competition convention of 180s.
+pub fn classify_timeout_ms() -> Option<u64> {
+    match CLASSIFY_TIMEOUT_MS.load(Ordering::Relaxed) {
+        0 => None,
+        ms => Some(ms as u64),
+    }
+}
+
+pub fn set_classify_timeout_ms(ms: usize) {
+    CLASSIFY_TIMEOUT_MS.store(ms, Ordering::Relaxed);
+}
 /// Returns the maximum number of fixpoint iterations the reasoner performs.
 ///
 /// Before [`init_from_config`] is called the value equals the compiled-in

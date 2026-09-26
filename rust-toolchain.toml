@@ -1,0 +1,9 @@
+[toolchain]
+# Pinned to the same nightly as wasm4pm@057d5ba2 (its rust-toolchain.toml).
+# The portable dependency `wasm4pm-compat =26.6.29` (package of `wasm4pm-types`)
+# uses unconditional `#![feature(generic_const_exprs)]` etc., so a stable
+# toolchain fails with E0554 on a clean checkout. Update this date only together
+# with the wasm4pm rev pin in Cargo.toml, and re-run the portable-build court.
+channel = "nightly-2026-04-15"
+components = ["rustfmt", "clippy"]
+profile = "minimal"
